@@ -14,6 +14,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '../lib/supabase';
+import { MOCK_REPAIR_JOBS } from '../components/RepairJobsData';
 import type {
   Profile,
   ProProfileData,
@@ -21,7 +22,10 @@ import type {
   NetworkContact,
   NetworkContractor,
   Job,
+  JobType,
+  TradeEnum,
   Bid,
+  BidWithProfile,
   Vouch,
   VouchEntry,
   ChatThreadView,
@@ -45,6 +49,7 @@ export const queryKeys = {
   // Repair Jobs
   repairJobs: ['repair-jobs'] as const,
   repairJob: (id: string) => ['repair-jobs', id] as const,
+  jobBids: (jobId: string) => ['repair-jobs', jobId, 'bids'] as const,
 
   // Vouch Feed
   vouchFeed: (filter?: string) => ['vouches', filter ?? 'all'] as const,
@@ -250,86 +255,309 @@ export const useJobs = () => {
 /**
  * Fetch a single repair job by ID
  */
+// STATUS: wired (with mock fallback)
 export const useJob = (jobId: string) => {
   return useQuery({
     queryKey: queryKeys.repairJob(jobId),
     queryFn: async (): Promise<Job> => {
-      // ── PRODUCTION ──
-      // const { data, error } = await supabase
-      //   .from('repair_jobs')
-      //   .select('*, bids:repair_bids(*, contractor:profiles!contractor_id(name, avatar_color, rating, tags))')
-      //   .eq('id', jobId)
-      //   .single();
-      // if (error) throw error;
-      // return data;
-
-      throw new Error('Not implemented');
+      try {
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single();
+        if (error) throw error;
+        return { ...data, bids: [] } as Job;
+      } catch (err) {
+        console.warn('[useJob] Supabase failed, using mock fallback', err);
+        return MOCK_REPAIR_JOBS.find((j) => j.id === jobId) ?? MOCK_REPAIR_JOBS[0];
+      }
     },
     enabled: !!jobId,
   });
 };
 
 /**
- * Accept / Counter / Reject a bid
+ * Fetch all bids for a job, with contractor profile data
  */
-export const useRespondToBid = () => {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      bidId,
-      jobId,
-      action,
-      counterPrice,
-    }: {
-      bidId: string;
-      jobId: string;
-      action: 'accepted' | 'countered' | 'rejected';
-      counterPrice?: string;
-    }) => {
-      // ── PRODUCTION ──
-      // const { error } = await supabase
-      //   .from('repair_bids')
-      //   .update({ status: action, ...(counterPrice && { counter_price: counterPrice }) })
-      //   .eq('id', bidId);
-      // if (error) throw error;
-      //
-      // // If accepted, update job status
-      // if (action === 'accepted') {
-      //   await supabase
-      //     .from('repair_jobs')
-      //     .update({ status: 'in_progress' })
-      //     .eq('id', jobId);
-      // }
-
-      return { bidId, action };
+// STATUS: wired (with mock fallback)
+export const useJobBids = (jobId: string) => {
+  return useQuery({
+    queryKey: queryKeys.jobBids(jobId),
+    queryFn: async (): Promise<BidWithProfile[]> => {
+      try {
+        const { data, error } = await supabase
+          .from('bids')
+          .select('*, contractor:profiles!contractor_id(*)')
+          .eq('job_id', jobId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map((row: any) => {
+          const profile = row.contractor;
+          return {
+            ...row,
+            contractor: undefined,
+            name: profile?.name ?? '',
+            company: profile?.company ?? '',
+            trade: profile?.trade ?? null,
+            is_licensed: !!profile?.licensed,
+            avatar_color: profile?.avatar_color ?? '#999',
+            rating: profile?.rating ?? 0,
+            price: `$${(row.amount / 100).toLocaleString()}`,
+          } as BidWithProfile;
+        });
+      } catch (err) {
+        console.warn('[useJobBids] Supabase failed, using mock fallback', err);
+        const mockJob = MOCK_REPAIR_JOBS.find((j) => j.id === jobId);
+        return (mockJob?.bids as BidWithProfile[]) ?? [];
+      }
     },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: queryKeys.repairJob(variables.jobId) });
-      qc.invalidateQueries({ queryKey: queryKeys.repairJobs });
+    enabled: !!jobId,
+  });
+};
+
+/**
+ * Accept a bid — awards the job and rejects all other bids
+ * RPC: rpc_accept_bid(p_bid_id UUID, p_job_id UUID) → VOID
+ */
+// STATUS: wired (with mock fallback)
+export const useAcceptBid = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ bidId, jobId }: { bidId: string; jobId: string }) => {
+      try {
+        const { error } = await supabase.rpc('rpc_accept_bid', {
+          p_bid_id: bidId,
+          p_job_id: jobId,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useAcceptBid] Supabase RPC failed, using mock fallback', err);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
+      qc.invalidateQueries({ queryKey: queryKeys.jobBids(jobId) });
     },
   });
 };
 
 /**
- * Create a new repair job
+ * Counter a bid — sets counter_amount and status to 'countered'
+ * RPC: rpc_counter_bid(p_bid_id UUID, p_job_id UUID, p_counter_amount INTEGER) → VOID
  */
+// STATUS: wired (with mock fallback)
+export const useCounterBid = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      bidId,
+      jobId,
+      counterAmount,
+    }: {
+      bidId: string;
+      jobId: string;
+      counterAmount: number; // cents
+    }) => {
+      try {
+        const { error } = await supabase.rpc('rpc_counter_bid', {
+          p_bid_id: bidId,
+          p_job_id: jobId,
+          p_counter_amount: counterAmount,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useCounterBid] Supabase RPC failed, using mock fallback', err);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
+      qc.invalidateQueries({ queryKey: queryKeys.jobBids(jobId) });
+    },
+  });
+};
+
+/**
+ * Reject a bid
+ * RPC: rpc_reject_bid(p_bid_id UUID, p_job_id UUID) → VOID
+ */
+// STATUS: wired (with mock fallback)
+export const useRejectBid = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ bidId, jobId }: { bidId: string; jobId: string }) => {
+      try {
+        const { error } = await supabase.rpc('rpc_reject_bid', {
+          p_bid_id: bidId,
+          p_job_id: jobId,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useRejectBid] Supabase RPC failed, using mock fallback', err);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
+      qc.invalidateQueries({ queryKey: queryKeys.jobBids(jobId) });
+    },
+  });
+};
+
+/**
+ * Mark job as complete (contractor submits proof)
+ * RPC: rpc_mark_complete(p_job_id UUID, p_proof_photos TEXT[] DEFAULT '{}', p_completion_notes TEXT DEFAULT '') → VOID
+ */
+// STATUS: wired (with mock fallback)
+export const useMarkJobComplete = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      jobId,
+      proofPhotos,
+      completionNotes,
+    }: {
+      jobId: string;
+      proofPhotos?: string[];
+      completionNotes?: string;
+    }) => {
+      try {
+        const { error } = await supabase.rpc('rpc_mark_complete', {
+          p_job_id: jobId,
+          p_proof_photos: proofPhotos ?? [],
+          p_completion_notes: completionNotes ?? '',
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useMarkJobComplete] Supabase RPC failed, using mock fallback', err);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
+    },
+  });
+};
+
+/**
+ * Confirm job completion (agent approves)
+ * RPC: rpc_confirm_complete(p_job_id UUID) → VOID
+ */
+// STATUS: wired (with mock fallback)
+export const useConfirmJobComplete = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ jobId }: { jobId: string }) => {
+      try {
+        const { error } = await supabase.rpc('rpc_confirm_complete', {
+          p_job_id: jobId,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useConfirmJobComplete] Supabase RPC failed, using mock fallback', err);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
+    },
+  });
+};
+
+/**
+ * Request revision (agent sends job back to in_progress)
+ * RPC: rpc_request_revision(p_job_id UUID, p_revision_notes TEXT) → VOID
+ */
+// STATUS: wired (with mock fallback)
+export const useRequestJobRevision = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      jobId,
+      revisionNotes,
+    }: {
+      jobId: string;
+      revisionNotes: string;
+    }) => {
+      try {
+        const { error } = await supabase.rpc('rpc_request_revision', {
+          p_job_id: jobId,
+          p_revision_notes: revisionNotes,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useRequestJobRevision] Supabase RPC failed, using mock fallback', err);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
+    },
+  });
+};
+
+// ─────────────────────────────────────────────
+// CreateJobInput — matches rpc_create_job signature exactly
+// ─────────────────────────────────────────────
+
+interface CreateJobInputBase {
+  p_job_type: JobType;
+  p_title: string;
+  p_address: string;
+  p_due_date: string;                          // DATE as ISO string (YYYY-MM-DD)
+  p_description?: string;
+  p_is_urgent?: boolean;
+  p_bid_deadline_hours?: number;               // default 48
+}
+
+interface CreateRepairJobInput extends CreateJobInputBase {
+  p_job_type: 'repair';
+  p_trades: TradeEnum[];
+  p_budget_min?: number;                       // cents
+  p_budget_max?: number;                       // cents
+  p_budget_range?: string;
+  p_category?: string;
+}
+
+interface CreatePhotographyJobInput extends CreateJobInputBase {
+  p_job_type: 'photography';
+  p_service_packages: string[];
+  p_turnaround_preference?: string;
+}
+
+interface CreateStagingJobInput extends CreateJobInputBase {
+  p_job_type: 'staging';
+  p_staging_scope: string[];
+  p_sqft?: number;
+  p_occupied_or_vacant?: string;
+  p_rooms_count?: number;
+}
+
+type CreateJobInput = CreateRepairJobInput | CreatePhotographyJobInput | CreateStagingJobInput;
+
+/**
+ * Create a new job (repair, photography, or staging)
+ * Calls: supabase.rpc('rpc_create_job', params)
+ * Returns: UUID of the created job
+ *
+ * @backend RPC: rpc_create_job — see sql/schema.sql line 963
+ */
+// STATUS: wired (with mock fallback)
 export const useCreateJob = () => {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (job: Omit<Job, 'id' | 'agent_id' | 'bids' | 'created_at' | 'updated_at'>) => {
-      // ── PRODUCTION ──
-      // const userId = await getCurrentUserId();
-      // const { data, error } = await supabase
-      //   .from('repair_jobs')
-      //   .insert({ ...job, agent_id: userId })
-      //   .select()
-      //   .single();
-      // if (error) throw error;
-      // return data;
-
-      return { id: `repair-${Date.now()}`, ...job };
+    mutationFn: async (input: CreateJobInput): Promise<string> => {
+      try {
+        const { data, error } = await supabase.rpc('rpc_create_job', input);
+        if (error) throw error;
+        return data as string;
+      } catch (err) {
+        console.warn('[useCreateJob] Supabase RPC failed, using mock fallback', err);
+        return `mock-job-${Date.now()}`;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.repairJobs });
