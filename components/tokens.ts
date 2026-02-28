@@ -1,0 +1,296 @@
+// tokens.ts
+// ═══════════════════════════════════════════════════════════════
+// Atlasio Design Tokens — Single Source of Truth
+// All screens import from here. Never hardcode colors/sizes.
+// Exports: COLORS, TYPOGRAPHY, SPACING, DIMENSIONS, SHADOWS,
+//          BORDERS, ANIMATIONS, ICONS
+// Last audited: Feb 26, 2026 — Session 21 design system pass
+// ═══════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────
+// COLORS
+// ─────────────────────────────────────────────
+
+export const COLORS = {
+  // ── Brand ──
+  primary: '#003DC3',
+  accentBlue: '#155DFC',
+
+  // ── Backgrounds ──
+  background: '#FFFFFF',
+  screenBg: '#F7F7FC',
+  filterBg: '#F9FAFB',       // filter panels, search bg, input bg
+  tagBg: '#F4F7FF',          // tag pills, trade pills, bid amount cards
+  statBg: '#F2F6FE',         // lightning stat row on pro cards
+  chipBg: '#F3F4F6',         // inactive filter chips, tag chips
+  infoBg: '#EFF6FF',         // info banners, category badges
+  infoBorder: '#DBEAFE',     // border for info banners
+  sortBg: '#F2F2F7',         // sort dropdown pill
+  quoteBg: '#F5F5F5',        // vouch quote backgrounds
+
+  // ── Text Hierarchy ──
+  darkText: '#1C1C1E',       // primary headings, names, modal titles
+  headingText: '#101828',     // screen titles, card headings
+  bodyText: '#4A5565',        // body copy, descriptions, filter labels
+  statText: '#364153',        // stat values, bid quotes, label text
+  secondaryText: '#666666',   // subtitles, company names, metadata
+  tertiaryText: '#757575',    // lighter secondary (FindTab, NetworkTab)
+  sortText: '#333333',        // sort pill text, bold body variant
+  tagText: '#707070',         // tag pill text
+  lightText: '#99A1AF',       // placeholders, timestamps, disabled text
+  mutedText: '#6A7282',       // icon gray, muted labels
+  placeholderText: 'rgba(10, 10, 10, 0.5)' as const,
+
+  // ── Borders ──
+  border: '#E5E7EB',          // headers, dividers, section borders — NEVER #000000
+  cardBorder: '#F3F4F6',      // card outlines (lighter than border)
+  inputBorder: '#D1D5DC',     // search inputs, text inputs, form fields
+
+  // ── Status & Feedback ──
+  starColor: '#FFB900',       // star rating icons (Find, Network)
+  starText: '#D08700',        // star text on bid cards
+  errorRed: '#E7000B',        // reject buttons, delete, cancel actions
+  rejectRed: '#E7000B',       // alias — reject/decline borders, icons, text
+  notificationRed: '#FB2C36', // badge dots, alert states
+  successGreen: '#16A34A',    // awarded badge, success states
+  addedGreen: '#219653',      // "Added to Squad" confirmation
+  onlineGreen: '#00C950',     // online status dot, accept icons
+  counterAmber: '#D97706',    // counter offer button, pending states
+  bidOrange: '#FF6900',       // bid notification icons
+  mentionPurple: '#AD46FF',   // mention notification icons
+
+  // ── Urgent ──
+  urgentBg: '#FFE2E2',
+  urgentText: '#C10007',
+
+  // ── Counter/Warning ──
+  warningBg: '#FFFBEB',
+  warningText: '#92400E',
+
+  // ── Fee/Success (contractor-side) ──
+  feeBg: '#F0FDF4',
+  feeText: '#15803D',
+
+  // ── Overlays ──
+  overlayDark: 'rgba(0, 0, 0, 0.5)' as const,   // modal backdrops (bid actions)
+  overlayLight: 'rgba(0, 0, 0, 0.3)' as const,   // sort/menu backdrops
+  overlayPhoto: 'rgba(0, 0, 0, 0.6)' as const,   // photo delete overlay
+  iconTintBg: 'rgba(0, 61, 195, 0.10)' as const,  // tinted icon backgrounds
+
+  // ── Chat Bubbles ──
+  sentBubble: '#003DC3',
+  sentText: '#FFFFFF',
+  receivedBubble: '#FFFFFF',
+  receivedText: '#1C1C1E',
+  timestampText: '#99A1AF',
+  timestampMine: 'rgba(255, 255, 255, 0.70)' as const,
+
+  // ── Home Quick Action Cards ──
+  cardBlue: '#EFF6FF',
+  cardBlueBorder: '#BEDBFF',
+  cardBlueIcon: '#155DFC',
+  cardGreen: '#F0FDF4',
+  cardGreenBorder: '#B9F8CF',
+  cardGreenIcon: '#00A63E',
+  cardOrange: '#FFF7ED',
+  cardOrangeBorder: '#FFD6A7',
+  cardPurple: '#FAF5FF',
+  cardPurpleBorder: '#E9D4FF',
+  cardPurpleIcon: '#9810FA',
+
+  // ── Misc ──
+  squadCircle: '#D9D9FF',
+  selectedBg: '#EFF5FF',       // selected chips, active filter bg
+  disabledBg: '#E5E7EB',
+  disabledText: '#99A1AF',
+  systemBg: '#E5E7EB',        // system message bubbles in chat
+
+  // ── Brand-Tinted (use primary at low opacity, NEVER black/gray) ──
+  brandTintBorder: 'rgba(0, 61, 195, 0.15)' as const,  // filled squad avatar borders
+  brandTintBg: 'rgba(0, 61, 195, 0.10)' as const,       // icon tint backgrounds
+  brandTintLight: 'rgba(0, 61, 195, 0.05)' as const,    // subtle hover/selected states
+} as const;
+
+// ─────────────────────────────────────────────
+// TYPOGRAPHY
+// ─────────────────────────────────────────────
+
+export const TYPOGRAPHY = {
+  // ── Display — prices, hero numbers ──
+  displayL:    { fontSize: 30, fontWeight: '700' as const, lineHeight: 36, letterSpacing: 0.4 },
+  displayM:    { fontSize: 24, fontWeight: '700' as const, lineHeight: 32, letterSpacing: 0.07 },
+
+  // ── Headings ──
+  headingL:    { fontSize: 18, fontWeight: '600' as const, lineHeight: 28 },
+  headingM:    { fontSize: 16, fontWeight: '600' as const, lineHeight: 24 },
+
+  // ── Body ──
+  bodyL:       { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
+  bodyLMedium: { fontSize: 16, fontWeight: '500' as const, lineHeight: 24 },
+  bodyM:       { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
+  bodyMBold:   { fontSize: 14, fontWeight: '500' as const, lineHeight: 20 },
+  bodyS:       { fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
+
+  // ── Caption ──
+  caption:     { fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
+
+  // ── Micro — badge counts, avatar initials (no lineHeight needed) ──
+  micro:       { fontSize: 11, fontWeight: '600' as const },
+
+  // ── Section Headers (spread + add textTransform/letterSpacing) ──
+  sectionA: {
+    fontSize: 15, fontWeight: '500' as const, lineHeight: 22,
+    textTransform: 'uppercase' as const, letterSpacing: 0.14,
+  },
+  sectionB: {
+    fontSize: 13, fontWeight: '600' as const, lineHeight: 18,
+    textTransform: 'uppercase' as const, letterSpacing: 0.5,
+  },
+  sectionC: {
+    fontSize: 12, fontWeight: '400' as const, lineHeight: 16,
+    textTransform: 'uppercase' as const, letterSpacing: 0.3,
+  },
+} as const;
+
+// ─────────────────────────────────────────────
+// SPACING
+// ─────────────────────────────────────────────
+
+export const SPACING = {
+  xs: 2,
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  '2xl': 20,
+  '3xl': 24,
+  '4xl': 32,
+  '5xl': 48,
+} as const;
+
+// ─────────────────────────────────────────────
+// COMPONENT DIMENSIONS
+// ─────────────────────────────────────────────
+
+export const DIMENSIONS = {
+  // Headers
+  headerHeight: 48,
+  headerBorderWidth: 0.68,
+  headerBookendWidth: 80,      // left/right bookend containers for centered titles
+
+  // Buttons — use these for all interactive elements
+  buttonPrimaryHeight: 48,     // primary CTAs (modals, forms, sheets)
+  buttonCardHeight: 36,        // card-level CTAs (Message, Connect, Invite)
+  buttonRadius: 8,             // standard button corner radius
+  buttonPillRadius: 9999,      // pill-shaped buttons (sort, filter)
+
+  // Form Inputs (matches FormField component)
+  formInputHeight: 50,         // single-line text inputs
+  formInputRadius: 14,         // input corner radius
+  formInputBorderWidth: 1.35,  // input border width
+  formMultilineMinHeight: 146, // multiline minimum height
+  searchHeight: 48,            // search bar height (SearchField)
+  chatInputHeight: 45,         // chat input bar
+
+  // Cards
+  cardRadius: 14,
+  bidCardRadius: 16,
+  cardBorderWidth: 0.68,
+  proCardWidth: 325,           // horizontal scroll pro cards
+
+  // Avatars
+  avatarHero: 120,
+  avatarProfile: 100,
+  avatarProCard: 56,
+  avatarBidCard: 52,
+  avatarSquad: 48,
+  avatarChatBubble: 40,
+  avatarChatHeader: 32,
+  avatarCompact: 28,
+  avatarMini: 24,
+
+  // Modals
+  modalRadiusLarge: 24,        // bid action modals, bottom sheets
+  modalRadiusSmall: 14,        // sort/menu dropdowns
+  modalMaxWidthLarge: 360,     // bid action modals
+  modalMaxWidthSmall: 280,     // sort/menu dropdowns
+
+  // Pills & Tags
+  pillRadius: 9999,            // fully round pills (role filters, sort, chips)
+  tagRadius: 10,               // tag pills on pro cards
+  chipPaddingH: 16,            // SelectableChip horizontal padding
+  chipPaddingV: 9,             // SelectableChip vertical padding
+  tagPaddingH: 8,              // display tag horizontal padding
+  tagPaddingV: 5,              // display tag vertical padding
+
+  // Misc
+  inputRadius: 10,
+} as const;
+
+// ─────────────────────────────────────────────
+// SHADOWS
+// ─────────────────────────────────────────────
+
+export const SHADOWS = {
+  card: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  modal: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.1,
+    shadowRadius: 25,
+    elevation: 10,
+  },
+} as const;
+
+// ─────────────────────────────────────────────
+// BORDER PRESETS
+// Combine these with COLORS for consistent borders
+// ─────────────────────────────────────────────
+
+export const BORDERS = {
+  // Card borders (light, subtle)
+  card: { borderWidth: 0.68, borderColor: '#F3F4F6' },
+  // Header/divider borders
+  header: { borderBottomWidth: 0.68, borderBottomColor: '#E5E7EB' },
+  // Form input borders
+  input: { borderWidth: 1.35, borderColor: '#D1D5DC' },
+  // Input error state
+  inputError: { borderWidth: 1.35, borderColor: '#FB2C36' },
+  // Inactive pill/chip borders
+  pill: { borderWidth: 0.68, borderColor: '#E5E7EB' },
+  // Brand-tinted borders (squad avatars, filled states)
+  brandTint: { borderWidth: 2, borderColor: 'rgba(0, 61, 195, 0.15)' },
+} as const;
+
+// ─────────────────────────────────────────────
+// ANIMATION PRESETS
+// ─────────────────────────────────────────────
+
+export const ANIMATIONS = {
+  // Bottom sheet spring (SquadSlotPicker, Add Another Role, Connection Requests)
+  sheetSpring: { damping: 24, stiffness: 220, useNativeDriver: true },
+  // Backdrop fade
+  backdropFade: { duration: 300, useNativeDriver: true },
+  // Filter panel
+  filterLayout: 'easeInEaseOut' as const,
+  // Sequential modal delay (ms)
+  modalQueueDelay: 100,
+} as const;
+
+// ─────────────────────────────────────────────
+// ICON SIZES
+// ─────────────────────────────────────────────
+
+export const ICONS = {
+  nav: { size: 20, strokeWidth: 1.67 },
+  action: { size: 24, strokeWidth: 2.0 },
+  inline: { size: 14, strokeWidth: 1.17 },
+  small: { size: 16, strokeWidth: 1.33 },
+  tabBar: { size: 28, strokeWidth: 2.33 },
+} as const;
