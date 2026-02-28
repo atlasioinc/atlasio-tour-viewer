@@ -25,7 +25,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Rect } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import type { HomeStackParamList } from './HomeStack';
-import type { RepairJob } from './RepairJobDetails';
+import type { Job, BidWithProfile } from '../types';
 import { COLORS } from '../lib/tokens';
 
 // ─────────────────────────────────────────────
@@ -166,15 +166,15 @@ const EditRepairJob: React.FC = () => {
 
   // ── Form State (pre-populated from job) ──
   const [jobTitle, setJobTitle] = useState(job.title);
-  const [selectedTrades, setSelectedTrades] = useState<Set<string>>(new Set([job.category]));
-  const [dueDate, setDueDate] = useState(job.dueDate.replace('Due ', ''));
-  const [budgetMin, setBudgetMin] = useState(job.budgetRange.split(' - ')[0]?.replace('$', '').replace(',', '') || '');
-  const [budgetMax, setBudgetMax] = useState(job.budgetRange.split(' - ')[1]?.replace('$', '').replace(',', '') || '');
+  const [selectedTrades, setSelectedTrades] = useState<Set<string>>(new Set(job.category ? [job.category] : []));
+  const [dueDate, setDueDate] = useState(job.due_date.replace('Due ', ''));
+  const [budgetMin, setBudgetMin] = useState(job.budget_range?.split(' - ')[0]?.replace('$', '').replace(',', '') || '');
+  const [budgetMax, setBudgetMax] = useState(job.budget_range?.split(' - ')[1]?.replace('$', '').replace(',', '') || '');
   const [description, setDescription] = useState(job.description);
   const [photos, setPhotos] = useState<string[]>(['placeholder-1', 'placeholder-2', 'placeholder-3']);
 
   // Check if due date is urgent (within 7 days — demo: always show from job data)
-  const isUrgent = job.isUrgent;
+  const isUrgent = job.is_urgent;
 
   // Toggle trade selection
   const toggleTrade = (trade: string) => {
@@ -194,14 +194,14 @@ const EditRepairJob: React.FC = () => {
 
   // Handle save — build updated job and navigate back with it
   const handleSave = () => {
-    const updatedJob: RepairJob = {
+    const updatedJob: Job & { bids: BidWithProfile[] } = {
       ...job,
       title: jobTitle,
       category: Array.from(selectedTrades)[0] || job.category,
-      dueDate: dueDate ? `Due ${dueDate}` : job.dueDate,
-      budgetRange: budgetMin && budgetMax
+      due_date: dueDate ? `Due ${dueDate}` : job.due_date,
+      budget_range: budgetMin && budgetMax
         ? `$${Number(budgetMin).toLocaleString()} - $${Number(budgetMax).toLocaleString()}`
-        : job.budgetRange,
+        : job.budget_range,
       description: description || job.description,
     };
 

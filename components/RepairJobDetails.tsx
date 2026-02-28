@@ -28,36 +28,10 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
 import type { HomeStackParamList } from './HomeStack';
+import type { Job, BidWithProfile, BidStatus, JobStatus } from '../types';
 import InviteContractorsModal from './InviteContractorsModal';
 import InfoBanner from './InfoBanner';
 import { COLORS } from '../lib/tokens';
-
-// ─────────────────────────────────────────────
-// EXPORTED TYPES
-// ─────────────────────────────────────────────
-
-export interface RepairBid {
-  id: string;
-  name: string;
-  company: string;
-  trade: string;
-  isLicensed: boolean;
-  hasUnreadMessages?: boolean;
-  avatarColor: string;
-  rating: number;
-  responseTime: string;
-  price: string;
-  message: string;
-  tags: string[];
-  status?: BidStatus;
-}
-
-// Bid status enum — maps 1:1 to bid_status_enum in Supabase
-type BidStatus = 'pending' | 'edited' | 'withdrawn' | 'accepted' | 'rejected' | 'countered' | 'expired';
-
-// Job-level status — drives the timeline and lifecycle tracking
-// Maps 1:1 to job status enum in Supabase schema
-export type JobStatus = 'draft' | 'open' | 'awarded' | 'in_progress' | 'pending_confirmation' | 'under_review' | 'completed' | 'cancelled' | 'expired';
 
 // Which bid action modal is currently visible
 type BidActionModal = 'accept' | 'counter' | 'reject' | null;
@@ -80,23 +54,8 @@ const calculateFee = (amountCents: number): number => {
   return Math.max(Math.round(amountCents * 0.03), 1500);
 };
 
-export interface RepairJob {
-  id: string;
-  title: string;
-  category: string;
-  dueDate: string;
-  isUrgent: boolean;
-  budgetRange: string;
-  address: string;
-  description: string;
-  photoPlaceholder?: string;
-  bids: RepairBid[];
-  // ── New fields for lifecycle tracking ──
-  jobStatus?: JobStatus;               // drives timeline visibility + step states
-  awardedContractorName?: string;       // filled when a bid is accepted
-  awardedAmount?: string;               // filled when a bid is accepted
-  awardedDate?: string;                 // date bid was accepted
-}
+// Job with profile-enriched bids (for UI display)
+type JobWithBidProfiles = Job & { bids: BidWithProfile[] };
 
 type RepairJobDetailsRouteProp = RouteProp<HomeStackParamList, 'RepairJobDetails'>;
 
@@ -357,7 +316,7 @@ const TradePill: React.FC<{ trade: string; isLicensed: boolean }> = ({ trade, is
 // ─────────────────────────────────────────────
 
 const BidCard: React.FC<{
-  bid: RepairBid;
+  bid: BidWithProfile;
   onAccept: () => void;
   onCounter: () => void;
   onReject: () => void;
@@ -378,7 +337,7 @@ const BidCard: React.FC<{
   >
     {/* Header: Avatar + Name/Company/Rating + Message Icon */}
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <AvatarPlaceholder name={bid.name} color={bid.avatarColor} size={52} />
+      <AvatarPlaceholder name={bid.name} color={bid.avatar_color} size={52} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.headingText, lineHeight: 24 }}>
           {bid.name}
@@ -392,7 +351,7 @@ const BidCard: React.FC<{
           </Text>
           <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>•</Text>
           <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-            {bid.responseTime}
+            {bid.response_time}
           </Text>
         </View>
       </View>
@@ -409,7 +368,7 @@ const BidCard: React.FC<{
         })}
       >
         <MessageIcon />
-        {bid.hasUnreadMessages && (
+        {bid.has_unread_messages && (
           <View
             style={{
               position: 'absolute',
@@ -439,7 +398,7 @@ const BidCard: React.FC<{
 
     {/* Tags: Trade pill + regular tags */}
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-      <TradePill trade={bid.trade} isLicensed={bid.isLicensed} />
+      <TradePill trade={bid.trade ?? ''} isLicensed={bid.is_licensed} />
       {bid.tags.map((tag) => (
         <View key={tag} style={{ paddingHorizontal: 9, paddingVertical: 4, backgroundColor: COLORS.chipBg, borderRadius: 9999 }}>
           <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.statText, lineHeight: 16 }}>{tag}</Text>
@@ -549,7 +508,7 @@ const RepairJobDetails: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<RepairJobDetailsRouteProp>();
 
-  const [job, setJob] = useState<RepairJob>(route.params.job);
+  const [job, setJob] = useState<JobWithBidProfiles>(route.params.job);
   const [selectedSort, setSelectedSort] = useState('Recommended');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
@@ -563,7 +522,8 @@ const RepairJobDetails: React.FC = () => {
     return unsubscribe;
   }, [navigation, route.params?.job]);
 
-  const sortedBids = [...job.bids].sort((a, b) => {
+  const bids = job.bids as BidWithProfile[];
+  const sortedBids = [...bids].sort((a, b) => {
     switch (selectedSort) {
       case 'Lowest Price':
         return (
@@ -573,28 +533,23 @@ const RepairJobDetails: React.FC = () => {
       case 'Highest Rated':
         return b.rating - a.rating;
       case 'Fastest Response':
-        return a.responseTime.localeCompare(b.responseTime);
+        return (a.response_time ?? '').localeCompare(b.response_time ?? '');
       default:
         return 0;
     }
   });
 
-  // ── Derive job-level status from bid states (backward-compatible) ──
-  // If jobStatus is explicitly set, use it. Otherwise infer from bids.
-  const hasAcceptedBid = job.bids.some((b) => b.status === 'accepted');
-  const effectiveJobStatus: JobStatus = job.jobStatus
-    ? job.jobStatus
-    : hasAcceptedBid
-    ? 'in_progress'
-    : 'open';
+  // ── Derive job-level status from bid states ──
+  const hasAcceptedBid = bids.some((b) => b.status === 'accepted');
+  const effectiveJobStatus: JobStatus = job.status || (hasAcceptedBid ? 'in_progress' : 'open');
   const isJobAwarded = effectiveJobStatus !== 'draft' && effectiveJobStatus !== 'open';
-  const acceptedBid = job.bids.find((b) => b.status === 'accepted');
+  const acceptedBid = bids.find((b) => b.status === 'accepted');
 
   // ── Build timeline steps based on effective job status ──
   const getTimelineSteps = (): TimelineStep[] => {
     const awarded = isJobAwarded;
-    const contractorLabel = acceptedBid?.name || job.awardedContractorName || 'Contractor';
-    const amountLabel = acceptedBid?.price || job.awardedAmount || '';
+    const contractorLabel = acceptedBid?.name || 'Contractor';
+    const amountLabel = acceptedBid?.price || '';
 
     const steps: TimelineStep[] = [
       {
@@ -611,48 +566,36 @@ const RepairJobDetails: React.FC = () => {
             ? 'active'
             : effectiveJobStatus === 'awarded'
             ? 'active'
-            : effectiveJobStatus === 'pending_confirmation' ||
-              effectiveJobStatus === 'under_review' ||
+            : effectiveJobStatus === 'pending_completion' ||
               effectiveJobStatus === 'completed'
             ? 'completed'
             : 'pending',
         sublabel:
           effectiveJobStatus === 'in_progress' || effectiveJobStatus === 'awarded'
-            ? `Due ${job.dueDate}`
+            ? `Due ${job.due_date}`
             : undefined,
       },
       {
         label: 'Completion Submitted',
         status:
-          effectiveJobStatus === 'pending_confirmation'
-            ? 'completed'
-            : effectiveJobStatus === 'under_review'
-            ? 'completed'
-            : effectiveJobStatus === 'completed'
+          effectiveJobStatus === 'pending_completion' ||
+          effectiveJobStatus === 'completed'
             ? 'completed'
             : 'pending',
-        sublabel:
-          effectiveJobStatus === 'under_review'
-            ? 'Revision requested'
-            : undefined,
-        sublabelColor:
-          effectiveJobStatus === 'under_review'
-            ? COLORS.warningText
-            : undefined,
       },
       {
         label: 'Confirmed & Closed',
         status:
           effectiveJobStatus === 'completed'
             ? 'completed'
-            : effectiveJobStatus === 'pending_confirmation'
+            : effectiveJobStatus === 'pending_completion'
             ? 'active'
             : 'pending',
         sublabel:
-          effectiveJobStatus === 'pending_confirmation'
+          effectiveJobStatus === 'pending_completion'
             ? 'Tap to review & confirm'
             : undefined,
-        isTappable: effectiveJobStatus === 'pending_confirmation',
+        isTappable: effectiveJobStatus === 'pending_completion',
       },
     ];
 
@@ -661,7 +604,7 @@ const RepairJobDetails: React.FC = () => {
 
   // Handle tapping the active timeline step → navigate to JobCompletionScreen
   const handleTimelineStepTap = (stepIndex: number) => {
-    if (effectiveJobStatus === 'pending_confirmation' && stepIndex === 3) {
+    if (effectiveJobStatus === 'pending_completion' && stepIndex === 3) {
       navigation.navigate('JobCompletion', {
         jobId: job.id,
         userRole: 'agent',
@@ -672,9 +615,7 @@ const RepairJobDetails: React.FC = () => {
   // ── DEV: Simulate job status progression ──
   const JOB_STATUS_SEQUENCE: JobStatus[] = [
     'in_progress',
-    'pending_confirmation',
-    'under_review',
-    'pending_confirmation',
+    'pending_completion',
     'completed',
   ];
 
@@ -682,7 +623,7 @@ const RepairJobDetails: React.FC = () => {
     const currentIndex = JOB_STATUS_SEQUENCE.indexOf(effectiveJobStatus);
     const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % JOB_STATUS_SEQUENCE.length : 0;
     const nextStatus = JOB_STATUS_SEQUENCE[nextIndex];
-    setJob((prev) => ({ ...prev, jobStatus: nextStatus }));
+    setJob((prev) => ({ ...prev, status: nextStatus }));
   };
 
   // ── DEV: Open contractor view directly ──
@@ -694,11 +635,11 @@ const RepairJobDetails: React.FC = () => {
   };
 
   // Navigate to RepairChatScreen (job thread) for a specific bidder
-  const handleOpenRepairChat = (bid: RepairBid) => {
+  const handleOpenRepairChat = (bid: BidWithProfile) => {
     navigation.navigate('RepairChatScreen', {
       bidId: bid.id,
       bidderName: bid.name,
-      bidderAvatarColor: bid.avatarColor,
+      bidderAvatarColor: bid.avatar_color,
       jobId: job.id,
       jobTitle: job.title,
     });
@@ -708,13 +649,13 @@ const RepairJobDetails: React.FC = () => {
   // BID ACTION STATE
   // ─────────────────────────────────────────────
   const [activeBidAction, setActiveBidAction] = useState<BidActionModal>(null);
-  const [selectedBid, setSelectedBid] = useState<RepairBid | null>(null);
+  const [selectedBid, setSelectedBid] = useState<BidWithProfile | null>(null);
   const [counterAmount, setCounterAmount] = useState<string>('');
   const [counterError, setCounterError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const counterInputRef = useRef<TextInput>(null);
 
-  const openBidAction = (action: BidActionModal, bid: RepairBid) => {
+  const openBidAction = (action: BidActionModal, bid: BidWithProfile) => {
     setSelectedBid(bid);
     setActiveBidAction(action);
     setCounterAmount('');
@@ -753,17 +694,16 @@ const RepairJobDetails: React.FC = () => {
         feeCents: calculateFee(priceToCents(selectedBid.price)),
       });
 
-      // Optimistic UI: update bid status + set job-level awarded fields
+      // Optimistic UI: update bid status + job status
       setJob(prev => ({
         ...prev,
-        jobStatus: 'in_progress' as JobStatus,
-        awardedContractorName: selectedBid.name,
-        awardedAmount: selectedBid.price,
+        status: 'in_progress' as JobStatus,
+        awarded_bid_id: selectedBid.id,
         bids: prev.bids.map(b =>
           b.id === selectedBid.id
             ? { ...b, status: 'accepted' as BidStatus }
             : { ...b, status: 'rejected' as BidStatus }
-        ),
+        ) as BidWithProfile[],
       }));
 
       closeBidAction();
@@ -812,7 +752,7 @@ const RepairJobDetails: React.FC = () => {
           b.id === selectedBid.id
             ? { ...b, status: 'countered' as BidStatus }
             : b
-        ),
+        ) as BidWithProfile[],
       }));
 
       closeBidAction();
@@ -840,7 +780,7 @@ const RepairJobDetails: React.FC = () => {
           b.id === selectedBid.id
             ? { ...b, status: 'rejected' as BidStatus }
             : b
-        ),
+        ) as BidWithProfile[],
       }));
 
       closeBidAction();
@@ -975,7 +915,7 @@ const RepairJobDetails: React.FC = () => {
                     style={{
                       paddingHorizontal: 10,
                       paddingVertical: 4,
-                      backgroundColor: job.isUrgent ? COLORS.urgentBg : COLORS.chipBg,
+                      backgroundColor: job.is_urgent ? COLORS.urgentBg : COLORS.chipBg,
                       borderRadius: 9999,
                     }}
                   >
@@ -983,11 +923,11 @@ const RepairJobDetails: React.FC = () => {
                       style={{
                         fontSize: 12,
                         fontWeight: '400',
-                        color: job.isUrgent ? COLORS.urgentText : COLORS.statText,
+                        color: job.is_urgent ? COLORS.urgentText : COLORS.statText,
                         lineHeight: 16,
                       }}
                     >
-                      {job.dueDate}
+                      {job.due_date}
                     </Text>
                   </View>
                 </View>
@@ -1002,7 +942,7 @@ const RepairJobDetails: React.FC = () => {
                   >
                     Budget:{' '}
                     <Text style={{ fontWeight: '500', color: COLORS.headingText }}>
-                      {job.budgetRange}
+                      {job.budget_range}
                     </Text>
                   </Text>
                   <Text
@@ -1372,7 +1312,7 @@ const RepairJobDetails: React.FC = () => {
         visible={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         jobTitle={job.title}
-        jobCategory={job.category}
+        jobCategory={job.category ?? ''}
       />
 
       {/* ═══════════════════════════════════════════════════════════════
@@ -1444,7 +1384,7 @@ const RepairJobDetails: React.FC = () => {
 
             <View style={{ padding: 24, gap: 16 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <AvatarPlaceholder name={selectedBid?.name || ''} color={selectedBid?.avatarColor || '#CCC'} size={56} />
+                <AvatarPlaceholder name={selectedBid?.name || ''} color={selectedBid?.avatar_color || '#CCC'} size={56} />
                 <View style={{ flex: 1, gap: 0 }}>
                   <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
                     {selectedBid?.name}
@@ -1801,7 +1741,7 @@ const RepairJobDetails: React.FC = () => {
                   borderRadius: 10,
                 }}
               >
-                <AvatarPlaceholder name={selectedBid?.name || ''} color={selectedBid?.avatarColor || '#CCC'} size={40} />
+                <AvatarPlaceholder name={selectedBid?.name || ''} color={selectedBid?.avatar_color || '#CCC'} size={40} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
                     {selectedBid?.name}

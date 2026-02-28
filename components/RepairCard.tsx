@@ -11,13 +11,13 @@
 // decisions. The agent's context shifts from "who's bidding" to
 // "who's doing the work." Showing dead info creates scan noise.
 //
-// @backend — RepairJob data comes from useRepairJobs() hook (TanStack Query)
+// @backend — Job data comes from useJobs() hook (TanStack Query)
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import type { RepairJob, JobStatus } from './RepairJobDetails';
+import type { Job, JobStatus, BidWithProfile } from '../types';
 import { COLORS } from '../lib/tokens';
 
 // ─────────────────────────────────────────────
@@ -26,7 +26,7 @@ import { COLORS } from '../lib/tokens';
 //
 // UX decision: "awarded" displays as "In Progress" because from the
 // agent's perspective, once a bid is accepted the work is underway.
-// The distinction between awarded/in_progress/pending_confirmation
+// The distinction between awarded/in_progress/pending_completion
 // matters on RepairJobDetails — on the card, agents just need to
 // know it's active vs open vs done.
 // ─────────────────────────────────────────────
@@ -53,7 +53,7 @@ const STATUS_CHIP_MAP: Record<string, StatusChipConfig> = {
     bgColor: 'rgba(22, 163, 74, 0.10)',
     textColor: '#15803D',
   },
-  pending_confirmation: {
+  pending_completion: {
     label: 'Pending Review',
     bgColor: 'rgba(234, 88, 12, 0.10)',
     textColor: '#C2410C',
@@ -63,11 +63,6 @@ const STATUS_CHIP_MAP: Record<string, StatusChipConfig> = {
     bgColor: '#F3F4F6',
     textColor: '#6B7280',
   },
-  under_review: {
-    label: 'Under Review',
-    bgColor: 'rgba(234, 88, 12, 0.10)',
-    textColor: '#C2410C',
-  },
   draft: {
     label: 'Draft',
     bgColor: '#F3F4F6',
@@ -75,11 +70,6 @@ const STATUS_CHIP_MAP: Record<string, StatusChipConfig> = {
   },
   cancelled: {
     label: 'Cancelled',
-    bgColor: '#F3F4F6',
-    textColor: '#9CA3AF',
-  },
-  expired: {
-    label: 'Expired',
     bgColor: '#F3F4F6',
     textColor: '#9CA3AF',
   },
@@ -151,7 +141,7 @@ const BidIcon: React.FC = () => (
 // ─────────────────────────────────────────────
 
 interface RepairCardProps {
-  job: RepairJob;
+  job: Job & { bids: BidWithProfile[] };
   onPress?: () => void;
   width?: number;
 }
@@ -159,8 +149,13 @@ interface RepairCardProps {
 const RepairCard: React.FC<RepairCardProps> = ({ job, onPress, width }) => {
   const bidCount = job.bids?.length ?? 0;
 
+  // Derive awarded contractor info from the accepted bid
+  const awardedBid = job.bids?.find(b => b.status === 'accepted') as BidWithProfile | undefined;
+  const awardedContractorName = awardedBid?.name;
+  const awardedAmount = awardedBid?.price;
+
   // Job is "active" once a bid has been accepted — different info hierarchy
-  const isActive = job.jobStatus !== 'open' && job.jobStatus !== 'draft' && !!job.awardedContractorName;
+  const isActive = job.status !== 'open' && job.status !== 'draft' && !!awardedContractorName;
 
   return (
     <Pressable
@@ -211,7 +206,7 @@ const RepairCard: React.FC<RepairCardProps> = ({ job, onPress, width }) => {
         </View>
 
         {/* Status Chip */}
-        {job.jobStatus && <JobStatusChip status={job.jobStatus} />}
+        {job.status && <JobStatusChip status={job.status} />}
       </View>
 
       {/* Title */}
@@ -228,7 +223,7 @@ const RepairCard: React.FC<RepairCardProps> = ({ job, onPress, width }) => {
       </Text>
 
       {isActive ? (
-        /* ── ACTIVE LAYOUT (awarded / in_progress / pending_confirmation) ──
+        /* ── ACTIVE LAYOUT (awarded / in_progress / pending_completion) ──
            Primary: contractor name + accepted amount (14pt)
            Secondary: due date (12pt)
            No budget range, no bid count — those are pre-decision data */
@@ -242,7 +237,7 @@ const RepairCard: React.FC<RepairCardProps> = ({ job, onPress, width }) => {
             }}
             numberOfLines={1}
           >
-            {job.awardedContractorName}{job.awardedAmount ? ` · ${job.awardedAmount}` : ''}
+            {awardedContractorName}{awardedAmount ? ` · ${awardedAmount}` : ''}
           </Text>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -255,9 +250,9 @@ const RepairCard: React.FC<RepairCardProps> = ({ job, onPress, width }) => {
                 lineHeight: 16,
               }}
             >
-              Due {job.dueDate}
+              Due {job.due_date}
             </Text>
-            {job.isUrgent && (
+            {job.is_urgent && (
               <View
                 style={{
                   marginLeft: 2,
@@ -296,9 +291,9 @@ const RepairCard: React.FC<RepairCardProps> = ({ job, onPress, width }) => {
                 lineHeight: 20,
               }}
             >
-              Due {job.dueDate}
+              Due {job.due_date}
             </Text>
-            {job.isUrgent && (
+            {job.is_urgent && (
               <View
                 style={{
                   marginLeft: 2,
@@ -337,7 +332,7 @@ const RepairCard: React.FC<RepairCardProps> = ({ job, onPress, width }) => {
                 lineHeight: 16,
               }}
             >
-              Budget: {job.budgetRange}
+              Budget: {job.budget_range}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <BidIcon />

@@ -20,11 +20,11 @@ import type {
   PerformanceStats,
   NetworkContact,
   NetworkContractor,
-  RepairJob,
-  RepairBid,
+  Job,
+  Bid,
   Vouch,
   VouchEntry,
-  ChatThread,
+  ChatThreadView,
   Notification,
   Recipient,
 } from '../types';
@@ -227,10 +227,10 @@ export const useSendConnectionRequest = () => {
 /**
  * Fetch all repair jobs for current agent
  */
-export const useRepairJobs = () => {
+export const useJobs = () => {
   return useQuery({
     queryKey: queryKeys.repairJobs,
-    queryFn: async (): Promise<RepairJob[]> => {
+    queryFn: async (): Promise<Job[]> => {
       // ── PRODUCTION ──
       // const userId = await getCurrentUserId();
       // const { data, error } = await supabase
@@ -250,10 +250,10 @@ export const useRepairJobs = () => {
 /**
  * Fetch a single repair job by ID
  */
-export const useRepairJob = (jobId: string) => {
+export const useJob = (jobId: string) => {
   return useQuery({
     queryKey: queryKeys.repairJob(jobId),
-    queryFn: async (): Promise<RepairJob> => {
+    queryFn: async (): Promise<Job> => {
       // ── PRODUCTION ──
       // const { data, error } = await supabase
       //   .from('repair_jobs')
@@ -314,11 +314,11 @@ export const useRespondToBid = () => {
 /**
  * Create a new repair job
  */
-export const useCreateRepairJob = () => {
+export const useCreateJob = () => {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (job: Omit<RepairJob, 'id' | 'agent_id' | 'bids' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (job: Omit<Job, 'id' | 'agent_id' | 'bids' | 'created_at' | 'updated_at'>) => {
       // ── PRODUCTION ──
       // const userId = await getCurrentUserId();
       // const { data, error } = await supabase
@@ -340,11 +340,11 @@ export const useCreateRepairJob = () => {
 /**
  * Update a repair job
  */
-export const useUpdateRepairJob = () => {
+export const useUpdateJob = () => {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ jobId, updates }: { jobId: string; updates: Partial<RepairJob> }) => {
+    mutationFn: async ({ jobId, updates }: { jobId: string; updates: Partial<Job> }) => {
       // ── PRODUCTION ──
       // const { data, error } = await supabase
       //   .from('repair_jobs')
@@ -474,7 +474,7 @@ export const useLikeVouch = () => {
 export const useChatThreads = () => {
   return useQuery({
     queryKey: queryKeys.chatThreads,
-    queryFn: async (): Promise<ChatThread[]> => {
+    queryFn: async (): Promise<ChatThreadView[]> => {
       // ── PRODUCTION ──
       // const userId = await getCurrentUserId();
       // const { data, error } = await supabase

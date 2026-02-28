@@ -23,7 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
 import type { HomeStackParamList } from './HomeStack';
-import type { RepairJob } from './RepairJobDetails';
+import type { Job, BidWithProfile } from '../types';
 import { MOCK_REPAIR_JOBS } from './RepairJobsData';
 import { COLORS } from '../lib/tokens';
 
@@ -65,7 +65,7 @@ interface Notification {
   // These link notifications to the relevant data for deep linking.
   // In production, the backend populates these when creating notifications.
   job_id?: string; // links to repair_jobs table
-  chat_id?: string; // links to deal_chats table
+  thread_id?: string; // links to threads table
   user_id?: string; // links to users table (for connection requests)
 }
 
@@ -419,7 +419,7 @@ const NotificationsTab: React.FC = () => {
   // ── Resolve a repair job by ID ──
   // Production: this becomes an API call or cache lookup
   // e.g., queryClient.getQueryData(['repair_job', jobId])
-  const resolveRepairJob = useCallback((jobId?: string): RepairJob | undefined => {
+  const resolveRepairJob = useCallback((jobId?: string): (Job & { bids: BidWithProfile[] }) | undefined => {
     if (!jobId) return undefined;
     return MOCK_REPAIR_JOBS.find((j) => j.id === jobId);
   }, []);
@@ -457,12 +457,12 @@ const NotificationsTab: React.FC = () => {
         console.log('Nav to: ProfileTab (vouches)');
         break;
       case 'mention':
-        // Production: navigation.navigate('DealChatScreen', { chatId: notif.chat_id })
-        console.log('Nav to: DealChatScreen', notif.chat_id);
+        // Production: navigation.navigate('DealChatScreen', { chatId: notif.thread_id })
+        console.log('Nav to: DealChatScreen', notif.thread_id);
         break;
       case 'message_new':
-        // Production: navigation.navigate('ChatScreen', { chatId: notif.chat_id })
-        console.log('Nav to: ChatScreen', notif.chat_id);
+        // Production: navigation.navigate('ChatScreen', { chatId: notif.thread_id })
+        console.log('Nav to: ChatScreen', notif.thread_id);
         break;
       default:
         console.log('Nav to: Home');

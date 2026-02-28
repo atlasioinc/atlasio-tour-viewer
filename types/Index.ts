@@ -4,6 +4,9 @@
 // Every entity maps 1:1 to a Supabase table or view.
 // Import from here instead of defining interfaces in screen files.
 //
+// Composite types (BidWithProfile, ChatThreadView, ProProfileData)
+// extend base interfaces with joined/derived fields for UI use.
+//
 // Supabase auto-generation:
 //   npx supabase gen types typescript --project-id YOUR_ID > types/supabase.ts
 //   Then re-export cleaned versions here.
@@ -25,6 +28,8 @@ export type UserRole =
   | 'transaction_coordinator'
   | 'attorney'
   | 'warranty'
+  | 'home_stager'
+  | 'real_estate_photographer'
   | 'other';
 
 export type TradeEnum =
@@ -53,7 +58,9 @@ export type TradeEnum =
 
 export type VisibilityEnum = 'public' | 'network_only' | 'private';
 
-export type RepairJobStatus =
+export type JobType = 'repair' | 'photography' | 'staging';
+
+export type JobStatus =
   | 'draft'
   | 'open'
   | 'bidding'
@@ -107,6 +114,10 @@ export type ReportType = 'user' | 'job' | 'bid' | 'message';
 
 export type ReportReason = 'spam' | 'fake' | 'inaccurate' | 'harassment' | 'other';
 
+export type FeeTier = 'free' | 'early_adopter' | 'standard';
+
+export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired';
+
 // ─────────────────────────────────────────────
 // USER / PROFILE
 // Table: profiles
@@ -128,7 +139,7 @@ export interface Profile {
   trades: TradeEnum[];                 // contractors only — 22 specialties
   trade: string | null;               // single primary trade (display convenience)
   licensed: string | null;            // e.g., "Licensed CO"
-  active_since: string;               // e.g., "2022"
+  active_since: string | null;        // e.g., "2022"
   specialties: string[];              // non-trade specialties (partners)
   service_area: string | null;        // geographic coverage
   deals_closed: number;               // aggregated count
@@ -139,6 +150,14 @@ export interface Profile {
   is_banned: boolean;                 // blocks all interactions
   credential_urls: string[];          // uploaded license/ID files
   stripe_account_id: string | null;   // Stripe Connect Express ID (contractors only)
+  typical_close_days: number | null;  // partner metric
+  base_price: number | null;          // cents
+  fee_tier: FeeTier;                  // graduated fee tier
+  completed_bids_count: number;       // tracks tier progression
+  fee_tier_started_at: string | null; // TIMESTAMPTZ
+  notification_preferences: Record<string, unknown>; // JSONB
+  is_public: boolean;                 // public profile flag
+  deactivated_at: string | null;      // TIMESTAMPTZ — soft delete
   created_at: string;                  // ISO timestamp
   updated_at: string;                  // ISO timestamp
 }
@@ -153,6 +172,7 @@ export interface PerformanceStats {
   completed_jobs: number;
   on_time_rate: number;               // 0–100 percentage
   avg_response_time: string;          // e.g., '<2h'
+  updated_at: string;                  // ISO timestamp
 }
 
 // ─────────────────────────────────────────────
@@ -164,11 +184,14 @@ export interface Vouch {
   id: string;                          // uuid
   author_id: string;                   // FK → profiles.id (who wrote it)
   recipient_id: string;                // FK → profiles.id (who received it)
+  review_id: string | null;            // FK → reviews.id
   author_name: string;                 // denormalized for feed display
   recipient_name: string;              // denormalized for feed display
-  recipient_company?: string;          // optional, for display
+  recipient_company: string | null;    // denormalized for display
+  recipient_role: string | null;       // denormalized for display
   quote: string;                       // the vouch text
   tag: string;                         // category label (e.g., "Contractors")
+  tags: string[];                      // additional tags
   likes: number;                       // aggregated count
   avatar_color: string;                // author's avatar fallback
   created_at: string;                  // ISO timestamp
@@ -187,6 +210,17 @@ export interface VouchEntry {
 }
 
 // ─────────────────────────────────────────────
+// VOUCH LIKE
+// Table: vouch_likes
+// ─────────────────────────────────────────────
+
+export interface VouchLike {
+  vouch_id: string;                    // FK → vouches.id (PK part 1)
+  user_id: string;                     // FK → profiles.id (PK part 2)
+  created_at: string;
+}
+
+// ─────────────────────────────────────────────
 // CONNECTION
 // Table: connections
 // ─────────────────────────────────────────────
@@ -197,6 +231,7 @@ export interface Connection {
   responder_id: string;                // FK → profiles.id
   status: ConnectionStatus;
   is_in_squad: boolean;                // closing squad membership
+  note: string | null;                 // optional connection request note
   created_at: string;
   updated_at: string;
 }
@@ -246,83 +281,144 @@ export interface SquadMember {
   id: string;                          // uuid
   squad_id: string;                    // FK → squads.id
   profile_id: string;                  // FK → profiles.id
-  joined_at: string;
+  role: UserRole;                      // member's role
+  is_additional: boolean;              // extra slot beyond default
+  created_at: string;
 }
 
 // ─────────────────────────────────────────────
-// REPAIR JOB
-// Table: repair_jobs
+// JOB (unified — repair, photography, staging)
+// Table: jobs
 // ─────────────────────────────────────────────
 
-export interface RepairBid {
+export interface Bid {
   id: string;                          // uuid
-  job_id: string;                      // FK → repair_jobs.id
+  job_id: string;                      // FK → jobs.id
   contractor_id: string;               // FK → profiles.id
-  name: string;                        // denormalized
-  avatar_color: string;
-  rating: number;
-  response_time: string;
   amount: number;                      // cents — all monetary values stored as integers
-  price: string;                       // formatted display price (e.g., "$1,200")
   counter_amount: number | null;       // agent's counter offer (cents)
+  acceptance_fee: number | null;       // graduated fee, calculated by trigger (cents)
+  fee_paid: boolean;
   quote: string | null;                // bid note / scope description
   timeline: string | null;             // e.g., "3-5 days"
   message: string;
+  response_time: string | null;        // e.g., "2h ago"
   tags: string[];
   status: BidStatus;                   // 7-state lifecycle
   edit_count: number;                  // max 2–3 per bid
-  acceptance_fee: number | null;       // 3% of amount, calculated by trigger (cents)
-  fee_paid: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export interface RepairJob {
+export interface Job {
   id: string;                          // uuid
   agent_id: string;                    // FK → profiles.id (who posted)
+  job_type: JobType;                   // repair | photography | staging
+  status: JobStatus;                   // 8-state lifecycle
   title: string;
-  trades: TradeEnum[];                 // required — determines which contractors see it
-  category: string;                    // trade category (display convenience)
-  due_date: string;
-  is_urgent: boolean;
-  budget_min: number | null;           // cents
-  budget_max: number | null;           // cents
-  budget_range: string;                // formatted display (e.g., "$800–$1,200")
-  address: string;
   description: string;
+  address: string;
+  due_date: string;                    // DATE
+  is_urgent: boolean;
   photo_urls: string[];               // Supabase Storage URLs
-  status: RepairJobStatus;             // 8-state lifecycle
-  awarded_bid_id: string | null;       // FK → repair_bids.id (set on award)
-  bid_deadline: string;                // ISO timestamp — default 48h, range 12h–72h
+  awarded_bid_id: string | null;       // FK → bids.id (set on award)
+  bid_deadline: string | null;         // TIMESTAMPTZ — default 48h
   max_bid_edits: number;              // default 3
   invited_contractor_ids: string[];   // FK[] → profiles.id
-  bids: RepairBid[];                   // joined from repair_bids table
+  // Repair-specific
+  trades: TradeEnum[] | null;          // determines which contractors see it
+  category: string | null;            // trade category (display convenience)
+  budget_min: number | null;           // cents
+  budget_max: number | null;           // cents
+  budget_range: string | null;         // formatted display (e.g., "$800–$1,200")
+  // Photography-specific
+  service_packages: string[] | null;
+  turnaround_preference: string | null;
+  // Staging-specific
+  sqft: number | null;
+  occupied_or_vacant: string | null;
+  rooms_count: number | null;
+  staging_scope: string[] | null;
+  // Completion flow
+  contractor_completed_at: string | null;
+  agent_confirmed_at: string | null;
+  completion_notes: string | null;
+  proof_photo_urls: string[];
+  revision_notes: string | null;
+  vouch_prompt_sent: boolean;
+  // Timestamps
   created_at: string;
   updated_at: string;
+  // Joined relation (not a DB column)
+  bids: Bid[];
+}
+
+// ─────────────────────────────────────────────
+// BID WITH PROFILE (composite — for UI display)
+// Extends Bid with joined profile fields
+// ─────────────────────────────────────────────
+
+export interface BidWithProfile extends Bid {
+  name: string;                        // from profiles.name
+  company: string;                     // from profiles.company
+  trade: string | null;                // from profiles.trade
+  is_licensed: boolean;                // derived from profiles.licensed
+  avatar_color: string;                // from profiles.avatar_color
+  rating: number;                      // from profiles.rating
+  price: string;                       // formatted display (e.g., "$1,200")
+  has_unread_messages?: boolean;       // derived from unread message count
+}
+
+// ─────────────────────────────────────────────
+// REVIEW
+// Table: reviews
+// ─────────────────────────────────────────────
+
+export interface Review {
+  id: string;                          // uuid
+  job_id: string;                      // FK → jobs.id
+  from_id: string;                     // FK → profiles.id
+  to_id: string;                       // FK → profiles.id
+  rating: number;                      // 1–5
+  comment: string;
+  tags: string[];
+  is_anonymous: boolean;
+  created_at: string;
 }
 
 // ─────────────────────────────────────────────
 // CHAT / MESSAGING
-// Table: threads, messages
+// Tables: threads, thread_members, messages
 // ─────────────────────────────────────────────
 
 export interface ChatThread {
   id: string;                          // uuid
   type: ConversationType;              // one_to_one | job_thread | deal_chat
-  name: string;                        // display name (group/deal name or contact name)
-  job_id: string | null;              // FK → repair_jobs.id (job_thread only)
-  participants: string[];             // FK[] → profiles.id
-  last_message: string;
-  last_message_at: string;            // ISO timestamp for sorting
-  is_unread: boolean;
+  name: string | null;                 // display name (group/deal name or contact name)
+  job_id: string | null;              // FK → jobs.id (job_thread only)
+  property_address: string | null;     // deal_chat only
+  closing_date: string | null;         // deal_chat only (DATE)
   is_pinned: boolean;
   is_archived: boolean;               // auto-archive after 30 days inactive
-  member_count?: number;
-  avatar_colors: string[];            // for group display
-  is_online?: boolean;
-  // Deal-specific fields
-  property_address?: string;
-  closing_date?: string;
+  last_message: string | null;
+  last_message_at: string | null;     // TIMESTAMPTZ for sorting
+  created_at: string;
+}
+
+// ChatThread + derived fields for UI display
+export interface ChatThreadView extends ChatThread {
+  participants: string[];             // derived from thread_members
+  is_unread: boolean;                 // derived from unread message count
+  member_count?: number;              // derived
+  avatar_colors: string[];            // derived from member profiles
+  is_online?: boolean;                // derived from presence
+}
+
+export interface ThreadMember {
+  thread_id: string;                   // FK → threads.id (PK part 1)
+  user_id: string;                     // FK → profiles.id (PK part 2)
+  is_muted: boolean;
+  joined_at: string;
 }
 
 export interface Message {
@@ -332,9 +428,9 @@ export interface Message {
   sender_name: string;
   content: string;
   type: 'text' | 'image' | 'document' | 'system';
-  attachment_url?: string;
-  created_at: string;
+  attachment_url: string | null;
   is_read: boolean;
+  created_at: string;
 }
 
 export interface Recipient {
@@ -356,17 +452,16 @@ export interface Notification {
   type: NotificationType;              // 20 types across 5 groups
   title: string;
   subtitle: string;
-  timestamp: string;                   // relative (e.g., "2m ago")
   is_read: boolean;
-  created_at: string;                  // ISO for sorting
-  avatar_color?: string;
-  avatar_name?: string;
-  action_label?: string;
-  deep_link?: string;
+  created_at: string;                  // TIMESTAMPTZ
+  avatar_color: string | null;
+  avatar_name: string | null;
+  action_label: string | null;
+  deep_link: string | null;
   // Related entity IDs (foreign keys for deep linking)
-  job_id?: string;                     // FK → repair_jobs.id
-  chat_id?: string;                    // FK → threads.id
-  sender_id?: string;                  // FK → profiles.id
+  job_id: string | null;               // FK → jobs.id
+  thread_id: string | null;            // FK → threads.id
+  sender_id: string | null;            // FK → profiles.id
 }
 
 // ─────────────────────────────────────────────
@@ -380,10 +475,10 @@ export interface Report {
   type: ReportType;                    // what entity is being reported
   reason: ReportReason;
   description: string | null;          // optional details
-  reported_user_id?: string;           // FK → profiles.id
-  reported_job_id?: string;            // FK → repair_jobs.id
-  reported_bid_id?: string;            // FK → repair_bids.id
-  reported_message_id?: string;        // FK → messages.id
+  reported_user_id: string | null;     // FK → profiles.id
+  reported_job_id: string | null;      // FK → jobs.id
+  reported_bid_id: string | null;      // FK → bids.id
+  reported_message_id: string | null;  // FK → messages.id
   created_at: string;
 }
 
@@ -403,6 +498,34 @@ export interface PushToken {
   is_active: boolean;                  // false on expiry/logout
   created_at: string;
   updated_at: string;
+}
+
+// ─────────────────────────────────────────────
+// BLOCKED USER
+// Table: blocked_users
+// ─────────────────────────────────────────────
+
+export interface BlockedUser {
+  id: string;                          // uuid
+  blocker_id: string;                  // FK → profiles.id
+  blocked_id: string;                  // FK → profiles.id
+  created_at: string;
+}
+
+// ─────────────────────────────────────────────
+// JOB INVITATION
+// Table: job_invitations
+// ─────────────────────────────────────────────
+
+export interface JobInvitation {
+  id: string;                          // uuid
+  job_id: string;                      // FK → jobs.id
+  contractor_id: string;               // FK → profiles.id
+  invited_by: string;                  // FK → profiles.id
+  status: InvitationStatus;
+  note: string | null;
+  created_at: string;
+  responded_at: string | null;
 }
 
 // ─────────────────────────────────────────────

@@ -1,130 +1,171 @@
 // RepairJobsData.ts
 // ═══════════════════════════════════════════════════════════════
 // Mock repair job data for HomeTabAgent Active Repairs section
-// Updated Session 16: Added jobStatus to all jobs, added ACTIVE_REPAIR_JOBS export
+// Updated: Uses Job + BidWithProfile types from types/Index.ts
 // ═══════════════════════════════════════════════════════════════
 
-import type { RepairJob, JobStatus } from './RepairJobDetails';
+import type { Job, BidWithProfile, JobStatus } from '../types';
+
+// Job with bids that include profile data (for UI display)
+type JobWithBidProfiles = Job & { bids: BidWithProfile[] };
+
+// Helper to build a mock job with sensible defaults
+const mockJob = (overrides: Partial<JobWithBidProfiles> & Pick<JobWithBidProfiles, 'id' | 'title' | 'category' | 'due_date' | 'address' | 'description' | 'status' | 'bids'>): JobWithBidProfiles => ({
+  agent_id: 'mock-agent-1',
+  job_type: 'repair',
+  is_urgent: false,
+  budget_min: null,
+  budget_max: null,
+  budget_range: null,
+  photo_urls: [],
+  awarded_bid_id: null,
+  bid_deadline: null,
+  max_bid_edits: 3,
+  invited_contractor_ids: [],
+  trades: null,
+  service_packages: null,
+  turnaround_preference: null,
+  sqft: null,
+  occupied_or_vacant: null,
+  rooms_count: null,
+  staging_scope: null,
+  contractor_completed_at: null,
+  agent_confirmed_at: null,
+  completion_notes: null,
+  proof_photo_urls: [],
+  revision_notes: null,
+  vouch_prompt_sent: false,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides,
+});
+
+// Helper to build a mock bid with sensible defaults
+const mockBid = (overrides: Partial<BidWithProfile> & Pick<BidWithProfile, 'id' | 'job_id' | 'name' | 'company' | 'trade' | 'avatar_color' | 'rating' | 'response_time' | 'amount' | 'price' | 'message' | 'tags'>): BidWithProfile => ({
+  contractor_id: `mock-contractor-${overrides.id}`,
+  is_licensed: true,
+  counter_amount: null,
+  quote: null,
+  timeline: null,
+  status: 'pending',
+  edit_count: 0,
+  acceptance_fee: null,
+  fee_paid: false,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides,
+});
 
 /**
  * Full mock repair jobs with lifecycle status tracking.
  *
- * @backend Replace with: const { data: repairJobs } = useRepairJobs();
- *   → SELECT * FROM repair_jobs
+ * @backend Replace with: const { data: jobs } = useJobs();
+ *   → SELECT * FROM jobs
  *     WHERE agent_id = auth.uid()
  *     ORDER BY created_at DESC
  */
-export const MOCK_REPAIR_JOBS: RepairJob[] = [
-  {
+export const MOCK_REPAIR_JOBS: JobWithBidProfiles[] = [
+  mockJob({
     id: '1',
     title: 'Fix Leaking Kitchen Faucet',
     category: 'Plumbing',
-    dueDate: 'Mar 2',
-    isUrgent: true,
-    budgetRange: '$150 \u2013 $400',
+    due_date: 'Mar 2',
+    is_urgent: true,
+    budget_range: '$150 – $400',
     address: '4521 Elm Street, Denver CO 80220',
     description: 'Kitchen faucet has been dripping for a week. Possible cartridge replacement needed. Standard Moen single-handle fixture.',
-    photoPlaceholder: '📸 3 photos attached',
-    jobStatus: 'open',
+    status: 'open',
     bids: [
-      { id: 'b1', name: 'Brian Cooper', company: 'ProBuild Contractors', trade: 'General Contractor', isLicensed: true, avatarColor: '#7BA3C9', rating: 5.0, responseTime: '2h ago', price: '$280', message: 'I can get this done tomorrow morning. Faucet cartridge replacement is straightforward — I stock Moen parts.', tags: ['Licensed & Insured', 'Fast Response'], status: 'pending' },
-      { id: 'b2', name: 'Tony Ruiz', company: 'Front Range Plumbing', trade: 'Plumber', isLicensed: true, hasUnreadMessages: true, avatarColor: '#C9A87B', rating: 4.8, responseTime: '4h ago', price: '$195', message: 'Standard cartridge swap. I\'ll include a 6-month labor warranty. Available this Thursday.', tags: ['Licensed & Insured', 'Warranty Offered'], status: 'pending' },
-      { id: 'b3', name: 'Derek Washington', company: 'Volt Electric Co', trade: 'Handyman', isLicensed: false, avatarColor: '#8BA8C9', rating: 4.6, responseTime: '6h ago', price: '$150', message: 'Can fix this Saturday morning. Have done dozens of faucet repairs.', tags: ['Fast Response'], status: 'pending' },
+      mockBid({ id: 'b1', job_id: '1', name: 'Brian Cooper', company: 'ProBuild Contractors', trade: 'General Contractor', is_licensed: true, avatar_color: '#7BA3C9', rating: 5.0, response_time: '2h ago', amount: 28000, price: '$280', message: 'I can get this done tomorrow morning. Faucet cartridge replacement is straightforward — I stock Moen parts.', tags: ['Licensed & Insured', 'Fast Response'], status: 'pending' }),
+      mockBid({ id: 'b2', job_id: '1', name: 'Tony Ruiz', company: 'Front Range Plumbing', trade: 'Plumber', is_licensed: true, has_unread_messages: true, avatar_color: '#C9A87B', rating: 4.8, response_time: '4h ago', amount: 19500, price: '$195', message: "Standard cartridge swap. I'll include a 6-month labor warranty. Available this Thursday.", tags: ['Licensed & Insured', 'Warranty Offered'], status: 'pending' }),
+      mockBid({ id: 'b3', job_id: '1', name: 'Derek Washington', company: 'Volt Electric Co', trade: 'Handyman', is_licensed: false, avatar_color: '#8BA8C9', rating: 4.6, response_time: '6h ago', amount: 15000, price: '$150', message: 'Can fix this Saturday morning. Have done dozens of faucet repairs.', tags: ['Fast Response'], status: 'pending' }),
     ],
-  },
-  {
+  }),
+  mockJob({
     id: '2',
     title: 'Garage Door Won\u2019t Open',
     category: 'Garage Door',
-    dueDate: 'Mar 5',
-    isUrgent: false,
-    budgetRange: '$200 \u2013 $600',
+    due_date: 'Mar 5',
+    is_urgent: false,
+    budget_range: '$200 – $600',
     address: '782 Maple Drive, Lakewood CO 80226',
     description: 'Garage door opener not responding. Remote and wall switch both dead. Model: LiftMaster 8500.',
-    jobStatus: 'awarded',
-    awardedContractorName: 'Mike Patterson',
-    awardedAmount: '$425',
-    awardedDate: 'Feb 24',
+    status: 'awarded',
+    awarded_bid_id: 'b4',
     bids: [
-      { id: 'b4', name: 'Mike Patterson', company: 'Denver Garage Pros', trade: 'Garage Door Tech', isLicensed: true, avatarColor: '#C5B5A8', rating: 4.9, responseTime: '1h ago', price: '$425', message: 'Sounds like a logic board issue. I can diagnose and repair same-day. LiftMaster certified.', tags: ['Licensed & Insured', 'Same-Day Service'], status: 'accepted' },
-      { id: 'b5', name: 'James Foster', company: 'Summit Roofing & Repair', trade: 'General Contractor', isLicensed: true, avatarColor: '#D4C5A8', rating: 4.7, responseTime: '5h ago', price: '$550', message: 'Happy to take a look. Might need a full opener replacement.', tags: ['Licensed & Insured'], status: 'rejected' },
+      mockBid({ id: 'b4', job_id: '2', name: 'Mike Patterson', company: 'Denver Garage Pros', trade: 'Garage Door Tech', is_licensed: true, avatar_color: '#C5B5A8', rating: 4.9, response_time: '1h ago', amount: 42500, price: '$425', message: 'Sounds like a logic board issue. I can diagnose and repair same-day. LiftMaster certified.', tags: ['Licensed & Insured', 'Same-Day Service'], status: 'accepted' }),
+      mockBid({ id: 'b5', job_id: '2', name: 'James Foster', company: 'Summit Roofing & Repair', trade: 'General Contractor', is_licensed: true, avatar_color: '#D4C5A8', rating: 4.7, response_time: '5h ago', amount: 55000, price: '$550', message: 'Happy to take a look. Might need a full opener replacement.', tags: ['Licensed & Insured'], status: 'rejected' }),
     ],
-  },
-  {
+  }),
+  mockJob({
     id: '3',
     title: 'Patch and Paint Bedroom Walls',
     category: 'Painting',
-    dueDate: 'Mar 8',
-    isUrgent: false,
-    budgetRange: '$300 \u2013 $500',
+    due_date: 'Mar 8',
+    is_urgent: false,
+    budget_range: '$300 – $500',
     address: '1150 Pine Court, Aurora CO 80012',
     description: 'Multiple nail holes and one 4-inch drywall patch in master bedroom. Match existing eggshell finish.',
-    photoPlaceholder: '📸 5 photos attached',
-    jobStatus: 'in_progress',
-    awardedContractorName: 'Sandra Kim',
-    awardedAmount: '$380',
-    awardedDate: 'Feb 22',
+    status: 'in_progress',
+    awarded_bid_id: 'b6',
     bids: [
-      { id: 'b6', name: 'Sandra Kim', company: 'Fresh Coat Denver', trade: 'Painter', isLicensed: true, avatarColor: '#D4A8A8', rating: 4.9, responseTime: '3h ago', price: '$380', message: 'I can match the color with a quick sample patch. Two coats included. Will protect floors and trim.', tags: ['Licensed & Insured', 'Clean Work'], status: 'accepted' },
+      mockBid({ id: 'b6', job_id: '3', name: 'Sandra Kim', company: 'Fresh Coat Denver', trade: 'Painter', is_licensed: true, avatar_color: '#D4A8A8', rating: 4.9, response_time: '3h ago', amount: 38000, price: '$380', message: 'I can match the color with a quick sample patch. Two coats included. Will protect floors and trim.', tags: ['Licensed & Insured', 'Clean Work'], status: 'accepted' }),
     ],
-  },
-  {
+  }),
+  mockJob({
     id: '4',
     title: 'HVAC Inspection Pre-Close',
     category: 'HVAC',
-    dueDate: 'Mar 1',
-    isUrgent: true,
-    budgetRange: '$100 \u2013 $250',
+    due_date: 'Mar 1',
+    is_urgent: true,
+    budget_range: '$100 – $250',
     address: '331 Oak Boulevard, Denver CO 80209',
     description: 'Buyer requested HVAC inspection before closing. Need full system check — furnace, AC unit, ductwork.',
-    jobStatus: 'open',
+    status: 'open',
     bids: [
-      { id: 'b7', name: 'Tyler Reed', company: 'Alpine HVAC Solutions', trade: 'HVAC Technician', isLicensed: true, avatarColor: '#B5C5D4', rating: 4.8, responseTime: '2h ago', price: '$185', message: 'Full HVAC inspection with written report. I can come tomorrow afternoon.', tags: ['Licensed & Insured', 'Fast Response'], status: 'pending' },
+      mockBid({ id: 'b7', job_id: '4', name: 'Tyler Reed', company: 'Alpine HVAC Solutions', trade: 'HVAC Technician', is_licensed: true, avatar_color: '#B5C5D4', rating: 4.8, response_time: '2h ago', amount: 18500, price: '$185', message: 'Full HVAC inspection with written report. I can come tomorrow afternoon.', tags: ['Licensed & Insured', 'Fast Response'], status: 'pending' }),
     ],
-  },
-  {
+  }),
+  mockJob({
     id: '5',
     title: 'Replace Front Porch Railing',
     category: 'Carpentry',
-    dueDate: 'Mar 12',
-    isUrgent: false,
-    budgetRange: '$400 \u2013 $800',
+    due_date: 'Mar 12',
+    is_urgent: false,
+    budget_range: '$400 – $800',
     address: '205 Birch Lane, Centennial CO 80112',
     description: 'Front porch wood railing is rotted at the base. Needs full replacement — approximately 12 linear feet.',
-    photoPlaceholder: '📸 2 photos attached',
-    jobStatus: 'pending_confirmation',
-    awardedContractorName: 'Brian Cooper',
-    awardedAmount: '$625',
-    awardedDate: 'Feb 20',
+    status: 'pending_completion',
+    awarded_bid_id: 'b8',
     bids: [
-      { id: 'b8', name: 'Brian Cooper', company: 'ProBuild Contractors', trade: 'General Contractor', isLicensed: true, avatarColor: '#7BA3C9', rating: 5.0, responseTime: '1h ago', price: '$625', message: 'Cedar railing with treated posts. I\'ll pull a permit if needed — usually not required for replacements under 30in.', tags: ['Licensed & Insured', 'Permit-Ready'], status: 'accepted' },
+      mockBid({ id: 'b8', job_id: '5', name: 'Brian Cooper', company: 'ProBuild Contractors', trade: 'General Contractor', is_licensed: true, avatar_color: '#7BA3C9', rating: 5.0, response_time: '1h ago', amount: 62500, price: '$625', message: "Cedar railing with treated posts. I'll pull a permit if needed — usually not required for replacements under 30in.", tags: ['Licensed & Insured', 'Permit-Ready'], status: 'accepted' }),
     ],
-  },
-  {
+  }),
+  mockJob({
     id: '6',
     title: 'Landscaping Cleanup Before Listing',
     category: 'Landscaping',
-    dueDate: 'Feb 20',
-    isUrgent: false,
-    budgetRange: '$200 \u2013 $450',
+    due_date: 'Feb 20',
+    is_urgent: false,
+    budget_range: '$200 – $450',
     address: '900 Aspen Way, Littleton CO 80120',
     description: 'Front and backyard cleanup before listing photos. Trim bushes, edge lawn, mulch beds, remove debris.',
-    jobStatus: 'completed',
-    awardedContractorName: 'Kevin Walsh',
-    awardedAmount: '$350',
-    awardedDate: 'Feb 15',
+    status: 'completed',
+    awarded_bid_id: 'b9',
     bids: [
-      { id: 'b9', name: 'Kevin Walsh', company: 'Walsh Landscaping', trade: 'Landscaper', isLicensed: true, avatarColor: '#B5D4A8', rating: 4.7, responseTime: '4h ago', price: '$350', message: 'Full cleanup with debris haul-away. Can do it this weekend. I\'ll include fresh mulch.', tags: ['Licensed & Insured', 'Competitive Pricing'], status: 'accepted' },
+      mockBid({ id: 'b9', job_id: '6', name: 'Kevin Walsh', company: 'Walsh Landscaping', trade: 'Landscaper', is_licensed: true, avatar_color: '#B5D4A8', rating: 4.7, response_time: '4h ago', amount: 35000, price: '$350', message: "Full cleanup with debris haul-away. Can do it this weekend. I'll include fresh mulch.", tags: ['Licensed & Insured', 'Competitive Pricing'], status: 'accepted' }),
     ],
-  },
+  }),
 ];
 
 /**
  * Active repair jobs — filters out completed and cancelled statuses.
  * Used by HomeTabAgent Active Repairs section to only show pipeline-relevant jobs.
  *
- * @backend Replace with: useRepairJobs({ status: { notIn: ['completed', 'cancelled'] } })
+ * @backend Replace with: useJobs({ status: { notIn: ['completed', 'cancelled'] } })
  */
 export const ACTIVE_REPAIR_JOBS = MOCK_REPAIR_JOBS.filter(
-  (job) => job.jobStatus !== 'completed' && job.jobStatus !== 'cancelled'
+  (job) => job.status !== 'completed' && job.status !== 'cancelled'
 );
+
+export type { JobStatus };
