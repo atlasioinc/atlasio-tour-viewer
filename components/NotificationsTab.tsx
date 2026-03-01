@@ -28,6 +28,7 @@ import { MOCK_REPAIR_JOBS } from './RepairJobsData';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useNotifications as useNotificationsHook } from '../hooks/useData';
+import { adaptNotificationToLocal } from '../lib/typeAdapters';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS (from Figma)
@@ -405,12 +406,12 @@ const groupNotificationsByDate = (notifications: Notification[]): NotificationSe
 const NotificationsTab: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const { data: liveNotifications } = useNotificationsHook();
-  const initialNotifications = FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_NOTIFICATIONS : (liveNotifications as unknown as Notification[] ?? []);
+  const _initialNotifications = FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_NOTIFICATIONS : (liveNotifications?.map(adaptNotificationToLocal) as Notification[] ?? []);
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
   // When live data loads and flag is off, sync state
   React.useEffect(() => {
     if (!FEATURE_FLAGS.USE_MOCK_DATA && liveNotifications) {
-      setNotifications(liveNotifications as unknown as Notification[]);
+      setNotifications(liveNotifications.map(adaptNotificationToLocal) as Notification[]);
     }
   }, [liveNotifications]);
 

@@ -38,7 +38,8 @@ import SearchField from './SearchField';
 import RequestConnectModal from './RequestConnectModal';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useFindPros } from '../hooks/useData';
+import { useFindPros, useRecommendedPros, useTrendingPros } from '../hooks/useData';
+import { adaptProfileToProCard } from '../lib/typeAdapters';
 
 
 
@@ -352,8 +353,18 @@ const FindTab: React.FC = () => {
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
 
-  // ── Live data hook (keeps cache warm) ──
+  // ── Live data hooks (keep cache warm) ──
   const { data: livePros } = useFindPros(searchText, activeRole, selectedSort);
+  const { data: liveRecommended } = useRecommendedPros();
+  const { data: liveTrending } = useTrendingPros();
+
+  const recommendedPros = FEATURE_FLAGS.USE_MOCK_DATA
+    ? RECOMMENDED_PROS
+    : (liveRecommended?.map(adaptProfileToProCard) ?? RECOMMENDED_PROS);
+
+  const trendingPros = FEATURE_FLAGS.USE_MOCK_DATA
+    ? TRENDING_PROS
+    : (liveTrending?.map(adaptProfileToProCard) ?? TRENDING_PROS);
 
   // ── Apply preset params from Quick Actions (cross-stack navigation) ──
   useEffect(() => {
@@ -410,7 +421,7 @@ const FindTab: React.FC = () => {
   const isSearching = searchText.length > 0 || activeRole !== 'All';
   const activeFilterCount = activeFilters.size;
 
-  const prosPool = FEATURE_FLAGS.USE_MOCK_DATA ? ALL_PROS : (livePros as unknown as ProCard[] ?? ALL_PROS);
+  const prosPool = FEATURE_FLAGS.USE_MOCK_DATA ? ALL_PROS : (livePros?.map(adaptProfileToProCard) ?? ALL_PROS);
   const filteredPros = prosPool.filter((pro) => {
     const matchesRole = activeRole === 'All' || pro.role === activeRole;
     const matchesSearch = searchText.length === 0 ||
@@ -531,7 +542,7 @@ const FindTab: React.FC = () => {
                 <Text style={{ fontSize: 14, fontWeight: '400', color: '#666666', lineHeight: 20 }}>Based on your squad gaps and recent jobs</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}>
-                {RECOMMENDED_PROS.map((pro) => (
+                {recommendedPros.map((pro) => (
                   <ProCardComponent key={pro.id} pro={pro} width={325}
                     onPress={() => navigation.navigate('ProProfile', { profile: mapFindProToProfile(pro) })}
                     onInviteToJob={() => openInviteModal(pro)} onRequestConnect={() => openConnectModal(pro)} />
@@ -544,7 +555,7 @@ const FindTab: React.FC = () => {
                 <Text style={{ fontSize: 14, fontWeight: '400', color: '#666666', lineHeight: 20 }}>Most vouched pros in the last 7 days</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}>
-                {TRENDING_PROS.map((pro) => (
+                {trendingPros.map((pro) => (
                   <ProCardComponent key={`trending-${pro.id}`} pro={pro} width={325}
                     onPress={() => navigation.navigate('ProProfile', { profile: mapFindProToProfile(pro) })}
                     onInviteToJob={() => openInviteModal(pro)} onRequestConnect={() => openConnectModal(pro)} />

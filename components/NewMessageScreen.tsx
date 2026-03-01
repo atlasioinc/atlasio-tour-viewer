@@ -149,6 +149,7 @@ const NewMessageScreen: React.FC = () => {
 
   const handleContactPress = (contact: SuggestedContact) => {
     navigation.navigate('ChatScreen', {
+      threadId: contact.id, // new thread or existing — resolved by backend
       contactName: contact.name,
       contactCompany: contact.company,
       contactRole: contact.role,

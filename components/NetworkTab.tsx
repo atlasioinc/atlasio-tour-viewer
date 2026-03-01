@@ -34,6 +34,7 @@ import type { InviteContractor } from './InviteToJobModal';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useConnections, useConnectionRequests as useConnectionRequestsHook } from '../hooks/useData';
+import { adaptConnectionToNetworkContact, adaptConnectionToRequest } from '../lib/typeAdapters';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -449,13 +450,13 @@ const NetworkTab: React.FC = () => {
 
   useEffect(() => {
     if (!FEATURE_FLAGS.USE_MOCK_DATA && liveContacts) {
-      setContacts(liveContacts as unknown as NetworkContact[]);
+      setContacts(liveContacts.map(adaptConnectionToNetworkContact));
     }
   }, [liveContacts]);
 
   useEffect(() => {
     if (!FEATURE_FLAGS.USE_MOCK_DATA && liveRequests) {
-      setConnectionRequests(liveRequests as unknown as ConnectionRequest[]);
+      setConnectionRequests(liveRequests.map(adaptConnectionToRequest));
     }
   }, [liveRequests]);
 

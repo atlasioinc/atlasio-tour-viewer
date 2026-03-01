@@ -20,6 +20,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useConnectedPros } from '../hooks/useData';
+import { adaptConnectionToSquadCandidate } from '../lib/typeAdapters';
 import SearchField from './SearchField';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -268,7 +269,7 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
 
   // ── Live data hook (keeps cache warm) ──
   const { data: liveConnectedPros } = useConnectedPros(role);
-  const prosSource = FEATURE_FLAGS.USE_MOCK_DATA ? CONNECTED_PROS : (liveConnectedPros as unknown as SquadProCandidate[] ?? CONNECTED_PROS);
+  const prosSource = FEATURE_FLAGS.USE_MOCK_DATA ? CONNECTED_PROS : (liveConnectedPros?.map(adaptConnectionToSquadCandidate) ?? CONNECTED_PROS);
 
   // Filter connected pros by role + search text
   const filteredPros = useMemo(() => {

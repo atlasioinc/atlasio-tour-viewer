@@ -76,6 +76,8 @@ export const queryKeys = {
   findPros: (query: string, role: string, sort: string) =>
     ['find-pros', query, role, sort] as const,
   searchPros: (query: string, role: string) => ['search-pros', query, role] as const,
+  recommendedPros: ['recommended-pros'] as const,
+  trendingPros: ['trending-pros'] as const,
 
   // Squads
   squadMembers: (squadId: string) => ['squad-members', squadId] as const,
@@ -1206,6 +1208,58 @@ export const useFindPros = (query: string, role: string, sort: string) => {
       } catch (err) {
         console.warn('[useFindPros] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * Fetch recommended pros (sorted by vouch_count desc, top 5)
+ */
+// STATUS: wired (with mock fallback)
+export const useRecommendedPros = () => {
+  return useQuery({
+    queryKey: queryKeys.recommendedPros,
+    queryFn: async (): Promise<Profile[]> => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .neq('role', 'agent')
+          .eq('is_visible', true)
+          .order('vouch_count', { ascending: false })
+          .limit(5);
+        if (error) throw error;
+        return (data ?? []) as Profile[];
+      } catch (err) {
+        console.warn('[useRecommendedPros] Supabase failed, using mock fallback', err);
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * Fetch trending pros (sorted by vouch_count desc, top 5)
+ */
+// STATUS: wired (with mock fallback)
+export const useTrendingPros = () => {
+  return useQuery({
+    queryKey: queryKeys.trendingPros,
+    queryFn: async (): Promise<Profile[]> => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .neq('role', 'agent')
+          .eq('is_visible', true)
+          .order('vouch_count', { ascending: false })
+          .limit(5);
+        if (error) throw error;
+        return (data ?? []) as Profile[];
+      } catch (err) {
+        console.warn('[useTrendingPros] Supabase failed, using mock fallback', err);
         return [];
       }
     },

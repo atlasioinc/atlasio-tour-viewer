@@ -33,7 +33,8 @@ import type { Message } from './MessageBubble';
 import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-// TODO: Wire useMessages(threadId) when ChatScreen receives threadId from navigation params
+import { useMessages, useSendMessage } from '../hooks/useData';
+import { adaptMessageToBubble } from '../lib/typeAdapters';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -210,7 +211,11 @@ const AddContactRow: React.FC<{
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<ChatScreenRouteProp>();
-  const { contactName, contactCompany, contactRole, contactAvatarColor } = route.params;
+  const { threadId, contactName, contactCompany, contactRole, contactAvatarColor } = route.params;
+
+  // ── Live data hooks ──
+  const { data: liveMessages } = useMessages(threadId);
+  const sendMessage = useSendMessage();
 
   // ── State ──
   const [messageText, setMessageText] = useState('');
@@ -222,6 +227,14 @@ const ChatScreen: React.FC = () => {
   const [attachments, setAttachments] = useState<Array<{ type: 'photo' | 'document'; uri: string; name: string }>>([]);
   const [messages, setMessages] = useState<Message[]>(FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_MESSAGES : []);
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(true); // true = show conversation header
+
+  // ── Sync live messages when feature flag is off ──
+  useEffect(() => {
+    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveMessages && liveMessages.length > 0) {
+      const adapted = liveMessages.map((m) => adaptMessageToBubble(m, 'current-user-id'));
+      setMessages(adapted);
+    }
+  }, [liveMessages]);
   const toInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -308,9 +321,17 @@ const ChatScreen: React.FC = () => {
   const handleSend = () => {
     if (messageText.trim().length === 0 && attachments.length === 0) return;
 
+    const content = messageText.trim() || (attachments.length > 0 ? `📎 ${attachments.length} attachment(s)` : '');
+
+    if (!FEATURE_FLAGS.USE_MOCK_DATA) {
+      // Live mode: send via Supabase mutation (cache invalidation refreshes messages)
+      sendMessage.mutate({ threadId, content });
+    }
+
+    // Always append locally for instant feedback
     const newMessage: Message = {
       id: `m${Date.now()}`,
-      text: messageText.trim() || (attachments.length > 0 ? `📎 ${attachments.length} attachment(s)` : ''),
+      text: content,
       timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
       isMine: true,
     };

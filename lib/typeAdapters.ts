@@ -1,0 +1,297 @@
+// lib/typeAdapters.ts
+// ═══════════════════════════════════════════════════════════════
+// Type Adapter Layer
+// Maps Supabase/hook return types → screen-local display types
+// Eliminates `as unknown as` casts in screen files.
+//
+// Each adapter is a pure function: hook data in → local type out.
+// ═══════════════════════════════════════════════════════════════
+
+import type {
+  ChatThreadView,
+  Message,
+  Profile,
+  Connection,
+  Vouch,
+  Notification as GlobalNotification,
+} from '../types';
+
+// ─────────────────────────────────────────────
+// InboxList: ChatThreadView → local ChatThread
+// ─────────────────────────────────────────────
+
+interface InboxChatThread {
+  id: string;
+  name: string;
+  lastMessage: string;
+  timestamp: string;
+  isUnread: boolean;
+  isPinned: boolean;
+  isGroup: boolean;
+  memberCount?: number;
+  avatarColors: string[];
+  isOnline?: boolean;
+}
+
+export const adaptChatThreadToLocal = (thread: ChatThreadView): InboxChatThread => ({
+  id: thread.id,
+  name: thread.name ?? '',
+  lastMessage: thread.last_message ?? '',
+  timestamp: thread.last_message_at
+    ? new Date(thread.last_message_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    : '',
+  isUnread: thread.is_unread,
+  isPinned: thread.is_pinned,
+  isGroup: thread.type !== 'one_to_one',
+  memberCount: thread.member_count,
+  avatarColors: thread.avatar_colors,
+  isOnline: thread.is_online,
+});
+
+// ─────────────────────────────────────────────
+// ChatScreen: types.Message → MessageBubble.Message
+// ─────────────────────────────────────────────
+
+interface BubbleMessage {
+  id: string;
+  text: string;
+  timestamp: string;
+  isMine: boolean;
+  senderName?: string;
+  senderAvatarColor?: string;
+}
+
+export const adaptMessageToBubble = (msg: Message, currentUserId: string): BubbleMessage => ({
+  id: msg.id,
+  text: msg.content,
+  timestamp: new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+  isMine: msg.sender_id === currentUserId,
+  senderName: msg.sender_name || undefined,
+});
+
+// ─────────────────────────────────────────────
+// FindTab: Profile → local ProCard
+// ─────────────────────────────────────────────
+
+interface FindProCard {
+  id: string;
+  name: string;
+  company: string;
+  role: string;
+  trade?: string;
+  secondary_trades?: string[];
+  rating: number;
+  vouches: number;
+  tags: string[];
+  stat: string;
+  avatarColor: string;
+  closingDays?: number;
+  distanceMi?: number;
+}
+
+export const adaptProfileToProCard = (profile: Profile): FindProCard => ({
+  id: profile.id,
+  name: profile.name,
+  company: profile.company,
+  role: profile.display_role,
+  trade: profile.trade ?? undefined,
+  secondary_trades: profile.trades?.length ? profile.trades.slice(1) : undefined,
+  rating: profile.rating,
+  vouches: profile.vouch_count,
+  tags: profile.tags as string[],
+  stat: profile.typical_close_days
+    ? `${profile.typical_close_days}-day avg close`
+    : `${profile.deals_closed} deals closed`,
+  avatarColor: profile.avatar_color,
+  closingDays: profile.typical_close_days ?? undefined,
+});
+
+// ─────────────────────────────────────────────
+// NetworkTab: (Connection & { profile: Profile }) → local NetworkContact
+// ─────────────────────────────────────────────
+
+interface LocalNetworkContact {
+  id: string;
+  name: string;
+  company: string;
+  role: string;
+  group: string;
+  tags: string[];
+  avatarColor: string;
+  tab: 'partners' | 'contractors';
+}
+
+const CONTRACTOR_ROLES = new Set(['contractor', 'home_stager', 'real_estate_photographer']);
+
+export const adaptConnectionToNetworkContact = (
+  conn: Connection & { profile: Profile },
+): LocalNetworkContact => ({
+  id: conn.id,
+  name: conn.profile.name,
+  company: conn.profile.company,
+  role: conn.profile.display_role,
+  group: conn.profile.display_role,
+  tags: conn.profile.tags as string[],
+  avatarColor: conn.profile.avatar_color,
+  tab: CONTRACTOR_ROLES.has(conn.profile.role) ? 'contractors' : 'partners',
+});
+
+// ─────────────────────────────────────────────
+// NetworkTab: (Connection & { requester: Profile }) → local ConnectionRequest
+// ─────────────────────────────────────────────
+
+interface NetworkConnectionRequest {
+  id: string;
+  name: string;
+  company: string;
+  role: string;
+  avatarColor: string;
+  note?: string;
+  mutualConnections: number;
+}
+
+export const adaptConnectionToRequest = (
+  conn: Connection & { requester: Profile },
+): NetworkConnectionRequest => ({
+  id: conn.id,
+  name: conn.requester.name,
+  company: conn.requester.company,
+  role: conn.requester.display_role,
+  avatarColor: conn.requester.avatar_color,
+  note: conn.note ?? undefined,
+  mutualConnections: 0, // TODO: compute mutual connections via separate query
+});
+
+// ─────────────────────────────────────────────
+// VouchFeedSection: Vouch (with joined profiles) → local VouchFeedItem
+// ─────────────────────────────────────────────
+
+interface VouchFeedProfile {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  avatar_color: string;
+  company: string;
+  role: string;
+  trade?: string;
+  is_verified: boolean;
+  vouches_count: number;
+}
+
+interface VouchFeedItem {
+  id: string;
+  voucher: VouchFeedProfile;
+  recipient: VouchFeedProfile;
+  comment: string | null;
+  tags: string[];
+  created_at: string;
+  review_id: string | null;
+}
+
+export const adaptVouchToFeedItem = (vouch: Vouch & { author?: Profile; recipient_profile?: Profile }): VouchFeedItem => ({
+  id: vouch.id,
+  voucher: {
+    id: vouch.author_id,
+    name: vouch.author?.name ?? vouch.author_name,
+    avatar_url: vouch.author?.avatar_url ?? null,
+    avatar_color: vouch.author?.avatar_color ?? vouch.avatar_color,
+    company: vouch.author?.company ?? '',
+    role: vouch.author?.display_role ?? '',
+    trade: vouch.author?.trade ?? undefined,
+    is_verified: vouch.author?.is_verified ?? false,
+    vouches_count: vouch.author?.vouch_count ?? 0,
+  },
+  recipient: {
+    id: vouch.recipient_id,
+    name: vouch.recipient_profile?.name ?? vouch.recipient_name,
+    avatar_url: vouch.recipient_profile?.avatar_url ?? null,
+    avatar_color: vouch.recipient_profile?.avatar_color ?? vouch.avatar_color,
+    company: vouch.recipient_profile?.company ?? vouch.recipient_company ?? '',
+    role: vouch.recipient_profile?.display_role ?? vouch.recipient_role ?? '',
+    trade: vouch.recipient_profile?.trade ?? undefined,
+    is_verified: vouch.recipient_profile?.is_verified ?? false,
+    vouches_count: vouch.recipient_profile?.vouch_count ?? 0,
+  },
+  comment: vouch.quote,
+  tags: vouch.tags,
+  created_at: vouch.created_at,
+  review_id: vouch.review_id,
+});
+
+// ─────────────────────────────────────────────
+// SquadSlotPicker: (Connection & { profile: Profile }) → local SquadProCandidate
+// ─────────────────────────────────────────────
+
+interface SquadProCandidate {
+  id: string;
+  name: string;
+  company: string;
+  role: string;
+  rating: number;
+  vouches: number;
+  avatarColor: string;
+}
+
+export const adaptConnectionToSquadCandidate = (
+  conn: Connection & { profile: Profile },
+): SquadProCandidate => ({
+  id: conn.profile.id,
+  name: conn.profile.name,
+  company: conn.profile.company,
+  role: conn.profile.display_role,
+  rating: conn.profile.rating,
+  vouches: conn.profile.vouch_count,
+  avatarColor: conn.profile.avatar_color,
+});
+
+// ─────────────────────────────────────────────
+// NotificationsTab: global Notification → local Notification
+// The local type adds `timestamp` (formatted) and uses a narrower NotificationType union.
+// ─────────────────────────────────────────────
+
+interface LocalNotification {
+  id: string;
+  type: GlobalNotification['type']; // preserves the exact enum type
+  title: string;
+  subtitle: string;
+  timestamp: string;
+  is_read: boolean;
+  created_at: string;
+  avatar_color?: string;
+  avatar_name?: string;
+  action_label?: string;
+  deep_link?: string;
+  job_id?: string;
+  thread_id?: string;
+  user_id?: string;
+}
+
+export const adaptNotificationToLocal = (n: GlobalNotification): LocalNotification => ({
+  id: n.id,
+  type: n.type,
+  title: n.title,
+  subtitle: n.subtitle,
+  timestamp: formatNotificationTimestamp(n.created_at),
+  is_read: n.is_read,
+  created_at: n.created_at,
+  avatar_color: n.avatar_color ?? undefined,
+  avatar_name: n.avatar_name ?? undefined,
+  action_label: n.action_label ?? undefined,
+  deep_link: n.deep_link ?? undefined,
+  job_id: n.job_id ?? undefined,
+  thread_id: n.thread_id ?? undefined,
+  user_id: n.user_id,
+});
+
+function formatNotificationTimestamp(isoString: string): string {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}

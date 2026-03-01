@@ -41,6 +41,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useVouchFeed } from '../hooks/useData';
+import { adaptVouchToFeedItem } from '../lib/typeAdapters';
 
 // ============================================================
 // TYPE DEFINITIONS — maps to Supabase join shape
@@ -316,7 +317,7 @@ const VouchFeedSection: React.FC<VouchFeedSectionProps> = ({
 
   // ── Data fetching ──────────────────────────────────────
   const { data: liveVouches } = useVouchFeed(activeFilter);
-  const allVouches = externalVouches || (FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_VOUCH_FEED : (liveVouches as unknown as VouchFeedItem[] ?? []));
+  const allVouches = externalVouches || (FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_VOUCH_FEED : (liveVouches?.map(adaptVouchToFeedItem) ?? []));
 
   // ── Apply filter + contractor bias ──────────────────────
   const filteredVouches = useMemo(() => {

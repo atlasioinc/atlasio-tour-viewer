@@ -27,6 +27,7 @@ import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useChatThreads } from '../hooks/useData';
+import { adaptChatThreadToLocal } from '../lib/typeAdapters';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -448,7 +449,7 @@ const InboxList: React.FC = () => {
 
   React.useEffect(() => {
     if (!FEATURE_FLAGS.USE_MOCK_DATA && liveThreads) {
-      setThreads(liveThreads as unknown as ChatThread[]);
+      setThreads(liveThreads.map(adaptChatThreadToLocal));
     }
   }, [liveThreads]);
 
@@ -502,6 +503,7 @@ const InboxList: React.FC = () => {
       const contactCompany = parts[1] ?? '';
 
       navigation.navigate('ChatScreen', {
+        threadId: thread.id,
         contactName,
         contactCompany,
         contactRole: '',

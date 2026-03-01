@@ -23,6 +23,7 @@ export type InboxStackParamList = {
   InboxList: undefined;
   NewMessage: undefined;
   ChatScreen: {
+    threadId: string;
     contactName: string;
     contactCompany: string;
     contactRole: string;

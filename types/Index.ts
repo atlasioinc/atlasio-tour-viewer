@@ -579,7 +579,13 @@ export type NetworkStackParamList = {
 export type InboxStackParamList = {
   InboxList: undefined;
   NewMessage: undefined;
-  ChatScreen: { conversationId: string };
+  ChatScreen: {
+    threadId: string;
+    contactName: string;
+    contactCompany: string;
+    contactRole: string;
+    contactAvatarColor: string;
+  };
   CreateDealChat: undefined;
   DealChatScreen: { conversationId: string };
 };
