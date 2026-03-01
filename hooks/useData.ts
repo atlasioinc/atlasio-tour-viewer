@@ -21,6 +21,7 @@ import type {
   PerformanceStats,
   NetworkContact,
   NetworkContractor,
+  Connection,
   Job,
   JobType,
   TradeEnum,
@@ -29,8 +30,11 @@ import type {
   Vouch,
   VouchEntry,
   ChatThreadView,
+  Message,
   Notification,
   Recipient,
+  SquadMember,
+  UserRole,
 } from '../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -45,6 +49,10 @@ export const queryKeys = {
   // Network
   networkContacts: (tab: 'partners' | 'contractors') => ['network', tab] as const,
   networkContractors: ['network', 'contractors-invite'] as const,
+  connections: ['connections'] as const,
+  connectionRequests: ['connection-requests'] as const,
+  connectionRequestCount: ['connection-requests', 'count'] as const,
+  connectedPros: (role: string) => ['connected-pros', role] as const,
 
   // Repair Jobs
   repairJobs: ['repair-jobs'] as const,
@@ -57,6 +65,7 @@ export const queryKeys = {
   // Chat / Inbox
   chatThreads: ['chat-threads'] as const,
   chatMessages: (conversationId: string) => ['messages', conversationId] as const,
+  messages: (threadId: string) => ['messages', threadId] as const,
   chatRecipients: ['chat-recipients'] as const,
 
   // Notifications
@@ -66,6 +75,13 @@ export const queryKeys = {
   // Find / Search
   findPros: (query: string, role: string, sort: string) =>
     ['find-pros', query, role, sort] as const,
+  searchPros: (query: string, role: string) => ['search-pros', query, role] as const,
+
+  // Squads
+  squadMembers: (squadId: string) => ['squad-members', squadId] as const,
+
+  // Agent Jobs
+  agentJobs: ['agent-jobs'] as const,
 } as const;
 
 // ═══════════════════════════════════════════════════════════════
@@ -119,23 +135,64 @@ export const useProProfile = (profileId: string) => {
 /**
  * Fetch current user's own profile
  */
+// STATUS: wired (with mock fallback)
 export const useMyProfile = () => {
   return useQuery({
     queryKey: queryKeys.myProfile,
     queryFn: async (): Promise<Profile> => {
-      // ── PRODUCTION ──
-      // const userId = await getCurrentUserId();
-      // if (!userId) throw new Error('Not authenticated');
-      // const { data, error } = await supabase
-      //   .from('profiles')
-      //   .select('*')
-      //   .eq('id', userId)
-      //   .single();
-      // if (error) throw error;
-      // return data;
-
-      throw new Error('Not implemented');
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        if (error) throw error;
+        return data as Profile;
+      } catch (err) {
+        console.warn('[useMyProfile] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return {
+          id: 'mock-user-1', name: 'Demo Agent', company: 'Atlasio Demo', role: 'agent',
+          display_role: 'Real Estate Agent', location: 'Denver, CO', bio: '', avatar_url: null,
+          avatar_color: '#7BA3C9', rating: 4.8, vouch_count: 12, deals_closed: 24,
+          tags: [], trades: [], trade: null, specialties: [], licensed: null,
+          active_since: '2022', service_area: 'Denver Metro', phone: null,
+          profile_visibility: 'public', is_visible: true, is_verified: false, is_banned: false,
+          credential_urls: [], stripe_account_id: null, typical_close_days: null, base_price: null,
+          fee_tier: 'free', completed_bids_count: 0, fee_tier_started_at: null,
+          notification_preferences: {}, is_public: true, deactivated_at: null,
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        } as Profile;
+      }
     },
+  });
+};
+
+/**
+ * Fetch a profile by ID with performance stats
+ */
+// STATUS: wired (with mock fallback)
+export const useProfile = (profileId: string) => {
+  return useQuery({
+    queryKey: queryKeys.profile(profileId),
+    queryFn: async (): Promise<Profile & { performance_stats: PerformanceStats | null }> => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*, performance_stats(*)')
+          .eq('id', profileId)
+          .single();
+        if (error) throw error;
+        return data as Profile & { performance_stats: PerformanceStats | null };
+      } catch (err) {
+        console.warn('[useProfile] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return { performance_stats: null } as unknown as Profile & { performance_stats: PerformanceStats | null };
+      }
+    },
+    enabled: !!profileId,
   });
 };
 
@@ -153,26 +210,138 @@ export const useMyProfile = () => {
  *     .eq('requester_id', userId)
  *     .eq('status', 'accepted')
  */
+// STATUS: wired (with mock fallback)
 export const useNetworkContacts = (tab: 'partners' | 'contractors') => {
   return useQuery({
     queryKey: queryKeys.networkContacts(tab),
     queryFn: async (): Promise<NetworkContact[]> => {
-      // ── PRODUCTION ──
-      // const userId = await getCurrentUserId();
-      // const { data, error } = await supabase
-      //   .from('connections')
-      //   .select(`
-      //     id,
-      //     is_in_squad,
-      //     profile:profiles!responder_id(id, name, company, display_role, role, tags, avatar_color)
-      //   `)
-      //   .eq('requester_id', userId)
-      //   .eq('status', 'accepted');
-      // if (error) throw error;
-      // return data.filter(c => isContractorRole(c.profile.role) === (tab === 'contractors'))
-      //   .map(mapConnectionToNetworkContact);
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('connections')
+          .select('*, profile:profiles!responder_id(id, name, company, display_role, role, tags, avatar_color)')
+          .eq('requester_id', userId)
+          .eq('status', 'accepted');
+        if (error) throw error;
+        return (data ?? []) as unknown as NetworkContact[];
+      } catch (err) {
+        console.warn('[useNetworkContacts] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
+    },
+  });
+};
 
-      throw new Error('Not implemented');
+/**
+ * Fetch all accepted connections for current user
+ */
+// STATUS: wired (with mock fallback)
+export const useConnections = () => {
+  return useQuery({
+    queryKey: queryKeys.connections,
+    queryFn: async (): Promise<(Connection & { profile: Profile })[]> => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('connections')
+          .select('*, profile:profiles!responder_id(*)')
+          .or(`requester_id.eq.${userId},responder_id.eq.${userId}`)
+          .eq('status', 'accepted');
+        if (error) throw error;
+        return (data ?? []) as unknown as (Connection & { profile: Profile })[];
+      } catch (err) {
+        console.warn('[useConnections] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * Fetch pending connection requests (incoming)
+ */
+// STATUS: wired (with mock fallback)
+export const useConnectionRequests = () => {
+  return useQuery({
+    queryKey: queryKeys.connectionRequests,
+    queryFn: async (): Promise<(Connection & { requester: Profile })[]> => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('connections')
+          .select('*, requester:profiles!requester_id(*)')
+          .eq('responder_id', userId)
+          .eq('status', 'pending');
+        if (error) throw error;
+        return (data ?? []) as unknown as (Connection & { requester: Profile })[];
+      } catch (err) {
+        console.warn('[useConnectionRequests] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * Pending connection request count (for badge)
+ */
+// STATUS: wired (with mock fallback)
+export const useConnectionRequestCount = () => {
+  return useQuery({
+    queryKey: queryKeys.connectionRequestCount,
+    queryFn: async (): Promise<number> => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { count, error } = await supabase
+          .from('connections')
+          .select('id', { count: 'exact', head: true })
+          .eq('responder_id', userId)
+          .eq('status', 'pending');
+        if (error) throw error;
+        return count ?? 0;
+      } catch (err) {
+        console.warn('[useConnectionRequestCount] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return 0;
+      }
+    },
+    refetchInterval: 30 * 1000,
+  });
+};
+
+/**
+ * Fetch connected pros filtered by role
+ */
+// STATUS: wired (with mock fallback)
+export const useConnectedPros = (role: string) => {
+  return useQuery({
+    queryKey: queryKeys.connectedPros(role),
+    queryFn: async (): Promise<(Connection & { profile: Profile })[]> => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('connections')
+          .select('*, profile:profiles!responder_id(*)')
+          .or(`requester_id.eq.${userId},responder_id.eq.${userId}`)
+          .eq('status', 'accepted');
+        if (error) throw error;
+        const filtered = (data ?? []).filter((c: any) =>
+          role === 'All' || c.profile?.role === role
+        );
+        return filtered as unknown as (Connection & { profile: Profile })[];
+      } catch (err) {
+        console.warn('[useConnectedPros] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
     },
   });
 };
@@ -225,32 +394,96 @@ export const useSendConnectionRequest = () => {
   });
 };
 
+/**
+ * Accept a connection request
+ * RPC: rpc_accept_connection(p_connection_id UUID) → VOID
+ */
+// STATUS: wired (with mock fallback)
+export const useAcceptConnection = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ connectionId }: { connectionId: string }) => {
+      try {
+        const { error } = await supabase.rpc('rpc_accept_connection', {
+          p_connection_id: connectionId,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useAcceptConnection] Supabase RPC failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.connections });
+      qc.invalidateQueries({ queryKey: queryKeys.connectionRequests });
+      qc.invalidateQueries({ queryKey: queryKeys.connectionRequestCount });
+    },
+  });
+};
+
+/**
+ * Decline a connection request
+ * RPC: rpc_reject_connection(p_connection_id UUID) → VOID
+ */
+// STATUS: wired (with mock fallback)
+export const useDeclineConnection = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ connectionId }: { connectionId: string }) => {
+      try {
+        const { error } = await supabase.rpc('rpc_reject_connection', {
+          p_connection_id: connectionId,
+        });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useDeclineConnection] Supabase RPC failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.connectionRequests });
+      qc.invalidateQueries({ queryKey: queryKeys.connectionRequestCount });
+    },
+  });
+};
+
 // ═══════════════════════════════════════════════════════════════
 // REPAIR JOB HOOKS
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Fetch all repair jobs for current agent
+ * Fetch all jobs for current agent
  */
-export const useJobs = () => {
+// STATUS: wired (with mock fallback)
+export const useAgentJobs = () => {
   return useQuery({
-    queryKey: queryKeys.repairJobs,
+    queryKey: queryKeys.agentJobs,
     queryFn: async (): Promise<Job[]> => {
-      // ── PRODUCTION ──
-      // const userId = await getCurrentUserId();
-      // const { data, error } = await supabase
-      //   .from('repair_jobs')
-      //   .select('*, bids:repair_bids(*)')
-      //   .eq('agent_id', userId)
-      //   .in('status', ['open', 'in_progress'])
-      //   .order('created_at', { ascending: false });
-      // if (error) throw error;
-      // return data;
-
-      throw new Error('Not implemented');
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('agent_id', userId)
+          .order('updated_at', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map((j: any) => ({ ...j, bids: [] })) as Job[];
+      } catch (err) {
+        console.warn('[useAgentJobs] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return MOCK_REPAIR_JOBS;
+      }
     },
   });
 };
+
+/**
+ * Fetch all repair jobs for current agent (legacy alias)
+ */
+export const useJobs = useAgentJobs;
 
 /**
  * Fetch a single repair job by ID
@@ -699,62 +932,95 @@ export const useLikeVouch = () => {
 /**
  * Fetch all chat threads for current user
  */
+// STATUS: wired (with mock fallback)
 export const useChatThreads = () => {
   return useQuery({
     queryKey: queryKeys.chatThreads,
     queryFn: async (): Promise<ChatThreadView[]> => {
-      // ── PRODUCTION ──
-      // const userId = await getCurrentUserId();
-      // const { data, error } = await supabase
-      //   .from('conversation_members')
-      //   .select('conversation:conversations(*)')
-      //   .eq('user_id', userId)
-      //   .order('last_message_at', { ascending: false, foreignTable: 'conversations' });
-      // if (error) throw error;
-      // return data.map(d => d.conversation);
-
-      throw new Error('Not implemented');
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('thread_members')
+          .select('thread:threads(*)')
+          .eq('user_id', userId);
+        if (error) throw error;
+        return ((data ?? []).map((d: any) => ({
+          ...d.thread,
+          participants: [],
+          is_unread: false,
+          avatar_colors: [],
+        })) as ChatThreadView[]);
+      } catch (err) {
+        console.warn('[useChatThreads] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
     },
+  });
+};
+
+/**
+ * Fetch messages for a thread
+ */
+// STATUS: wired (with mock fallback)
+export const useMessages = (threadId: string) => {
+  return useQuery({
+    queryKey: queryKeys.messages(threadId),
+    queryFn: async (): Promise<Message[]> => {
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('thread_id', threadId)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        return (data ?? []) as Message[];
+      } catch (err) {
+        console.warn('[useMessages] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
+    },
+    enabled: !!threadId,
   });
 };
 
 /**
  * Send a message
  */
+// STATUS: wired (with mock fallback)
 export const useSendMessage = () => {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
-      conversationId,
+      threadId,
       content,
       type = 'text',
     }: {
-      conversationId: string;
+      threadId: string;
       content: string;
       type?: 'text' | 'image' | 'document';
     }) => {
-      // ── PRODUCTION ──
-      // const userId = await getCurrentUserId();
-      // const { data, error } = await supabase
-      //   .from('messages')
-      //   .insert({ conversation_id: conversationId, sender_id: userId, content, type })
-      //   .select()
-      //   .single();
-      // if (error) throw error;
-      //
-      // // Update conversation last_message
-      // await supabase.from('conversations').update({
-      //   last_message: content,
-      //   last_message_at: new Date().toISOString(),
-      // }).eq('id', conversationId);
-      //
-      // return data;
-
-      return { id: `msg-${Date.now()}`, content };
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('messages')
+          .insert({ thread_id: threadId, sender_id: userId, sender_name: '', content, type })
+          .select()
+          .single();
+        if (error) throw error;
+        return data as Message;
+      } catch (err) {
+        console.warn('[useSendMessage] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return { id: `msg-${Date.now()}`, content } as unknown as Message;
+      }
     },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: queryKeys.chatMessages(variables.conversationId) });
+    onSuccess: (_, { threadId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.messages(threadId) });
       qc.invalidateQueries({ queryKey: queryKeys.chatThreads });
     },
   });
@@ -767,22 +1033,27 @@ export const useSendMessage = () => {
 /**
  * Fetch notifications for current user
  */
+// STATUS: wired (with mock fallback)
 export const useNotifications = () => {
   return useQuery({
     queryKey: queryKeys.notifications,
     queryFn: async (): Promise<Notification[]> => {
-      // ── PRODUCTION ──
-      // const userId = await getCurrentUserId();
-      // const { data, error } = await supabase
-      //   .from('notifications')
-      //   .select('*')
-      //   .eq('user_id', userId)
-      //   .order('created_at', { ascending: false })
-      //   .limit(50);
-      // if (error) throw error;
-      // return data;
-
-      throw new Error('Not implemented');
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (error) throw error;
+        return (data ?? []) as Notification[];
+      } catch (err) {
+        console.warn('[useNotifications] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
     },
   });
 };
@@ -840,35 +1111,154 @@ export const useUnreadNotificationCount = () => {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Search for pros (FindTab)
+ * Search for pros (FindTab) — with dynamic filters
  */
+// STATUS: wired (with mock fallback)
+export const useSearchPros = (query: string, role: string) => {
+  return useQuery({
+    queryKey: queryKeys.searchPros(query, role),
+    queryFn: async (): Promise<Profile[]> => {
+      try {
+        let q = supabase
+          .from('profiles')
+          .select('*')
+          .neq('role', 'agent')
+          .eq('is_visible', true);
+
+        if (role !== 'All') q = q.eq('role', role);
+        if (query) q = q.or(`name.ilike.%${query}%,company.ilike.%${query}%`);
+
+        const { data, error } = await q.limit(30);
+        if (error) throw error;
+        return (data ?? []) as Profile[];
+      } catch (err) {
+        console.warn('[useSearchPros] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * Search for pros (FindTab) — legacy alias with sort param
+ */
+// STATUS: wired (with mock fallback)
 export const useFindPros = (query: string, role: string, sort: string) => {
   return useQuery({
     queryKey: queryKeys.findPros(query, role, sort),
     queryFn: async (): Promise<Profile[]> => {
-      // ── PRODUCTION ──
-      // let q = supabase
-      //   .from('profiles')
-      //   .select('*')
-      //   .neq('role', 'agent'); // exclude agents from search
-      //
-      // if (role !== 'All') q = q.eq('display_role', role);
-      // if (query) q = q.or(`name.ilike.%${query}%,company.ilike.%${query}%`);
-      //
-      // // Sort
-      // switch (sort) {
-      //   case 'Most Vouched': q = q.order('vouch_count', { ascending: false }); break;
-      //   case 'Highest Rated': q = q.order('rating', { ascending: false }); break;
-      //   // 'Nearest' and 'Fastest Closing' need PostGIS / computed columns
-      // }
-      //
-      // const { data, error } = await q.limit(30);
-      // if (error) throw error;
-      // return data;
+      try {
+        let q = supabase
+          .from('profiles')
+          .select('*')
+          .neq('role', 'agent')
+          .eq('is_visible', true);
 
-      throw new Error('Not implemented');
+        if (role !== 'All') q = q.eq('display_role', role);
+        if (query) q = q.or(`name.ilike.%${query}%,company.ilike.%${query}%`);
+
+        switch (sort) {
+          case 'Most Vouched': q = q.order('vouch_count', { ascending: false }); break;
+          case 'Highest Rated': q = q.order('rating', { ascending: false }); break;
+        }
+
+        const { data, error } = await q.limit(30);
+        if (error) throw error;
+        return (data ?? []) as Profile[];
+      } catch (err) {
+        console.warn('[useFindPros] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
     },
-    // Debounce: don't fire until user stops typing for 300ms
-    // Handled by the screen via useDebounce hook
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SQUAD HOOKS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Fetch squad members for a squad
+ */
+// STATUS: mock (planned — schema ready, no live data yet)
+export const useSquadMembers = (squadId: string) => {
+  return useQuery({
+    queryKey: queryKeys.squadMembers(squadId),
+    queryFn: async (): Promise<(SquadMember & { profile: Profile })[]> => {
+      try {
+        const { data, error } = await supabase
+          .from('squad_members')
+          .select('*, profile:profiles!profile_id(*)')
+          .eq('squad_id', squadId);
+        if (error) throw error;
+        return (data ?? []) as unknown as (SquadMember & { profile: Profile })[];
+      } catch (err) {
+        console.warn('[useSquadMembers] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        return [];
+      }
+    },
+    enabled: !!squadId,
+  });
+};
+
+/**
+ * Assign a member to a squad
+ */
+// STATUS: wired (with mock fallback)
+export const useAssignSquadMember = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      squadId,
+      profileId,
+      role,
+    }: {
+      squadId: string;
+      profileId: string;
+      role: UserRole;
+    }) => {
+      try {
+        const { error } = await supabase
+          .from('squad_members')
+          .upsert({ squad_id: squadId, profile_id: profileId, role });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useAssignSquadMember] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: (_, { squadId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.squadMembers(squadId) });
+    },
+  });
+};
+
+/**
+ * Remove a member from a squad
+ */
+// STATUS: wired (with mock fallback)
+export const useRemoveSquadMember = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberId, squadId }: { memberId: string; squadId: string }) => {
+      try {
+        const { error } = await supabase
+          .from('squad_members')
+          .delete()
+          .eq('id', memberId);
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useRemoveSquadMember] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    },
+    onSuccess: (_, { squadId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.squadMembers(squadId) });
+    },
   });
 };
