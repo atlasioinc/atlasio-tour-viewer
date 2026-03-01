@@ -1039,6 +1039,7 @@ export const useSendMessage = () => {
         if (!userId) throw new Error('Not authenticated');
         const { data, error } = await supabase
           .from('messages')
+          // TODO: populate sender_name from profile context when auth is wired
           .insert({ thread_id: threadId, sender_id: userId, sender_name: '', content, type })
           .select()
           .single();

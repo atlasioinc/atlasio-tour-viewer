@@ -35,6 +35,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMessages, useSendMessage } from '../hooks/useData';
 import { adaptMessageToBubble } from '../lib/typeAdapters';
+import { supabase } from '../lib/supabase';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -217,6 +218,14 @@ const ChatScreen: React.FC = () => {
   const { data: liveMessages } = useMessages(threadId);
   const sendMessage = useSendMessage();
 
+  // ── Auth: resolve current user ID for message ownership ──
+  const [currentUserId, setCurrentUserId] = useState<string>('current-user-id');
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) setCurrentUserId(data.user.id);
+    });
+  }, []);
+
   // ── State ──
   const [messageText, setMessageText] = useState('');
   const [isAddingContact, setIsAddingContact] = useState(false);
@@ -231,10 +240,10 @@ const ChatScreen: React.FC = () => {
   // ── Sync live messages when feature flag is off ──
   useEffect(() => {
     if (!FEATURE_FLAGS.USE_MOCK_DATA && liveMessages && liveMessages.length > 0) {
-      const adapted = liveMessages.map((m) => adaptMessageToBubble(m, 'current-user-id'));
+      const adapted = liveMessages.map((m) => adaptMessageToBubble(m, currentUserId));
       setMessages(adapted);
     }
-  }, [liveMessages]);
+  }, [liveMessages, currentUserId]);
   const toInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 

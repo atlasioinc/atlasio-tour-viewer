@@ -188,7 +188,7 @@ interface VouchFeedItem {
   review_id: string | null;
 }
 
-export const adaptVouchToFeedItem = (vouch: Vouch & { author?: Profile; recipient_profile?: Profile }): VouchFeedItem => ({
+export const adaptVouchToFeedItem = (vouch: Vouch & { author?: Profile; recipient?: Profile }): VouchFeedItem => ({
   id: vouch.id,
   voucher: {
     id: vouch.author_id,
@@ -203,14 +203,14 @@ export const adaptVouchToFeedItem = (vouch: Vouch & { author?: Profile; recipien
   },
   recipient: {
     id: vouch.recipient_id,
-    name: vouch.recipient_profile?.name ?? vouch.recipient_name,
-    avatar_url: vouch.recipient_profile?.avatar_url ?? null,
-    avatar_color: vouch.recipient_profile?.avatar_color ?? vouch.avatar_color,
-    company: vouch.recipient_profile?.company ?? vouch.recipient_company ?? '',
-    role: vouch.recipient_profile?.display_role ?? vouch.recipient_role ?? '',
-    trade: vouch.recipient_profile?.trade ?? undefined,
-    is_verified: vouch.recipient_profile?.is_verified ?? false,
-    vouches_count: vouch.recipient_profile?.vouch_count ?? 0,
+    name: vouch.recipient?.name ?? vouch.recipient_name,
+    avatar_url: vouch.recipient?.avatar_url ?? null,
+    avatar_color: vouch.recipient?.avatar_color ?? vouch.avatar_color,
+    company: vouch.recipient?.company ?? vouch.recipient_company ?? '',
+    role: vouch.recipient?.display_role ?? vouch.recipient_role ?? '',
+    trade: vouch.recipient?.trade ?? undefined,
+    is_verified: vouch.recipient?.is_verified ?? false,
+    vouches_count: vouch.recipient?.vouch_count ?? 0,
   },
   comment: vouch.quote,
   tags: vouch.tags,
@@ -249,9 +249,33 @@ export const adaptConnectionToSquadCandidate = (
 // The local type adds `timestamp` (formatted) and uses a narrower NotificationType union.
 // ─────────────────────────────────────────────
 
+// Map schema notification_type_enum (20 values) → local display type (11 categories)
+const NOTIFICATION_TYPE_MAP: Record<string, string> = {
+  'connection_request_received': 'connection_request',
+  'connection_accepted': 'connection_accepted',
+  'connection_declined': 'connection_rejected',
+  'vouch_received': 'vouch_received',
+  'mutual_vouch_prompt': 'vouch_received',
+  'bid_new': 'bid_new',
+  'bid_edited': 'bid_new',
+  'bid_accepted_contractor': 'bid_accepted',
+  'bid_accepted_agent_confirmation': 'bid_accepted',
+  'bid_countered': 'bid_countered',
+  'counter_resubmitted': 'bid_countered',
+  'bid_rejected': 'bid_rejected',
+  'bid_withdrawn': 'bid_rejected',
+  'bidding_window_expiring': 'bid_new',
+  'contractor_marked_complete': 'bid_accepted',
+  'agent_confirmed_complete': 'bid_accepted',
+  'job_expired': 'job_expired',
+  'job_cancelled': 'job_expired',
+  'invited_to_bid': 'bid_new',
+  'message_new': 'message_new',
+};
+
 interface LocalNotification {
   id: string;
-  type: GlobalNotification['type']; // preserves the exact enum type
+  type: string; // mapped to local display category
   title: string;
   subtitle: string;
   timestamp: string;
@@ -268,7 +292,7 @@ interface LocalNotification {
 
 export const adaptNotificationToLocal = (n: GlobalNotification): LocalNotification => ({
   id: n.id,
-  type: n.type,
+  type: NOTIFICATION_TYPE_MAP[n.type] ?? n.type,
   title: n.title,
   subtitle: n.subtitle,
   timestamp: formatNotificationTimestamp(n.created_at),

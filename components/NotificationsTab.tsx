@@ -48,7 +48,6 @@ type NotificationType =
   | 'bid_countered'
   | 'bid_rejected'
   | 'job_expired'
-  | 'mention'
   | 'message_new';
 
 interface Notification {
@@ -179,8 +178,6 @@ const IconCircle: React.FC<{ type: NotificationType }> = ({ type }) => {
       case 'bid_rejected':
       case 'job_expired':
         return <WrenchIcon />;
-      case 'mention':
-        return <AtSignIcon />;
       case 'connection_accepted':
       case 'connection_rejected':
       case 'message_new':
@@ -264,13 +261,14 @@ const MOCK_NOTIFICATIONS: Notification[] = [
   },
   {
     id: 'notif-6',
-    type: 'mention',
-    title: 'Alex Chen mentioned you',
+    type: 'message_new',
+    title: 'Alex Chen sent you a message',
     subtitle: 'in 123 Main St deal chat',
     timestamp: 'Yesterday, 11:30 AM',
     is_read: true,
     created_at: '2025-11-30T11:30:00Z',
     deep_link: 'DealChatScreen',
+    thread_id: 'deal-chat-1',
   },
   // ── Earlier ──
   {
@@ -466,10 +464,6 @@ const NotificationsTab: React.FC = () => {
       case 'vouch_received':
         // Production: navigation.navigate('ProfileTab', { section: 'vouches' })
         console.log('Nav to: ProfileTab (vouches)');
-        break;
-      case 'mention':
-        // Production: navigation.navigate('DealChatScreen', { chatId: notif.thread_id })
-        console.log('Nav to: DealChatScreen', notif.thread_id);
         break;
       case 'message_new':
         // Production: navigation.navigate('ChatScreen', { chatId: notif.thread_id })
