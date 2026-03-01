@@ -25,6 +25,8 @@ import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler'
 import SearchField from './SearchField';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useChatThreads } from '../hooks/useData';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -441,6 +443,15 @@ const InboxList: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [threads, setThreads] = useState<ChatThread[]>(INITIAL_THREADS);
 
+  // ── Live data hook (keeps cache warm) ──
+  const { data: liveThreads } = useChatThreads();
+
+  React.useEffect(() => {
+    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveThreads) {
+      setThreads(liveThreads as unknown as ChatThread[]);
+    }
+  }, [liveThreads]);
+
   const filteredThreads = threads.filter((t) => {
     if (searchText.length === 0) return true;
     const q = searchText.toLowerCase();
@@ -491,10 +502,10 @@ const InboxList: React.FC = () => {
       const contactCompany = parts[1] ?? '';
 
       navigation.navigate('ChatScreen', {
-        contactId: thread.id,
         contactName,
-        contactAvatarColor: thread.avatarColors[0],
         contactCompany,
+        contactRole: '',
+        contactAvatarColor: thread.avatarColors?.[0] ?? '#7BA3C9',
       });
     }
   }, [navigation]);

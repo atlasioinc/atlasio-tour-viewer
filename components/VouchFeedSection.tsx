@@ -39,6 +39,8 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useVouchFeed } from '../hooks/useData';
 
 // ============================================================
 // TYPE DEFINITIONS — maps to Supabase join shape
@@ -312,9 +314,9 @@ const VouchFeedSection: React.FC<VouchFeedSectionProps> = ({
 }) => {
   const [activeFilter, setActiveFilter] = useState<VouchFilterTab>('All');
 
-  // ── Data fetching (swap mock for hook) ──────────────────
-  // Production: const { data: vouches, isLoading } = useVouchFeed(activeFilter);
-  const allVouches = externalVouches || MOCK_VOUCH_FEED;
+  // ── Data fetching ──────────────────────────────────────
+  const { data: liveVouches } = useVouchFeed(activeFilter);
+  const allVouches = externalVouches || (FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_VOUCH_FEED : (liveVouches as unknown as VouchFeedItem[] ?? []));
 
   // ── Apply filter + contractor bias ──────────────────────
   const filteredVouches = useMemo(() => {

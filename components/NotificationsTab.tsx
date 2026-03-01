@@ -26,6 +26,8 @@ import type { HomeStackParamList } from './HomeStack';
 import type { Job, BidWithProfile } from '../types';
 import { MOCK_REPAIR_JOBS } from './RepairJobsData';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useNotifications as useNotificationsHook } from '../hooks/useData';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS (from Figma)
@@ -402,7 +404,15 @@ const groupNotificationsByDate = (notifications: Notification[]): NotificationSe
 
 const NotificationsTab: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const { data: liveNotifications } = useNotificationsHook();
+  const initialNotifications = FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_NOTIFICATIONS : (liveNotifications as unknown as Notification[] ?? []);
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  // When live data loads and flag is off, sync state
+  React.useEffect(() => {
+    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveNotifications) {
+      setNotifications(liveNotifications as unknown as Notification[]);
+    }
+  }, [liveNotifications]);
 
   // ── Mark single notification as read ──
   const markAsRead = useCallback((id: string) => {

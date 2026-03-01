@@ -29,6 +29,8 @@ import type { HomeStackParamList } from './HomeStack';
 import { MOCK_REPAIR_JOBS, ACTIVE_REPAIR_JOBS } from './RepairJobsData';
 import RepairCard from './RepairCard';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useAgentJobs } from '../hooks/useData';
 import QuickActionsRow from './QuickActionsRow';
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
 import type { ProProfileData } from './ProProfile';
@@ -346,6 +348,10 @@ const HomeTabAgent: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+
+  // Live data hook (runs even in mock mode to keep cache warm)
+  const { data: liveJobs } = useAgentJobs();
+  const activeJobs = FEATURE_FLAGS.USE_MOCK_DATA ? ACTIVE_REPAIR_JOBS : (liveJobs ?? []);
 
   // ── Squad State ──
   const [squadMembers, setSquadMembers] = useState<{ [slotId: string]: SquadProCandidate }>({});
@@ -884,7 +890,7 @@ const HomeTabAgent: React.FC = () => {
                     lineHeight: 24,
                   }}
                 >
-                  {`Active Repairs (${hasActiveRepair ? ACTIVE_REPAIR_JOBS.length : 0})`}
+                  {`Active Repairs (${hasActiveRepair ? activeJobs.length : 0})`}
                 </Text>
                 <Pressable
                   onPress={() => navigation.navigate('PostJobWizard')}
@@ -960,11 +966,11 @@ const HomeTabAgent: React.FC = () => {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 12, paddingLeft: 16, paddingRight: 16, paddingBottom: 4 }}
               >
-                {ACTIVE_REPAIR_JOBS.map((job) => (
+                {activeJobs.map((job) => (
                   <RepairCard
                     key={job.id}
-                    job={job}
-                    onPress={() => navigation.navigate('RepairJobDetails', { job })}
+                    job={job as any}
+                    onPress={() => navigation.navigate('RepairJobDetails', { job: job as any })}
                     width={325}
                   />
                 ))}

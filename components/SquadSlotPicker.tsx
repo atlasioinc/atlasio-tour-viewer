@@ -18,6 +18,8 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useConnectedPros } from '../hooks/useData';
 import SearchField from './SearchField';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -264,9 +266,13 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
     }
   }, [visible]);
 
+  // ── Live data hook (keeps cache warm) ──
+  const { data: liveConnectedPros } = useConnectedPros(role);
+  const prosSource = FEATURE_FLAGS.USE_MOCK_DATA ? CONNECTED_PROS : (liveConnectedPros as unknown as SquadProCandidate[] ?? CONNECTED_PROS);
+
   // Filter connected pros by role + search text
   const filteredPros = useMemo(() => {
-    let pros = CONNECTED_PROS.filter((p) => p.role === role);
+    let pros = prosSource.filter((p) => p.role === role);
 
     // Exclude the currently selected pro if changing
     if (currentProId) {
@@ -284,7 +290,7 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
 
     // Sort by vouches (most trusted first)
     return pros.sort((a, b) => b.vouches - a.vouches);
-  }, [role, searchText, currentProId]);
+  }, [prosSource, role, searchText, currentProId]);
 
   // Reset search when modal opens/closes
   const handleClose = () => {

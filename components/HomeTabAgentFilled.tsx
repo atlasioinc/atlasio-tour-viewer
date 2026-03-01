@@ -25,6 +25,8 @@ import type { HomeStackParamList } from './HomeStack';
 import { MOCK_REPAIR_JOBS } from './RepairJobsData';
 import RepairCard from './RepairCard';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useAgentJobs } from '../hooks/useData';
 
 
 // ─────────────────────────────────────────────
@@ -544,6 +546,9 @@ const AvatarPlaceholder: React.FC<{
 // ═══════════════════════════════════════════════════════════════
 
 const HomeTabAgentFilled: React.FC = () => {
+  const { data: liveJobs } = useAgentJobs();
+  const activeJobs = FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_REPAIR_JOBS : (liveJobs ?? []);
+
   const [activeTab, setActiveTab] = useState<string>('All');
   const [hasActiveRepair, setHasActiveRepair] = useState<boolean>(false);
   const [isFilled, setIsFilled] = useState<boolean>(false);
@@ -950,7 +955,7 @@ const HomeTabAgentFilled: React.FC = () => {
                     lineHeight: 24,
                   }}
                 >
-                  {`Active Repairs (${hasActiveRepair ? MOCK_REPAIR_JOBS.length : 0})`}
+                  {`Active Repairs (${hasActiveRepair ? activeJobs.length : 0})`}
                 </Text>
                 <Pressable
                   onPress={() => navigation.navigate('PostJobWizard')}
@@ -1026,11 +1031,11 @@ const HomeTabAgentFilled: React.FC = () => {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 16, paddingLeft: 16, paddingRight: 16, paddingBottom: 4 }}
               >
-                {MOCK_REPAIR_JOBS.map((job) => (
+                {activeJobs.map((job) => (
                   <RepairCard
                     key={job.id}
-                    job={job}
-                    onPress={() => navigation.navigate('RepairJobDetails', { job })}
+                    job={job as any}
+                    onPress={() => navigation.navigate('RepairJobDetails', { job: job as any })}
                     width={360}
                   />
                 ))}

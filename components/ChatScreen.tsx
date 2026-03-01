@@ -32,6 +32,8 @@ import MessageBubble from './MessageBubble';
 import type { Message } from './MessageBubble';
 import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+// TODO: Wire useMessages(threadId) when ChatScreen receives threadId from navigation params
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -218,7 +220,7 @@ const ChatScreen: React.FC = () => {
   const [showAttach, setShowAttach] = useState(false);
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
   const [attachments, setAttachments] = useState<Array<{ type: 'photo' | 'document'; uri: string; name: string }>>([]);
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>(FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_MESSAGES : []);
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(true); // true = show conversation header
   const toInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);

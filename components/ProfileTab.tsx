@@ -19,6 +19,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useMyProfile } from '../hooks/useData';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -112,18 +114,20 @@ const Sparkline: React.FC = () => (
 const ProfileTab: React.FC = () => {
   const navigation = useNavigation<any>();
 
+  // Live profile hook (runs even in mock mode to keep cache warm)
+  const { data: liveProfile } = useMyProfile();
+
   // ── Profile State ──
-  // TODO: Wire to Supabase profiles query — currently mock data
   const [profilePhoto, setProfilePhoto] = useState<string | undefined>(undefined);
-  const [bio, setBio] = useState(
-    'Specializing in first-time buyers and investor flips. Fast closings, bilingual Spanish/English. Known for strong local connections and helping clients navigate complex deals with ease.'
-  );
+  const mockBio = 'Specializing in first-time buyers and investor flips. Fast closings, bilingual Spanish/English. Known for strong local connections and helping clients navigate complex deals with ease.';
+  const [bio, setBio] = useState(mockBio);
   const [profileVisible, setProfileVisible] = useState(true);
 
-  // ── Specialties & Languages (synced from EditProfileScreen) ──
-  // TODO: Wire to Supabase profiles query — currently matches EditProfileScreen mock data
-  const specialties = ['Residential', 'First-Time Buyers', 'Investment'];
-  const languages = ['English', 'Spanish'];
+  // ── Specialties & Languages ──
+  const specialties = FEATURE_FLAGS.USE_MOCK_DATA
+    ? ['Residential', 'First-Time Buyers', 'Investment']
+    : (liveProfile?.specialties ?? ['Residential', 'First-Time Buyers', 'Investment']);
+  const languages = FEATURE_FLAGS.USE_MOCK_DATA ? ['English', 'Spanish'] : ['English', 'Spanish'];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>

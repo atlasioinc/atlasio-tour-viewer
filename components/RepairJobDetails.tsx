@@ -32,6 +32,8 @@ import type { Job, BidWithProfile, BidStatus, JobStatus } from '../types';
 import InviteContractorsModal from './InviteContractorsModal';
 import InfoBanner from './InfoBanner';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useJob, useJobBids } from '../hooks/useData';
 
 // Which bid action modal is currently visible
 type BidActionModal = 'accept' | 'counter' | 'reject' | null;
@@ -514,6 +516,10 @@ const RepairJobDetails: React.FC = () => {
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
+  // ── Live data hooks (keep cache warm) ──
+  const { data: liveJob } = useJob(route.params.job.id);
+  const { data: liveBids } = useJobBids(route.params.job.id);
+
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       const updatedJob = route.params?.job;
@@ -521,6 +527,12 @@ const RepairJobDetails: React.FC = () => {
     });
     return unsubscribe;
   }, [navigation, route.params?.job]);
+
+  useEffect(() => {
+    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveJob) {
+      setJob({ ...liveJob, bids: liveBids ?? [] } as JobWithBidProfiles);
+    }
+  }, [liveJob, liveBids]);
 
   const bids = job.bids as BidWithProfile[];
   const sortedBids = [...bids].sort((a, b) => {

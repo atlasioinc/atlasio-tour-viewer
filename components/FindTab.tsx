@@ -37,6 +37,8 @@ import { mapFindProToProfile } from './proProfileHelpers';
 import SearchField from './SearchField';
 import RequestConnectModal from './RequestConnectModal';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useFindPros } from '../hooks/useData';
 
 
 
@@ -350,6 +352,9 @@ const FindTab: React.FC = () => {
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
 
+  // ── Live data hook (keeps cache warm) ──
+  const { data: livePros } = useFindPros(searchText, activeRole, selectedSort);
+
   // ── Apply preset params from Quick Actions (cross-stack navigation) ──
   useEffect(() => {
     const params = route.params;
@@ -405,7 +410,8 @@ const FindTab: React.FC = () => {
   const isSearching = searchText.length > 0 || activeRole !== 'All';
   const activeFilterCount = activeFilters.size;
 
-  const filteredPros = ALL_PROS.filter((pro) => {
+  const prosPool = FEATURE_FLAGS.USE_MOCK_DATA ? ALL_PROS : (livePros as unknown as ProCard[] ?? ALL_PROS);
+  const filteredPros = prosPool.filter((pro) => {
     const matchesRole = activeRole === 'All' || pro.role === activeRole;
     const matchesSearch = searchText.length === 0 ||
       pro.name.toLowerCase().includes(searchText.toLowerCase()) ||

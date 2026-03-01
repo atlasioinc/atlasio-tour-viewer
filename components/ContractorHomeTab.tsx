@@ -1349,7 +1349,7 @@ const ContractorHomeTab: React.FC = () => {
                   width: 20,
                   height: 20,
                   borderRadius: 9999,
-                  backgroundColor: COLORS.notifBadge,
+                  backgroundColor: COLORS.notificationRed,
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 2,

@@ -32,6 +32,8 @@ import { mapNetworkContactToProfile } from './proProfileHelpers';
 import InviteToJobModal from './InviteToJobModal';
 import type { InviteContractor } from './InviteToJobModal';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useConnections, useConnectionRequests as useConnectionRequestsHook } from '../hooks/useData';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -440,6 +442,22 @@ const NetworkTab: React.FC = () => {
    * Query: connections WHERE to_id = auth.uid() AND state = 'pending' ORDER BY created_at DESC
    */
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>(MOCK_CONNECTION_REQUESTS);
+
+  // ── Live data hooks (keep cache warm) ──
+  const { data: liveContacts } = useConnections();
+  const { data: liveRequests } = useConnectionRequestsHook();
+
+  useEffect(() => {
+    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveContacts) {
+      setContacts(liveContacts as unknown as NetworkContact[]);
+    }
+  }, [liveContacts]);
+
+  useEffect(() => {
+    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveRequests) {
+      setConnectionRequests(liveRequests as unknown as ConnectionRequest[]);
+    }
+  }, [liveRequests]);
 
   // ── Connection Requests bottom sheet animation ──
   const [requestsSheetVisible, setRequestsSheetVisible] = useState(false);
