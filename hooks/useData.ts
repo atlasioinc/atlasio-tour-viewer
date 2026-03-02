@@ -45,6 +45,8 @@ export const queryKeys = {
   // Profile
   profile: (id: string) => ['profile', id] as const,
   myProfile: ['profile', 'me'] as const,
+  connectionStatus: (profileId: string) => ['connection-status', profileId] as const,
+  profileVouches: (profileId: string) => ['profile-vouches', profileId] as const,
 
   // Network
   networkContacts: (tab: 'partners' | 'contractors') => ['network', tab] as const,
@@ -243,6 +245,73 @@ export const useUpdateProfile = () => {
       qc.setQueryData(queryKeys.myProfile, data);
       qc.invalidateQueries({ queryKey: queryKeys.myProfile });
     },
+  });
+};
+
+/**
+ * Check relationship between current user and a profile
+ * Returns: 'self' | 'connected' | 'pending' | 'none'
+ */
+// STATUS: wired (with mock fallback)
+export type ConnectionStatusValue = 'self' | 'connected' | 'pending' | 'none';
+export const useConnectionStatus = (profileId: string) => {
+  return useQuery({
+    queryKey: queryKeys.connectionStatus(profileId),
+    queryFn: async (): Promise<ConnectionStatusValue> => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) return 'none';
+        if (userId === profileId) return 'self';
+        const { data, error } = await supabase
+          .from('connections')
+          .select('status')
+          .or(
+            `and(requester_id.eq.${userId},responder_id.eq.${profileId}),and(requester_id.eq.${profileId},responder_id.eq.${userId})`
+          )
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) return 'none';
+        if (data.status === 'accepted') return 'connected';
+        if (data.status === 'pending') return 'pending';
+        return 'none';
+      } catch (err) {
+        console.warn('[useConnectionStatus] Supabase failed, using mock fallback', err);
+        return 'none';
+      }
+    },
+    enabled: !!profileId,
+  });
+};
+
+/**
+ * Fetch recent vouches for a profile (for ProProfile screen)
+ * Returns VouchEntry[] (compact format: id, name, quote, avatar_color)
+ */
+// STATUS: wired (with mock fallback)
+export const useProfileVouches = (profileId: string) => {
+  return useQuery({
+    queryKey: queryKeys.profileVouches(profileId),
+    queryFn: async (): Promise<VouchEntry[]> => {
+      try {
+        const { data, error } = await supabase
+          .from('vouches')
+          .select('id, quote, author:profiles!author_id(name, avatar_color)')
+          .eq('recipient_id', profileId)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        if (error) throw error;
+        return (data ?? []).map((row: any) => ({
+          id: row.id,
+          name: row.author?.name ?? 'Unknown',
+          quote: row.quote,
+          avatar_color: row.author?.avatar_color ?? '#7BA3C9',
+        }));
+      } catch (err) {
+        console.warn('[useProfileVouches] Supabase failed, using mock fallback', err);
+        return [];
+      }
+    },
+    enabled: !!profileId,
   });
 };
 

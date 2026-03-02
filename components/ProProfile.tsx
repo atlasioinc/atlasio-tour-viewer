@@ -31,7 +31,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useProfile } from '../hooks/useData';
+import { useProfile, useConnectionStatus, useProfileVouches, useSendConnectionRequest } from '../hooks/useData';
 import { mapProfileToProProfileData } from './proProfileHelpers';
 import PortfolioGallery from './PortfolioGallery';
 import RequestConnectModal from './RequestConnectModal';
@@ -327,6 +327,22 @@ const ProProfile: React.FC = () => {
     return MOCK_PRO_PROFILE;
   }, [fetchedProfile, passedProfile]);
 
+  // ── Live relationship + vouches queries ──
+  const resolvedProfileId = profile.id || profileId || '';
+  const { data: connectionStatus } = useConnectionStatus(
+    !FEATURE_FLAGS.USE_MOCK_DATA && resolvedProfileId ? resolvedProfileId : '',
+  );
+  const { data: liveVouches } = useProfileVouches(
+    !FEATURE_FLAGS.USE_MOCK_DATA && resolvedProfileId ? resolvedProfileId : '',
+  );
+  const sendConnectionRequest = useSendConnectionRequest();
+
+  // Override hardcoded values with live data
+  const is_own_profile = connectionStatus === 'self' || profile.is_own_profile;
+  const is_connected = connectionStatus === 'connected' || profile.is_connected;
+  const connectionPending = connectionStatus === 'pending';
+  const recent_vouches = (liveVouches && liveVouches.length > 0) ? liveVouches : profile.recent_vouches;
+
   const {
     name,
     company,
@@ -343,14 +359,12 @@ const ProProfile: React.FC = () => {
     avatarColor,
     performance_stats,
     tags,
-    recent_vouches,
-    is_connected,
-    is_own_profile,
     portfolio_photos,
   } = profile;
 
   // ── Request to Connect modal state ──
   const [connectModalVisible, setConnectModalVisible] = useState<boolean>(false);
+  const [connectSent, setConnectSent] = useState<boolean>(false);
 
   // ── Invite to Job modal state ──
   const [inviteModalVisible, setInviteModalVisible] = useState<boolean>(false);
@@ -359,11 +373,24 @@ const ProProfile: React.FC = () => {
     setConnectModalVisible(true);
   };
 
-  const handleSendConnect = (message: string) => {
-    console.log('📤 Connection request sent to:', name);
-    console.log('Message:', message || '(no message)');
-    // TODO: TanStack Query mutation → Supabase RPC rpc_send_connection_request
-    setConnectModalVisible(false);
+  const handleSendConnect = async (message: string) => {
+    try {
+      await sendConnectionRequest.mutateAsync({
+        targetId: resolvedProfileId,
+        note: message || undefined,
+      });
+      setConnectSent(true);
+      setConnectModalVisible(false);
+    } catch {
+      setConnectModalVisible(false);
+    }
+  };
+
+  const handleEditProfile = () => {
+    (navigation as any).navigate('Profile', {
+      screen: 'EditProfile',
+      params: { role: role || 'agent' },
+    });
   };
 
   // Build InviteContractor from profile data — combine primary + secondary trades
@@ -681,7 +708,7 @@ const ProProfile: React.FC = () => {
                 return (
                   <View style={{ gap: 16 }}>
                     <Pressable
-                      onPress={() => console.log('Navigate to Edit Profile')}
+                      onPress={handleEditProfile}
                       style={({ pressed }) => ({
                         height: 48,
                         paddingHorizontal: 16,
@@ -745,25 +772,28 @@ const ProProfile: React.FC = () => {
                     )
                   )}
 
-                  {/* Bottom button: "Message" (if connected + job-eligible) or "Request to Connect" */}
+                  {/* Bottom button: "Message" (if connected) / "Request Pending" / "Request to Connect" */}
                   <Pressable
                     onPress={() =>
                       is_connected
                         ? console.log('Navigate to chat with:', name)
-                        : handleRequestConnect()
+                        : (connectionPending || connectSent)
+                          ? undefined
+                          : handleRequestConnect()
                     }
+                    disabled={connectionPending || connectSent}
                     style={({ pressed }) => ({
                       height: 48,
                       paddingHorizontal: 16,
-                      backgroundColor: COLORS.primary,
+                      backgroundColor: (connectionPending || connectSent) ? COLORS.sortBg : COLORS.primary,
                       borderRadius: 8,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      opacity: pressed ? 0.85 : 1,
+                      opacity: (connectionPending || connectSent) ? 0.7 : pressed ? 0.85 : 1,
                     })}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#FFFFFF', lineHeight: 20, textAlign: 'center' }}>
-                      {is_connected ? 'Message' : 'Request to Connect'}
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: (connectionPending || connectSent) ? COLORS.secondaryText : '#FFFFFF', lineHeight: 20, textAlign: 'center' }}>
+                      {is_connected ? 'Message' : (connectionPending || connectSent) ? 'Request Pending' : 'Request to Connect'}
                     </Text>
                   </Pressable>
                 </View>
