@@ -10,13 +10,13 @@
 //     Real Estate Photographer (appears after profile card,
 //     before performance stats)
 //
-// Session 18: Skeleton profile detection — when navigated from
-// vouch feed (minimal data), falls back to MOCK_PRO_PROFILE.
-// Production: Replace with Supabase query using profile.id:
-//   supabase.from('profiles').select('*, vouches(*), performance(*), portfolio_photos(*)').eq('id', proId)
+// Session 9: Dual-param navigation — accepts profileId (preferred,
+// fetches via useProfile hook) or profile object (legacy mappers).
+// Vouch feed passes profileId → real data fetched on mount.
+// FindTab/NetworkTab still pass full profile object via mappers.
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,11 +24,15 @@ import {
   ScrollView,
   StatusBar,
   Share,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useProfile } from '../hooks/useData';
+import { mapProfileToProProfileData } from './proProfileHelpers';
 import PortfolioGallery from './PortfolioGallery';
 import RequestConnectModal from './RequestConnectModal';
 import InviteToJobModal from './InviteToJobModal';
@@ -304,13 +308,24 @@ const ProProfile: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
-  // Session 18: Detect skeleton profiles (e.g., from vouch feed tap)
-  // and fall back to MOCK_PRO_PROFILE for demo purposes.
-  // A skeleton profile has no bio — full profiles from FindTab/NetworkTab
-  // always have bio populated via their respective mappers.
-  // Production: fetch fresh data via useProfile(rawProfile.id) hook.
-  const rawProfile: ProProfileData | undefined = (route.params as any)?.profile;
-  const profile: ProProfileData = rawProfile?.bio ? rawProfile : MOCK_PRO_PROFILE;
+  // ── Route params: dual-param approach ──
+  // profileId (preferred): fetches real data via useProfile hook
+  // profile (legacy): full ProProfileData object from mappers (FindTab, NetworkTab)
+  const params = route.params as { profileId?: string; profile?: ProProfileData } | undefined;
+  const profileId = params?.profileId;
+  const passedProfile = params?.profile;
+
+  // Fetch profile by ID when profileId is provided (vouch feed navigation)
+  const { data: fetchedProfile, isLoading } = useProfile(
+    !FEATURE_FLAGS.USE_MOCK_DATA && profileId ? profileId : '',
+  );
+
+  // Resolve profile: fetched > passed (with bio) > mock fallback
+  const profile: ProProfileData = useMemo(() => {
+    if (fetchedProfile?.id) return mapProfileToProProfileData(fetchedProfile);
+    if (passedProfile?.bio) return passedProfile;
+    return MOCK_PRO_PROFILE;
+  }, [fetchedProfile, passedProfile]);
 
   const {
     name,
@@ -457,6 +472,11 @@ const ProProfile: React.FC = () => {
       {/* ══════════════════════════════════════════
           SCROLLABLE CONTENT
           ══════════════════════════════════════════ */}
+      {isLoading && !passedProfile?.bio ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{ flex: 1, backgroundColor: COLORS.screenBg }}
@@ -619,6 +639,29 @@ const ProProfile: React.FC = () => {
             >
               {bio}
             </Text>
+
+            {/* Self-selected tags (max 3) — below bio, before CTAs */}
+            {tags.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+                {tags.map((tag) => (
+                  <View
+                    key={tag}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      backgroundColor: COLORS.background,
+                      borderRadius: 9999,
+                      borderWidth: 0.68,
+                      borderColor: COLORS.primary,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.primary, lineHeight: 16, textAlign: 'center' }}>
+                      {tag}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {/* ── CTAs ──
                 - is_own_profile → "Edit Profile" button only
@@ -811,50 +854,33 @@ const ProProfile: React.FC = () => {
             </View>
           </View>
 
-          {/* ── TAGS + RECENT VOUCHES ── */}
-          <View
-            style={{
-              padding: 24,
-              backgroundColor: COLORS.background,
-              borderRadius: 16,
-              borderBottomWidth: 0.68,
-              borderBottomColor: COLORS.border,
-              gap: 16,
-            }}
-          >
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {tags.map((tag) => (
-                <View
-                  key={tag}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    backgroundColor: COLORS.background,
-                    borderRadius: 9999,
-                    borderWidth: 0.68,
-                    borderColor: COLORS.primary,
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.primary, lineHeight: 16, textAlign: 'center' }}>
-                    {tag}
-                  </Text>
-                </View>
-              ))}
-            </View>
+          {/* ── RECENT VOUCHES ── */}
+          {recent_vouches.length > 0 && (
+            <View
+              style={{
+                padding: 24,
+                backgroundColor: COLORS.background,
+                borderRadius: 16,
+                borderBottomWidth: 0.68,
+                borderBottomColor: COLORS.border,
+                gap: 16,
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.darkText, lineHeight: 24 }}>
+                Recent Vouches
+              </Text>
 
-            <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.darkText, lineHeight: 24 }}>
-              Recent Vouches
-            </Text>
-
-            <View style={{ gap: 16 }}>
-              {recent_vouches.map((vouch) => (
-                <VouchRow key={vouch.id} vouch={vouch} />
-              ))}
+              <View style={{ gap: 16 }}>
+                {recent_vouches.map((vouch) => (
+                  <VouchRow key={vouch.id} vouch={vouch} />
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
         </View>
       </ScrollView>
+      )}
 
       {/* ── Request to Connect Modal ── */}
       <RequestConnectModal

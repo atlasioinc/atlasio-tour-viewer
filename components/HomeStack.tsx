@@ -56,7 +56,8 @@ export type HomeStackParamList = {
   };
   Notifications: undefined;
   ProProfile: {
-    profile: ProProfileData;
+    profileId?: string;
+    profile?: ProProfileData;
   };
   PostJobWizard: undefined;
   PostPhotoJobScreen: undefined;

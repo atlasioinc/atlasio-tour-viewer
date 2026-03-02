@@ -32,8 +32,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useAgentJobs } from '../hooks/useData';
 import QuickActionsRow from './QuickActionsRow';
-import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
-import type { ProProfileData } from './ProProfile';
+import VouchFeedSection from './VouchFeedSection';
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -980,33 +979,10 @@ const HomeTabAgent: React.FC = () => {
         </View>
 
         {/* ── VOUCH FEED SECTION ──
-            Session 18 fix: Maps VouchFeedProfile → ProProfileData
-            so ProProfile renders without crashing on missing fields.
-            Production: ProProfile will fetch fresh data via profileId. */}
+            Session 9: Passes profileId only — ProProfile fetches real data via useProfile hook */}
         <VouchFeedSection
-          onNavigateToProfile={(vouchProfile: VouchFeedProfile) => {
-            const profileData: ProProfileData = {
-              id: vouchProfile.id,
-              name: vouchProfile.name,
-              company: vouchProfile.company,
-              location: 'Denver, CO',
-              rating: 0,
-              vouches: vouchProfile.vouches_count,
-              active_since: '',
-              role: vouchProfile.role,
-              trade: vouchProfile.trade || vouchProfile.role,
-              licensed: '',
-              distance: '',
-              bio: '',
-              avatarColor: vouchProfile.avatar_color,
-              performance_stats: { completed_jobs: 0, on_time_rate: 0, avg_response: '' },
-              tags: [],
-              recent_vouches: [],
-              is_connected: false,
-              is_own_profile: false,
-              portfolio_photos: [],
-            };
-            navigation.navigate('ProProfile', { profile: profileData } as any);
+          onNavigateToProfile={(vouchProfile) => {
+            navigation.navigate('ProProfile', { profileId: vouchProfile.id } as any);
           }}
         />
 

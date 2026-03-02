@@ -9,7 +9,8 @@
 //   and ProProfile fetches from supabase.from('profiles').eq('id', proId)
 // ═══════════════════════════════════════════════════════════════
 
-import type { ProProfileData } from './ProProfile';
+import type { ProProfileData, PerformanceStats as LocalPerformanceStats } from './ProProfile';
+import type { Profile, PerformanceStats as DbPerformanceStats } from '../types';
 
 // ─────────────────────────────────────────────
 // MOCK PORTFOLIO PHOTOS (demo only)
@@ -139,4 +140,41 @@ export const mapNetworkContactToProfile = (contact: NetworkTabContact): ProProfi
   is_own_profile: false,
   // Portfolio: contractors from network get demo photos
   portfolio_photos: contact.tab === 'contractors' ? MOCK_PORTFOLIO_PHOTOS : [],
+});
+
+// ─────────────────────────────────────────────
+// FROM SUPABASE PROFILE (useProfile hook response)
+// Maps Profile & { performance_stats } → ProProfileData
+// Used by ProProfile when fetching by profileId
+// ─────────────────────────────────────────────
+
+export const mapProfileToProProfileData = (
+  p: Profile & { performance_stats: DbPerformanceStats | null },
+): ProProfileData => ({
+  id: p.id,
+  name: p.name,
+  company: p.company,
+  location: p.location || 'Denver, CO',
+  rating: p.rating,
+  vouches: p.vouch_count,
+  active_since: p.active_since || '',
+  role: p.display_role,
+  trade: p.trade || p.display_role,
+  secondary_trades: p.trades?.length > 1 ? p.trades.slice(1).map(String) : undefined,
+  licensed: p.licensed || '',
+  distance: '—', // TODO: compute from geolocation
+  bio: p.bio || '',
+  avatarColor: p.avatar_color,
+  performance_stats: p.performance_stats
+    ? {
+        completed_jobs: p.performance_stats.completed_jobs,
+        on_time_rate: p.performance_stats.on_time_rate,
+        avg_response: p.performance_stats.avg_response_time,
+      }
+    : { completed_jobs: 0, on_time_rate: 0, avg_response: '—' },
+  tags: p.tags as string[],
+  recent_vouches: [], // TODO: fetch from vouches join
+  is_connected: false, // TODO: check connection status
+  is_own_profile: false, // TODO: compare with current user
+  portfolio_photos: GALLERY_ROLES.includes(p.display_role) ? MOCK_PORTFOLIO_PHOTOS : [],
 });

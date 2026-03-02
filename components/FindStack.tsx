@@ -27,7 +27,8 @@ export type FindStackParamList = {
     presetSort?: string;
   } | undefined;
   ProProfile: {
-    profile: ProProfileData;
+    profileId?: string;
+    profile?: ProProfileData;
   };
 };
 

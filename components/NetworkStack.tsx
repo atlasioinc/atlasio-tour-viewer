@@ -19,7 +19,8 @@ import type { ProProfileData } from './ProProfile';
 export type NetworkStackParamList = {
   NetworkMain: undefined;
   ProProfile: {
-    profile: ProProfileData;
+    profileId?: string;
+    profile?: ProProfileData;
   };
 };
 
