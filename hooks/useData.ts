@@ -191,7 +191,20 @@ export const useProfile = (profileId: string) => {
       } catch (err) {
         console.warn('[useProfile] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
-        return { performance_stats: null } as unknown as Profile & { performance_stats: PerformanceStats | null };
+        // Full mock shape — only used when Supabase is unreachable
+        return {
+          id: profileId, name: 'Unknown', company: '', role: 'agent',
+          display_role: '', location: '', bio: '', avatar_url: null,
+          avatar_color: '#7BA3C9', rating: 0, vouch_count: 0, deals_closed: 0,
+          tags: [], trades: [], trade: null, headline: null, specialties: [], licensed: null,
+          active_since: '', service_area: '', phone: null,
+          profile_visibility: 'public', is_visible: true, is_verified: false, is_banned: false,
+          credential_urls: [], stripe_account_id: null, typical_close_days: null, base_price: null,
+          fee_tier: 'free', completed_bids_count: 0, fee_tier_started_at: null,
+          notification_preferences: {}, is_public: true, deactivated_at: null,
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          performance_stats: null,
+        } as Profile & { performance_stats: PerformanceStats | null };
       }
     },
     enabled: !!profileId,
@@ -261,7 +274,19 @@ export const useNetworkContacts = (tab: 'partners' | 'contractors') => {
           .eq('requester_id', userId)
           .eq('status', 'accepted');
         if (error) throw error;
-        return (data ?? []) as unknown as NetworkContact[];
+        // Map join result to flat NetworkContact shape
+        return (data ?? []).map((row: any) => ({
+          id: row.id,
+          profile_id: row.profile?.id ?? row.responder_id,
+          name: row.profile?.name ?? '',
+          company: row.profile?.company ?? '',
+          role: row.profile?.display_role ?? row.profile?.role ?? '',
+          group: row.profile?.role === 'contractor' ? 'Contractors' : 'Partners',
+          tags: row.profile?.tags ?? [],
+          avatar_color: row.profile?.avatar_color ?? '#7BA3C9',
+          is_in_squad: row.is_in_squad ?? false,
+          tab: tab,
+        })) as NetworkContact[];
       } catch (err) {
         console.warn('[useNetworkContacts] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
@@ -288,7 +313,8 @@ export const useConnections = () => {
           .or(`requester_id.eq.${userId},responder_id.eq.${userId}`)
           .eq('status', 'accepted');
         if (error) throw error;
-        return (data ?? []) as unknown as (Connection & { profile: Profile })[];
+        // Supabase typed client can't infer join alias — runtime shape is correct
+        return (data ?? []) as (Connection & { profile: Profile })[];
       } catch (err) {
         console.warn('[useConnections] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
@@ -315,7 +341,8 @@ export const useConnectionRequests = () => {
           .eq('responder_id', userId)
           .eq('status', 'pending');
         if (error) throw error;
-        return (data ?? []) as unknown as (Connection & { requester: Profile })[];
+        // Supabase typed client can't infer join alias — runtime shape is correct
+        return (data ?? []) as (Connection & { requester: Profile })[];
       } catch (err) {
         console.warn('[useConnectionRequests] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
@@ -373,7 +400,8 @@ export const useConnectedPros = (role: string) => {
         const filtered = (data ?? []).filter((c: any) =>
           role === 'All' || c.profile?.role === role
         );
-        return filtered as unknown as (Connection & { profile: Profile })[];
+        // Supabase typed client can't infer join alias — runtime shape is correct
+        return filtered as (Connection & { profile: Profile })[];
       } catch (err) {
         console.warn('[useConnectedPros] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
@@ -867,7 +895,9 @@ export const useUpdateJob = () => {
       } catch (err) {
         console.warn('[useUpdateJob] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
-        return { id: jobId, ...updates } as unknown as Job;
+        // Merge updates into cached job for offline resilience
+        const cached = qc.getQueryData<Job>(queryKeys.repairJob(jobId));
+        return { ...cached, id: jobId, ...updates, bids: cached?.bids ?? [] } as Job;
       }
     },
     onSuccess: (_, variables) => {
@@ -947,7 +977,17 @@ export const useVouchFeed = (filter: string = 'All') => {
 
         const { data, error } = await query;
         if (error) throw error;
-        return (data ?? []) as unknown as Vouch[];
+        // Map join aliases to flat Vouch fields
+        return (data ?? []).map((row: any) => ({
+          ...row,
+          author_name: row.author?.name ?? row.author_name ?? '',
+          recipient_name: row.recipient?.name ?? row.recipient_name ?? '',
+          recipient_company: row.recipient?.company ?? row.recipient_company ?? null,
+          recipient_role: row.recipient?.display_role ?? row.recipient_role ?? null,
+          avatar_color: row.author?.avatar_color ?? row.avatar_color ?? '#7BA3C9',
+          author: undefined,
+          recipient: undefined,
+        })) as Vouch[];
       } catch (err) {
         console.warn('[useVouchFeed] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
@@ -1331,7 +1371,8 @@ export const useSquadMembers = (squadId: string) => {
           .select('*, profile:profiles!profile_id(*)')
           .eq('squad_id', squadId);
         if (error) throw error;
-        return (data ?? []) as unknown as (SquadMember & { profile: Profile })[];
+        // Supabase typed client can't infer join alias — runtime shape is correct
+        return (data ?? []) as (SquadMember & { profile: Profile })[];
       } catch (err) {
         console.warn('[useSquadMembers] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
