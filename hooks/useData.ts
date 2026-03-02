@@ -1115,16 +1115,37 @@ export const useChatThreads = () => {
       try {
         const userId = await getCurrentUserId();
         if (!userId) throw new Error('Not authenticated');
-        const { data, error } = await supabase
+        // Get threads the user belongs to
+        const { data: memberRows, error } = await supabase
           .from('thread_members')
           .select('thread:threads(*)')
           .eq('user_id', userId);
         if (error) throw error;
-        return ((data ?? []).map((d: any) => ({
-          ...d.thread,
+        const threads = (memberRows ?? []).map((d: any) => d.thread).filter(Boolean);
+        if (threads.length === 0) return [];
+
+        // Fetch all members + avatar colors for these threads
+        const threadIds = threads.map((t: any) => t.id);
+        const { data: allMembers } = await supabase
+          .from('thread_members')
+          .select('thread_id, profile:profiles!user_id(avatar_color)')
+          .in('thread_id', threadIds);
+
+        // Build avatar_colors map per thread
+        const colorMap: Record<string, string[]> = {};
+        for (const m of allMembers ?? []) {
+          const tid = m.thread_id;
+          const color = (m as any).profile?.avatar_color ?? '#7BA3C9';
+          if (!colorMap[tid]) colorMap[tid] = [];
+          colorMap[tid].push(color);
+        }
+
+        return (threads.map((t: any) => ({
+          ...t,
           participants: [],
+          // TODO: Compute is_unread once last_read_at column exists on thread_members
           is_unread: false,
-          avatar_colors: [],
+          avatar_colors: colorMap[t.id] ?? [],
         })) as ChatThreadView[]);
       } catch (err) {
         console.warn('[useChatThreads] Supabase failed, using mock fallback', err);
