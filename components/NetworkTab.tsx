@@ -746,8 +746,47 @@ const NetworkTab: React.FC = () => {
               </View>
             </View>
           ))
+        ) : contacts.length === 0 && searchText.length === 0 ? (
+          /* ── True Empty State — No connections yet ── */
+          /* @demo Replace contacts.length check with real connections count from useConnections() */
+          <View style={{ paddingTop: 80, paddingBottom: 48, paddingHorizontal: 32, alignItems: 'center', gap: 16 }}>
+            {/* People connection icon */}
+            <Svg width={48} height={48} viewBox="0 0 24 24" fill="none">
+              <Path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+              <Circle cx={8.5} cy={7} r={4} stroke={COLORS.lightText} strokeWidth={1.5} />
+              <Path d="M20 8V14" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" />
+              <Path d="M17 11H23" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" />
+            </Svg>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28, textAlign: 'center' }}>
+              Your network is where deals happen
+            </Text>
+            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 22, textAlign: 'center' }}>
+              Connect with mortgage pros, title agents, inspectors, and contractors to build your closing squad.
+            </Text>
+            <Pressable
+              onPress={() => {
+                navigation.dispatch(
+                  CommonActions.navigate({ name: 'Find', params: { screen: 'FindMain' } })
+                );
+              }}
+              style={({ pressed }) => ({
+                marginTop: 8,
+                height: 44,
+                paddingHorizontal: 32,
+                backgroundColor: COLORS.primary,
+                borderRadius: 8,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '500', color: '#FFFFFF', lineHeight: 20 }}>
+                Find Pros
+              </Text>
+            </Pressable>
+          </View>
         ) : (
-          /* ── Empty State ── */
+          /* ── Search Empty State — No matches for current query ── */
           <View style={{ padding: 48, alignItems: 'center', gap: 12 }}>
             <Svg width={48} height={48} viewBox="0 0 24 24" fill="none">
               <Circle cx={11} cy={11} r={8} stroke={COLORS.lightText} strokeWidth={1.5} />

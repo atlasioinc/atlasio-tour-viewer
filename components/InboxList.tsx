@@ -537,54 +537,99 @@ const InboxList: React.FC = () => {
           style={{ flex: 1, backgroundColor: COLORS.screenBg }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Pinned Section */}
-          {pinnedThreads.length > 0 && (
-            <View>
-              <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
-                <Text style={{ color: COLORS.secondaryText, fontSize: 12, fontWeight: '400', textTransform: 'uppercase', lineHeight: 16, letterSpacing: 0.3 }}>
-                  Pinned
-                </Text>
-              </View>
-              {pinnedThreads.map((thread) => (
-                <SwipeableThreadRow
-                  key={thread.id}
-                  thread={thread}
-                  onPress={handleThreadPress}
-                  onTogglePin={handleTogglePin}
-                  onMute={handleMute}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </View>
-          )}
-
-          {/* Recent Section */}
-          <View>
-            <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
-              <Text style={{ color: COLORS.secondaryText, fontSize: 12, fontWeight: '400', textTransform: 'uppercase', lineHeight: 16, letterSpacing: 0.3 }}>
-                Recent
+          {threads.length === 0 && searchText.length === 0 ? (
+            /* ── True Empty State — No conversations yet ── */
+            /* @demo Replace threads.length check with real thread count from useChatThreads() */
+            <View style={{ paddingTop: 80, paddingBottom: 48, paddingHorizontal: 32, alignItems: 'center', gap: 16 }}>
+              {/* Chat bubble icon */}
+              <Svg width={48} height={48} viewBox="0 0 24 24" fill="none">
+                <Path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28, textAlign: 'center' }}>
+                Start a conversation
               </Text>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 22, textAlign: 'center' }}>
+                Send a 1:1 message to a connection or kick off a Deal Chat for your next transaction.
+              </Text>
+              <Pressable
+                onPress={() => navigation.navigate('NewMessage')}
+                style={({ pressed }) => ({
+                  marginTop: 8,
+                  height: 44,
+                  paddingHorizontal: 32,
+                  backgroundColor: COLORS.primary,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '500', color: '#FFFFFF', lineHeight: 20 }}>
+                  New Message
+                </Text>
+              </Pressable>
             </View>
-            <View style={{ backgroundColor: COLORS.background }}>
-              {recentThreads.length > 0 ? (
-                recentThreads.map((thread) => (
-                  <SwipeableThreadRow
-                    key={thread.id}
-                    thread={thread}
-                    onPress={handleThreadPress}
-                    onTogglePin={handleTogglePin}
-                    onMute={handleMute}
-                    onDelete={handleDelete}
-                  />
-                ))
-              ) : (
-                <View style={{ padding: 48, alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.bodyText }}>No messages found</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, textAlign: 'center' }}>Try adjusting your search</Text>
+          ) : (
+            <>
+              {/* Pinned Section */}
+              {pinnedThreads.length > 0 && (
+                <View>
+                  <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
+                    <Text style={{ color: COLORS.secondaryText, fontSize: 12, fontWeight: '400', textTransform: 'uppercase', lineHeight: 16, letterSpacing: 0.3 }}>
+                      Pinned
+                    </Text>
+                  </View>
+                  {pinnedThreads.map((thread) => (
+                    <SwipeableThreadRow
+                      key={thread.id}
+                      thread={thread}
+                      onPress={handleThreadPress}
+                      onTogglePin={handleTogglePin}
+                      onMute={handleMute}
+                      onDelete={handleDelete}
+                    />
+                  ))}
                 </View>
               )}
-            </View>
-          </View>
+
+              {/* Recent Section */}
+              <View>
+                <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
+                  <Text style={{ color: COLORS.secondaryText, fontSize: 12, fontWeight: '400', textTransform: 'uppercase', lineHeight: 16, letterSpacing: 0.3 }}>
+                    Recent
+                  </Text>
+                </View>
+                <View style={{ backgroundColor: COLORS.background }}>
+                  {recentThreads.length > 0 ? (
+                    recentThreads.map((thread) => (
+                      <SwipeableThreadRow
+                        key={thread.id}
+                        thread={thread}
+                        onPress={handleThreadPress}
+                        onTogglePin={handleTogglePin}
+                        onMute={handleMute}
+                        onDelete={handleDelete}
+                      />
+                    ))
+                  ) : (
+                    /* ── Search Empty State — No matches for current query ── */
+                    <View style={{ padding: 48, alignItems: 'center', gap: 12 }}>
+                      <Svg width={48} height={48} viewBox="0 0 24 24" fill="none">
+                        <Path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d="M21 21L16.65 16.65" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" />
+                      </Svg>
+                      <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.bodyText }}>
+                        No messages found
+                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, textAlign: 'center' }}>
+                        Try adjusting your search
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </>
+          )}
 
           <View style={{ height: 100 }} />
         </ScrollView>
