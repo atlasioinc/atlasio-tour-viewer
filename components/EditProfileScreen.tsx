@@ -49,6 +49,7 @@ interface EditProfileRouteParams {
 
 interface FormData {
   fullName: string;
+  headline: string;
   bio: string;
   company: string;
   licenseNumber: string;
@@ -106,6 +107,7 @@ const PARTNER_ROLES = Object.keys(PARTNER_SPECIALTIES);
 
 const MOCK_AGENT_DATA: FormData = {
   fullName: 'John Doe',
+  headline: 'Fast closings, strong local connections',
   bio: 'Specializing in first-time buyers and investor flips. Fast closings, bilingual Spanish/English. Known for strong local connections and helping clients navigate complex deals with ease.',
   company: 'Keller Williams',
   licenseNumber: 'MLS #123456',
@@ -120,6 +122,7 @@ const MOCK_AGENT_DATA: FormData = {
 
 const MOCK_CONTRACTOR_DATA: FormData = {
   fullName: 'Brian Cooper',
+  headline: '24hr response, licensed & insured',
   bio: 'Licensed electrician servicing the Denver area since 2015. Free quotes and available M-Sat by appointment.',
   company: 'ProBuild Contractors',
   licenseNumber: 'CO-EL-2015-4821',
@@ -350,6 +353,7 @@ const EditProfileScreen: React.FC = () => {
     // await updateProfile.mutateAsync({
     //   id: currentUser.id,
     //   full_name: form.fullName,
+    //   headline: form.headline,
     //   bio: form.bio,
     //   company: form.company,
     //   license_number: form.licenseNumber,
@@ -511,6 +515,14 @@ const EditProfileScreen: React.FC = () => {
           multiline
           maxLength={BIO_LIMIT}
           error={errors.bio}
+        />
+
+        <FormField
+          label="Headline"
+          value={form.headline}
+          onChangeText={(text) => updateField('headline', text.slice(0, 60))}
+          placeholder="Professional tagline (e.g., 'Fast closings, no surprises')"
+          maxLength={60}
         />
 
         <FormField

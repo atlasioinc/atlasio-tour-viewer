@@ -47,7 +47,7 @@ interface FindTabProCard {
   rating: number;
   vouches: number;
   tags: string[];
-  stat: string;
+  headline: string | null;
   avatarColor: string;
   closingDays?: number;
   distanceMi?: number;
@@ -68,7 +68,7 @@ export const mapFindProToProfile = (pro: FindTabProCard): ProProfileData => ({
   secondary_trades: pro.secondary_trades?.slice(0, 2),
   licensed: 'Licensed CO',
   distance: pro.distanceMi ? `${pro.distanceMi} mi` : '—',
-  bio: `${pro.role} at ${pro.company}. ${pro.stat}. Highly vouched by agents in the Denver area.`,
+  bio: `${pro.role} at ${pro.company}.${pro.headline ? ` ${pro.headline}.` : ''} Highly vouched by agents in the Denver area.`,
   avatarColor: pro.avatarColor,
   // Production: these come from the profiles + performance tables
   performance_stats: {

@@ -193,27 +193,27 @@ interface ProCard {
   /** Up to 2 secondary trade specialties — e.g., ['HVAC', 'Plumbing'].
    *  Maps to profiles.secondary_trades (text[] with CHECK length ≤ 2) in Supabase. */
   secondary_trades?: string[];
-  rating: number; vouches: number; tags: string[]; stat: string;
+  rating: number; vouches: number; tags: string[]; headline: string | null;
   avatarColor: string; closingDays?: number; distanceMi?: number;
 }
 
 const ALL_PROS: ProCard[] = [
-  { id: '1', name: 'Rachel Williams', company: 'First Choice Lending', role: 'Mortgage Pro', rating: 4.9, vouches: 127, tags: ['VA Specialist', 'Fast Closer', 'Spanish-Speaking'], stat: 'Closes in 19 days', avatarColor: '#C4A882', closingDays: 19, distanceMi: 2.1 },
-  { id: '2', name: 'Brian Cooper', company: 'ProBuild Contractors', role: 'Contractor', trade: 'General Contractor', secondary_trades: ['Carpentry', 'Drywall'], rating: 5.0, vouches: 67, tags: ['Licensed & Insured', 'Fast Response', 'On-Time Expert'], stat: '24hr response', avatarColor: '#7BA3C9', closingDays: 5, distanceMi: 4.8 },
-  { id: '3', name: 'Maria Santos', company: 'HomeGuard Inspections', role: 'Home Inspector', rating: 5.0, vouches: 156, tags: ['Same-Day Turnaround', 'Detailed Reports', 'Spanish-Speaking'], stat: 'Same-day reports', avatarColor: '#D4A8B5', closingDays: 1, distanceMi: 1.3 },
-  { id: '4', name: 'Emma Thompson', company: 'Elite Title Services', role: 'Title/Escrow', rating: 4.9, vouches: 104, tags: ['Fast Turnaround', 'Clear Communication', 'Spanish-Speaking'], stat: '$795 fee avg', avatarColor: '#A8C5DA', closingDays: 7, distanceMi: 3.2 },
-  { id: '5', name: 'Marcus Lee', company: 'Apex Mortgage', role: 'Mortgage Pro', rating: 4.8, vouches: 142, tags: ['FHA Approved', 'Fast Closer', 'Spanish-Speaking'], stat: 'FHA specialist', avatarColor: '#B5C4A8', closingDays: 21, distanceMi: 5.5 },
-  { id: '6', name: 'Kevin Park', company: 'Secure Title Co', role: 'Title/Escrow', rating: 4.8, vouches: 93, tags: ['Cash Buyer Expert', 'Fast Turnaround', 'No Junk Fees'], stat: 'Avg 7-day close', avatarColor: '#C9B87B', closingDays: 7, distanceMi: 6.1 },
-  { id: '7', name: 'Sarah Chen', company: 'Mountain View Appraisals', role: 'Appraiser', rating: 4.9, vouches: 89, tags: ['FHA Approved', 'Fast Turnaround'], stat: '48hr turnaround', avatarColor: '#A8B5D4', closingDays: 2, distanceMi: 3.7 },
-  { id: '8', name: 'James Foster', company: 'Summit Roofing', role: 'Contractor', trade: 'Roofer', secondary_trades: ['Gutters', 'Siding'], rating: 4.7, vouches: 52, tags: ['Licensed & Insured', 'Emergency Service', 'Warranty Offered'], stat: 'Avg bid $2,800', avatarColor: '#D4C5A8', closingDays: 3, distanceMi: 7.2 },
-  { id: '9', name: 'Lisa Martinez', company: 'Denver Home Warranty', role: 'Warranty', rating: 4.8, vouches: 76, tags: ['Fast Turnaround', 'Clear Communication'], stat: '$450/yr starting', avatarColor: '#B8A8D4', closingDays: 14, distanceMi: 2.8 },
-  { id: '10', name: 'David Kim', company: 'RE Law Group', role: 'Attorney', rating: 5.0, vouches: 64, tags: ['Complex Specialist', 'Spanish-Speaking'], stat: 'Flat fee $750', avatarColor: '#A8D4B5', closingDays: 3, distanceMi: 1.9 },
-  { id: '11', name: 'Angela Rivera', company: 'Precision Inspections', role: 'Home Inspector', rating: 4.8, vouches: 112, tags: ['Same-Day Turnaround', 'Foundation Specialist', 'Detailed Reports'], stat: 'Same-day reports', avatarColor: '#D4A8C5', closingDays: 1, distanceMi: 4.2 },
-  { id: '12', name: 'Tom Anderson', company: 'VA Loan Pros', role: 'Mortgage Pro', rating: 4.9, vouches: 98, tags: ['VA Specialist', 'Fast Closer', 'No Junk Fees'], stat: 'Closes in 17 days', avatarColor: '#C5D4A8', closingDays: 17, distanceMi: 8.3 },
-  { id: '13', name: 'Carlos Mendoza', company: 'Mendoza General Contracting', role: 'Contractor', trade: 'General Contractor', secondary_trades: ['Kitchen & Bath', 'Flooring'], rating: 4.9, vouches: 84, tags: ['Licensed & Insured', 'Full Remodels', 'On-Time Expert'], stat: 'Full remodels', avatarColor: '#A8C9B5', closingDays: 14, distanceMi: 3.4 },
-  { id: '14', name: 'Derek Washington', company: 'Volt Electric Co', role: 'Contractor', trade: 'Electrician', secondary_trades: ['Lighting', 'EV Chargers'], rating: 4.9, vouches: 71, tags: ['Licensed & Insured', 'Fast Response', 'Spanish-Speaking'], stat: '<2hr response', avatarColor: '#8BA8C9', closingDays: 2, distanceMi: 2.6 },
-  { id: '15', name: 'Tony Ruiz', company: 'Front Range Plumbing', role: 'Contractor', trade: 'Plumber', secondary_trades: ['Sewer', 'Water Heaters'], rating: 4.8, vouches: 93, tags: ['Licensed & Insured', 'Emergency Service', 'Warranty Offered'], stat: 'Same-day available', avatarColor: '#C9A87B', closingDays: 1, distanceMi: 5.1 },
-  { id: '16', name: 'Mike Petrov', company: 'Mile High Paving', role: 'Contractor', trade: 'Driveway / Paving', secondary_trades: ['Concrete', 'Drainage'], rating: 4.7, vouches: 48, tags: ['Licensed & Insured', 'Free Estimates', 'On-Time Expert'], stat: 'Avg bid $3,200', avatarColor: '#B5A8C9', closingDays: 7, distanceMi: 6.8 },
+  { id: '1', name: 'Rachel Williams', company: 'First Choice Lending', role: 'Mortgage Pro', rating: 4.9, vouches: 127, tags: ['VA Specialist', 'Fast Closer', 'Spanish-Speaking'], headline: 'Closes in 19 days', avatarColor: '#C4A882', closingDays: 19, distanceMi: 2.1 },
+  { id: '2', name: 'Brian Cooper', company: 'ProBuild Contractors', role: 'Contractor', trade: 'General Contractor', secondary_trades: ['Carpentry', 'Drywall'], rating: 5.0, vouches: 67, tags: ['Licensed & Insured', 'Fast Response', 'On-Time Expert'], headline: '24hr response', avatarColor: '#7BA3C9', closingDays: 5, distanceMi: 4.8 },
+  { id: '3', name: 'Maria Santos', company: 'HomeGuard Inspections', role: 'Home Inspector', rating: 5.0, vouches: 156, tags: ['Same-Day Turnaround', 'Detailed Reports', 'Spanish-Speaking'], headline: 'Same-day reports', avatarColor: '#D4A8B5', closingDays: 1, distanceMi: 1.3 },
+  { id: '4', name: 'Emma Thompson', company: 'Elite Title Services', role: 'Title/Escrow', rating: 4.9, vouches: 104, tags: ['Fast Turnaround', 'Clear Communication', 'Spanish-Speaking'], headline: '$795 fee avg', avatarColor: '#A8C5DA', closingDays: 7, distanceMi: 3.2 },
+  { id: '5', name: 'Marcus Lee', company: 'Apex Mortgage', role: 'Mortgage Pro', rating: 4.8, vouches: 142, tags: ['FHA Approved', 'Fast Closer', 'Spanish-Speaking'], headline: 'FHA specialist', avatarColor: '#B5C4A8', closingDays: 21, distanceMi: 5.5 },
+  { id: '6', name: 'Kevin Park', company: 'Secure Title Co', role: 'Title/Escrow', rating: 4.8, vouches: 93, tags: ['Cash Buyer Expert', 'Fast Turnaround', 'No Junk Fees'], headline: 'Avg 7-day close', avatarColor: '#C9B87B', closingDays: 7, distanceMi: 6.1 },
+  { id: '7', name: 'Sarah Chen', company: 'Mountain View Appraisals', role: 'Appraiser', rating: 4.9, vouches: 89, tags: ['FHA Approved', 'Fast Turnaround'], headline: '48hr turnaround', avatarColor: '#A8B5D4', closingDays: 2, distanceMi: 3.7 },
+  { id: '8', name: 'James Foster', company: 'Summit Roofing', role: 'Contractor', trade: 'Roofer', secondary_trades: ['Gutters', 'Siding'], rating: 4.7, vouches: 52, tags: ['Licensed & Insured', 'Emergency Service', 'Warranty Offered'], headline: 'Avg bid $2,800', avatarColor: '#D4C5A8', closingDays: 3, distanceMi: 7.2 },
+  { id: '9', name: 'Lisa Martinez', company: 'Denver Home Warranty', role: 'Warranty', rating: 4.8, vouches: 76, tags: ['Fast Turnaround', 'Clear Communication'], headline: '$450/yr starting', avatarColor: '#B8A8D4', closingDays: 14, distanceMi: 2.8 },
+  { id: '10', name: 'David Kim', company: 'RE Law Group', role: 'Attorney', rating: 5.0, vouches: 64, tags: ['Complex Specialist', 'Spanish-Speaking'], headline: 'Flat fee $750', avatarColor: '#A8D4B5', closingDays: 3, distanceMi: 1.9 },
+  { id: '11', name: 'Angela Rivera', company: 'Precision Inspections', role: 'Home Inspector', rating: 4.8, vouches: 112, tags: ['Same-Day Turnaround', 'Foundation Specialist', 'Detailed Reports'], headline: 'Same-day reports', avatarColor: '#D4A8C5', closingDays: 1, distanceMi: 4.2 },
+  { id: '12', name: 'Tom Anderson', company: 'VA Loan Pros', role: 'Mortgage Pro', rating: 4.9, vouches: 98, tags: ['VA Specialist', 'Fast Closer', 'No Junk Fees'], headline: 'Closes in 17 days', avatarColor: '#C5D4A8', closingDays: 17, distanceMi: 8.3 },
+  { id: '13', name: 'Carlos Mendoza', company: 'Mendoza General Contracting', role: 'Contractor', trade: 'General Contractor', secondary_trades: ['Kitchen & Bath', 'Flooring'], rating: 4.9, vouches: 84, tags: ['Licensed & Insured', 'Full Remodels', 'On-Time Expert'], headline: 'Full remodels', avatarColor: '#A8C9B5', closingDays: 14, distanceMi: 3.4 },
+  { id: '14', name: 'Derek Washington', company: 'Volt Electric Co', role: 'Contractor', trade: 'Electrician', secondary_trades: ['Lighting', 'EV Chargers'], rating: 4.9, vouches: 71, tags: ['Licensed & Insured', 'Fast Response', 'Spanish-Speaking'], headline: '<2hr response', avatarColor: '#8BA8C9', closingDays: 2, distanceMi: 2.6 },
+  { id: '15', name: 'Tony Ruiz', company: 'Front Range Plumbing', role: 'Contractor', trade: 'Plumber', secondary_trades: ['Sewer', 'Water Heaters'], rating: 4.8, vouches: 93, tags: ['Licensed & Insured', 'Emergency Service', 'Warranty Offered'], headline: 'Same-day available', avatarColor: '#C9A87B', closingDays: 1, distanceMi: 5.1 },
+  { id: '16', name: 'Mike Petrov', company: 'Mile High Paving', role: 'Contractor', trade: 'Driveway / Paving', secondary_trades: ['Concrete', 'Drainage'], rating: 4.7, vouches: 48, tags: ['Licensed & Insured', 'Free Estimates', 'On-Time Expert'], headline: 'Avg bid $3,200', avatarColor: '#B5A8C9', closingDays: 7, distanceMi: 6.8 },
 ];
 
 const RECOMMENDED_PROS = ALL_PROS.slice(0, 5);
@@ -304,10 +304,11 @@ const ProCardComponent: React.FC<{
           );
         })()}
       </View>
-      <View style={{ height: 32, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: COLORS.statBg, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <LightningIcon />
-        <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.statText, lineHeight: 16 }}>{pro.stat}</Text>
-      </View>
+      {pro.headline ? (
+        <Text style={{ fontSize: 13, fontWeight: '400', fontStyle: 'italic', color: COLORS.secondaryText, lineHeight: 18 }} numberOfLines={1}>
+          {pro.headline}
+        </Text>
+      ) : null}
     </View>
 
     {/* Action Buttons: Job-eligible gets 2 buttons, Partners get 1 */}
