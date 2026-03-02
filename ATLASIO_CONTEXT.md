@@ -142,7 +142,22 @@ Commits: 6373667, 1ba3334, b9a91cb
 - **tsc: 0 errors** across all 3 rounds.
 
 ---
-Cumulative Progress (Sessions 1-10)
+Session 11 — ProProfile CTAs + Data Quality Polish + Remaining Hooks
+
+Branch: backend/session-11-proprofile-ctas-polish
+Commits: cebce1d, e0d2d62, f66ad48, 7ad2fc9, 2c6072d
+
+- **ProProfile conditional CTAs** — Created useConnectionStatus(profileId) returning 'self' | 'connected' | 'pending' | 'none'. ProProfile now shows Edit Profile (own), Message (connected), Request Pending (pending), Request to Connect (none). Edit Profile navigates to EditProfileScreen. Request to Connect wired to useSendConnectionRequest mutation.
+- **ProProfile recent_vouches** — Created useProfileVouches(profileId) fetching vouches with author profile join. Replaces hardcoded [] in the Supabase path.
+- **Recommended vs Trending differentiated** — useRecommendedPros sorts by rating desc; useTrendingPros sorts by vouch_count desc. Previously identical.
+- **NotificationsTab mock flash fixed** — Init with [] instead of MOCK_NOTIFICATIONS. Added isLoading + ActivityIndicator.
+- **InboxList avatar_colors wired** — useChatThreads now fetches thread_members → profiles for avatar_color per thread. is_unread kept as false (schema lacks last_read_at).
+- **useChatRecipients created** — Queries both directions of accepted connections, maps to Recipient[] for NewMessage contact picker.
+- **useCreateThread created** — Mutation creates thread + members + first message via 3 sequential inserts (no RPC available).
+- **useProProfile deleted** — Dead code (threw "Not implemented", zero consumers). Superseded by useProfile + useConnectionStatus + useProfileVouches.
+
+---
+Cumulative Progress (Sessions 1-11)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
 - Session 2: 11 T1 revenue-critical hooks wired
@@ -153,19 +168,20 @@ Cumulative Progress (Sessions 1-10)
 - Session 7/7B: Feature flag flipped to live, pre-backend polish audit (6 fixes identified)
 - Session 9: Fixes 2-6 complete (empty states, ProProfile by ID, tags below bio, headline)
 - Session 10: sender_name fix, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved
+- Session 11: ProProfile CTAs wired, Recommended/Trending differentiated, NotificationsTab flash fixed, InboxList avatar_colors, useChatRecipients + useCreateThread created, useProProfile deleted
 
-Backend B-E Sessions 1-10 complete. Supabase: 18 tables, 17 RPCs. 39/42 hooks wired, 10/10 screens connected. S10: sender_name fixed, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved. ~65% progress.
+Backend B-E Sessions 1-11 complete. Supabase: 18 tables, 17 RPCs. 44 hooks (42 active + 2 new), 10/10 screens connected. ~70% progress.
 
 tsc status: 0 errors
 
 ---
 Recommended Next Session Priorities
 
-1. ProProfile conditional CTAs (Edit / Message / Request to Connect based on relationship)
-2. Differentiate Recommended vs Trending queries (rating vs recent vouch activity)
-3. Create useChatRecipients + useCreateThread hooks (new conversation flow)
-4. Fix NotificationsTab mock flash (init with [] + isLoading)
-5. Fix InboxList unread badges + avatar colors (join thread_members → profiles)
-6. Delete dead useProProfile hook (superseded by useProfile)
-7. ProProfile hardcoded relationship values (recent_vouches, is_connected, is_own_profile)
-8. Wire ProProfile portfolio_photos from portfolio_photos table
+1. Wire ProProfile portfolio_photos from portfolio_photos table (replace MOCK_PORTFOLIO_PHOTOS)
+2. Wire ProProfile "Message" CTA to navigate to ChatScreen (find or create thread)
+3. Add last_read_at to thread_members schema → wire is_unread in useChatThreads
+4. Wire NewMessage screen to use useChatRecipients + useCreateThread
+5. Add trending vouch window (7-day filter) via RPC or view for useTrendingPros
+6. Wire notification deep links (replace console.log with navigation.navigate)
+7. Wire notification mark-as-read mutation to Supabase
+8. Performance: add staleTime/gcTime to high-frequency hooks
