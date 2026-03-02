@@ -992,7 +992,7 @@ export const useChatThreads = () => {
 };
 
 /**
- * Fetch messages for a thread
+ * Fetch messages for a thread (with sender profile join for name + avatar)
  */
 // STATUS: wired (with mock fallback)
 export const useMessages = (threadId: string) => {
@@ -1002,11 +1002,15 @@ export const useMessages = (threadId: string) => {
       try {
         const { data, error } = await supabase
           .from('messages')
-          .select('*')
+          .select('*, sender:profiles!sender_id(name, avatar_color)')
           .eq('thread_id', threadId)
           .order('created_at', { ascending: true });
         if (error) throw error;
-        return (data ?? []) as Message[];
+        return (data ?? []).map((row: any) => ({
+          ...row,
+          sender_name: row.sender?.name ?? row.sender_name ?? 'Unknown',
+          sender: undefined, // remove join artifact from Message shape
+        })) as Message[];
       } catch (err) {
         console.warn('[useMessages] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
@@ -1019,6 +1023,7 @@ export const useMessages = (threadId: string) => {
 
 /**
  * Send a message
+ * Reads sender_name from cached profile (queryKeys.myProfile)
  */
 // STATUS: wired (with mock fallback)
 export const useSendMessage = () => {
@@ -1037,10 +1042,12 @@ export const useSendMessage = () => {
       try {
         const userId = await getCurrentUserId();
         if (!userId) throw new Error('Not authenticated');
+        // Get sender name from cached profile
+        const cachedProfile = qc.getQueryData<Profile>(queryKeys.myProfile);
+        const senderName = cachedProfile?.name ?? '';
         const { data, error } = await supabase
           .from('messages')
-          // TODO: populate sender_name from profile context when auth is wired
-          .insert({ thread_id: threadId, sender_id: userId, sender_name: '', content, type })
+          .insert({ thread_id: threadId, sender_id: userId, sender_name: senderName, content, type })
           .select()
           .single();
         if (error) throw error;
@@ -1048,7 +1055,11 @@ export const useSendMessage = () => {
       } catch (err) {
         console.warn('[useSendMessage] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
-        return { id: `msg-${Date.now()}`, content } as unknown as Message;
+        return {
+          id: `msg-${Date.now()}`, thread_id: threadId, sender_id: '',
+          sender_name: '', content, type: 'text', attachment_url: null,
+          is_read: false, created_at: new Date().toISOString(),
+        } as Message;
       }
     },
     onSuccess: (_, { threadId }) => {
