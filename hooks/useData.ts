@@ -1071,17 +1071,17 @@ export const useChatThreads = () => {
       try {
         const userId = await getCurrentUserId();
         if (!userId) throw new Error('Not authenticated');
-        // Get threads the user belongs to
+        // Get threads + current user's last_read_at for each
         const { data: memberRows, error } = await supabase
           .from('thread_members')
-          .select('thread:threads(*)')
+          .select('last_read_at, thread:threads(*)')
           .eq('user_id', userId);
         if (error) throw error;
-        const threads = (memberRows ?? []).map((d: any) => d.thread).filter(Boolean);
-        if (threads.length === 0) return [];
+        const rows = (memberRows ?? []).filter((d: any) => d.thread);
+        if (rows.length === 0) return [];
 
         // Fetch all members + avatar colors for these threads
-        const threadIds = threads.map((t: any) => t.id);
+        const threadIds = rows.map((d: any) => d.thread.id);
         const { data: allMembers } = await supabase
           .from('thread_members')
           .select('thread_id, profile:profiles!user_id(avatar_color)')
@@ -1096,18 +1096,51 @@ export const useChatThreads = () => {
           colorMap[tid].push(color);
         }
 
-        return (threads.map((t: any) => ({
-          ...t,
-          participants: [],
-          // TODO: Compute is_unread once last_read_at column exists on thread_members
-          is_unread: false,
-          avatar_colors: colorMap[t.id] ?? [],
-        })) as ChatThreadView[]);
+        return (rows.map((d: any) => {
+          const t = d.thread;
+          const lastRead = d.last_read_at ? new Date(d.last_read_at).getTime() : 0;
+          const lastMsg = t.last_message_at ? new Date(t.last_message_at).getTime() : 0;
+          return {
+            ...t,
+            participants: [],
+            is_unread: lastMsg > lastRead,
+            avatar_colors: colorMap[t.id] ?? [],
+          };
+        }) as ChatThreadView[]);
       } catch (err) {
         console.warn('[useChatThreads] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
         return [];
       }
+    },
+  });
+};
+
+/**
+ * Mark a thread as read for the current user
+ * Updates thread_members.last_read_at = now()
+ */
+// STATUS: wired (with mock fallback)
+export const useMarkThreadRead = () => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (threadId: string) => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { error } = await supabase
+          .from('thread_members')
+          .update({ last_read_at: new Date().toISOString() })
+          .eq('thread_id', threadId)
+          .eq('user_id', userId);
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useMarkThreadRead] Supabase failed', err);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.chatThreads });
     },
   });
 };

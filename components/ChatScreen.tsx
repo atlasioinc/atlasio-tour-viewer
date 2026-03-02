@@ -33,7 +33,7 @@ import type { Message } from './MessageBubble';
 import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useMessages, useSendMessage } from '../hooks/useData';
+import { useMessages, useSendMessage, useMarkThreadRead } from '../hooks/useData';
 import { adaptMessageToBubble } from '../lib/typeAdapters';
 import { supabase } from '../lib/supabase';
 
@@ -217,6 +217,12 @@ const ChatScreen: React.FC = () => {
   // ── Live data hooks ──
   const { data: liveMessages } = useMessages(threadId);
   const sendMessage = useSendMessage();
+  const markRead = useMarkThreadRead();
+
+  // Mark thread as read when screen mounts
+  useEffect(() => {
+    if (threadId) markRead.mutate(threadId);
+  }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth: resolve current user ID for message ownership ──
   const [currentUserId, setCurrentUserId] = useState<string>('current-user-id');
