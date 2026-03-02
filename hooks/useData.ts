@@ -17,7 +17,6 @@ import { supabase, getCurrentUserId } from '../lib/supabase';
 import { MOCK_REPAIR_JOBS } from '../components/RepairJobsData';
 import type {
   Profile,
-  ProProfileData,
   PerformanceStats,
   NetworkContact,
   NetworkContractor,
@@ -92,49 +91,6 @@ export const queryKeys = {
 // PROFILE HOOKS
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Fetch a pro's full profile (for ProProfile screen)
- *
- * Production query:
- *   supabase
- *     .from('profiles')
- *     .select('*, performance_stats(*), vouches!recipient_id(id, author_name, quote, avatar_color)')
- *     .eq('id', profileId)
- *     .single()
- */
-export const useProProfile = (profileId: string) => {
-  return useQuery({
-    queryKey: queryKeys.profile(profileId),
-    queryFn: async (): Promise<ProProfileData> => {
-      // ── PRODUCTION: Uncomment below ──
-      // const { data, error } = await supabase
-      //   .from('profiles')
-      //   .select(`
-      //     *,
-      //     performance_stats(*),
-      //     received_vouches:vouches!recipient_id(id, author:profiles!author_id(name, avatar_color), quote)
-      //   `)
-      //   .eq('id', profileId)
-      //   .single();
-      // if (error) throw error;
-      //
-      // const userId = await getCurrentUserId();
-      // const { data: connection } = await supabase
-      //   .from('connections')
-      //   .select('status')
-      //   .or(`requester_id.eq.${userId},responder_id.eq.${userId}`)
-      //   .or(`requester_id.eq.${profileId},responder_id.eq.${profileId}`)
-      //   .eq('status', 'accepted')
-      //   .maybeSingle();
-      //
-      // return mapProfileToProProfileData(data, connection, userId);
-
-      // ── MOCK: Remove when Supabase is live ──
-      throw new Error('Not implemented — use mock data via route params');
-    },
-    enabled: !!profileId,
-  });
-};
 
 /**
  * Fetch current user's own profile
@@ -1152,6 +1108,101 @@ export const useChatThreads = () => {
         // TODO: [PRODUCTION] Remove mock fallback
         return [];
       }
+    },
+  });
+};
+
+/**
+ * Fetch connected users as potential message recipients
+ * Used by NewMessage screen contact picker
+ */
+// STATUS: wired (with mock fallback)
+export const useChatRecipients = () => {
+  return useQuery({
+    queryKey: queryKeys.chatRecipients,
+    queryFn: async (): Promise<Recipient[]> => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        // Query both directions of accepted connections
+        const { data, error } = await supabase
+          .from('connections')
+          .select('requester_id, responder_id, requester:profiles!requester_id(id, name, company, display_role, avatar_color), responder:profiles!responder_id(id, name, company, display_role, avatar_color)')
+          .or(`requester_id.eq.${userId},responder_id.eq.${userId}`)
+          .eq('status', 'accepted');
+        if (error) throw error;
+        // Map to Recipient — pick the other user from each connection
+        return (data ?? []).map((row: any) => {
+          const other = row.requester_id === userId ? row.responder : row.requester;
+          return {
+            id: other?.id ?? '',
+            name: other?.name ?? '',
+            company: other?.company ?? '',
+            role: other?.display_role ?? '',
+            avatar_color: other?.avatar_color ?? '#7BA3C9',
+          };
+        }).filter((r: Recipient) => r.id) as Recipient[];
+      } catch (err) {
+        console.warn('[useChatRecipients] Supabase failed, using mock fallback', err);
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * Create a new chat thread with first message
+ * No RPC available — uses two sequential inserts
+ */
+// STATUS: wired (with mock fallback)
+export const useCreateThread = () => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ recipientId, firstMessage }: { recipientId: string; firstMessage: string }) => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const senderName = qc.getQueryData<Profile>(queryKeys.myProfile)?.name ?? '';
+
+        // 1. Create thread
+        const { data: thread, error: threadError } = await supabase
+          .from('threads')
+          .insert({ type: 'one_to_one', last_message: firstMessage, last_message_at: new Date().toISOString() })
+          .select()
+          .single();
+        if (threadError) throw threadError;
+
+        // 2. Add both members
+        const { error: membersError } = await supabase
+          .from('thread_members')
+          .insert([
+            { thread_id: thread.id, user_id: userId },
+            { thread_id: thread.id, user_id: recipientId },
+          ]);
+        if (membersError) throw membersError;
+
+        // 3. Insert first message
+        const { error: msgError } = await supabase
+          .from('messages')
+          .insert({
+            thread_id: thread.id,
+            sender_id: userId,
+            sender_name: senderName,
+            content: firstMessage,
+            type: 'text',
+          });
+        if (msgError) throw msgError;
+
+        return thread;
+      } catch (err) {
+        console.warn('[useCreateThread] Supabase failed, using mock fallback', err);
+        // Return a mock thread so the UI can navigate
+        return { id: `mock-thread-${Date.now()}`, type: 'one_to_one', last_message: firstMessage, last_message_at: new Date().toISOString() };
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.chatThreads });
     },
   });
 };
