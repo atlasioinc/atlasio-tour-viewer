@@ -7,7 +7,7 @@
 // will extend with different performance metrics
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -118,10 +118,16 @@ const ProfileTab: React.FC = () => {
   const { data: liveProfile } = useMyProfile();
 
   // ── Profile State ──
-  const [profilePhoto, setProfilePhoto] = useState<string | undefined>(undefined);
-  const mockBio = 'Specializing in first-time buyers and investor flips. Fast closings, bilingual Spanish/English. Known for strong local connections and helping clients navigate complex deals with ease.';
-  const [bio, setBio] = useState(mockBio);
-  const [profileVisible, setProfileVisible] = useState(true);
+  const profilePhoto = liveProfile?.avatar_url ?? undefined;
+  const profileName = liveProfile?.name ?? 'Loading...';
+  const profileCompany = liveProfile?.company ?? '';
+  const profileLicense = liveProfile?.licensed ?? '';
+  const profileLocation = liveProfile?.location ?? 'Denver, CO';
+  const profileBio = liveProfile?.bio ?? '';
+  const profileRating = liveProfile?.rating ?? 0;
+  const profileVouches = liveProfile?.vouch_count ?? 0;
+  const profileActiveSince = liveProfile?.active_since ?? '';
+  const profileVisible = liveProfile?.is_visible ?? true;
 
   // ── Specialties & Languages ──
   const specialties = FEATURE_FLAGS.USE_MOCK_DATA
@@ -175,29 +181,33 @@ const ProfileTab: React.FC = () => {
 
           {/* Name */}
           <Text style={{ textAlign: 'center', color: COLORS.darkText, fontSize: 24, fontWeight: '700', lineHeight: 36, letterSpacing: 0.07 }}>
-            John Doe – REALTOR®
+            {profileName}
           </Text>
 
           {/* Company + Location */}
           <Text style={{ textAlign: 'center', color: COLORS.bodyText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>
-            {'Keller Williams • MLS #123456\nDenver, CO'}
+            {[profileCompany, profileLicense].filter(Boolean).join(' • ') + '\n' + profileLocation}
           </Text>
 
           {/* Stats pills */}
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
             <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.tagBg, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>4.9 ★</Text>
-              <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>128 Vouches</Text>
+              <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>{profileRating.toFixed(1)} ★</Text>
+              <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>{profileVouches} Vouches</Text>
             </View>
-            <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.tagBg, borderRadius: 9999 }}>
-              <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>Active Since 2022</Text>
-            </View>
+            {profileActiveSince ? (
+              <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.tagBg, borderRadius: 9999 }}>
+                <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>Active Since {profileActiveSince}</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Bio */}
-          <Text style={{ textAlign: 'center', color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 22.75 }}>
-            {bio}
-          </Text>
+          {profileBio ? (
+            <Text style={{ textAlign: 'center', color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 22.75 }}>
+              {profileBio}
+            </Text>
+          ) : null}
 
           {/* Specialties & Languages pills */}
           {(specialties.length > 0 || languages.length > 0) && (
@@ -238,12 +248,12 @@ const ProfileTab: React.FC = () => {
           {/* Visibility toggle */}
           <View style={{ height: 52, paddingLeft: 16, paddingRight: 16, backgroundColor: COLORS.inputBg, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', overflow: 'hidden' }}>
             <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.statText, lineHeight: 20 }}>
-              Profile Visible to: <Text style={{ fontWeight: '500' }}>All Agents</Text>
+              Profile Visible to: <Text style={{ fontWeight: '500' }}>{profileVisible ? 'All Agents' : 'Hidden'}</Text>
             </Text>
             <View style={{ width: 51, height: 31, alignItems: 'center', justifyContent: 'center' }}>
               <Switch
                 value={profileVisible}
-                onValueChange={setProfileVisible}
+                onValueChange={() => {/* TODO: wire useUpdateProfile to toggle is_visible */}}
                 trackColor={{ false: '#D1D5DC', true: COLORS.primary }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="#D1D5DC"

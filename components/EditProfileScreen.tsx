@@ -14,15 +14,12 @@
 //   - Input/chip styling matches PostJobWizard exactly
 //
 // TODO (Production):
-//   - Replace console.log save with useUpdateProfile() mutation
 //   - Wire image picker → Supabase Storage upload
 //   - Wire license/insurance upload → document picker + Storage
 //   - Replace service area TextInput with Google Places autocomplete
-//   - Pre-populate from Supabase profiles query instead of mock data
-//   - Add loading state during save mutation
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -36,6 +33,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, DIMENSIONS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useMyProfile, useUpdateProfile } from '../hooks/useData';
 import FormField from './FormField';
 import { ChipGroup, SingleSelectChipGroup } from './SelectableChip';
 
@@ -296,10 +295,34 @@ const EditProfileScreen: React.FC = () => {
     return [];
   }, [role, isAgent, isPartner]);
 
+  // ── Live profile data ──
+  const { data: myProfile } = useMyProfile();
+  const updateProfile = useUpdateProfile();
+
   // ── Form State ──
   const [form, setForm] = useState<FormData>(() => getMockData(role));
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isSaving, setIsSaving] = useState(false);
+  const isSaving = updateProfile.isPending;
+
+  // ── Pre-fill form from live profile when available ──
+  const [hasPreFilled, setHasPreFilled] = useState(false);
+  useEffect(() => {
+    if (!FEATURE_FLAGS.USE_MOCK_DATA && myProfile && !hasPreFilled) {
+      setForm((prev) => ({
+        ...prev,
+        fullName: myProfile.name || prev.fullName,
+        headline: myProfile.headline || prev.headline,
+        bio: myProfile.bio || prev.bio,
+        company: myProfile.company || prev.company,
+        licenseNumber: myProfile.licensed || prev.licenseNumber,
+        serviceArea: myProfile.service_area || prev.serviceArea,
+        specialties: myProfile.specialties?.length ? myProfile.specialties : prev.specialties,
+        primaryTrade: myProfile.trade || prev.primaryTrade,
+        secondaryTrades: myProfile.trades?.length > 1 ? myProfile.trades.slice(1) : prev.secondaryTrades,
+      }));
+      setHasPreFilled(true);
+    }
+  }, [myProfile, hasPreFilled]);
 
   // ── Field Updaters ──
   const updateField = <K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -342,39 +365,30 @@ const EditProfileScreen: React.FC = () => {
   };
 
   // ── Save Handler ──
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) {
       Alert.alert('Missing Required Fields', 'Please fill in all required fields before saving.');
       return;
     }
-    setIsSaving(true);
-
-    // TODO: Replace with useUpdateProfile() mutation
-    // await updateProfile.mutateAsync({
-    //   id: currentUser.id,
-    //   full_name: form.fullName,
-    //   headline: form.headline,
-    //   bio: form.bio,
-    //   company: form.company,
-    //   license_number: form.licenseNumber,
-    //   service_area: form.serviceArea,
-    //   languages: form.languages,
-    //   specialties: form.specialties,
-    //   primary_trade: form.primaryTrade,
-    //   secondary_trades: form.secondaryTrades,
-    //   availability: form.availability,
-    //   rate_preferences: form.ratePreferences,
-    // });
-
-    console.log('──── SAVE PROFILE ────');
-    console.log('Role:', role);
-    console.log('Data:', JSON.stringify(form, null, 2));
-    console.log('──────────────────────');
-
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      await updateProfile.mutateAsync({
+        name: form.fullName.trim(),
+        headline: form.headline.trim() || null,
+        bio: form.bio.trim(),
+        company: form.company.trim(),
+        licensed: form.licenseNumber.trim() || null,
+        service_area: form.serviceArea.trim() || null,
+        specialties: form.specialties,
+        trade: form.primaryTrade || null,
+        trades: form.primaryTrade
+          ? [form.primaryTrade as any, ...form.secondaryTrades]
+          : [],
+        is_visible: form.availability,
+      });
       navigation.goBack();
-    }, 300);
+    } catch {
+      Alert.alert('Error', 'Failed to save profile. Please try again.');
+    }
   };
 
   // ── Available secondary trades (exclude primary) ──

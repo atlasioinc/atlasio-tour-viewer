@@ -198,6 +198,41 @@ export const useProfile = (profileId: string) => {
   });
 };
 
+/**
+ * Update current user's profile
+ * Accepts Partial<Profile> — only send changed fields
+ */
+// STATUS: wired (with mock fallback)
+export const useUpdateProfile = () => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (updates: Partial<Profile>): Promise<Profile> => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId)
+          .select()
+          .single();
+        if (error) throw error;
+        return data as Profile;
+      } catch (err) {
+        console.warn('[useUpdateProfile] Supabase failed, using mock fallback', err);
+        // TODO: [PRODUCTION] Remove mock fallback
+        const current = qc.getQueryData<Profile>(queryKeys.myProfile);
+        return { ...current, ...updates } as Profile;
+      }
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.myProfile, data);
+      qc.invalidateQueries({ queryKey: queryKeys.myProfile });
+    },
+  });
+};
+
 // ═══════════════════════════════════════════════════════════════
 // NETWORK HOOKS
 // ═══════════════════════════════════════════════════════════════
