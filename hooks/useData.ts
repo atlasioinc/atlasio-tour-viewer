@@ -1161,44 +1161,15 @@ export const useCreateThread = () => {
   return useMutation({
     mutationFn: async ({ recipientId, firstMessage }: { recipientId: string; firstMessage: string }) => {
       try {
-        const userId = await getCurrentUserId();
-        if (!userId) throw new Error('Not authenticated');
-        const senderName = qc.getQueryData<Profile>(queryKeys.myProfile)?.name ?? '';
-
-        // 1. Create thread
-        const { data: thread, error: threadError } = await supabase
-          .from('threads')
-          .insert({ type: 'one_to_one', last_message: firstMessage, last_message_at: new Date().toISOString() })
-          .select()
-          .single();
-        if (threadError) throw threadError;
-
-        // 2. Add both members
-        const { error: membersError } = await supabase
-          .from('thread_members')
-          .insert([
-            { thread_id: thread.id, user_id: userId },
-            { thread_id: thread.id, user_id: recipientId },
-          ]);
-        if (membersError) throw membersError;
-
-        // 3. Insert first message
-        const { error: msgError } = await supabase
-          .from('messages')
-          .insert({
-            thread_id: thread.id,
-            sender_id: userId,
-            sender_name: senderName,
-            content: firstMessage,
-            type: 'text',
-          });
-        if (msgError) throw msgError;
-
-        return thread;
+        const { data, error } = await supabase.rpc('rpc_create_thread', {
+          p_recipient_id: recipientId,
+          p_first_message: firstMessage,
+        });
+        if (error) throw error;
+        return data as { success: boolean; thread_id: string; existing: boolean };
       } catch (err) {
         console.warn('[useCreateThread] Supabase failed, using mock fallback', err);
-        // Return a mock thread so the UI can navigate
-        return { id: `mock-thread-${Date.now()}`, type: 'one_to_one', last_message: firstMessage, last_message_at: new Date().toISOString() };
+        return { success: true, thread_id: `mock-thread-${Date.now()}`, existing: false };
       }
     },
     onSuccess: () => {

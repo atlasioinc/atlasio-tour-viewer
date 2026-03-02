@@ -334,6 +334,7 @@ CREATE TABLE thread_members (
   thread_id UUID NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   is_muted BOOLEAN NOT NULL DEFAULT false,
+  last_read_at TIMESTAMPTZ,              -- NULL = never read (show as unread)
   joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (thread_id, user_id)
 );
@@ -1189,6 +1190,62 @@ CREATE OR REPLACE FUNCTION rpc_reactivate_account()
 RETURNS VOID AS $$
 BEGIN
   UPDATE profiles SET deactivated_at = NULL, is_visible = true WHERE id = auth.uid();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- ── 18. CREATE THREAD (atomic) ────────────────────────────────
+
+CREATE OR REPLACE FUNCTION rpc_create_thread(
+  p_recipient_id UUID,
+  p_first_message TEXT
+) RETURNS JSONB AS $$
+DECLARE
+  v_caller_id UUID := auth.uid();
+  v_thread_id UUID;
+  v_existing_thread UUID;
+  v_sender_name TEXT;
+BEGIN
+  -- Look up sender name for denormalized messages.sender_name
+  SELECT name INTO v_sender_name FROM profiles WHERE id = v_caller_id;
+
+  -- Check for existing 1:1 thread between these users
+  SELECT tm1.thread_id INTO v_existing_thread
+  FROM thread_members tm1
+  JOIN thread_members tm2 ON tm1.thread_id = tm2.thread_id
+  JOIN threads t ON t.id = tm1.thread_id
+  WHERE tm1.user_id = v_caller_id
+    AND tm2.user_id = p_recipient_id
+    AND t.type = 'one_to_one';
+
+  IF v_existing_thread IS NOT NULL THEN
+    -- Thread exists — just send the message
+    INSERT INTO messages (thread_id, sender_id, sender_name, content, type)
+    VALUES (v_existing_thread, v_caller_id, v_sender_name, p_first_message, 'text');
+
+    UPDATE threads
+    SET last_message = p_first_message, last_message_at = now()
+    WHERE id = v_existing_thread;
+
+    RETURN jsonb_build_object('success', true, 'thread_id', v_existing_thread, 'existing', true);
+  END IF;
+
+  -- Create new thread
+  INSERT INTO threads (type, last_message, last_message_at)
+  VALUES ('one_to_one', p_first_message, now())
+  RETURNING id INTO v_thread_id;
+
+  -- Add both members
+  INSERT INTO thread_members (thread_id, user_id, last_read_at)
+  VALUES
+    (v_thread_id, v_caller_id, now()),
+    (v_thread_id, p_recipient_id, NULL);
+
+  -- Send first message
+  INSERT INTO messages (thread_id, sender_id, sender_name, content, type)
+  VALUES (v_thread_id, v_caller_id, v_sender_name, p_first_message, 'text');
+
+  RETURN jsonb_build_object('success', true, 'thread_id', v_thread_id, 'existing', false);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
