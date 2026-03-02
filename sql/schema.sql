@@ -1251,18 +1251,203 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- ═════════════════════════════════════════════════════════════
--- STORAGE BUCKETS (create manually in Dashboard → Storage)
+-- STORAGE BUCKETS + RLS POLICIES
 -- ═════════════════════════════════════════════════════════════
---
--- job-photos: Job + proof photos. Access: agent + bidding contractors. Max 5MB.
--- portfolio-photos: Portfolio images. Access: owner upload, public read. Max 5MB, 8 max.
--- message-attachments: Thread files. Access: thread participants. Max 5MB.
--- credentials: License/cert docs. Access: owner + admin. Max 10MB.
--- avatars: Profile photos. Access: owner upload, public read. Max 2MB.
---
+
+-- Create buckets
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES
+  ('avatars',              'avatars',              true,  2097152),   -- 2MB
+  ('job-photos',           'job-photos',           false, 5242880),   -- 5MB
+  ('portfolio-photos',     'portfolio-photos',     true,  5242880),   -- 5MB
+  ('message-attachments',  'message-attachments',  false, 5242880),   -- 5MB
+  ('credentials',          'credentials',          false, 10485760)   -- 10MB
+ON CONFLICT (id) DO NOTHING;
+
+-- ─────────────────────────────────────────────
+-- AVATARS — public read, owner upload/update/delete
+-- Path convention: avatars/{user_id}/avatar.jpg
+-- ─────────────────────────────────────────────
+
+CREATE POLICY "avatars_public_read"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatars');
+
+CREATE POLICY "avatars_owner_insert"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+CREATE POLICY "avatars_owner_update"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+CREATE POLICY "avatars_owner_delete"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+-- ─────────────────────────────────────────────
+-- JOB-PHOTOS — agent who posted + contractors who bid can read
+-- Path convention: job-photos/{job_id}/photo.jpg
+-- Only the agent can upload
+-- ─────────────────────────────────────────────
+
+CREATE POLICY "job_photos_agent_insert"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'job-photos'
+    AND EXISTS (
+      SELECT 1 FROM jobs
+      WHERE id = (storage.foldername(name))[1]::UUID
+        AND agent_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "job_photos_read"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'job-photos'
+    AND (
+      -- Agent who owns the job
+      EXISTS (
+        SELECT 1 FROM jobs
+        WHERE id = (storage.foldername(name))[1]::UUID
+          AND agent_id = auth.uid()
+      )
+      OR
+      -- Contractors who have bid on the job
+      EXISTS (
+        SELECT 1 FROM bids
+        WHERE job_id = (storage.foldername(name))[1]::UUID
+          AND contractor_id = auth.uid()
+      )
+    )
+  );
+
+CREATE POLICY "job_photos_agent_delete"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'job-photos'
+    AND EXISTS (
+      SELECT 1 FROM jobs
+      WHERE id = (storage.foldername(name))[1]::UUID
+        AND agent_id = auth.uid()
+    )
+  );
+
+-- ─────────────────────────────────────────────
+-- PORTFOLIO-PHOTOS — public read, owner upload/delete
+-- Path convention: portfolio-photos/{user_id}/photo.jpg
+-- ─────────────────────────────────────────────
+
+CREATE POLICY "portfolio_public_read"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'portfolio-photos');
+
+CREATE POLICY "portfolio_owner_insert"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'portfolio-photos'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+CREATE POLICY "portfolio_owner_update"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'portfolio-photos'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+CREATE POLICY "portfolio_owner_delete"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'portfolio-photos'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+-- ─────────────────────────────────────────────
+-- MESSAGE-ATTACHMENTS — thread participants only
+-- Path convention: message-attachments/{thread_id}/file.pdf
+-- ─────────────────────────────────────────────
+
+CREATE POLICY "msg_attachments_participant_read"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'message-attachments'
+    AND EXISTS (
+      SELECT 1 FROM thread_members
+      WHERE thread_id = (storage.foldername(name))[1]::UUID
+        AND user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "msg_attachments_participant_insert"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'message-attachments'
+    AND EXISTS (
+      SELECT 1 FROM thread_members
+      WHERE thread_id = (storage.foldername(name))[1]::UUID
+        AND user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "msg_attachments_participant_delete"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'message-attachments'
+    AND EXISTS (
+      SELECT 1 FROM thread_members
+      WHERE thread_id = (storage.foldername(name))[1]::UUID
+        AND user_id = auth.uid()
+    )
+  );
+
+-- ─────────────────────────────────────────────
+-- CREDENTIALS — owner upload/read/delete only
+-- Path convention: credentials/{user_id}/license.pdf
+-- ─────────────────────────────────────────────
+
+CREATE POLICY "credentials_owner_read"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'credentials'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+CREATE POLICY "credentials_owner_insert"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'credentials'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+CREATE POLICY "credentials_owner_update"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'credentials'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+CREATE POLICY "credentials_owner_delete"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'credentials'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+
 -- ═════════════════════════════════════════════════════════════
 -- DONE — Next steps:
---   1. Create storage buckets in Dashboard → Storage
+--   1. Deploy storage policies via Supabase SQL Editor
 --   2. Configure magic link auth in Dashboard → Auth → Providers
 --   3. Test: create account → profile auto-created → onboarding
 --   4. Wire hooks/useData.ts to live Supabase queries
