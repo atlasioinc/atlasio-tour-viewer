@@ -22,6 +22,8 @@ import ProfileTab from './ProfileTab';
 import ProfileStack from './ProfileStack';
 import { COLORS } from '../lib/tokens';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { useRealtimeNotifications } from '../hooks/useRealtime';
+import { supabase } from '../lib/supabase';
 
 // @demo — Import contractor screens for role toggle
 // Remove these imports when wiring to real auth role
@@ -325,6 +327,15 @@ type Props = {
 
 const BottomTabNavigator: React.FC<Props> = ({ route }) => {
   const { role } = route.params;
+
+  // ── Realtime: keep notification cache fresh app-wide ──
+  const [rtUserId, setRtUserId] = React.useState<string | undefined>();
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) setRtUserId(data.user.id);
+    });
+  }, []);
+  useRealtimeNotifications(rtUserId);
 
   // ── @demo Role toggle state ──
   // Production: Remove entirely. Derive role from auth context:

@@ -30,6 +30,8 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useNotifications as useNotificationsHook } from '../hooks/useData';
 import { adaptNotificationToLocal } from '../lib/typeAdapters';
+import { useRealtimeNotifications } from '../hooks/useRealtime';
+import { supabase } from '../lib/supabase';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS (from Figma)
@@ -407,6 +409,15 @@ const NotificationsTab: React.FC = () => {
   const { data: liveNotifications, isLoading: notificationsLoading } = useNotificationsHook();
   const initialData = FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_NOTIFICATIONS : [];
   const [notifications, setNotifications] = useState<Notification[]>(initialData);
+
+  // ── Realtime: refresh on new notification ──
+  const [realtimeUserId, setRealtimeUserId] = useState<string | undefined>();
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) setRealtimeUserId(data.user.id);
+    });
+  }, []);
+  useRealtimeNotifications(realtimeUserId);
   // When live data loads and flag is off, sync state
   React.useEffect(() => {
     if (!FEATURE_FLAGS.USE_MOCK_DATA && liveNotifications) {

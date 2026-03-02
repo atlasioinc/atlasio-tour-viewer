@@ -34,6 +34,7 @@ import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMessages, useSendMessage, useMarkThreadRead } from '../hooks/useData';
+import { useRealtimeMessages } from '../hooks/useRealtime';
 import { adaptMessageToBubble } from '../lib/typeAdapters';
 import { supabase } from '../lib/supabase';
 
@@ -218,6 +219,7 @@ const ChatScreen: React.FC = () => {
   const { data: liveMessages } = useMessages(threadId);
   const sendMessage = useSendMessage();
   const markRead = useMarkThreadRead();
+  useRealtimeMessages(threadId);
 
   // Mark thread as read when screen mounts
   useEffect(() => {

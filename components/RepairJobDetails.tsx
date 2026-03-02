@@ -34,6 +34,7 @@ import InfoBanner from './InfoBanner';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useJob, useJobBids } from '../hooks/useData';
+import { useRealtimeBids } from '../hooks/useRealtime';
 
 // Which bid action modal is currently visible
 type BidActionModal = 'accept' | 'counter' | 'reject' | null;
@@ -519,6 +520,7 @@ const RepairJobDetails: React.FC = () => {
   // ── Live data hooks (keep cache warm) ──
   const { data: liveJob } = useJob(route.params.job.id);
   const { data: liveBids } = useJobBids(route.params.job.id);
+  useRealtimeBids(route.params.job.id);
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
