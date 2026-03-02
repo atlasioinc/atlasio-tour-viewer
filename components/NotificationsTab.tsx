@@ -17,6 +17,7 @@ import {
   SectionList,
   StatusBar,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -403,9 +404,9 @@ const groupNotificationsByDate = (notifications: Notification[]): NotificationSe
 
 const NotificationsTab: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
-  const { data: liveNotifications } = useNotificationsHook();
-  const _initialNotifications = FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_NOTIFICATIONS : (liveNotifications?.map(adaptNotificationToLocal) as Notification[] ?? []);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const { data: liveNotifications, isLoading: notificationsLoading } = useNotificationsHook();
+  const initialData = FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_NOTIFICATIONS : [];
+  const [notifications, setNotifications] = useState<Notification[]>(initialData);
   // When live data loads and flag is off, sync state
   React.useEffect(() => {
     if (!FEATURE_FLAGS.USE_MOCK_DATA && liveNotifications) {
@@ -699,6 +700,11 @@ const NotificationsTab: React.FC = () => {
       {/* ══════════════════════════════════════════
           NOTIFICATION LIST
           ══════════════════════════════════════════ */}
+      {!FEATURE_FLAGS.USE_MOCK_DATA && notificationsLoading && notifications.length === 0 ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.screenBg }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
@@ -710,6 +716,7 @@ const NotificationsTab: React.FC = () => {
         style={{ flex: 1, backgroundColor: COLORS.screenBg }}
         stickySectionHeadersEnabled={false}
       />
+      )}
     </SafeAreaView>
   );
 };
