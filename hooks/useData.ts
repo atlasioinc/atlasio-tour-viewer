@@ -1371,7 +1371,7 @@ export const useFindPros = (query: string, role: string, sort: string) => {
 };
 
 /**
- * Fetch recommended pros (sorted by vouch_count desc, top 5)
+ * Fetch recommended pros (highest-rated, top 5)
  */
 // STATUS: wired (with mock fallback)
 export const useRecommendedPros = () => {
@@ -1384,7 +1384,7 @@ export const useRecommendedPros = () => {
           .select('*')
           .neq('role', 'agent')
           .eq('is_visible', true)
-          .order('vouch_count', { ascending: false })
+          .order('rating', { ascending: false })
           .limit(5);
         if (error) throw error;
         return (data ?? []) as Profile[];
@@ -1397,7 +1397,8 @@ export const useRecommendedPros = () => {
 };
 
 /**
- * Fetch trending pros (sorted by vouch_count desc, top 5)
+ * Fetch trending pros (most-vouched, top 5)
+ * TODO: Filter to vouches received in last 7 days once an RPC or view exists
  */
 // STATUS: wired (with mock fallback)
 export const useTrendingPros = () => {
