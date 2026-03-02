@@ -128,7 +128,21 @@ Types changed in Session 9:
 - ProProfile route params: { profile } → { profileId?; profile? } (3 stacks)
 
 ---
-Cumulative Progress (Sessions 1-9)
+Session 10 — Live Data Flip + Hook Wiring
+
+Branch: backend/session-10-live-data-flip
+Commits: 6373667, 1ba3334, b9a91cb
+
+## Recent Updates (Mar 2, 2026 — B-E Session 10)
+- **sender_name fix** — useMessages now joins profiles via `.select('*, sender:profiles!sender_id(name, avatar_color)')` so chat messages display real sender names. useSendMessage reads sender_name from cached myProfile instead of hardcoding empty string.
+- **useUpdateProfile created** — New mutation hook (hook #39) with Supabase `.update()` + cache set + invalidateQueries. Supports `Partial<Profile>` input for any profile field.
+- **EditProfileScreen wired** — Pre-fills form from useMyProfile() via useEffect. Save handler calls useUpdateProfile.mutateAsync(). Save button shows loading state. Removed console.log.
+- **ProfileTab live data** — Replaced hardcoded "John Doe", company, bio, stats with useMyProfile() data. Removed unused useState and local state variables.
+- **All 8 type casts resolved** — 4 `as unknown as` fully eliminated (mock fallbacks fixed to full shapes, join results mapped through adapters). 4 reduced to single documented `as` (Supabase join alias limitation). Zero double casts remaining in useData.ts.
+- **tsc: 0 errors** across all 3 rounds.
+
+---
+Cumulative Progress (Sessions 1-10)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
 - Session 2: 11 T1 revenue-critical hooks wired
@@ -138,14 +152,20 @@ Cumulative Progress (Sessions 1-9)
 - Session 6: Type adapters (lib/typeAdapters.ts), ChatScreen threadId, FindTab sections wired
 - Session 7/7B: Feature flag flipped to live, pre-backend polish audit (6 fixes identified)
 - Session 9: Fixes 2-6 complete (empty states, ProProfile by ID, tags below bio, headline)
+- Session 10: sender_name fix, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved
+
+Backend B-E Sessions 1-10 complete. Supabase: 18 tables, 17 RPCs. 39/42 hooks wired, 10/10 screens connected. S10: sender_name fixed, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved. ~65% progress.
 
 tsc status: 0 errors
 
 ---
 Recommended Next Session Priorities
 
-1. Wire EditProfileScreen save handler to Supabase update_profile mutation
-2. Wire ProProfile recent_vouches from vouches table join
-3. Wire ProProfile is_connected / is_own_profile checks against current user
-4. Wire ProfileTab to use live data for name, company, bio, stats (currently hardcoded)
-5. Wire ProProfile portfolio_photos from portfolio_photos table (replace MOCK_PORTFOLIO_PHOTOS)
+1. ProProfile conditional CTAs (Edit / Message / Request to Connect based on relationship)
+2. Differentiate Recommended vs Trending queries (rating vs recent vouch activity)
+3. Create useChatRecipients + useCreateThread hooks (new conversation flow)
+4. Fix NotificationsTab mock flash (init with [] + isLoading)
+5. Fix InboxList unread badges + avatar colors (join thread_members → profiles)
+6. Delete dead useProProfile hook (superseded by useProfile)
+7. ProProfile hardcoded relationship values (recent_vouches, is_connected, is_own_profile)
+8. Wire ProProfile portfolio_photos from portfolio_photos table
