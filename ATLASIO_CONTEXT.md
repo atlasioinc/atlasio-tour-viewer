@@ -170,16 +170,49 @@ Cumulative Progress (Sessions 1-11)
 - Session 10: sender_name fix, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved
 - Session 11: ProProfile CTAs wired, Recommended/Trending differentiated, NotificationsTab flash fixed, InboxList avatar_colors, useChatRecipients + useCreateThread created, useProProfile deleted
 
-Backend B-E Sessions 1-11 complete. Supabase: 18 tables, 17 RPCs. 44 hooks (42 active + 2 new), 10/10 screens connected. ~70% progress.
+---
+Session 12 — Realtime Subscriptions + Phase 4 Prep
+
+Branch: backend/session-12-realtime-phase4-prep
+Commits: 1f79184, 2dda63c, 761d6dc, d6f9cc2, 9acc569
+
+- **Schema additions** — Added `last_read_at TIMESTAMPTZ` to thread_members. Created `rpc_create_thread(p_recipient_id, p_first_message)` RPC — atomic thread creation (checks for existing thread, creates thread + members + first message in one call).
+- **useCreateThread rewritten** — From 3 sequential inserts to single `rpc_create_thread` RPC call. Returns `{ success, thread_id, existing }`.
+- **is_unread wired on InboxList** — useChatThreads now fetches last_read_at from thread_members join, computes `is_unread = last_message_at > last_read_at`.
+- **useMarkThreadRead created** — Mutation updates thread_members.last_read_at to now(). ChatScreen calls on mount. Invalidates chat-threads cache.
+- **hooks/useRealtime.ts created** — NEW FILE with 3 Supabase realtime subscription hooks:
+  - `useRealtimeMessages(threadId)` — messages INSERT → invalidates messages + chat-threads
+  - `useRealtimeNotifications(userId)` — notifications INSERT → invalidates notifications + unread-count
+  - `useRealtimeBids(jobId)` — bids INSERT/UPDATE → invalidates bids for job
+- **Realtime wired into 4 screens** — ChatScreen (messages), NotificationsTab (notifications), RepairJobDetails (bids), BottomTabNavigator (app-wide notifications)
+- **4 Edge Function stubs scaffolded** — process-stripe-fee, create-job-thread, filter-phone-numbers, send-push-notification. All return 501. Logic for Session 13.
+- **tsconfig.json** — Excluded supabase/functions/ (Deno runtime, not RN TypeScript)
+
+---
+Cumulative Progress (Sessions 1-12)
+
+- Session 1: Type alignment (types/index.ts ↔ schema.sql)
+- Session 2: 11 T1 revenue-critical hooks wired
+- Session 3: 16 T2 core-experience hooks wired
+- Session 4: 9 remaining hooks wired — all 36 hooks now wired
+- Session 5: 14 tsc errors fixed, feature flag system, all 10 screens connected to hooks
+- Session 6: Type adapters (lib/typeAdapters.ts), ChatScreen threadId, FindTab sections wired
+- Session 7/7B: Feature flag flipped to live, pre-backend polish audit (6 fixes identified)
+- Session 9: Fixes 2-6 complete (empty states, ProProfile by ID, tags below bio, headline)
+- Session 10: sender_name fix, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved
+- Session 11: ProProfile CTAs wired, Recommended/Trending differentiated, NotificationsTab flash fixed, InboxList avatar_colors, useChatRecipients + useCreateThread created, useProProfile deleted
+- Session 12: Realtime subscriptions (3 hooks), is_unread + useMarkThreadRead, rpc_create_thread, 4 edge function stubs
+
+Backend B-E Sessions 1-12 complete. Supabase: 18 tables, 18 RPCs. 47 hooks (45 active + 2 deleted), 10/10 screens connected. ~75% progress.
 
 tsc status: 0 errors
 
 ---
 Recommended Next Session Priorities
 
-1. Wire ProProfile portfolio_photos from portfolio_photos table (replace MOCK_PORTFOLIO_PHOTOS)
-2. Wire ProProfile "Message" CTA to navigate to ChatScreen (find or create thread)
-3. Add last_read_at to thread_members schema → wire is_unread in useChatThreads
+1. Implement edge function logic (process-stripe-fee, create-job-thread, filter-phone-numbers, send-push-notification)
+2. Wire ProProfile portfolio_photos from portfolio_photos table (replace MOCK_PORTFOLIO_PHOTOS)
+3. Wire ProProfile "Message" CTA to navigate to ChatScreen (find or create thread)
 4. Wire NewMessage screen to use useChatRecipients + useCreateThread
 5. Add trending vouch window (7-day filter) via RPC or view for useTrendingPros
 6. Wire notification deep links (replace console.log with navigation.navigate)
