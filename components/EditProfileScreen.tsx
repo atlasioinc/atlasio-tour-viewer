@@ -311,7 +311,7 @@ const EditProfileScreen: React.FC = () => {
       setForm((prev) => ({
         ...prev,
         fullName: myProfile.name || prev.fullName,
-        headline: myProfile.headline || prev.headline,
+        headline: prev.headline,
         bio: myProfile.bio || prev.bio,
         company: myProfile.company || prev.company,
         licenseNumber: myProfile.licensed || prev.licenseNumber,
@@ -373,7 +373,6 @@ const EditProfileScreen: React.FC = () => {
     try {
       await updateProfile.mutateAsync({
         name: form.fullName.trim(),
-        headline: form.headline.trim() || null,
         bio: form.bio.trim(),
         company: form.company.trim(),
         licensed: form.licenseNumber.trim() || null,

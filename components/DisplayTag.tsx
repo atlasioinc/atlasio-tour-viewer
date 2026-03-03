@@ -1,61 +1,91 @@
 // DisplayTag.tsx
 // ═══════════════════════════════════════════════════════════════
 // Shared Display Tag — Read-only tag pills for profiles and cards
-// NOT interactive — for interactive chips, use SelectableChip.tsx
+// Ghost variant is tappable (for own-profile "Add" actions).
 // Import: import { DisplayTag, DisplayTagRow, StatPill } from './DisplayTag';
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';
-import { View, Text, ViewStyle } from 'react-native';
+import { View, Text, Pressable, ViewStyle } from 'react-native';
+import { COLORS } from '../lib/tokens';
 
 // ─────────────────────────────────────────────
-// DESIGN TOKENS
-// TODO: Import from tokens.ts when wiring to live project
+// VARIANT STYLES
 // ─────────────────────────────────────────────
 
-const COLORS = {
-  tagBg: '#F4F7FF',
-  tagText: '#707070',
-  statBg: '#F2F6FE',
-  statText: '#364153',
-  primary: '#003DC3',
+type DisplayTagVariant = 'default' | 'primary' | 'success' | 'warning' | 'error' | 'ghost';
+
+const VARIANT_STYLES: Record<DisplayTagVariant, { bg: string; text: string; borderColor?: string; borderStyle?: 'solid' | 'dashed' }> = {
+  default:  { bg: COLORS.tagBg,      text: COLORS.tagText },
+  primary:  { bg: '#E8EEFF',         text: COLORS.primary },
+  success:  { bg: '#ECFDF5',         text: COLORS.successGreen },
+  warning:  { bg: '#FFF8E1',         text: COLORS.counterAmber },
+  error:    { bg: '#FEF2F2',         text: COLORS.errorRed },
+  ghost:    { bg: 'transparent',     text: COLORS.lightText, borderColor: COLORS.border, borderStyle: 'dashed' },
 };
 
 // ─────────────────────────────────────────────
 // DISPLAY TAG
-// Light bg pill, non-interactive
+// Light bg pill, non-interactive (except ghost variant)
 // Use on: ProCard, ProProfile, ProfileTab
 // ─────────────────────────────────────────────
 
 interface DisplayTagProps {
   label: string;
-  /** Background color override (default: COLORS.tagBg) */
+  /** Semantic variant (default: 'default') */
+  variant?: DisplayTagVariant;
+  /** Background color override — takes precedence over variant */
   bgColor?: string;
-  /** Text color override (default: COLORS.tagText) */
+  /** Text color override — takes precedence over variant */
   textColor?: string;
   /** Font size (default: 12) */
   fontSize?: number;
+  /** onPress handler — wraps in Pressable when provided (used by ghost variant) */
+  onPress?: () => void;
 }
 
 export const DisplayTag: React.FC<DisplayTagProps> = ({
   label,
-  bgColor = COLORS.tagBg,
-  textColor = COLORS.tagText,
+  variant = 'default',
+  bgColor,
+  textColor,
   fontSize = 12,
-}) => (
-  <View
-    style={{
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-      backgroundColor: bgColor,
-      borderRadius: 10,
-    }}
-  >
-    <Text style={{ fontSize, fontWeight: '400', color: textColor, lineHeight: 16 }}>
-      {label}
-    </Text>
-  </View>
-);
+  onPress,
+}) => {
+  const variantStyle = VARIANT_STYLES[variant];
+  const bg = bgColor ?? variantStyle.bg;
+  const text = textColor ?? variantStyle.text;
+
+  const tagView = (
+    <View
+      style={{
+        paddingHorizontal: 8,
+        paddingVertical: 5,
+        backgroundColor: bg,
+        borderRadius: 10,
+        ...(variantStyle.borderColor ? {
+          borderWidth: 1,
+          borderColor: variantStyle.borderColor,
+          borderStyle: variantStyle.borderStyle ?? 'solid',
+        } : {}),
+      }}
+    >
+      <Text style={{ fontSize, fontWeight: '400', color: text, lineHeight: 16 }}>
+        {label}
+      </Text>
+    </View>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} hitSlop={4}>
+        {tagView}
+      </Pressable>
+    );
+  }
+
+  return tagView;
+};
 
 // ─────────────────────────────────────────────
 // DISPLAY TAG ROW
@@ -233,6 +263,9 @@ export const ProfilePillRow: React.FC<ProfilePillRowProps> = ({
 //
 // Single tag:
 //   <DisplayTag label="VA Certified" />
+//
+// Ghost tag on own profile (tappable):
+//   <DisplayTag label="+ Add License" variant="ghost" onPress={() => navigate('Verification')} />
 //
 // Stat pill with lightning icon:
 //   <StatPill label="Closes in 19 days" icon={<LightningIcon />} />

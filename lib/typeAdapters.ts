@@ -83,7 +83,7 @@ interface FindProCard {
   rating: number;
   vouches: number;
   tags: string[];
-  stat: string;
+  headline: string | null;
   avatarColor: string;
   closingDays?: number;
   distanceMi?: number;
@@ -99,9 +99,7 @@ export const adaptProfileToProCard = (profile: Profile): FindProCard => ({
   rating: profile.rating,
   vouches: profile.vouch_count,
   tags: profile.tags as string[],
-  stat: profile.typical_close_days
-    ? `${profile.typical_close_days}-day avg close`
-    : `${profile.deals_closed} deals closed`,
+  headline: null,
   avatarColor: profile.avatar_color,
   closingDays: profile.typical_close_days ?? undefined,
 });

@@ -116,6 +116,8 @@ export type ReportReason = 'spam' | 'fake' | 'inaccurate' | 'harassment' | 'othe
 
 export type FeeTier = 'free' | 'early_adopter' | 'standard';
 
+export type VerificationLevel = 'none' | 'basic' | 'verified' | 'fully_verified';
+
 export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired';
 
 // ─────────────────────────────────────────────
@@ -157,6 +159,14 @@ export interface Profile {
   fee_tier_started_at: string | null; // TIMESTAMPTZ
   notification_preferences: Record<string, unknown>; // JSONB
   is_public: boolean;                 // public profile flag
+  license_number: string | null;     // state license number
+  license_state: string;             // default 'CO'
+  license_verified: boolean;         // verified via ARELLO or manual review
+  license_verified_at: string | null; // TIMESTAMPTZ
+  phone_verified: boolean;           // verified via OTP
+  phone_verified_at: string | null;  // TIMESTAMPTZ
+  insurance_uploaded: boolean;       // uploaded insurance doc
+  verification_level: VerificationLevel; // derived: none → basic → verified → fully_verified
   deactivated_at: string | null;      // TIMESTAMPTZ — soft delete
   created_at: string;                  // ISO timestamp
   updated_at: string;                  // ISO timestamp

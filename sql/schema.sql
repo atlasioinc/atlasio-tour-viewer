@@ -1446,9 +1446,22 @@ CREATE POLICY "credentials_owner_delete"
 
 
 -- ═════════════════════════════════════════════════════════════
--- DONE — Next steps:
---   1. Deploy storage policies via Supabase SQL Editor
---   2. Configure magic link auth in Dashboard → Auth → Providers
---   3. Test: create account → profile auto-created → onboarding
---   4. Wire hooks/useData.ts to live Supabase queries
+-- PHASE 6: TRUST & VERIFICATION (Session 16)
+-- ═════════════════════════════════════════════════════════════
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS license_number text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS license_state text DEFAULT 'CO';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS license_verified boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS license_verified_at timestamptz;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone_verified boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone_verified_at timestamptz;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS insurance_uploaded boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS verification_level text DEFAULT 'none'
+  CHECK (verification_level IN ('none', 'basic', 'verified', 'fully_verified'));
+
+CREATE INDEX IF NOT EXISTS idx_profiles_verification
+  ON profiles(verification_level) WHERE verification_level != 'none';
+
+-- ═════════════════════════════════════════════════════════════
+-- DONE
 -- ═════════════════════════════════════════════════════════════
