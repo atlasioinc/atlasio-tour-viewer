@@ -40,6 +40,8 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useFindPros, useRecommendedPros, useTrendingPros } from '../hooks/useData';
 import { adaptProfileToProCard } from '../lib/typeAdapters';
+import { VerificationBadge } from './shared/VerificationBadge';
+import type { VerificationLevel } from '../types';
 
 
 
@@ -195,6 +197,7 @@ interface ProCard {
   secondary_trades?: string[];
   rating: number; vouches: number; tags: string[]; headline: string | null;
   avatarColor: string; closingDays?: number; distanceMi?: number;
+  verification_level?: VerificationLevel;
 }
 
 const ALL_PROS: ProCard[] = [
@@ -253,7 +256,10 @@ const ProCardComponent: React.FC<{
       <View style={{ flexDirection: 'row', gap: 16, flex: 1 }}>
         <AvatarPlaceholder name={pro.name} color={pro.avatarColor} />
         <View style={{ gap: 4, flex: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }} numberOfLines={1}>{pro.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }} numberOfLines={1}>{pro.name}</Text>
+            <VerificationBadge level={pro.verification_level ?? 'none'} size="small" />
+          </View>
           <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }} numberOfLines={1}>{pro.company}</Text>
           <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
             {pro.trade || pro.role}

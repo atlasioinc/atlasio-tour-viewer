@@ -4,5 +4,5 @@
 // Future: wire to hidden dev menu (triple-tap avatar on ProfileTab).
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA: true,  // true = mock data (demo), false = live Supabase
+  USE_MOCK_DATA: false,  // true = mock data (demo), false = live Supabase
 } as const;

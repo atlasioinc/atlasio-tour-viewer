@@ -32,6 +32,8 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useProfile, useConnectionStatus, useProfileVouches, useSendConnectionRequest } from '../hooks/useData';
+import { VerificationBadge } from './shared/VerificationBadge';
+import type { VerificationLevel } from '../types';
 import { mapProfileToProProfileData } from './proProfileHelpers';
 import PortfolioGallery from './PortfolioGallery';
 import RequestConnectModal from './RequestConnectModal';
@@ -86,6 +88,8 @@ export interface ProProfileData {
   is_own_profile: boolean;
   /** Portfolio photo URLs — max 8, used by PortfolioGallery */
   portfolio_photos: string[];
+  /** Verification level — renders badge next to name */
+  verification_level?: VerificationLevel;
 }
 
 // ─────────────────────────────────────────────
@@ -360,6 +364,7 @@ const ProProfile: React.FC = () => {
     performance_stats,
     tags,
     portfolio_photos,
+    verification_level,
   } = profile;
 
   // ── Request to Connect modal state ──
@@ -527,18 +532,21 @@ const ProProfile: React.FC = () => {
 
               <View style={{ gap: 12 }}>
                 <View style={{ paddingHorizontal: 25, alignItems: 'center' }}>
-                  <Text
-                    style={{
-                      fontSize: 24,
-                      fontWeight: '700',
-                      color: COLORS.darkText,
-                      lineHeight: 36,
-                      letterSpacing: 0.07,
-                      textAlign: 'center',
-                    }}
-                  >
-                    {name}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 24,
+                        fontWeight: '700',
+                        color: COLORS.darkText,
+                        lineHeight: 36,
+                        letterSpacing: 0.07,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {name}
+                    </Text>
+                    <VerificationBadge level={verification_level ?? 'none'} />
+                  </View>
                 </View>
 
                 <View style={{ alignItems: 'center' }}>

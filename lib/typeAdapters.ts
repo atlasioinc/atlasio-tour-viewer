@@ -14,6 +14,7 @@ import type {
   Connection,
   Vouch,
   Notification as GlobalNotification,
+  VerificationLevel,
 } from '../types';
 
 // ─────────────────────────────────────────────
@@ -87,6 +88,7 @@ interface FindProCard {
   avatarColor: string;
   closingDays?: number;
   distanceMi?: number;
+  verification_level?: VerificationLevel;
 }
 
 export const adaptProfileToProCard = (profile: Profile): FindProCard => ({
@@ -102,6 +104,7 @@ export const adaptProfileToProCard = (profile: Profile): FindProCard => ({
   headline: null,
   avatarColor: profile.avatar_color,
   closingDays: profile.typical_close_days ?? undefined,
+  verification_level: profile.verification_level,
 });
 
 // ─────────────────────────────────────────────

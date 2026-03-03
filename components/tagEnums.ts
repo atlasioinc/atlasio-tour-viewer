@@ -3,15 +3,28 @@
 // Profile Tag Definitions — Single source of truth
 // PRD Reference: PRD #15 — Profile Tags — Curated Lists & Display Logic
 //
-// Storage: profiles.specialties (text[]) — max 5 per profile
-// Display: max 3 on FindTab cards, max 5 on ProProfile, max 2 on bid cards
+// TWO-TAG ARCHITECTURE:
+//   1. Self-Selected Tags (profiles.tags — tag_enum[])
+//      - Chosen by pro during onboarding / profile editing
+//      - Max 3 per profile (forces differentiation)
+//      - Display: under bio on ProProfile, max 3 on FindTab cards
+//      - Represents: "what I offer" — capabilities & credentials
 //
-// MVP: All tags are self-selected during onboarding / profile editing.
-//      Validation: profile update RPC checks submitted tags exist
-//      in the curated list for the user's role (role-specific + common).
+//   2. Derived Tags (post-MVP — auto-generated from vouch analysis)
+//      - Generated via NLP/regex on vouch comments
+//      - Display: above vouches on ProProfile (up to 2-3)
+//      - Represents: "what others confirm" — earned reputation
+//      - See PRD #15 Section 7 for roadmap
 //
-// Post-MVP: Auto-derived tags from review comment analysis (NLP/regex).
-//           See PRD #15 Section 7 for roadmap.
+// Storage: profiles.tags (tag_enum[]) — max 3 per profile
+// Validation: profile update RPC checks submitted tags exist
+//             in the curated list for the user's role.
+//
+// DISPLAY RULES:
+//   - FindTab cards: max 3 self-selected tags
+//   - ProProfile bio section: all self-selected tags (up to 3)
+//   - ProProfile vouch section: derived tags only (post-MVP)
+//   - Bid cards on RepairJobDetails: max 2 self-selected tags
 // ═══════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────
@@ -31,24 +44,29 @@ export const MORTGAGE_TAGS = {
   FAST_CLOSER:              'Fast Closer',
   VA_SPECIALIST:            'VA Specialist',
   FHA_APPROVED:             'FHA Approved',
-  CONVENTIONAL_EXPERT:      'Conventional Expert',
   JUMBO_SPECIALIST:         'Jumbo Loan Specialist',
   NO_JUNK_FEES:             'No Junk Fees',
   FIRST_TIME_BUYER:         'First-Time Buyer Friendly',
+  SELF_EMPLOYED_FRIENDLY:   'Self-Employed Friendly',
+  INVESTMENT_PROPERTY:      'Investment Property',
+  RENOVATION_LOAN:          'Renovation Loan (203k)',
+  DOWN_PAYMENT_ASSISTANCE:  'Down Payment Assistance',
+  PRE_APPROVAL_24HR:        'Pre-Approval in 24hrs',
 } as const;
 
 // ─────────────────────────────────────────────
 // TITLE/ESCROW TAGS
+// Removed granular close-day tags (7/14/21) — use
+// profiles.typical_close_days for exact speed.
 // ─────────────────────────────────────────────
 export const TITLE_TAGS = {
   FAST_TURNAROUND:          'Fast Turnaround',
-  CLOSE_7_DAY:              '7-Day Close',
-  CLOSE_14_DAY:             '14-Day Close',
-  CLOSE_21_DAY:             '21-Day Close',
   CASH_BUYER_EXPERT:        'Cash Buyer Expert',
   COMPLEX_SPECIALIST:       'Complex Transaction Specialist',
   NO_JUNK_FEES:             'No Junk Fees',
   TWENTY_FOUR_HR:           '24-Hour Service',
+  MOBILE_CLOSING:           'Mobile Closing',
+  BUILDER_NEW_CONSTRUCTION: 'Builder/New Construction',
 } as const;
 
 // ─────────────────────────────────────────────
@@ -61,7 +79,9 @@ export const INSPECTOR_TAGS = {
   ROOF_SPECIALIST:          'Roof Specialist',
   THERMAL_IMAGING:          'Thermal Imaging',
   SEWER_SCOPE:              'Sewer Scope',
-  WHOLE_HOUSE:              'Whole House',
+  RADON_TESTING:            'Radon Testing',
+  MOLD_TESTING:             'Mold Testing',
+  PRE_LISTING_INSPECTION:   'Pre-Listing Inspection',
 } as const;
 
 // ─────────────────────────────────────────────
@@ -74,22 +94,29 @@ export const APPRAISER_TAGS = {
   NEW_CONSTRUCTION:         'New Construction',
   MULTI_FAMILY:             'Multi-Family',
   DESKTOP_APPRAISAL:        'Desktop Appraisal',
+  RURAL_ACREAGE:            'Rural/Acreage',
+  CONDO_APPROVED:           'Condo Approved',
 } as const;
 
 // ─────────────────────────────────────────────
 // TRANSACTION COORDINATOR TAGS
+// Removed low-signal tags (Deadline Tracker, Digital-First)
+// — those should be table stakes, not differentiators.
 // ─────────────────────────────────────────────
 export const TC_TAGS = {
   FAST_TURNAROUND:          'Fast Turnaround',
-  DEADLINE_TRACKER:         'Deadline Tracker',
   MULTI_STATE:              'Multi-State Licensed',
   NEW_AGENT_FRIENDLY:       'New Agent Friendly',
   HIGH_VOLUME:              'High Volume',
-  DIGITAL_FIRST:            'Digital-First',
+  DUAL_TRANSACTION:         'Dual Transaction',
+  CONTRACT_TO_CLOSE:        'Contract to Close',
+  REO_BANK_OWNED:           'REO/Bank-Owned',
+  SHORT_SALE:               'Short Sale Experience',
 } as const;
 
 // ─────────────────────────────────────────────
 // CONTRACTOR TAGS
+// Removed "Clean Work" — better as a derived tag from vouches.
 // ─────────────────────────────────────────────
 export const CONTRACTOR_TAGS = {
   LICENSED_INSURED:         'Licensed & Insured',
@@ -98,7 +125,8 @@ export const CONTRACTOR_TAGS = {
   ON_TIME_COMPLETION:       'On-Time Completion',
   WARRANTY_OFFERED:         'Warranty Offered',
   COMPETITIVE_PRICING:      'Competitive Pricing',
-  CLEAN_WORK:               'Clean Work',
+  PERMIT_PULLING:           'Permit Pulling',
+  BILINGUAL_CREW:           'Bilingual Crew',
 } as const;
 
 // ─────────────────────────────────────────────
@@ -123,6 +151,8 @@ export const ATTORNEY_TAGS = {
   TEN_THIRTY_ONE:           '1031 Exchange',
   HOA_CONDO:                'HOA/Condo Law',
   FORECLOSURE:              'Foreclosure/Short Sale',
+  TITLE_DISPUTE:            'Title Dispute',
+  ESTATE_PROBATE:           'Estate/Probate Sale',
 } as const;
 
 // ─────────────────────────────────────────────
@@ -169,7 +199,8 @@ export type TagValue = (typeof ALL_TAGS)[number];
 // ─────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────
-export const MAX_PROFILE_TAGS = 5;
-export const MAX_DISPLAY_CARD = 3;    // FindTab pro cards
-export const MAX_DISPLAY_PROFILE = 5; // ProProfile header
-export const MAX_DISPLAY_BID = 2;     // Bid cards on RepairJobDetails
+export const MAX_PROFILE_TAGS = 3;     // Self-selected cap (forces differentiation)
+export const MAX_DISPLAY_CARD = 3;     // FindTab pro cards
+export const MAX_DISPLAY_PROFILE = 3;  // ProProfile bio section (self-selected only)
+export const MAX_DISPLAY_BID = 2;      // Bid cards on RepairJobDetails
+// NOTE: Derived tags (post-MVP) display separately above vouches — up to 3

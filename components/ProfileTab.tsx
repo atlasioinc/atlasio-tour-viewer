@@ -7,7 +7,7 @@
 // will extend with different performance metrics
 // ═══════════════════════════════════════════════════════════════
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMyProfile } from '../hooks/useData';
+import { VerificationBanner } from './shared';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -113,6 +114,7 @@ const Sparkline: React.FC = () => (
 
 const ProfileTab: React.FC = () => {
   const navigation = useNavigation<any>();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   // Live profile hook (runs even in mock mode to keep cache warm)
   const { data: liveProfile } = useMyProfile();
@@ -152,6 +154,20 @@ const ProfileTab: React.FC = () => {
           </Pressable>
         </View>
       </View>
+
+      {/* ── Verification Banner ── */}
+      {!bannerDismissed && liveProfile && liveProfile.verification_level !== 'fully_verified' && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <VerificationBanner
+            level={liveProfile.verification_level ?? 'none'}
+            role={liveProfile.role === 'agent' ? 'agent' : 'contractor'}
+            onPress={() => {
+              navigation.navigate('Verification');
+            }}
+            onDismiss={() => setBannerDismissed(true)}
+          />
+        </View>
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}

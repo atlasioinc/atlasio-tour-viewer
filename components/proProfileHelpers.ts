@@ -177,4 +177,5 @@ export const mapProfileToProProfileData = (
   is_connected: false, // TODO: check connection status
   is_own_profile: false, // TODO: compare with current user
   portfolio_photos: GALLERY_ROLES.includes(p.display_role) ? MOCK_PORTFOLIO_PHOTOS : [],
+  verification_level: p.verification_level,
 });

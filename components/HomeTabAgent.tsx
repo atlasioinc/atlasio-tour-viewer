@@ -30,7 +30,8 @@ import { MOCK_REPAIR_JOBS, ACTIVE_REPAIR_JOBS } from './RepairJobsData';
 import RepairCard from './RepairCard';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useAgentJobs } from '../hooks/useData';
+import { useAgentJobs, useMyProfile } from '../hooks/useData';
+import { VerificationBanner } from './shared/VerificationBanner';
 import QuickActionsRow from './QuickActionsRow';
 import VouchFeedSection from './VouchFeedSection';
 
@@ -348,6 +349,10 @@ const HomeTabAgent: React.FC = () => {
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
 
+  // Verification banner state
+  const { data: myProfile } = useMyProfile();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
   // Live data hook (runs even in mock mode to keep cache warm)
   const { data: liveJobs } = useAgentJobs();
   const activeJobs = FEATURE_FLAGS.USE_MOCK_DATA ? ACTIVE_REPAIR_JOBS : (liveJobs ?? []);
@@ -582,6 +587,20 @@ const HomeTabAgent: React.FC = () => {
           </View>
         </Pressable>
       </View>
+
+      {/* ── Verification Banner ── */}
+      {!bannerDismissed && myProfile && myProfile.verification_level !== 'fully_verified' && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <VerificationBanner
+            level={myProfile.verification_level ?? 'none'}
+            role={myProfile.role === 'agent' ? 'agent' : 'contractor'}
+            onPress={() => {
+              // TODO: PRODUCTION — navigate to VerificationScreen (requires cross-stack navigation)
+            }}
+            onDismiss={() => setBannerDismissed(true)}
+          />
+        </View>
+      )}
 
       {/* ══════════════════════════════════════════
           SCROLLABLE CONTENT
