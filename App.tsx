@@ -9,20 +9,42 @@ import { supabase } from './lib/supabase';
 import { COLORS } from './lib/tokens';
 import LoginScreen from './components/LoginScreen';
 import OnboardingScreen1 from './components/OnboardingScreen1';
-import OnboardingScreen2 from './components/OnboardingScreen2';
+// OnboardingScreen2 retired — role selection moved to OnboardingRoleSelect
+// import OnboardingScreen2 from './components/OnboardingScreen2';
+import OnboardingRoleSelect from './components/OnboardingRoleSelect';
 import OnboardingScreen3 from './components/OnboardingScreen3';
 import OnboardingScreen4 from './components/OnboardingScreen4';
+import ContractorProfileBasics from './components/ContractorProfileBasics';
+import ContractorTradeStep from './components/ContractorTradeStep';
+import ContractorDetailsStep from './components/ContractorDetailsStep';
 import OnboardingComplete from './components/OnboardingComplete';
 import BottomTabNavigator from './components/BottomTabNavigator';
 
 import type { Session } from '@supabase/supabase-js';
 
+type OnboardingFormData = {
+  role: string;
+  subRole?: string;
+  fullName: string;
+  company?: string;
+  serviceArea?: string;
+  primaryTrade?: string;
+  secondaryTrades?: string[];
+  serviceRadius?: string;
+  hasLicense?: boolean;
+  hasInsurance?: boolean;
+};
+
 export type RootStackParamList = {
   Onboarding1: undefined;
-  Onboarding2: undefined;
-  Onboarding3: undefined;
-  Onboarding4: { role: string };
-  OnboardingComplete: { role: string };
+  OnboardingRoleSelect: undefined;
+  // Onboarding2 retired — file preserved, route removed
+  Onboarding3: { formData: OnboardingFormData };
+  Onboarding4: { formData: OnboardingFormData };
+  ContractorProfileBasics: { formData: OnboardingFormData };
+  ContractorTradeStep: { formData: OnboardingFormData };
+  ContractorDetailsStep: { formData: OnboardingFormData };
+  OnboardingComplete: { formData: OnboardingFormData };
   MainApp: { role: string };
 };
 
@@ -115,9 +137,13 @@ export default function App() {
             }}
           >
             <Stack.Screen name="Onboarding1" component={OnboardingScreen1} />
-            <Stack.Screen name="Onboarding2" component={OnboardingScreen2} />
+            <Stack.Screen name="OnboardingRoleSelect" component={OnboardingRoleSelect} />
+            {/* Onboarding2 retired — role selection moved to OnboardingRoleSelect */}
             <Stack.Screen name="Onboarding3" component={OnboardingScreen3} />
             <Stack.Screen name="Onboarding4" component={OnboardingScreen4} />
+            <Stack.Screen name="ContractorProfileBasics" component={ContractorProfileBasics} />
+            <Stack.Screen name="ContractorTradeStep" component={ContractorTradeStep} />
+            <Stack.Screen name="ContractorDetailsStep" component={ContractorDetailsStep} />
             <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
             <Stack.Screen name="MainApp" component={BottomTabNavigator} initialParams={{ role: userRole }}/>
           </Stack.Navigator>

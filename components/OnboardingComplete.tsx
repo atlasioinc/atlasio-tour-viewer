@@ -301,15 +301,30 @@ const BenefitCardItem: React.FC<{ card: BenefitCard }> = ({ card }) => (
 );
 
 // ─────────────────────────────────────────────
+// FORM DATA TYPE
+// ─────────────────────────────────────────────
+
+type OnboardingFormData = {
+  role: string;
+  subRole?: string;
+  fullName: string;
+  company?: string;
+  serviceArea?: string;
+  primaryTrade?: string;
+  secondaryTrades?: string[];
+  serviceRadius?: string;
+  hasLicense?: boolean;
+  hasInsurance?: boolean;
+};
+
+// ─────────────────────────────────────────────
 // NAVIGATION TYPES
 // ─────────────────────────────────────────────
 
 type RootStackParamList = {
-  Onboarding1: undefined;
-  Onboarding2: undefined;
-  Onboarding3: undefined;
-  Onboarding4: { role: string };
-  OnboardingComplete: { role: string };
+  Onboarding4: { formData: OnboardingFormData };
+  ContractorDetailsStep: { formData: OnboardingFormData };
+  OnboardingComplete: { formData: OnboardingFormData };
   MainApp: { role: string };
 };
 
@@ -323,13 +338,21 @@ type Props = {
 // ═══════════════════════════════════════════════════════════════
 
 const OnboardingComplete: React.FC<Props> = ({ navigation, route }) => {
-  const { role } = route.params;
+  const { formData } = route.params;
+  const role = formData.role;
+
+  // Dynamic progress: contractor = 6/6, agent/partner = 5/5
+  const isContractor = role === 'contractor';
+  const totalSteps = isContractor ? 6 : 5;
+  const currentStep = totalSteps;
 
   // Get role-specific content or fallback
   const content = ROLE_CONTENT[role] || DEFAULT_CONTENT;
 
     const handleCtaPress = (): void => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // @backend — Log full onboarding payload for rpc_complete_onboarding
+    console.log('[OnboardingComplete] rpc_complete_onboarding payload:', formData);
     navigation.navigate('MainApp', { role });
   };
 
@@ -394,7 +417,7 @@ const OnboardingComplete: React.FC<Props> = ({ navigation, route }) => {
             </View>
 
             <View style={{ width: '100%', maxWidth: 314 }}>
-              <AnimatedProgressBar currentStep={4} totalSteps={4} />
+              <AnimatedProgressBar currentStep={currentStep} totalSteps={totalSteps} />
             </View>
           </View>
 

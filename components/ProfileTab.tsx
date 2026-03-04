@@ -322,68 +322,138 @@ const ProfileTab: React.FC = () => {
             Performance Stats
           </Text>
 
-          {/* Repair Jobs card */}
-          <View
-            style={{
-              padding: 16,
-              backgroundColor: COLORS.background,
-              borderRadius: 16,
-              shadowColor: '#000000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 3,
-              elevation: 2,
-              gap: 12,
-            }}
-          >
-            <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
-              Repair Jobs
-            </Text>
-            <View style={{ gap: 8 }}>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                Repair Jobs Posted: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>14</Text>
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                Repair Jobs Completed: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>14</Text>
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                Avg Bids: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>4 per job</Text>
-              </Text>
-            </View>
-          </View>
-
-          <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.mutedText, lineHeight: 16 }}>
-            Visible only to you
-          </Text>
-
-          {/* Top Partners card */}
-          <View
-            style={{
-              padding: 16,
-              backgroundColor: COLORS.background,
-              borderRadius: 16,
-              shadowColor: '#000000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 3,
-              elevation: 2,
-              gap: 12,
-            }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
-              Top Partners
-            </Text>
-            <View style={{ gap: 12 }}>
-              <View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>Alex Chen</Text>
-                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.bodyText, lineHeight: 16 }}>Lender, 22 deals</Text>
+          {/* ── Contractor Stats (role-conditional) ── */}
+          {liveProfile?.role === 'contractor' ? (
+            <>
+              {/* Jobs Overview card */}
+              <View
+                style={{
+                  padding: 16,
+                  backgroundColor: COLORS.background,
+                  borderRadius: 16,
+                  shadowColor: '#000000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 2,
+                  gap: 12,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
+                  Jobs Overview
+                </Text>
+                <View style={{ gap: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Jobs Completed: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>27</Text>
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Avg Rating: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>4.8 ★</Text>
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    On-Time Rate: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>96%</Text>
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Avg Response Time: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>2.4 hrs</Text>
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>Sarah Miller</Text>
-                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.bodyText, lineHeight: 16 }}>Title, 18 deals</Text>
+
+              {/* Earnings card (private) */}
+              <View
+                style={{
+                  padding: 16,
+                  backgroundColor: COLORS.background,
+                  borderRadius: 16,
+                  shadowColor: '#000000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 2,
+                  gap: 12,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
+                  Earnings
+                </Text>
+                <View style={{ gap: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Total Earnings: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>$42,350</Text>
+                  </Text>
+                </View>
               </View>
-            </View>
-          </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.mutedText, lineHeight: 16 }}>
+                Visible only to you
+              </Text>
+              {/* TODO: Check EditProfileScreen for contractor-specific fields (trades, license, insurance) */}
+            </>
+          ) : (
+            <>
+              {/* ── Agent/Partner Stats ── */}
+              {/* Repair Jobs card */}
+              <View
+                style={{
+                  padding: 16,
+                  backgroundColor: COLORS.background,
+                  borderRadius: 16,
+                  shadowColor: '#000000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 2,
+                  gap: 12,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
+                  Repair Jobs
+                </Text>
+                <View style={{ gap: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Repair Jobs Posted: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>14</Text>
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Repair Jobs Completed: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>14</Text>
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Avg Bids: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>4 per job</Text>
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.mutedText, lineHeight: 16 }}>
+                Visible only to you
+              </Text>
+
+              {/* Top Partners card */}
+              <View
+                style={{
+                  padding: 16,
+                  backgroundColor: COLORS.background,
+                  borderRadius: 16,
+                  shadowColor: '#000000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 2,
+                  gap: 12,
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
+                  Top Partners
+                </Text>
+                <View style={{ gap: 12 }}>
+                  <View>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>Alex Chen</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.bodyText, lineHeight: 16 }}>Lender, 22 deals</Text>
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>Sarah Miller</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.bodyText, lineHeight: 16 }}>Title, 18 deals</Text>
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
 
           {/* Network Growth card */}
           <View

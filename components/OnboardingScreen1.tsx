@@ -247,7 +247,7 @@ const BenefitCardItem: React.FC<{ card: BenefitCard }> = ({ card }) => (
 
 type RootStackParamList = {
   Onboarding1: undefined;
-  Onboarding2: undefined;
+  OnboardingRoleSelect: undefined;
 };
 
 type Props = {
@@ -256,7 +256,7 @@ type Props = {
 
 const OnboardingScreen1: React.FC<Props> = ({ navigation }) => {
   const handleNextPress = (): void => {
-    navigation.navigate('Onboarding2');
+    navigation.navigate('OnboardingRoleSelect');
   };
 
   return (
@@ -292,7 +292,7 @@ const OnboardingScreen1: React.FC<Props> = ({ navigation }) => {
               Atlasio
             </Text>
             <View style={{ width: '100%', maxWidth: 314 }}>
-            <AnimatedProgressBar currentStep={1} totalSteps={4} />
+            <AnimatedProgressBar currentStep={1} totalSteps={5} />
             </View>
           </View>
 

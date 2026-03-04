@@ -1,8 +1,9 @@
 // OnboardingScreen3.tsx
 // ═══════════════════════════════════════════════════════════════
-// Onboarding Screen 3 of 4 — "Tell Us About You"
-// Form screen with conditional role/sub-role dropdowns,
+// Onboarding Screen 3 of 5 — "Tell Us About You"
+// Agent/Partner profile form with conditional sub-role dropdown,
 // name, company, and service area fields
+// Contractor path branches at OnboardingRoleSelect → ContractorProfileBasics
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -141,13 +142,6 @@ interface DropdownOption {
   value: string;
 }
 
-// Primary role options
-const ROLE_OPTIONS: DropdownOption[] = [
-  { label: 'Real Estate Agent', value: 'real_estate_agent' },
-  { label: 'Partner', value: 'partner' },
-  { label: 'Contractor', value: 'contractor' },
-];
-
 // Partner sub-role options
 const PARTNER_OPTIONS: DropdownOption[] = [
   { label: 'Mortgage Lender', value: 'mortgage_lender' },
@@ -160,46 +154,37 @@ const PARTNER_OPTIONS: DropdownOption[] = [
   { label: 'Other Partner', value: 'other_partner' },
 ];
 
-// Contractor sub-role options
-const CONTRACTOR_OPTIONS: DropdownOption[] = [
-  { label: 'Electrical', value: 'electrical' },
-  { label: 'Plumbing', value: 'plumbing' },
-  { label: 'Roofing', value: 'roofing' },
-  { label: 'HVAC', value: 'hvac' },
-  { label: 'Carpentry / Handyman', value: 'carpentry_handyman' },
-  { label: 'Painting', value: 'painting' },
-  { label: 'Flooring', value: 'flooring' },
-  { label: 'Windows & Doors', value: 'windows_doors' },
-  { label: 'Foundation / Structural', value: 'foundation_structural' },
-  { label: 'Drywall / Sheetrock', value: 'drywall_sheetrock' },
-  { label: 'Pest Control / Termite', value: 'pest_control_termite' },
-  { label: 'Mold Remediation', value: 'mold_remediation' },
-  { label: 'Sewer / Septic', value: 'sewer_septic' },
-  { label: 'Pool & Spa', value: 'pool_spa' },
-  { label: 'Chimney / Fireplace', value: 'chimney_fireplace' },
-  { label: 'Garage Door', value: 'garage_door' },
-  { label: 'Appliances', value: 'appliances' },
-  { label: 'Landscaping / Drainage', value: 'landscaping_drainage' },
-  { label: 'Locksmith / Re-key', value: 'locksmith_rekey' },
-  { label: 'Home Cleaning / Junk Removal', value: 'cleaning_junk_removal' },
-  { label: 'Driveway / Paving', value: 'driveway_paving' },
-  { label: 'Other Trade', value: 'other_trade' },
-];
+
+// ─────────────────────────────────────────────
+// FORM DATA TYPE
+// ─────────────────────────────────────────────
+
+type OnboardingFormData = {
+  role: string;
+  subRole?: string;
+  fullName: string;
+  company?: string;
+  serviceArea?: string;
+  primaryTrade?: string;
+  secondaryTrades?: string[];
+  serviceRadius?: string;
+  hasLicense?: boolean;
+  hasInsurance?: boolean;
+};
 
 // ─────────────────────────────────────────────
 // NAVIGATION TYPES
 // ─────────────────────────────────────────────
 
 type RootStackParamList = {
-  Onboarding1: undefined;
-  Onboarding2: undefined;
-  Onboarding3: undefined;
-  Onboarding4: { role: string };
-  OnboardingComplete: { role: string };
+  OnboardingRoleSelect: undefined;
+  Onboarding3: { formData: OnboardingFormData };
+  Onboarding4: { formData: OnboardingFormData };
 };
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Onboarding3'>;
+  route: import('@react-navigation/native').RouteProp<RootStackParamList, 'Onboarding3'>;
 };
 
 // ─────────────────────────────────────────────
@@ -207,7 +192,6 @@ type Props = {
 // ─────────────────────────────────────────────
 
 interface FormErrors {
-  role: boolean;
   subRole: boolean;
   fullName: boolean;
   company: boolean;
@@ -346,21 +330,20 @@ const DropdownModal: React.FC<DropdownModalProps> = ({
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
-const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
+const OnboardingScreen3: React.FC<Props> = ({ navigation, route }) => {
+  const { formData } = route.params;
+
   // ── Form State ──
-  const [selectedRole, setSelectedRole] = useState<string>('');
   const [selectedSubRole, setSelectedSubRole] = useState<string>('');
-  const [fullName, setFullName] = useState<string>('');
-  const [company, setCompany] = useState<string>('');
-  const [serviceArea, setServiceArea] = useState<string>('');
+  const [fullName, setFullName] = useState<string>(formData.fullName || '');
+  const [company, setCompany] = useState<string>(formData.company || '');
+  const [serviceArea, setServiceArea] = useState<string>(formData.serviceArea || '');
 
   // ── Dropdown visibility ──
-  const [showRoleDropdown, setShowRoleDropdown] = useState<boolean>(false);
   const [showSubRoleDropdown, setShowSubRoleDropdown] = useState<boolean>(false);
 
   // ── Errors ──
   const [errors, setErrors] = useState<FormErrors>({
-    role: false,
     subRole: false,
     fullName: false,
     company: false,
@@ -375,23 +358,16 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
   const subRoleOpacity = useRef(new Animated.Value(0)).current;
   const subRoleTranslateY = useRef(new Animated.Value(-10)).current;
 
-  // Determine if sub-role dropdown should show
-  const needsSubRole = selectedRole === 'partner' || selectedRole === 'contractor';
+  // Determine if sub-role dropdown should show (partner only — contractors have dedicated flow)
+  const needsSubRole = formData.role === 'partner';
 
   // Get the right sub-role options and label based on primary role
   const getSubRoleConfig = (): { label: string; placeholder: string; options: DropdownOption[] } => {
-    if (selectedRole === 'partner') {
+    if (formData.role === 'partner') {
       return {
         label: 'What type of partner are you? *',
         placeholder: 'Select partner type',
         options: PARTNER_OPTIONS,
-      };
-    }
-    if (selectedRole === 'contractor') {
-      return {
-        label: 'What is your primary trade? *',
-        placeholder: 'Select your trade',
-        options: CONTRACTOR_OPTIONS,
       };
     }
     return { label: '', placeholder: '', options: [] };
@@ -422,30 +398,12 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
     }
   }, [needsSubRole]);
 
-  // Find labels for selected values
-  const selectedRoleLabel = ROLE_OPTIONS.find(
-    (option) => option.value === selectedRole
-  )?.label;
-
+  // Find label for selected sub-role
   const selectedSubRoleLabel = subRoleConfig.options.find(
     (option) => option.value === selectedSubRole
   )?.label;
 
   // ── Handlers ──
-
-  const handleRoleSelect = (value: string): void => {
-    setSelectedRole(value);
-    setShowRoleDropdown(false);
-    // Reset sub-role when primary role changes
-    setSelectedSubRole('');
-    if (errors.role) {
-      setErrors((prev) => ({ ...prev, role: false }));
-    }
-    // Clear sub-role error too
-    if (errors.subRole) {
-      setErrors((prev) => ({ ...prev, subRole: false }));
-    }
-  };
 
   const handleSubRoleSelect = (value: string): void => {
     setSelectedSubRole(value);
@@ -479,7 +437,6 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
     Keyboard.dismiss();
 
     const newErrors: FormErrors = {
-      role: !selectedRole,
       subRole: needsSubRole && !selectedSubRole,
       fullName: !fullName.trim(),
       company: !company.trim(),
@@ -493,7 +450,7 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       // Scroll to first error
-      const errorFields = ['role', 'subRole', 'fullName', 'company', 'serviceArea'];
+      const errorFields = ['subRole', 'fullName', 'company', 'serviceArea'];
       for (const field of errorFields) {
         if (newErrors[field as keyof FormErrors] && fieldPositions.current[field] !== undefined) {
           scrollViewRef.current?.scrollTo({
@@ -506,7 +463,15 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    navigation.navigate('Onboarding4', { role: selectedRole });
+    navigation.navigate('Onboarding4', {
+      formData: {
+        ...formData,
+        subRole: selectedSubRole || undefined,
+        fullName,
+        company,
+        serviceArea,
+      },
+    });
   };
 
   const handleBackPress = (): void => {
@@ -578,7 +543,7 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
               </View>
 
               <View style={{ width: '100%', maxWidth: 314 }}>
-                <AnimatedProgressBar currentStep={3} totalSteps={4} />
+                <AnimatedProgressBar currentStep={3} totalSteps={5} />
               </View>
             </View>
 
@@ -630,65 +595,7 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
                   gap: 16,
                 }}
               >
-                {/* ── Primary Role Dropdown ── */}
-                <View
-                  style={{ gap: 8 }}
-                  onLayout={(e) => {
-                    fieldPositions.current['role'] = e.nativeEvent.layout.y;
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: '600',
-                      color: errors.role ? COLORS.errorText : COLORS.primary,
-                      lineHeight: 20,
-                    }}
-                  >
-                    What is your primary role? *
-                  </Text>
-                  <Pressable
-                    onPress={() => setShowRoleDropdown(true)}
-                    style={{
-                      height: 50,
-                      paddingHorizontal: 16,
-                      backgroundColor: COLORS.cardBg,
-                      borderRadius: 14,
-                      borderWidth: 1.38,
-                      borderColor: getBorderColor('role', !!selectedRole),
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: '400',
-                        color: selectedRole
-                          ? COLORS.bodyText
-                          : COLORS.placeholder,
-                      }}
-                    >
-                      {selectedRoleLabel || 'Select your role'}
-                    </Text>
-                    <ChevronDownIcon />
-                  </Pressable>
-                  {errors.role && (
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: COLORS.errorText,
-                        lineHeight: 16,
-                        marginTop: 2,
-                      }}
-                    >
-                      Please select your role
-                    </Text>
-                  )}
-                </View>
-
-                {/* ── Conditional Sub-Role Dropdown (animated) ── */}
+                {/* ── Conditional Sub-Role Dropdown (animated, partner only) ── */}
                 {needsSubRole && (
                   <Animated.View
                     style={{
@@ -746,9 +653,7 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
                           marginTop: 2,
                         }}
                       >
-                        {selectedRole === 'partner'
-                          ? 'Please select your partner type'
-                          : 'Please select your primary trade'}
+                        Please select your partner type
                       </Text>
                     )}
                   </Animated.View>
@@ -1005,17 +910,7 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation }) => {
         </View>
       </KeyboardAvoidingView>
 
-      {/* ── Primary Role Dropdown Modal ── */}
-      <DropdownModal
-        visible={showRoleDropdown}
-        title="Select your role"
-        options={ROLE_OPTIONS}
-        selectedValue={selectedRole}
-        onSelect={handleRoleSelect}
-        onClose={() => setShowRoleDropdown(false)}
-      />
-
-      {/* ── Sub-Role Dropdown Modal ── */}
+      {/* ── Sub-Role Dropdown Modal (partner only) ── */}
       <DropdownModal
         visible={showSubRoleDropdown}
         title={subRoleConfig.placeholder}

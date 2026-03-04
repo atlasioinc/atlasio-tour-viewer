@@ -1,7 +1,8 @@
 // OnboardingScreen4.tsx
 // ═══════════════════════════════════════════════════════════════
-// Onboarding Screen 4 of 4 — "Verify Credentials"
+// Onboarding Screen 4 of 5 — "Verify Credentials"
 // Document upload screen with optional file uploads and notes
+// Agent/Partner path only — contractors use dedicated flow
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef } from 'react';
@@ -169,15 +170,30 @@ const GradientIconBox: React.FC<GradientIconBoxProps> = ({
 );
 
 // ─────────────────────────────────────────────
+// FORM DATA TYPE
+// ─────────────────────────────────────────────
+
+type OnboardingFormData = {
+  role: string;
+  subRole?: string;
+  fullName: string;
+  company?: string;
+  serviceArea?: string;
+  primaryTrade?: string;
+  secondaryTrades?: string[];
+  serviceRadius?: string;
+  hasLicense?: boolean;
+  hasInsurance?: boolean;
+};
+
+// ─────────────────────────────────────────────
 // NAVIGATION TYPES
 // ─────────────────────────────────────────────
 
 type RootStackParamList = {
-  Onboarding1: undefined;
-  Onboarding2: undefined;
-  Onboarding3: undefined;
-  Onboarding4: { role: string };
-  OnboardingComplete: { role: string };
+  Onboarding3: { formData: OnboardingFormData };
+  Onboarding4: { formData: OnboardingFormData };
+  OnboardingComplete: { formData: OnboardingFormData };
 };
 
 type Props = {
@@ -190,7 +206,7 @@ type Props = {
 // ═══════════════════════════════════════════════════════════════
 
 const OnboardingScreen4: React.FC<Props> = ({ navigation, route }) => {
-  const { role } = route.params;
+  const { formData } = route.params;
   // ── State ──
   const scrollViewRef = useRef<ScrollView>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -269,19 +285,19 @@ const OnboardingScreen4: React.FC<Props> = ({ navigation, route }) => {
     const handleCompleteSetup = (): void => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     console.log('Setup complete:', {
-      role,
+      formData,
       uploadedFiles: uploadedFiles.map((f) => f.name),
       additionalNotes,
     });
 
-    navigation.navigate('OnboardingComplete', { role });
+    navigation.navigate('OnboardingComplete', { formData });
 
   };
 
             // ── Skip ──
             const handleSkip = (): void => {
                 console.log('Skipped credential upload');
-                navigation.navigate('OnboardingComplete', { role });
+                navigation.navigate('OnboardingComplete', { formData });
             };
 
             // ── Back ──
@@ -357,7 +373,7 @@ const OnboardingScreen4: React.FC<Props> = ({ navigation, route }) => {
             </View>
 
             <View style={{ width: '100%', maxWidth: 314 }}>
-              <AnimatedProgressBar currentStep={4} totalSteps={4} />
+              <AnimatedProgressBar currentStep={4} totalSteps={5} />
             </View>
           </View>
 
