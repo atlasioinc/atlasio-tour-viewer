@@ -5,7 +5,7 @@
 // Supports: Real Estate Agent, Partner, Contractor
 // ═══════════════════════════════════════════════════════════════
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   ScrollView,
   StatusBar,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -20,6 +22,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import AnimatedProgressBar from './AnimatedProgressBar';
+import { useCompleteOnboarding } from '../hooks/useData';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
@@ -43,6 +47,40 @@ const FONTS = {
     default: 'RadioCanadaBig-SemiBold',
   }),
 } as const;
+
+// ─────────────────────────────────────────────
+// FORM DATA TYPE
+// ─────────────────────────────────────────────
+
+type OnboardingFormData = {
+  role: string;
+  fullName: string;
+  company?: string;
+  serviceArea?: string;
+  primaryTrade?: string;
+  secondaryTrades?: string[];
+  serviceRadius?: string;
+  hasLicense?: boolean;
+  hasInsurance?: boolean;
+};
+
+// ─────────────────────────────────────────────
+// ONBOARDING PATH HELPER — UI logic only, not stored in formData.
+// Determines which onboarding screens to show based on selected role.
+// This is a display concern, not a data concern.
+// ─────────────────────────────────────────────
+const CONTRACTOR_ROLES = ['Contractor'];
+const PARTNER_ROLES = [
+  'Mortgage Pro', 'Title/Escrow', 'Home Inspector', 'Appraiser',
+  'Transaction Coordinator', 'Warranty', 'Attorney', 'Home Stager',
+  'Real Estate Photographer',
+];
+
+const getOnboardingPath = (role: string): 'agent' | 'contractor' | 'partner' => {
+  if (CONTRACTOR_ROLES.includes(role)) return 'contractor';
+  if (PARTNER_ROLES.includes(role)) return 'partner';
+  return 'agent';
+};
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -150,8 +188,9 @@ interface RoleContent {
   cards: BenefitCard[];
 }
 
+// Keyed by getOnboardingPath() output — a display concern
 const ROLE_CONTENT: Record<string, RoleContent> = {
-  real_estate_agent: {
+  agent: {
     heading: "You're Ready to Build Your Squad!",
     subtitle:
       'Join our growing network of agents who close deals faster with Atlasio.',
@@ -241,7 +280,7 @@ const ROLE_CONTENT: Record<string, RoleContent> = {
 };
 
 // Fallback content if role not found
-const DEFAULT_CONTENT: RoleContent = ROLE_CONTENT.real_estate_agent;
+const DEFAULT_CONTENT: RoleContent = ROLE_CONTENT.agent;
 
 // ─────────────────────────────────────────────
 // BENEFIT CARD COMPONENT
@@ -301,23 +340,6 @@ const BenefitCardItem: React.FC<{ card: BenefitCard }> = ({ card }) => (
 );
 
 // ─────────────────────────────────────────────
-// FORM DATA TYPE
-// ─────────────────────────────────────────────
-
-type OnboardingFormData = {
-  role: string;
-  subRole?: string;
-  fullName: string;
-  company?: string;
-  serviceArea?: string;
-  primaryTrade?: string;
-  secondaryTrades?: string[];
-  serviceRadius?: string;
-  hasLicense?: boolean;
-  hasInsurance?: boolean;
-};
-
-// ─────────────────────────────────────────────
 // NAVIGATION TYPES
 // ─────────────────────────────────────────────
 
@@ -342,18 +364,48 @@ const OnboardingComplete: React.FC<Props> = ({ navigation, route }) => {
   const role = formData.role;
 
   // Dynamic progress: contractor = 6/6, agent/partner = 5/5
-  const isContractor = role === 'contractor';
-  const totalSteps = isContractor ? 6 : 5;
+  const rolePath = getOnboardingPath(role);
+  const totalSteps = rolePath === 'contractor' ? 6 : 5;
   const currentStep = totalSteps;
 
-  // Get role-specific content or fallback
-  const content = ROLE_CONTENT[role] || DEFAULT_CONTENT;
+  // Get role-specific content or fallback (keyed by onboarding path, not raw role)
+  const content = ROLE_CONTENT[rolePath] || DEFAULT_CONTENT;
 
-    const handleCtaPress = (): void => {
+  // ── Onboarding mutation ──
+  const completeOnboarding = useCompleteOnboarding();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCtaPress = async (): Promise<void> => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
     // @backend — Log full onboarding payload for rpc_complete_onboarding
     console.log('[OnboardingComplete] rpc_complete_onboarding payload:', formData);
-    navigation.navigate('MainApp', { role });
+
+    if (FEATURE_FLAGS.LIVE_ONBOARDING) {
+      setIsSubmitting(true);
+      try {
+        await completeOnboarding.mutateAsync({
+          fullName: formData.fullName,
+          role: formData.role,  // Already a backend enum value — single-value principle
+          company: formData.company || undefined,
+          location: formData.serviceArea || 'Denver, CO',
+          primaryTrade: formData.primaryTrade || undefined,
+          secondaryTrades: formData.secondaryTrades || undefined,
+        });
+        navigation.navigate('MainApp', { role: formData.role });
+      } catch {
+        Alert.alert(
+          'Something went wrong',
+          'We couldn\'t complete your setup. Please try again.',
+          [{ text: 'OK' }],
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // Demo mode — skip RPC, go straight to main app
+      navigation.navigate('MainApp', { role: formData.role });
+    }
   };
 
   const handleBackPress = (): void => {
@@ -507,10 +559,12 @@ const OnboardingComplete: React.FC<Props> = ({ navigation, route }) => {
           >
             <Pressable
               onPress={handleCtaPress}
+              disabled={isSubmitting}
               style={({ pressed }) => ({
                 width: '100%',
                 borderRadius: 10,
                 overflow: 'hidden',
+                opacity: isSubmitting ? 0.7 : 1,
                 transform: [{ scale: pressed ? 0.97 : 1 }],
               })}
             >
@@ -525,6 +579,9 @@ const OnboardingComplete: React.FC<Props> = ({ navigation, route }) => {
                   justifyContent: 'center',
                 }}
               >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
                 <Text
                   style={{
                     textAlign: 'center',
@@ -536,6 +593,7 @@ const OnboardingComplete: React.FC<Props> = ({ navigation, route }) => {
                 >
                   {content.ctaText}
                 </Text>
+                )}
               </LinearGradient>
             </Pressable>
           </BlurView>

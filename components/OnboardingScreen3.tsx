@@ -142,16 +142,16 @@ interface DropdownOption {
   value: string;
 }
 
-// Partner sub-role options
+// Partner sub-role options — values are backend user_role enum values (single-value principle)
 const PARTNER_OPTIONS: DropdownOption[] = [
-  { label: 'Mortgage Lender', value: 'mortgage_lender' },
-  { label: 'Title Officer / Escrow', value: 'title_officer_escrow' },
-  { label: 'Home Inspector', value: 'home_inspector' },
-  { label: 'Appraiser', value: 'appraiser' },
-  { label: 'Real Estate Attorney', value: 'real_estate_attorney' },
-  { label: 'Real Estate Photographer', value: 'real_estate_photographer' },
-  { label: 'Home Stager', value: 'home_stager' },
-  { label: 'Other Partner', value: 'other_partner' },
+  { label: 'Mortgage Lender', value: 'Mortgage Pro' },
+  { label: 'Title Officer / Escrow', value: 'Title/Escrow' },
+  { label: 'Home Inspector', value: 'Home Inspector' },
+  { label: 'Appraiser', value: 'Appraiser' },
+  { label: 'Real Estate Attorney', value: 'Attorney' },
+  { label: 'Real Estate Photographer', value: 'Real Estate Photographer' },
+  { label: 'Home Stager', value: 'Home Stager' },
+  { label: 'Other Partner', value: 'Other' },
 ];
 
 
@@ -161,7 +161,6 @@ const PARTNER_OPTIONS: DropdownOption[] = [
 
 type OnboardingFormData = {
   role: string;
-  subRole?: string;
   fullName: string;
   company?: string;
   serviceArea?: string;
@@ -358,12 +357,14 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation, route }) => {
   const subRoleOpacity = useRef(new Animated.Value(0)).current;
   const subRoleTranslateY = useRef(new Animated.Value(-10)).current;
 
-  // Determine if sub-role dropdown should show (partner only — contractors have dedicated flow)
-  const needsSubRole = formData.role === 'partner';
+  // Determine if sub-role dropdown should show
+  // Partners arrive with role='' (empty) — they pick their specific role via the sub-role dropdown
+  // Agents arrive with role='Agent' — no sub-role needed
+  const needsSubRole = !formData.role;
 
   // Get the right sub-role options and label based on primary role
   const getSubRoleConfig = (): { label: string; placeholder: string; options: DropdownOption[] } => {
-    if (formData.role === 'partner') {
+    if (!formData.role) {
       return {
         label: 'What type of partner are you? *',
         placeholder: 'Select partner type',
@@ -466,7 +467,7 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation, route }) => {
     navigation.navigate('Onboarding4', {
       formData: {
         ...formData,
-        subRole: selectedSubRole || undefined,
+        role: selectedSubRole || formData.role, // Partner sub-role becomes the role (single-value principle)
         fullName,
         company,
         serviceArea,

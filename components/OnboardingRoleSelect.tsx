@@ -26,7 +26,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type OnboardingFormData = {
   role: string;
-  subRole?: string;
   fullName: string;
   company?: string;
   serviceArea?: string;
@@ -195,7 +194,16 @@ const GradientIconBox: React.FC<GradientIconBoxProps> = ({
 );
 
 // ─────────────────────────────────────────────
-// ROLE CARD DATA
+// ROLE VALUES — single-value principle.
+// formData.role is ALWAYS a backend user_role enum value by the time
+// it leaves this screen.
+// 'Agent' and 'Contractor' are set on card tap.
+// Partner roles ('Mortgage Pro', 'Title/Escrow', etc.) are set on
+// sub-role selection.
+// No intermediate values, no translation layers.
+// UI path routing uses getOnboardingPath() helper — a display concern,
+// not stored in formData.
+// See: rpc_complete_onboarding for the full backend enum list.
 // ─────────────────────────────────────────────
 
 interface RoleCard {
@@ -213,7 +221,7 @@ const ROLE_CARDS: RoleCard[] = [
     icon: <HouseIcon />,
     title: 'Real Estate Agent',
     description: 'Post repair jobs, build your squad of trusted pros',
-    role: 'real_estate_agent',
+    role: 'Agent',
     navigateTo: 'Onboarding3',
   },
   {
@@ -221,7 +229,7 @@ const ROLE_CARDS: RoleCard[] = [
     icon: <WrenchIcon />,
     title: 'Contractor',
     description: 'Bid on repair jobs, grow your business with agent leads',
-    role: 'contractor',
+    role: 'Contractor',
     navigateTo: 'ContractorProfileBasics',
   },
   {
@@ -229,7 +237,7 @@ const ROLE_CARDS: RoleCard[] = [
     icon: <NetworkIcon />,
     title: 'Closing Partner',
     description: 'Get warm referrals from active agents in your area',
-    role: 'partner',
+    role: '',  // Partner sub-role picker on Onboarding3 sets the final value
     navigateTo: 'Onboarding3',
   },
 ];

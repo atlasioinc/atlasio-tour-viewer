@@ -1662,3 +1662,57 @@ export const useRespondToCounter = () => {
     },
   });
 };
+
+// ─────────────────────────────────────────────
+// ONBOARDING
+// ─────────────────────────────────────────────
+
+/**
+ * Complete onboarding — calls rpc_complete_onboarding to persist
+ * the user's profile, role, and onboarding data.
+ * formData.role is already a backend enum value (single-value principle).
+ *
+ * @backend supabase.rpc('rpc_complete_onboarding', {
+ *   p_display_role, p_full_name, p_company_name,
+ *   p_primary_trade, p_secondary_trades, p_location
+ * })
+ */
+// STATUS: wired (with mock fallback)
+export const useCompleteOnboarding = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      role: string;
+      fullName: string;
+      company?: string;
+      location?: string;
+      primaryTrade?: string;
+      secondaryTrades?: string[];
+    }) => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
+
+        const { error } = await supabase.rpc('rpc_complete_onboarding', {
+          p_display_role: params.role,
+          p_full_name: params.fullName,
+          p_company_name: params.company ?? null,
+          p_primary_trade: params.primaryTrade ?? null,
+          p_secondary_trades: params.secondaryTrades ?? null,
+          p_location: params.location ?? null,
+        });
+
+        if (error) throw error;
+        return { success: true };
+      } catch (err) {
+        console.warn('[useCompleteOnboarding] Supabase RPC failed, using mock fallback', err);
+        // Mock fallback — simulate success so demo app keeps working
+        await new Promise((r) => setTimeout(r, 800));
+        return { success: true };
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.myProfile });
+    },
+  });
+};

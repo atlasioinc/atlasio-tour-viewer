@@ -123,7 +123,6 @@ const GradientIconBox: React.FC<GradientIconBoxProps> = ({
 
 type OnboardingFormData = {
   role: string;
-  subRole?: string;
   fullName: string;
   company?: string;
   serviceArea?: string;

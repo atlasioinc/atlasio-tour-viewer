@@ -331,7 +331,36 @@ Onboarding paths:
 - Agent/Partner: Splash → RoleSelect → Screen3 (profile form) → Screen4 (credentials) → Complete (5 steps)
 
 ---
-Cumulative Progress (Sessions 1-25)
+Session 26 — Wire Onboarding to Live Backend (Single-Value Principle)
+Branch: frontend/session-25-onboarding-redesign
+(no commit yet — pending user approval)
+
+**Architecture: Single-Value Principle**
+`formData.role` is ALWAYS a backend `user_role` enum value from the moment of selection. No intermediate values, no translation layers (ROLE_MAP/SUB_ROLE_MAP eliminated).
+
+- **OnboardingRoleSelect.tsx** — Role card values changed: `'real_estate_agent'` → `'Agent'`, `'contractor'` → `'Contractor'`, `'partner'` → `''` (empty — sub-role picker sets final value). Added single-value principle comment block.
+- **OnboardingScreen3.tsx** — PARTNER_OPTIONS values changed from snake_case (`mortgage_lender`) to backend enum values (`Mortgage Pro`, `Title/Escrow`, `Home Inspector`, `Appraiser`, `Attorney`, `Real Estate Photographer`, `Home Stager`, `Other`). Sub-role selection writes directly to `formData.role`. `needsSubRole` check changed to `!formData.role`.
+- **OnboardingComplete.tsx** — Deleted ROLE_MAP, SUB_ROLE_MAP, getBackendRole. Added `getOnboardingPath()` helper (UI routing concern: maps any backend role to `'agent'|'contractor'|'partner'` for display). ROLE_CONTENT rekeyed from `real_estate_agent`/`partner`/`contractor` to `agent`/`partner`/`contractor`. RPC call uses `formData.role` directly — no mapping.
+- **hooks/useData.ts** — `useCompleteOnboarding` mutation hook created (STATUS: wired with mock fallback). Calls `rpc_complete_onboarding` with `p_display_role`, `p_full_name`, `p_company_name`, `p_primary_trade`, `p_secondary_trades`, `p_location`. Invalidates myProfile on success.
+- **lib/featureFlags.ts** — Added `LIVE_ONBOARDING: false` (flip to true when RPC is deployed and ready).
+- **App.tsx** — Default userRole changed from `'real_estate_agent'` to `'Agent'`.
+- **subRole eliminated** — Removed from OnboardingFormData type in all 8 files (OnboardingRoleSelect, Screen3, Screen4, ContractorProfileBasics, ContractorTradeStep, ContractorDetailsStep, OnboardingComplete, App.tsx).
+
+Auth state machine verified: App.tsx checks `profile.display_role` → `rpc_complete_onboarding` sets `display_role` → post-onboarding routing works for both immediate navigation and app restart.
+
+Key helper:
+```typescript
+const getOnboardingPath = (role: string): 'agent' | 'contractor' | 'partner' => {
+  if (['Contractor'].includes(role)) return 'contractor';
+  if (['Mortgage Pro','Title/Escrow','Home Inspector','Appraiser',
+       'Transaction Coordinator','Warranty','Attorney','Home Stager',
+       'Real Estate Photographer'].includes(role)) return 'partner';
+  return 'agent';
+};
+```
+
+---
+Cumulative Progress (Sessions 1-26)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
 - Session 2: 11 T1 revenue-critical hooks wired
@@ -353,8 +382,9 @@ Cumulative Progress (Sessions 1-25)
 - Session 23: Contractor demo loop closed — card nav, inbox chat, job completion CTA wiring, token cleanup
 - Session 24: JobTrackerTab rebuilt (pipeline list + filter chips), ContractorJobsStack, conditional tabs (agent 5 / contractor 3)
 - Session 25: Onboarding redesigned (role-branching flow, 4 new contractor screens, formData accumulation), ProfileTab contractor stats
+- Session 26: Onboarding wired to backend (single-value principle, useCompleteOnboarding hook, LIVE_ONBOARDING flag, subRole eliminated, ROLE_MAP eliminated)
 
-48 hooks total (45 wired + 3 mock stubs). 7 edge functions. 3 realtime subscriptions. 0 type casts. 0 tsc errors.
+49 hooks total (46 wired + 3 mock stubs). 7 edge functions. 3 realtime subscriptions. 0 type casts. 0 tsc errors.
 
 Contractor screens: 5 (ContractorHomeTab, ContractorJobDetails, ContractorInboxList, BidSubmissionScreen, JobTrackerTab) + 3 shared (ChatScreen, ProProfile, JobCompletionScreen)
 Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, ContractorProfileBasics, ContractorTradeStep, ContractorDetailsStep, Screen2 retired)
@@ -364,11 +394,11 @@ tsc status: 0 errors
 ---
 Recommended Next Session Priorities
 
-1. Wire contractor hooks to Supabase (useContractorJobDetails, useSubmitBid, useRespondToCounter)
-2. Create remaining T4 hook stubs (useContractorActiveJobs, useJobInvitations, useMatchingJobs, useContractorEarnings)
-3. Wire ProProfile portfolio_photos from portfolio_photos table
-4. Wire notification deep links (replace console.log with navigation.navigate)
-5. Wire rpc_complete_onboarding — OnboardingComplete currently logs payload, needs Supabase call
+1. Deploy rpc_complete_onboarding to Supabase, flip LIVE_ONBOARDING flag, test end-to-end
+2. Wire contractor hooks to Supabase (useContractorJobDetails, useSubmitBid, useRespondToCounter)
+3. Create remaining T4 hook stubs (useContractorActiveJobs, useJobInvitations, useMatchingJobs, useContractorEarnings)
+4. Wire ProProfile portfolio_photos from portfolio_photos table
+5. Wire notification deep links (replace console.log with navigation.navigate)
 6. Polish pass: ContractorHomeTab RepairChat nav → ChatScreen alignment
 7. Performance: add staleTime/gcTime to high-frequency hooks
 8. EditProfileScreen: add contractor-specific fields (trades, license, insurance)

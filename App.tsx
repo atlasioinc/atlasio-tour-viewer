@@ -24,7 +24,6 @@ import type { Session } from '@supabase/supabase-js';
 
 type OnboardingFormData = {
   role: string;
-  subRole?: string;
   fullName: string;
   company?: string;
   serviceArea?: string;
@@ -54,7 +53,7 @@ type AuthState = 'loading' | 'unauthenticated' | 'onboarding' | 'authenticated';
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>('loading');
-  const [userRole, setUserRole] = useState<string>('real_estate_agent');
+  const [userRole, setUserRole] = useState<string>('Agent');
 
   useEffect(() => {
     // Check profile to determine if onboarding is complete
