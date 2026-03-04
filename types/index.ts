@@ -380,6 +380,44 @@ export interface BidWithProfile extends Bid {
 }
 
 // ─────────────────────────────────────────────
+// CONTRACTOR JOB DETAIL
+// Composite view: job + agent profile + contractor's bid
+// Used by ContractorJobDetails screen
+// ─────────────────────────────────────────────
+
+export interface ContractorJobDetail {
+  id: string;
+  title: string;
+  description: string;
+  address: string;
+  trade: string;
+  budgetMin: number;                   // cents
+  budgetMax: number;                   // cents
+  dueDate: string;
+  isUrgent: boolean;
+  photos: string[];
+  bidCount: number;
+  jobStatus: JobStatus;
+  agent: {
+    id: string;
+    name: string;
+    company: string;
+    avatarColor: string;
+    rating: number;
+    vouchCount: number;
+  };
+  myBid?: {
+    id: string;
+    amount: number;                    // cents
+    timelineDays: number;
+    notes: string;
+    status: BidStatus;
+    counterAmount?: number;            // cents
+    counterNotes?: string;
+  };
+}
+
+// ─────────────────────────────────────────────
 // REVIEW
 // Table: reviews
 // ─────────────────────────────────────────────

@@ -29,6 +29,9 @@ import { supabase } from '../lib/supabase';
 // Remove these imports when wiring to real auth role
 import ContractorHomeTab from './ContractorHomeTab';
 import ContractorInboxList from './ContractorInboxList';
+import ContractorJobDetails from './ContractorJobDetails';
+import BidSubmissionScreen from './BidSubmissionScreen';
+import ProProfile from './ProProfile';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // ─────────────────────────────────────────────
@@ -66,6 +69,13 @@ const ContractorHomeStackNav = createNativeStackNavigator();
 const ContractorHomeStackScreen: React.FC = () => (
   <ContractorHomeStackNav.Navigator screenOptions={{ headerShown: false }}>
     <ContractorHomeStackNav.Screen name="ContractorHomeMain" component={ContractorHomeTab} />
+    <ContractorHomeStackNav.Screen name="ContractorJobDetails" component={ContractorJobDetails} />
+    <ContractorHomeStackNav.Screen
+      name="BidSubmission"
+      component={BidSubmissionScreen}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
+    <ContractorHomeStackNav.Screen name="ProProfile" component={ProProfile} />
   </ContractorHomeStackNav.Navigator>
 );
 

@@ -34,6 +34,7 @@ import type {
   Recipient,
   SquadMember,
   UserRole,
+  ContractorJobDetail,
 } from '../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -1592,6 +1593,72 @@ export const useRemoveSquadMember = () => {
     },
     onSuccess: (_, { squadId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.squadMembers(squadId) });
+    },
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CONTRACTOR JOB DETAILS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Fetch contractor's view of a single job.
+ * @backend supabase.from('jobs')
+ *   .select('*, profiles!agent_id(name, company, avatar_url, avatar_color, rating, vouch_count)')
+ *   .eq('id', jobId)
+ *   .single()
+ *   + separate query for contractor's own bid on this job
+ */
+// STATUS: mock
+export const useContractorJobDetails = (jobId: string) => {
+  return useQuery<ContractorJobDetail>({
+    queryKey: ['contractorJob', jobId],
+    queryFn: async () => {
+      // TODO: [PRODUCTION] Replace with Supabase query
+      return null as unknown as ContractorJobDetail;
+    },
+    enabled: !!jobId,
+  });
+};
+
+/**
+ * Submit a bid on a job.
+ * @backend supabase.rpc('rpc_submit_bid', {
+ *   p_job_id, p_amount, p_timeline, p_quote
+ * })
+ */
+// STATUS: mock
+export const useSubmitBid = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { jobId: string; amount: number; timeline: string; notes: string }) => {
+      // TODO: [PRODUCTION] Replace with Supabase RPC
+      console.log('[useSubmitBid]', data);
+      await new Promise((r) => setTimeout(r, 500));
+    },
+    onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: ['contractorJob', jobId] });
+    },
+  });
+};
+
+/**
+ * Respond to agent's counter-offer.
+ * @backend supabase.rpc('rpc_respond_to_counter', {
+ *   p_bid_id, p_action: 'accept' | 'counter' | 'decline', p_new_amount?
+ * })
+ */
+// STATUS: mock
+export const useRespondToCounter = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { bidId: string; action: 'accept' | 'counter' | 'decline'; newAmount?: number }) => {
+      // TODO: [PRODUCTION] Replace with Supabase RPC
+      console.log('[useRespondToCounter]', data);
+      await new Promise((r) => setTimeout(r, 500));
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contractorJob'] });
     },
   });
 };
