@@ -38,44 +38,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
-// @ts-ignore — import from shared tokens when wiring to project
-// import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS, BORDERS } from '../lib/tokens';
+import { COLORS, DIMENSIONS } from '../lib/tokens';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// ─────────────────────────────────────────────
-// DESIGN TOKENS (inline until wired to tokens.ts)
-// ─────────────────────────────────────────────
-
-const COLORS = {
-  primary: '#003DC3',
-  background: '#FFFFFF',
-  screenBg: '#F7F7FC',
-  darkText: '#1C1C1E',
-  bodyText: '#4A5565',
-  secondaryText: '#666666',
-  lightText: '#99A1AF',
-  border: '#E5E7EB',
-  cardBorder: '#F3F4F6',
-  errorRed: '#E7000B',
-  successGreen: '#15803D',
-  counterAmber: '#C2410C',
-  notifBadge: '#FB2C36',
-  tagBg: '#F4F7FF',
-  tagText: '#707070',
-  feeBg: '#F0FDF4',
-  feeText: '#15803D',
-} as const;
-
-const DIMENSIONS = {
-  headerHeight: 48,
-  headerBorderWidth: 0.68,
-  headerBookendWidth: 80,
-  cardRadius: 14,
-} as const;
+const HEADER_BOOKEND_WIDTH = 80;
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -176,37 +146,37 @@ const THREAD_STATUS_MAP: Record<string, ThreadStatusConfig> = {
   invited: {
     label: 'Invited',
     bgColor: 'rgba(0, 61, 195, 0.08)',
-    textColor: '#003DC3',
+    textColor: COLORS.primary,
   },
   bid_submitted: {
     label: 'Bid Sent',
     bgColor: 'rgba(0, 61, 195, 0.08)',
-    textColor: '#003DC3',
+    textColor: COLORS.primary,
   },
   awarded: {
     label: 'Awarded',
     bgColor: 'rgba(22, 163, 74, 0.10)',
-    textColor: '#15803D',
+    textColor: COLORS.feeText,
   },
   in_progress: {
     label: 'In Progress',
     bgColor: 'rgba(22, 163, 74, 0.10)',
-    textColor: '#15803D',
+    textColor: COLORS.feeText,
   },
-  pending_confirmation: {
+  pending_completion: {
     label: 'Pending Review',
     bgColor: 'rgba(234, 88, 12, 0.10)',
-    textColor: '#C2410C',
+    textColor: COLORS.counterAmber,
   },
   completed: {
     label: 'Completed',
-    bgColor: '#F3F4F6',
-    textColor: '#6B7280',
+    bgColor: COLORS.cardBorder,
+    textColor: COLORS.mutedText,
   },
   cancelled: {
     label: 'Cancelled',
-    bgColor: '#F3F4F6',
-    textColor: '#9CA3AF',
+    bgColor: COLORS.cardBorder,
+    textColor: COLORS.lightText,
   },
 };
 
@@ -233,7 +203,7 @@ const ThreadStatusBadge: React.FC<{ status: string }> = ({ status }) => {
 // DATA TYPES
 // ─────────────────────────────────────────────
 
-type ThreadStatus = 'invited' | 'bid_submitted' | 'awarded' | 'in_progress' | 'pending_confirmation' | 'completed' | 'cancelled';
+type ThreadStatus = 'invited' | 'bid_submitted' | 'awarded' | 'in_progress' | 'pending_completion' | 'completed' | 'cancelled';
 
 interface JobChatThread {
   id: string;
@@ -279,7 +249,7 @@ const MOCK_ACTIVE_THREADS: JobChatThread[] = [
     id: 'thread2',
     jobId: 'aj2',
     jobTitle: 'Bathroom Pipe Replacement',
-    jobStatus: 'pending_confirmation',
+    jobStatus: 'pending_completion',
     address: '782 Maple Drive, Lakewood CO',
     agentName: 'Marcus Lee',
     agentAvatar: '#B5C4A8',
@@ -389,7 +359,7 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onPress, isPast = false }
       paddingHorizontal: 16,
       paddingVertical: 14,
       gap: 12,
-      backgroundColor: pressed ? '#F9FAFB' : COLORS.background,
+      backgroundColor: pressed ? COLORS.filterBg : COLORS.background,
       opacity: isPast ? 0.75 : 1,
     })}
   >
@@ -406,7 +376,7 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onPress, isPast = false }
             width: 20,
             height: 20,
             borderRadius: 9999,
-            backgroundColor: COLORS.notifBadge,
+            backgroundColor: COLORS.notificationRed,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 2,
@@ -606,7 +576,7 @@ const ContractorInboxList: React.FC = () => {
           }}
         >
           {/* Left bookend */}
-          <View style={{ width: DIMENSIONS.headerBookendWidth, alignItems: 'flex-start' }}>
+          <View style={{ width: HEADER_BOOKEND_WIDTH, alignItems: 'flex-start' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <ChatBubbleIcon color={COLORS.bodyText} />
               {totalUnread > 0 && (
@@ -615,7 +585,7 @@ const ContractorInboxList: React.FC = () => {
                     minWidth: 20,
                     height: 20,
                     borderRadius: 9999,
-                    backgroundColor: COLORS.notifBadge,
+                    backgroundColor: COLORS.notificationRed,
                     alignItems: 'center',
                     justifyContent: 'center',
                     paddingHorizontal: 4,
@@ -637,7 +607,7 @@ const ContractorInboxList: React.FC = () => {
           </View>
 
           {/* Right bookend — intentionally empty (no compose) */}
-          <View style={{ width: DIMENSIONS.headerBookendWidth, alignItems: 'flex-end' }} />
+          <View style={{ width: HEADER_BOOKEND_WIDTH, alignItems: 'flex-end' }} />
         </View>
       </View>
 
