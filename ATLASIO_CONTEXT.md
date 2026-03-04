@@ -282,8 +282,34 @@ Commits: 326e262, 0f69150
 - **BottomTabNavigator expanded** — ContractorHomeStack: +ContractorJobDetails (push), +BidSubmission (fullScreenModal), +ProProfile (push)
 - **ContractorInboxList token cleanup** — Removed 18 inline COLORS + 4 DIMENSIONS, imported from tokens.ts. Fixed pending_confirmation → pending_completion. THREAD_STATUS_MAP hex → token refs.
 
+Session 23 — Complete Contractor Demo Loop
+Branch: frontend/session-23-contractor-demo-loop
+Commit: 97cd26d
+
+- **ContractorHomeTab token cleanup** — Added SHADOWS to import, replaced 5 inline shadow objects → SHADOWS.card, STATUS_CHIP_MAP hex → token refs (COLORS.primary, COLORS.feeText, COLORS.counterAmber), urgent badge → COLORS.urgentBg/urgentText, fixed pending_confirmation → pending_completion (5 occurrences)
+- **Card nav wiring** — ActiveJobCard wrapped in Pressable → ContractorJobDetails, JobInviteCard onAccept → ContractorJobDetails (view full job first), ActiveJobCard onMarkComplete → JobCompletion with userRole: 'contractor'
+- **ContractorJobDetails CTA wiring** — "Mark Complete" → JobCompletion { jobId, userRole: 'contractor' }, "Start Work" → confirmation Alert with @backend annotation
+- **ContractorInboxStack expansion** — ChatScreen route added to ContractorInboxStackNav, thread tap → ChatScreen (replaces RepairChat) with mapped params { threadId, contactName, contactRole: 'Agent', contactAvatarColor }
+- **ATLASIO_CONTEXT.md** — Updated with Sessions 13-22
+
 ---
-Cumulative Progress (Sessions 1-22)
+Session 24 — Contractor Jobs Tab (JobTracker Integration)
+Branch: frontend/session-24-contractor-jobs-tab
+Commit: 93b973d
+
+- **JobTrackerTab rebuilt** — From 109-line placeholder to full pipeline list screen:
+  - 9 mock jobs across 4 pipeline stages (2 invited, 2 bid_sent, 3 active, 2 completed)
+  - 5 filter chips (All, Invited, Bid Sent, Active, Completed) with live counts, pill styling matching HomeTabAgent pattern
+  - Job cards: trade pill, status chip (color-coded via STATUS_STYLE map), address+budget blue header (COLORS.statBg), agent avatar+name, due date, time label
+  - FlatList with empty state per filter, navigation to ContractorJobDetails on card tap
+  - All design tokens from lib/tokens.ts (COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS)
+- **ContractorJobsStack** — New stack navigator with 4 routes: ContractorJobsMain (JobTrackerTab), ContractorJobDetails, BidSubmission (fullScreenModal), JobCompletion (fullScreenModal)
+- **Conditional tab visibility** — Agent: Home|Find|Network|Inbox|Profile (5 tabs). Contractor: Home|Jobs|Inbox (3 tabs)
+- **Clipboard tab icon** — Inline SVG JobsIcon matching existing tab icon style
+- **JobCompletion route** — Added to ContractorHomeStack (was missing, needed by ContractorJobDetails "Mark Complete" CTA)
+
+---
+Cumulative Progress (Sessions 1-24)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
 - Session 2: 11 T1 revenue-critical hooks wired
@@ -302,19 +328,22 @@ Cumulative Progress (Sessions 1-22)
 - Session 17: Badge wired to ProProfile/ProCard, banner wired to HomeTabAgent/ProfileTab
 - Session 18: Progressive gating (hard gate on job posting, soft banners on 4 screens, Licensed & Insured chips, connect nudge)
 - Session 22: ContractorJobDetails + BidSubmissionScreen (2 new screens), 3 hook stubs, ContractorInboxList token cleanup
+- Session 23: Contractor demo loop closed — card nav, inbox chat, job completion CTA wiring, token cleanup
+- Session 24: JobTrackerTab rebuilt (pipeline list + filter chips), ContractorJobsStack, conditional tabs (agent 5 / contractor 3)
 
 48 hooks total (45 wired + 3 mock stubs). 7 edge functions. 3 realtime subscriptions. 0 type casts. 0 tsc errors.
+
+Contractor screens: 5 (ContractorHomeTab, ContractorJobDetails, ContractorInboxList, BidSubmissionScreen, JobTrackerTab) + 3 shared (ChatScreen, ProProfile, JobCompletionScreen)
 
 tsc status: 0 errors
 
 ---
 Recommended Next Session Priorities
 
-1. ContractorHomeTab token cleanup (inline COLORS/DIMENSIONS → tokens.ts import)
-2. Wire contractor hooks to Supabase (useContractorJobDetails, useSubmitBid, useRespondToCounter)
-3. Create remaining T4 hook stubs (useContractorActiveJobs, useJobInvitations, useMatchingJobs, useContractorEarnings)
-4. ContractorInboxStack expansion — add RepairChat route
-5. JobCompletion screen (referenced by ContractorJobDetails sticky CTA)
-6. Wire ProProfile portfolio_photos from portfolio_photos table
-7. Wire notification deep links (replace console.log with navigation.navigate)
+1. Wire contractor hooks to Supabase (useContractorJobDetails, useSubmitBid, useRespondToCounter)
+2. Create remaining T4 hook stubs (useContractorActiveJobs, useJobInvitations, useMatchingJobs, useContractorEarnings)
+3. Wire ProProfile portfolio_photos from portfolio_photos table
+4. Wire notification deep links (replace console.log with navigation.navigate)
+5. Contractor Profile tab (currently hidden — agent-only Profile tab)
+6. Polish pass: ContractorHomeTab RepairChat nav → ChatScreen alignment
 8. Performance: add staleTime/gcTime to high-frequency hooks
