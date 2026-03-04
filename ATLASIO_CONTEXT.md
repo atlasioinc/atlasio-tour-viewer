@@ -309,7 +309,29 @@ Commit: 93b973d
 - **JobCompletion route** — Added to ContractorHomeStack (was missing, needed by ContractorJobDetails "Mark Complete" CTA)
 
 ---
-Cumulative Progress (Sessions 1-24)
+Session 25 — Contractor Onboarding Redesign + Profile Polish
+Branch: frontend/session-25-onboarding-redesign
+Commit: ea62a1b
+
+- **Onboarding redesigned from linear to role-branching flow:**
+  - `OnboardingRoleSelect.tsx` (NEW) — Step 2/5, 3 role cards (Agent/Contractor/Partner) with haptic feedback, replaces OnboardingScreen2 in nav stack
+  - `ContractorProfileBasics.tsx` (NEW) — Step 3/6, full name (required) + business name (optional)
+  - `ContractorTradeStep.tsx` (NEW) — Step 4/6, chip grid with all 22 trades from schema.sql (exact display-name values), two-phase selection (primary filled + up to 2 secondary outlined)
+  - `ContractorDetailsStep.tsx` (NEW) — Step 5/6, service area radius pills (10/25/50 mi) + license/insurance toggles + social proof text
+- **OnboardingFormData accumulates through route params** — All form data passes forward via `{ formData: OnboardingFormData }` params, no data loss between screens
+- **OnboardingScreen3.tsx simplified** — Removed role dropdown + ROLE_OPTIONS + CONTRACTOR_OPTIONS. Sub-role dropdown now partner-only. Receives formData from OnboardingRoleSelect.
+- **OnboardingScreen4.tsx updated** — Receives/passes formData instead of `{ role: string }`
+- **OnboardingComplete.tsx** — Dynamic progress bar (6/6 contractor, 5/5 agent/partner), logs full `rpc_complete_onboarding` payload
+- **App.tsx** — 4 new routes registered, Onboarding2 route retired (file preserved), RootStackParamList updated with OnboardingFormData
+- **ProfileTab.tsx** — Role-conditional stats: contractor shows Jobs Overview (completed, rating, on-time rate, response time) + Earnings (private); agent/partner shows existing Repair Jobs + Top Partners
+- **OnboardingScreen2.tsx preserved** — File kept, just not in nav stack
+
+Onboarding paths:
+- Contractor: Splash → RoleSelect → ProfileBasics → TradeStep → DetailsStep → Complete (6 steps)
+- Agent/Partner: Splash → RoleSelect → Screen3 (profile form) → Screen4 (credentials) → Complete (5 steps)
+
+---
+Cumulative Progress (Sessions 1-25)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
 - Session 2: 11 T1 revenue-critical hooks wired
@@ -330,10 +352,12 @@ Cumulative Progress (Sessions 1-24)
 - Session 22: ContractorJobDetails + BidSubmissionScreen (2 new screens), 3 hook stubs, ContractorInboxList token cleanup
 - Session 23: Contractor demo loop closed — card nav, inbox chat, job completion CTA wiring, token cleanup
 - Session 24: JobTrackerTab rebuilt (pipeline list + filter chips), ContractorJobsStack, conditional tabs (agent 5 / contractor 3)
+- Session 25: Onboarding redesigned (role-branching flow, 4 new contractor screens, formData accumulation), ProfileTab contractor stats
 
 48 hooks total (45 wired + 3 mock stubs). 7 edge functions. 3 realtime subscriptions. 0 type casts. 0 tsc errors.
 
 Contractor screens: 5 (ContractorHomeTab, ContractorJobDetails, ContractorInboxList, BidSubmissionScreen, JobTrackerTab) + 3 shared (ChatScreen, ProProfile, JobCompletionScreen)
+Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, ContractorProfileBasics, ContractorTradeStep, ContractorDetailsStep, Screen2 retired)
 
 tsc status: 0 errors
 
@@ -344,6 +368,7 @@ Recommended Next Session Priorities
 2. Create remaining T4 hook stubs (useContractorActiveJobs, useJobInvitations, useMatchingJobs, useContractorEarnings)
 3. Wire ProProfile portfolio_photos from portfolio_photos table
 4. Wire notification deep links (replace console.log with navigation.navigate)
-5. Contractor Profile tab (currently hidden — agent-only Profile tab)
+5. Wire rpc_complete_onboarding — OnboardingComplete currently logs payload, needs Supabase call
 6. Polish pass: ContractorHomeTab RepairChat nav → ChatScreen alignment
-8. Performance: add staleTime/gcTime to high-frequency hooks
+7. Performance: add staleTime/gcTime to high-frequency hooks
+8. EditProfileScreen: add contractor-specific fields (trades, license, insurance)
