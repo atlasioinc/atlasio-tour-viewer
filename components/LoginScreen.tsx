@@ -39,6 +39,9 @@ export default function LoginScreen() {
 
     const { error: authError } = await supabase.auth.signInWithOtp({
       email: trimmed,
+      options: {
+        emailRedirectTo: 'atlasio://login-callback',
+      },
     });
 
     setLoading(false);

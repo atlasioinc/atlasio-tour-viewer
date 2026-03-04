@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClientProvider } from '@tanstack/react-query';
+import * as Linking from 'expo-linking';
 import { queryClient } from './lib/queryClient';
 import { supabase } from './lib/supabase';
 import { COLORS } from './lib/tokens';
@@ -99,6 +100,47 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
     };
+  }, []);
+
+  // ─────────────────────────────────────────────
+  // DEEP LINK HANDLER — captures magic link callback from email.
+  // When user taps magic link, the app opens at atlasio://login-callback#access_token=...
+  // This extracts the tokens from the URL and passes them to Supabase auth.
+  // The existing onAuthStateChange listener then handles routing.
+  // @backend: Supabase magic link auth
+  // ─────────────────────────────────────────────
+  useEffect(() => {
+    const handleDeepLink = async (url: string) => {
+      if (!url.includes('login-callback')) return;
+
+      // Extract tokens from URL fragment (after the #)
+      const fragment = url.split('#')[1];
+      if (!fragment) return;
+
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        // onAuthStateChange listener handles navigation from here
+      }
+    };
+
+    // Handle cold launch (app was closed, user taps magic link)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink(url);
+    });
+
+    // Handle warm launch (app was in background, user taps magic link)
+    const linkSubscription = Linking.addEventListener('url', (event) => {
+      handleDeepLink(event.url);
+    });
+
+    return () => linkSubscription.remove();
   }, []);
 
   // Loading state
