@@ -26,7 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, TYPOGRAPHY, SPACING, DIMENSIONS } from '../lib/tokens';
+import { COLORS, TYPOGRAPHY, SPACING, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { CardButton } from './Button';
 import { DisplayTag, DisplayTagRow, StatPill } from './DisplayTag';
 
@@ -42,7 +42,7 @@ interface ActiveJob {
   address: string;
   agentName: string;
   agentAvatar: string; // color placeholder
-  jobStatus: 'in_progress' | 'pending_confirmation' | 'awarded';
+  jobStatus: 'in_progress' | 'pending_completion' | 'awarded';
   deadline: string;
   acceptedAmount: string;
   trade: string;
@@ -352,17 +352,17 @@ const STATUS_CHIP_MAP: Record<string, StatusChipConfig> = {
   awarded: {
     label: 'Awarded',
     bgColor: 'rgba(0, 61, 195, 0.08)',
-    textColor: '#003DC3',
+    textColor: COLORS.primary,
   },
   in_progress: {
     label: 'In Progress',
     bgColor: 'rgba(22, 163, 74, 0.10)',
-    textColor: '#15803D',
+    textColor: COLORS.feeText,
   },
-  pending_confirmation: {
+  pending_completion: {
     label: 'Pending Review',
     bgColor: 'rgba(234, 88, 12, 0.10)',
-    textColor: '#C2410C',
+    textColor: COLORS.counterAmber,
   },
 };
 
@@ -441,7 +441,7 @@ const CURRENT_CONTRACTOR = {
  * @backend const { data: activeJobs } = useActiveJobs();
  *   → supabase.from('jobs')
  *     .select('*, bids(*), profiles!agent_id(name, avatar_url)')
- *     .in('status', ['awarded', 'in_progress', 'pending_confirmation'])
+ *     .in('status', ['awarded', 'in_progress', 'pending_completion'])
  *     .eq('bids.contractor_id', auth.uid())
  *     .eq('bids.status', 'accepted')
  *     .order('due_date', { ascending: true })
@@ -464,7 +464,7 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
     address: '782 Maple Drive, Lakewood CO',
     agentName: 'Marcus Lee',
     agentAvatar: '#B5C4A8',
-    jobStatus: 'pending_confirmation',
+    jobStatus: 'pending_completion',
     deadline: 'Mar 5',
     acceptedAmount: '$1,450',
     trade: 'Plumber',
@@ -664,7 +664,7 @@ const ActiveJobCard: React.FC<{ job: ActiveJob; onMarkComplete: () => void; onCh
       backgroundColor: COLORS.background,
       borderRadius: DIMENSIONS.cardRadius,
       borderWidth: 1, borderColor: COLORS.border,
-      shadowColor: "#000000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
+      ...SHADOWS.card,
     }}
   >
     {/* Row 1: Trade pill + Status chip — scan layer */}
@@ -754,7 +754,7 @@ const ActiveJobCard: React.FC<{ job: ActiveJob; onMarkComplete: () => void; onCh
               fullWidth
             />
           )}
-          {job.jobStatus === 'pending_confirmation' && (
+          {job.jobStatus === 'pending_completion' && (
             <View style={{
               paddingVertical: 8,
               paddingHorizontal: 12,
@@ -799,7 +799,7 @@ const JobInviteCard: React.FC<{
       backgroundColor: COLORS.background,
       borderRadius: DIMENSIONS.cardRadius,
       borderWidth: 1, borderColor: COLORS.border,
-      shadowColor: "#000000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
+      ...SHADOWS.card,
     }}
   >
     {/* Row 1: Trade pill + Time — scan layer */}
@@ -936,7 +936,7 @@ const MatchingJobCard: React.FC<{
       backgroundColor: COLORS.background,
       borderRadius: DIMENSIONS.cardRadius,
       borderWidth: 1, borderColor: COLORS.border,
-      shadowColor: "#000000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
+      ...SHADOWS.card,
     }}
   >
     {/* Row 1: Trade pill + Urgent badge — scan layer */}
@@ -946,10 +946,10 @@ const MatchingJobCard: React.FC<{
         <View style={{
           paddingHorizontal: 8,
           paddingVertical: 3,
-          backgroundColor: 'rgba(220, 38, 38, 0.08)',
+          backgroundColor: COLORS.urgentBg,
           borderRadius: 9999,
         }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: '#DC2626', lineHeight: 16 }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.urgentText, lineHeight: 16 }}>
             URGENT
           </Text>
         </View>
@@ -1052,7 +1052,7 @@ const EarningsSummaryCard: React.FC<{ earnings: EarningsData }> = ({ earnings })
       backgroundColor: COLORS.background,
       borderRadius: DIMENSIONS.cardRadius,
       borderWidth: 1, borderColor: COLORS.border,
-      shadowColor: "#000000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
+      ...SHADOWS.card,
       gap: 16,
     }}
   >
@@ -1139,7 +1139,7 @@ const MarketPulseSection: React.FC<{ data: MarketPulseData }> = ({ data }) => {
         backgroundColor: COLORS.background,
         borderRadius: DIMENSIONS.cardRadius,
         borderWidth: 1, borderColor: COLORS.border,
-        shadowColor: "#000000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
+        ...SHADOWS.card,
         gap: 16,
       }}
     >
@@ -1250,7 +1250,7 @@ const ContractorHomeTab: React.FC = () => {
     ...invitations.map((inv) => ({ type: 'invite' as const, data: inv })),
     ...matchingJobs.filter((j) => j.isUrgent).map((j) => ({ type: 'matching' as const, data: j })),
     ...activeJobs.filter((j) => j.jobStatus === 'in_progress').map((j) => ({ type: 'active' as const, data: j })),
-    ...activeJobs.filter((j) => j.jobStatus === 'pending_confirmation').map((j) => ({ type: 'active' as const, data: j })),
+    ...activeJobs.filter((j) => j.jobStatus === 'pending_completion').map((j) => ({ type: 'active' as const, data: j })),
     ...activeJobs.filter((j) => j.jobStatus === 'awarded').map((j) => ({ type: 'active' as const, data: j })),
     ...matchingJobs.filter((j) => !j.isUrgent).map((j) => ({ type: 'matching' as const, data: j })),
   ];
@@ -1509,22 +1509,26 @@ const ContractorHomeTab: React.FC = () => {
             filteredFeed.map((item) => {
               if (item.type === 'active') {
                 return (
-                  <ActiveJobCard
+                  <Pressable
                     key={`active-${item.data.id}`}
-                    job={item.data}
-                    onMarkComplete={() => {
-                      // @nav → JobCompletionScreen (already built)
-                      navigation.navigate('JobCompletion', { jobId: item.data.id });
-                    }}
-                    onChat={() => {
-                      // @nav → RepairChatScreen tied to this job
-                      navigation.navigate('RepairChat', {
-                        jobId: item.data.id,
-                        agentName: item.data.agentName,
-                        address: item.data.address,
-                      });
-                    }}
-                  />
+                    onPress={() => navigation.navigate('ContractorJobDetails', { jobId: item.data.id })}
+                  >
+                    <ActiveJobCard
+                      job={item.data}
+                      onMarkComplete={() => {
+                        // @nav → JobCompletionScreen
+                        navigation.navigate('JobCompletion', { jobId: item.data.id, userRole: 'contractor' });
+                      }}
+                      onChat={() => {
+                        // @nav → RepairChatScreen tied to this job
+                        navigation.navigate('RepairChat', {
+                          jobId: item.data.id,
+                          agentName: item.data.agentName,
+                          address: item.data.address,
+                        });
+                      }}
+                    />
+                  </Pressable>
                 );
               }
               if (item.type === 'invite') {
@@ -1534,8 +1538,8 @@ const ContractorHomeTab: React.FC = () => {
                     invite={item.data}
                     hasBid={item.data.hasBid}
                     onAccept={() => {
-                      // @nav → BidSubmissionScreen
-                      navigation.navigate('BidSubmission', { jobId: item.data.id });
+                      // @nav → ContractorJobDetails (contractor views full job before bidding)
+                      navigation.navigate('ContractorJobDetails', { jobId: item.data.id });
                     }}
                     onDecline={() => {
                       // @backend supabase.from('job_invitations').update({ status: 'declined' }).eq('id', item.data.id)
@@ -1588,7 +1592,7 @@ const ContractorHomeTab: React.FC = () => {
             <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>
               Earnings
             </Text>
-            <Text style={{ fontSize: 14, fontWeight: '400', color: '#666666', lineHeight: 20 }}>
+            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>
               Your financial scorecard
             </Text>
           </View>
@@ -1611,7 +1615,7 @@ const ContractorHomeTab: React.FC = () => {
             <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>
               Denver Market
             </Text>
-            <Text style={{ fontSize: 14, fontWeight: '400', color: '#666666', lineHeight: 20 }}>
+            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>
               Local demand intelligence for your trade
             </Text>
           </View>

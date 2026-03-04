@@ -542,14 +542,12 @@ const ContractorInboxList: React.FC = () => {
   const hasAnyThreads = activeThreads.length > 0 || visiblePastThreads.length > 0;
 
   const handleThreadPress = (thread: JobChatThread) => {
-    // @nav → RepairChatScreen with jobId + read-only flag
-    const isReadOnly = thread.jobStatus === 'completed' || thread.jobStatus === 'cancelled';
-    navigation.navigate('RepairChat', {
-      jobId: thread.jobId,
+    navigation.navigate('ChatScreen', {
       threadId: thread.id,
-      agentName: thread.agentName,
-      address: thread.address,
-      readOnly: isReadOnly,
+      contactName: thread.agentName,
+      contactCompany: '', // @backend: fetch from agent profile
+      contactRole: 'Agent',
+      contactAvatarColor: thread.agentAvatar,
     });
   };
 

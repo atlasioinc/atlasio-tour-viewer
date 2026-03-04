@@ -189,7 +189,101 @@ Commits: 1f79184, 2dda63c, 761d6dc, d6f9cc2, 9acc569
 - **tsconfig.json** — Excluded supabase/functions/ (Deno runtime, not RN TypeScript)
 
 ---
-Cumulative Progress (Sessions 1-12)
+Session 13 — Edge Function Logic + Infrastructure
+
+Branch: backend/session-13-edge-functions-infra
+Commits: f44b95c, bdfbdab, ebd6b78, 291d57b
+
+- **4 edge functions implemented** (previously 501 stubs):
+  - `process-stripe-fee` — Stripe PaymentIntent via fetch(), marks bid.fee_paid
+  - `create-job-thread` — Webhook-triggered, creates thread + 2 members + system message on bid insert
+  - `filter-phone-numbers` — Regex scrubs phone numbers from messages, replaces with `[phone number removed]`
+  - `send-push-notification` — Expo push via fetch() to exp.host, reads push_tokens table
+- **3 new edge functions scaffolded** (full logic):
+  - `stripe-connect-onboarding` — Creates Stripe Connect Express account + returns onboarding URL
+  - `send-vouch-prompts` — Cron: finds completed jobs >1hr ago with no vouch → inserts notification
+  - `expire-bidding-windows` — Cron: jobs WHERE status='open' AND bid_deadline < now() → expires + notifies
+- **Auth state management in App.tsx** — Added `authState: 'loading' | 'unauthenticated' | 'onboarding' | 'authenticated'`. Uses `supabase.auth.onAuthStateChange` to route to LoginScreen, Onboarding, or MainApp.
+- **LoginScreen.tsx created** — Email + magic link via `supabase.auth.signInWithOtp({ email })`
+- **Storage bucket policies** — 5 buckets (avatars, job-photos, portfolio-photos, message-attachments, credentials) with 18 RLS policies in schema.sql
+
+---
+Session 14-15 — Edge Function Deployment + E2E Verification
+
+Branch: backend/session-13-edge-functions-infra
+Commits: ea238a9, 9b5e2d8, 2ec9966
+
+- **DEPLOY_CHECKLIST.md** — Manual deployment steps for all 7 edge functions
+- **Demo scaffolding cleanup** — Stripped from 3 screens, fixed file casing
+- **E2E verification pass** — All 7 edge functions verified deployable
+
+---
+Session 16 — Phase 6 Trust & Verification (Part 1: Schema + Components)
+
+Branch: backend/session-16-phase6-trust-verification
+Commits: f9ddb9a, f8f09a0
+
+- **Shared verification components** (components/shared/):
+  - `DisplayTag` — Reusable pill with variants: primary, ghost, success, warning, danger
+  - `VerificationBadge` — Shield icon with 4 levels (none/basic/verified/fully_verified)
+  - `VerificationBanner` — Dismissable CTA banner ("Complete verification to unlock features")
+- **VerificationScreen.tsx** — 3-section form: phone verification, license upload, insurance upload. Each section has its own completion state. Progress tracked via VerificationLevel type.
+- **PhoneVerificationScreen.tsx** — OTP flow with 6-digit code input, auto-advance, resend timer
+- **VerificationLevel type** — `'none' | 'basic' | 'verified' | 'fully_verified'` added to types/index.ts
+
+---
+Session 17 — Phase 6 Part 2 (Verification Badge + Banner Wiring)
+
+Branch: backend/session-17-phase6-verification-wiring
+Commits: 5ac7200
+
+- **VerificationBadge wired to ProProfile** — Shows shield next to name, level from profile data
+- **VerificationBadge wired to ProCard** — Small badge on FindTab/NetworkTab cards
+- **VerificationBanner wired to HomeTabAgent** — Between header and ScrollView, navigates to Verification
+- **VerificationBanner wired to ProfileTab** — Between header and ScrollView
+
+---
+Session 18 — Phase 6 Part 3 (Progressive Gating + Licensed & Insured)
+
+Branch: backend/session-18-phase6-progressive-gating
+Commits: f32628f
+
+- **useVerificationGate hook** — Centralized gating: `{ level, isVerified, isFullyVerified, canPostJob, showBanner, isLoading }`
+- **Hard gate on job posting** — Alert.alert blocks unverified users on all 3 paths (QuickActionsRow 3 handlers, HomeTabAgent, HomeTabAgentFilled). CTA navigates cross-stack via CommonActions.
+- **Soft gates (VerificationBanner)** on 4 screens: NetworkTab, InboxList, RepairJobDetails, ProProfile (other's profile only)
+- **Licensed & Insured chips on ProProfile** — Own profile: ghost tags for missing ("+ Add License"), success for present. Other profiles: combined "Licensed & Insured" or individual tags.
+- **Connect nudge** — Info banner in RequestConnectModal when verifyLevel === 'none': "Verified profiles get 3x more connection accepts"
+
+---
+Session 22 — ContractorJobDetails + BidSubmissionScreen
+
+Branch: backend/session-22-contractor-job-details
+Commits: 326e262, 0f69150
+
+- **ContractorJobDetails.tsx** (NEW) — Full push screen, 10 sections:
+  - Trade/urgency row, budget card (COLORS.statBg), job description, details grid (address/distance/date/bids)
+  - Agent card (tappable → ProProfile via CommonActions), your bid section (conditional), counter-offer comparison card (amber border, amount comparison with arrow)
+  - 3 demo states (no bid, bid pending, countered) with pull-down toggle
+  - Counter-offer inline actions: Accept/Counter/Decline with Alert confirmations
+  - Sticky bottom CTA bar with conditional rendering per job/bid state
+- **BidSubmissionScreen.tsx** (NEW) — fullScreenModal (slide_from_bottom):
+  - Amount input with $ prefix, currency formatting, decimal-pad keyboard
+  - 5 timeline pills (1 day, 2-3 days, 1 week, 2 weeks, flexible)
+  - Notes textarea with 500 char count
+  - Fee transparency receipt (bid amount, platform fee %, fee deduction, take-home)
+  - Mock fee tier: launch_promo (0%)
+  - Sticky submit bar with SafeAreaView edges={['bottom']}
+  - Supports prefill params for edit/counter flows
+- **ContractorJobDetail type** — Added to types/index.ts with nested `agent` + optional `myBid`
+- **3 hook stubs** (all STATUS: mock):
+  - `useContractorJobDetails(jobId)` — queryKey ['contractorJob', jobId]
+  - `useSubmitBid()` — mutation { jobId, amount, timeline, notes }
+  - `useRespondToCounter()` — mutation { bidId, action, newAmount? }
+- **BottomTabNavigator expanded** — ContractorHomeStack: +ContractorJobDetails (push), +BidSubmission (fullScreenModal), +ProProfile (push)
+- **ContractorInboxList token cleanup** — Removed 18 inline COLORS + 4 DIMENSIONS, imported from tokens.ts. Fixed pending_confirmation → pending_completion. THREAD_STATUS_MAP hex → token refs.
+
+---
+Cumulative Progress (Sessions 1-22)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
 - Session 2: 11 T1 revenue-critical hooks wired
@@ -202,19 +296,25 @@ Cumulative Progress (Sessions 1-12)
 - Session 10: sender_name fix, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved
 - Session 11: ProProfile CTAs wired, Recommended/Trending differentiated, NotificationsTab flash fixed, InboxList avatar_colors, useChatRecipients + useCreateThread created, useProProfile deleted
 - Session 12: Realtime subscriptions (3 hooks), is_unread + useMarkThreadRead, rpc_create_thread, 4 edge function stubs
+- Session 13: 7 edge functions (4 implemented + 3 new), auth state management, LoginScreen, storage policies
+- Session 14-15: Edge function deployment prep, E2E verification, demo cleanup
+- Session 16: Phase 6 verification components (DisplayTag, VerificationBadge, VerificationBanner, VerificationScreen, PhoneVerificationScreen)
+- Session 17: Badge wired to ProProfile/ProCard, banner wired to HomeTabAgent/ProfileTab
+- Session 18: Progressive gating (hard gate on job posting, soft banners on 4 screens, Licensed & Insured chips, connect nudge)
+- Session 22: ContractorJobDetails + BidSubmissionScreen (2 new screens), 3 hook stubs, ContractorInboxList token cleanup
 
-Backend B-E Sessions 1-12 complete. Supabase: 18 tables, 18 RPCs. 47 hooks (45 active + 2 deleted), 10/10 screens connected. ~75% progress.
+48 hooks total (45 wired + 3 mock stubs). 7 edge functions. 3 realtime subscriptions. 0 type casts. 0 tsc errors.
 
 tsc status: 0 errors
 
 ---
 Recommended Next Session Priorities
 
-1. Implement edge function logic (process-stripe-fee, create-job-thread, filter-phone-numbers, send-push-notification)
-2. Wire ProProfile portfolio_photos from portfolio_photos table (replace MOCK_PORTFOLIO_PHOTOS)
-3. Wire ProProfile "Message" CTA to navigate to ChatScreen (find or create thread)
-4. Wire NewMessage screen to use useChatRecipients + useCreateThread
-5. Add trending vouch window (7-day filter) via RPC or view for useTrendingPros
-6. Wire notification deep links (replace console.log with navigation.navigate)
-7. Wire notification mark-as-read mutation to Supabase
+1. ContractorHomeTab token cleanup (inline COLORS/DIMENSIONS → tokens.ts import)
+2. Wire contractor hooks to Supabase (useContractorJobDetails, useSubmitBid, useRespondToCounter)
+3. Create remaining T4 hook stubs (useContractorActiveJobs, useJobInvitations, useMatchingJobs, useContractorEarnings)
+4. ContractorInboxStack expansion — add RepairChat route
+5. JobCompletion screen (referenced by ContractorJobDetails sticky CTA)
+6. Wire ProProfile portfolio_photos from portfolio_photos table
+7. Wire notification deep links (replace console.log with navigation.navigate)
 8. Performance: add staleTime/gcTime to high-frequency hooks

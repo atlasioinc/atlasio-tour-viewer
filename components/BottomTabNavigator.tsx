@@ -32,6 +32,7 @@ import ContractorInboxList from './ContractorInboxList';
 import ContractorJobDetails from './ContractorJobDetails';
 import BidSubmissionScreen from './BidSubmissionScreen';
 import ProProfile from './ProProfile';
+import ChatScreen from './ChatScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // ─────────────────────────────────────────────
@@ -84,6 +85,7 @@ const ContractorInboxStackNav = createNativeStackNavigator();
 const ContractorInboxStackScreen: React.FC = () => (
   <ContractorInboxStackNav.Navigator screenOptions={{ headerShown: false }}>
     <ContractorInboxStackNav.Screen name="ContractorInboxMain" component={ContractorInboxList} />
+    <ContractorInboxStackNav.Screen name="ChatScreen" component={ChatScreen} />
   </ContractorInboxStackNav.Navigator>
 );
 

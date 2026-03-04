@@ -295,11 +295,18 @@ const ContractorJobDetails: React.FC = () => {
       label = 'Start Work';
       onPress = () => Alert.alert('Start Work', 'Mark this job as in progress?', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Start', onPress: () => console.log('Start work') },
+        {
+          text: 'Start',
+          onPress: () => {
+            // @backend: rpc to update job status to in_progress
+            console.log('Start work:', job.id);
+            Alert.alert('Job Started', 'You can now track progress.');
+          },
+        },
       ]);
     } else if (isInProgress) {
       label = 'Mark Complete';
-      onPress = () => navigation.navigate('JobCompletion', { jobId: job.id });
+      onPress = () => navigation.navigate('JobCompletion', { jobId: job.id, userRole: 'contractor' });
     } else if (isPendingCompletion) {
       label = 'Waiting for Agent Review';
       disabled = true;
