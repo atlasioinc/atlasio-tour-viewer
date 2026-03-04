@@ -33,6 +33,8 @@ import ContractorJobDetails from './ContractorJobDetails';
 import BidSubmissionScreen from './BidSubmissionScreen';
 import ProProfile from './ProProfile';
 import ChatScreen from './ChatScreen';
+import JobTrackerTab from './JobTrackerTab';
+import JobCompletionScreen from './JobCompletionScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // ─────────────────────────────────────────────
@@ -77,7 +79,31 @@ const ContractorHomeStackScreen: React.FC = () => (
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
     />
     <ContractorHomeStackNav.Screen name="ProProfile" component={ProProfile} />
+    <ContractorHomeStackNav.Screen
+      name="JobCompletion"
+      component={JobCompletionScreen as React.ComponentType<any>}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
   </ContractorHomeStackNav.Navigator>
+);
+
+const ContractorJobsStackNav = createNativeStackNavigator();
+
+const ContractorJobsStackScreen: React.FC = () => (
+  <ContractorJobsStackNav.Navigator screenOptions={{ headerShown: false }}>
+    <ContractorJobsStackNav.Screen name="ContractorJobsMain" component={JobTrackerTab} />
+    <ContractorJobsStackNav.Screen name="ContractorJobDetails" component={ContractorJobDetails} />
+    <ContractorJobsStackNav.Screen
+      name="BidSubmission"
+      component={BidSubmissionScreen}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
+    <ContractorJobsStackNav.Screen
+      name="JobCompletion"
+      component={JobCompletionScreen as React.ComponentType<any>}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
+  </ContractorJobsStackNav.Navigator>
 );
 
 const ContractorInboxStackNav = createNativeStackNavigator();
@@ -199,6 +225,27 @@ const NetworkIcon: React.FC<{ color: string }> = ({ color }) => (
       strokeWidth={2}
       strokeLinecap="round"
     />
+  </Svg>
+);
+
+const JobsIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path d="M9 12H15" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    <Path d="M9 16H13" stroke={color} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
 
@@ -409,20 +456,35 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
           }}
         />
         
-        <Tab.Screen
-          name="Find"
-          component={FindStack}
-          options={{
-            tabBarIcon: ({ color }) => <FindIcon color={color} />,
-          }}
-        />
-        <Tab.Screen
-          name="Network"
-          component={NetworkStack}
-          options={{
-          tabBarIcon: ({ color }) => <NetworkIcon color={color} />,
-          }}
+        {/* @demo Agent-only tabs: Find + Network */}
+        {demoRole === 'agent' && (
+          <Tab.Screen
+            name="Find"
+            component={FindStack}
+            options={{
+              tabBarIcon: ({ color }) => <FindIcon color={color} />,
+            }}
           />
+        )}
+        {demoRole === 'agent' && (
+          <Tab.Screen
+            name="Network"
+            component={NetworkStack}
+            options={{
+              tabBarIcon: ({ color }) => <NetworkIcon color={color} />,
+            }}
+          />
+        )}
+        {/* @demo Contractor-only tab: Jobs */}
+        {demoRole === 'contractor' && (
+          <Tab.Screen
+            name="Jobs"
+            component={ContractorJobsStackScreen}
+            options={{
+              tabBarIcon: ({ color }) => <JobsIcon color={color} />,
+            }}
+          />
+        )}
         <Tab.Screen
           name="Inbox"
           component={InboxComponent}
@@ -448,11 +510,14 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
             ),
           }}
         />
-        <Tab.Screen name="Profile" component={ProfileStack}
-          options={{
-            tabBarIcon: ({ color }) => <ProfileIcon color={color} />,
-          }}
-        />
+        {/* @demo Profile tab — agent only for now. Contractor profile tab is future session. */}
+        {demoRole === 'agent' && (
+          <Tab.Screen name="Profile" component={ProfileStack}
+            options={{
+              tabBarIcon: ({ color }) => <ProfileIcon color={color} />,
+            }}
+          />
+        )}
       </Tab.Navigator>
     </DemoRoleContext.Provider>
   );
