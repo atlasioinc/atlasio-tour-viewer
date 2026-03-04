@@ -27,7 +27,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
@@ -39,6 +39,9 @@ import PortfolioGallery from './PortfolioGallery';
 import RequestConnectModal from './RequestConnectModal';
 import InviteToJobModal from './InviteToJobModal';
 import type { InviteContractor } from './InviteToJobModal';
+import { VerificationBanner } from './shared';
+import { useVerificationGate } from '../hooks/useVerificationGate';
+import { DisplayTag } from './DisplayTag';
 
 // ─────────────────────────────────────────────
 // EXPORTED TYPES — Reusable across app
@@ -90,6 +93,10 @@ export interface ProProfileData {
   portfolio_photos: string[];
   /** Verification level — renders badge next to name */
   verification_level?: VerificationLevel;
+  /** Whether viewed profile has a verified license */
+  license_verified?: boolean;
+  /** Whether viewed profile has uploaded insurance */
+  insurance_uploaded?: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -340,6 +347,8 @@ const ProProfile: React.FC = () => {
     !FEATURE_FLAGS.USE_MOCK_DATA && resolvedProfileId ? resolvedProfileId : '',
   );
   const sendConnectionRequest = useSendConnectionRequest();
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+  const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
   // Override hardcoded values with live data
   const is_own_profile = connectionStatus === 'self' || profile.is_own_profile;
@@ -365,6 +374,8 @@ const ProProfile: React.FC = () => {
     tags,
     portfolio_photos,
     verification_level,
+    license_verified,
+    insurance_uploaded,
   } = profile;
 
   // ── Request to Connect modal state ──
@@ -374,7 +385,13 @@ const ProProfile: React.FC = () => {
   // ── Invite to Job modal state ──
   const [inviteModalVisible, setInviteModalVisible] = useState<boolean>(false);
 
+  const [showConnectNudge, setShowConnectNudge] = useState(false);
+
   const handleRequestConnect = () => {
+    // Show social-proof nudge for unverified users (non-blocking)
+    if (!verifyLevel || verifyLevel === 'none') {
+      setShowConnectNudge(true);
+    }
     setConnectModalVisible(true);
   };
 
@@ -698,6 +715,63 @@ const ProProfile: React.FC = () => {
               </View>
             )}
 
+            {/* ── Licensed & Insured credential tags ── */}
+            {is_own_profile ? (
+              // Own profile: ghost tags for missing, solid for present
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+                {license_verified ? (
+                  <DisplayTag label="Licensed" variant="success" />
+                ) : (
+                  <DisplayTag
+                    label="+ Add License"
+                    variant="ghost"
+                    onPress={() => navigation.dispatch(
+                      CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+                    )}
+                  />
+                )}
+                {insurance_uploaded ? (
+                  <DisplayTag label="Insured" variant="success" />
+                ) : (
+                  <DisplayTag
+                    label="+ Add Insurance"
+                    variant="ghost"
+                    onPress={() => navigation.dispatch(
+                      CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+                    )}
+                  />
+                )}
+              </View>
+            ) : (
+              // Other profiles: show earned credential tags only
+              (license_verified || insurance_uploaded) && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+                  {license_verified && insurance_uploaded ? (
+                    <DisplayTag label="Licensed & Insured" variant="success" />
+                  ) : (
+                    <>
+                      {license_verified && <DisplayTag label="Licensed" variant="success" />}
+                      {insurance_uploaded && <DisplayTag label="Insured" variant="success" />}
+                    </>
+                  )}
+                </View>
+              )
+            )}
+
+            {/* ── Verification Banner (viewing others only) ── */}
+            {!is_own_profile && showVerifyBanner && !verifyBannerDismissed && (
+              <View style={{ marginTop: 4 }}>
+                <VerificationBanner
+                  level={verifyLevel}
+                  role="agent"
+                  onPress={() => navigation.dispatch(
+                    CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+                  )}
+                  onDismiss={() => setVerifyBannerDismissed(true)}
+                />
+              </View>
+            )}
+
             {/* ── CTAs ──
                 - is_own_profile → "Edit Profile" button only
                 - Job-eligible roles (Contractor, Home Stager, Real Estate Photographer):
@@ -927,6 +1001,7 @@ const ProProfile: React.FC = () => {
         company={company}
         role={role || trade}
         avatarColor={avatarColor}
+        nudgeText={showConnectNudge ? 'Verified profiles get 3x more connection accepts' : undefined}
         onClose={() => setConnectModalVisible(false)}
         onSend={handleSendConnect}
       />

@@ -28,6 +28,8 @@ interface RequestConnectModalProps {
   company: string;
   role: string;
   avatarColor?: string;
+  /** Optional nudge text shown above the message input */
+  nudgeText?: string;
   onClose: () => void;
   onSend: (message: string) => void;
 }
@@ -81,6 +83,7 @@ const RequestConnectModal: React.FC<RequestConnectModalProps> = ({
   company,
   role,
   avatarColor = '#C4A882',
+  nudgeText,
   onClose,
   onSend,
 }) => {
@@ -225,6 +228,22 @@ const RequestConnectModal: React.FC<RequestConnectModalProps> = ({
               >
                 Adding a personal note increases your chances of acceptance.
               </Text>
+
+              {/* Verification nudge (social proof) */}
+              {nudgeText && (
+                <View style={{
+                  backgroundColor: COLORS.infoBg,
+                  borderRadius: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderWidth: 0.68,
+                  borderColor: COLORS.infoBorder,
+                }}>
+                  <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '400', lineHeight: 18 }}>
+                    {nudgeText}
+                  </Text>
+                </View>
+              )}
 
               {/* Message Input */}
               <View style={{ gap: 8 }}>

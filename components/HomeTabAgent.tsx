@@ -18,12 +18,13 @@ import {
   Modal,
   Animated,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import SearchField from './SearchField';
 import SquadSlotPicker, { SquadProCandidate } from './SquadSlotPicker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { MOCK_REPAIR_JOBS, ACTIVE_REPAIR_JOBS } from './RepairJobsData';
@@ -33,6 +34,7 @@ import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useAgentJobs, useMyProfile } from '../hooks/useData';
 import { VerificationBanner } from './shared/VerificationBanner';
 import QuickActionsRow from './QuickActionsRow';
+import { useVerificationGate } from '../hooks/useVerificationGate';
 import VouchFeedSection from './VouchFeedSection';
 
 // ─────────────────────────────────────────────
@@ -349,9 +351,10 @@ const HomeTabAgent: React.FC = () => {
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
 
-  // Verification banner state
+  // Verification banner + gate
   const { data: myProfile } = useMyProfile();
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const { canPostJob } = useVerificationGate();
 
   // Live data hook (runs even in mock mode to keep cache warm)
   const { data: liveJobs } = useAgentJobs();
@@ -911,7 +914,25 @@ const HomeTabAgent: React.FC = () => {
                   {`Active Repairs (${hasActiveRepair ? activeJobs.length : 0})`}
                 </Text>
                 <Pressable
-                  onPress={() => navigation.navigate('PostJobWizard')}
+                  onPress={() => {
+                    if (!canPostJob) {
+                      Alert.alert(
+                        'Verify your account to post jobs',
+                        'To protect our community, we require account verification before posting jobs. This helps ensure quality and trust.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Get Verified',
+                            onPress: () => navigation.dispatch(
+                              CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+                            ),
+                          },
+                        ],
+                      );
+                      return;
+                    }
+                    navigation.navigate('PostJobWizard');
+                  }}
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     paddingHorizontal: 12,

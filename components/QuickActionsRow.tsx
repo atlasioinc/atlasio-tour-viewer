@@ -32,11 +32,13 @@ import {
   Text,
   Pressable,
   ScrollView,
+  Alert,
 } from 'react-native';
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS } from '../lib/tokens';
+import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -107,20 +109,43 @@ const StarMiniIcon: React.FC<{ color?: string }> = ({ color = '#FFB900' }) => (
 
 const QuickActionsRow: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const { canPostJob } = useVerificationGate();
+
+  // ── Verification gate — blocks job posting for unverified users ──
+
+  const gateJobPosting = (onAllow: () => void) => {
+    if (canPostJob) {
+      onAllow();
+      return;
+    }
+    Alert.alert(
+      'Verify your account to post jobs',
+      'To protect our community, we require account verification before posting jobs. This helps ensure quality and trust.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Get Verified',
+          onPress: () =>
+            navigation.dispatch(
+              CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+            ),
+        },
+      ],
+    );
+  };
 
   // ── Navigation handlers ──
 
   const handlePhotographerPress = () => {
-    navigation.navigate('PostPhotoJobScreen');
+    gateJobPosting(() => navigation.navigate('PostPhotoJobScreen'));
   };
 
   const handleStagingPress = () => {
-    navigation.navigate('PostStagingJobScreen');
+    gateJobPosting(() => navigation.navigate('PostStagingJobScreen'));
   };
 
   const handleRepairPress = () => {
-    // Navigate to existing PostJobWizard
-    navigation.navigate('PostJobWizard');
+    gateJobPosting(() => navigation.navigate('PostJobWizard'));
   };
 
   const handleLenderPress = () => {

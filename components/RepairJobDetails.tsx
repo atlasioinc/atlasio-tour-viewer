@@ -23,7 +23,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -35,6 +35,8 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useJob, useJobBids } from '../hooks/useData';
 import { useRealtimeBids } from '../hooks/useRealtime';
+import { VerificationBanner } from './shared';
+import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Which bid action modal is currently visible
 type BidActionModal = 'accept' | 'counter' | 'reject' | null;
@@ -516,6 +518,8 @@ const RepairJobDetails: React.FC = () => {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+  const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
   // ── Live data hooks (keep cache warm) ──
   const { data: liveJob } = useJob(route.params.job.id);
@@ -1069,6 +1073,20 @@ const RepairJobDetails: React.FC = () => {
                 onTapStep={handleTimelineStepTap}
               />
             </View>
+          </View>
+        )}
+
+        {/* ── Verification Banner ── */}
+        {showVerifyBanner && !verifyBannerDismissed && (
+          <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+            <VerificationBanner
+              level={verifyLevel}
+              role="agent"
+              onPress={() => navigation.dispatch(
+                CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+              )}
+              onDismiss={() => setVerifyBannerDismissed(true)}
+            />
           </View>
         )}
 

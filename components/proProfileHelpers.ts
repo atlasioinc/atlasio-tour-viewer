@@ -178,4 +178,6 @@ export const mapProfileToProProfileData = (
   is_own_profile: false, // TODO: compare with current user
   portfolio_photos: GALLERY_ROLES.includes(p.display_role) ? MOCK_PORTFOLIO_PHOTOS : [],
   verification_level: p.verification_level,
+  license_verified: p.license_verified,
+  insurance_uploaded: p.insurance_uploaded,
 });

@@ -35,6 +35,8 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useConnections, useConnectionRequests as useConnectionRequestsHook } from '../hooks/useData';
 import { adaptConnectionToNetworkContact, adaptConnectionToRequest } from '../lib/typeAdapters';
+import { VerificationBanner } from './shared';
+import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -435,6 +437,8 @@ const NetworkTab: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<NetworkStackParamList>>();
   const [activeTab, setActiveTab] = useState<'partners' | 'contractors'>('partners');
   const [searchText, setSearchText] = useState<string>('');
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+  const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
   const [contacts, setContacts] = useState<NetworkContact[]>(ALL_CONTACTS);
 
   // ── Connection Requests state ──
@@ -690,6 +694,20 @@ const NetworkTab: React.FC = () => {
           </Pressable>
         </View>
       </View>
+
+      {/* ── Verification Banner ── */}
+      {showVerifyBanner && !verifyBannerDismissed && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <VerificationBanner
+            level={verifyLevel}
+            role="agent"
+            onPress={() => navigation.dispatch(
+              CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+            )}
+            onDismiss={() => setVerifyBannerDismissed(true)}
+          />
+        </View>
+      )}
 
       {/* ══════════════════════════════════════════
           SCROLLABLE CONTENT

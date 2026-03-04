@@ -18,7 +18,7 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Line } from 'react-native-svg';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -28,6 +28,8 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useChatThreads } from '../hooks/useData';
 import { adaptChatThreadToLocal } from '../lib/typeAdapters';
+import { VerificationBanner } from './shared';
+import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -443,6 +445,8 @@ const InboxList: React.FC = () => {
   const navigation = useNavigation<InboxNavProp>();
   const [searchText, setSearchText] = useState('');
   const [threads, setThreads] = useState<ChatThread[]>(INITIAL_THREADS);
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+  const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
   // ── Live data hook (keeps cache warm) ──
   const { data: liveThreads } = useChatThreads();
@@ -530,6 +534,20 @@ const InboxList: React.FC = () => {
             />
           </View>
         </View>
+
+        {/* ── Verification Banner ── */}
+        {showVerifyBanner && !verifyBannerDismissed && (
+          <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+            <VerificationBanner
+              level={verifyLevel}
+              role="agent"
+              onPress={() => navigation.dispatch(
+                CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+              )}
+              onDismiss={() => setVerifyBannerDismissed(true)}
+            />
+          </View>
+        )}
 
         {/* Thread List */}
         <ScrollView

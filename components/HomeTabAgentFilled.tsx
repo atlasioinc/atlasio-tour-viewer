@@ -15,11 +15,12 @@ import {
   Platform,
   TextInput,
   FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import SearchField from './SearchField';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { MOCK_REPAIR_JOBS } from './RepairJobsData';
@@ -27,6 +28,7 @@ import RepairCard from './RepairCard';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useAgentJobs } from '../hooks/useData';
+import { useVerificationGate } from '../hooks/useVerificationGate';
 
 
 // ─────────────────────────────────────────────
@@ -555,6 +557,7 @@ const HomeTabAgentFilled: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const { canPostJob } = useVerificationGate();
 
   // Filter vouch cards by active tab
   const filteredVouches =
@@ -958,7 +961,25 @@ const HomeTabAgentFilled: React.FC = () => {
                   {`Active Repairs (${hasActiveRepair ? activeJobs.length : 0})`}
                 </Text>
                 <Pressable
-                  onPress={() => navigation.navigate('PostJobWizard')}
+                  onPress={() => {
+                    if (!canPostJob) {
+                      Alert.alert(
+                        'Verify your account to post jobs',
+                        'To protect our community, we require account verification before posting jobs. This helps ensure quality and trust.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Get Verified',
+                            onPress: () => navigation.dispatch(
+                              CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+                            ),
+                          },
+                        ],
+                      );
+                      return;
+                    }
+                    navigation.navigate('PostJobWizard');
+                  }}
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     paddingHorizontal: 12,
