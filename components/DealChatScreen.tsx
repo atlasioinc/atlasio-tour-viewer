@@ -1,10 +1,18 @@
 // DealChatScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Deal Chat Screen — Group conversation for transaction coordination
+// Deal Chat Screen — Group conversation for transaction coordination (612 lines)
 // Header: "< Inbox" + group avatar grid + deal name
 // Info bar: Property address + closing date (blue banner)
 // Body: System message + message bubbles with sender names/avatars
 // Footer: Attach + message input + send
+//
+// Sections: Design Tokens, SVG Icons, Route Type,
+//           Group Avatar Grid, Mock Data, Main Screen
+//
+// @demo  MOCK_DEAL_MESSAGES (7 messages from 3 participants)
+//        Fully mock — no hooks wired, no feature flag gate
+// @backend TODO: useMessages + useSendMessage (deal thread variant)
+// @backend TODO: Realtime subscription for group messages
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -126,7 +134,7 @@ const GroupAvatarGrid: React.FC<{ colors: string[] }> = ({ colors }) => {
 };
 
 // ─────────────────────────────────────────────
-// MOCK DATA
+// @demo MOCK DATA — 7 deal chat messages from 3 participants
 // ─────────────────────────────────────────────
 
 const MOCK_DEAL_MESSAGES: Message[] = [

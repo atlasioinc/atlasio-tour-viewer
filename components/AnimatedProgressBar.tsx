@@ -1,7 +1,9 @@
 // AnimatedProgressBar.tsx
 // ═══════════════════════════════════════════════════════════════
-// Shared animated progress bar for onboarding flow.
-// Animates from the previous step to the current step on mount.
+// Shared animated progress bar for onboarding flow (91 lines)
+// Props: { currentStep, totalSteps } — animates width on mount
+// Used by all onboarding screens (supports dynamic 5/6 totals)
+// @demo none  @backend none — pure UI component
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useEffect, useRef } from 'react';

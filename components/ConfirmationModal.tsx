@@ -1,6 +1,6 @@
 // ConfirmationModal.tsx
 // ═══════════════════════════════════════════════════════════════
-// Shared Confirmation Modal — Atlasio
+// Shared Confirmation Modal (196 lines)
 //
 // Reusable success/confirmation dialog used across all flows:
 //   PostJobWizard, InviteToJobModal, RequestConnect, etc.

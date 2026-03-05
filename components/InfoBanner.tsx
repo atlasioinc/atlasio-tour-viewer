@@ -1,6 +1,6 @@
 // InfoBanner.tsx
 // ═══════════════════════════════════════════════════════════════
-// Info Banner — Atlasio Design System
+// Info Banner — Atlasio Design System (95 lines)
 // Light blue callout used for contextual info, next-step
 // guidance, and confirmation details across modals and screens.
 //

@@ -1,29 +1,26 @@
-// PostStagingJobScreen.tsx
 // ═══════════════════════════════════════════════════════════════
+// components/PostStagingJobScreen.tsx
 // Post Staging Job — Single-screen lightweight job posting
 //
-// Entry point: QuickActionsRow → "Stage to Sell" card
+// Entry point: HomeTab → QuickActionsRow → "Stage to Sell" card
+// Agent-only screen — home stagers bid on these jobs.
 //
 // Fields:
-//   - Property address (text input)
+//   - Property address (text input) *required
 //   - Approx square footage (number input)
-//   - Occupied or Vacant (toggle)
-//   - Number of rooms to stage (stepper)
-//   - Staging scope (multi-select: Full Stage, Partial, Consultation, Virtual)
-//   - Timeline (single-select chips)
-//   - Special instructions (optional text area)
+//   - Occupied or Vacant (toggle, default: Vacant)
+//   - Number of rooms to stage (stepper, 1–15, default: 3)
+//   - Staging scope (multi-select: Full Stage, Partial, Consultation, Virtual) *required
+//   - Timeline (single-select chips: 1 week, 2 weeks, 1 month, Flexible)
+//   - Special instructions (optional text area, 500 char max)
 //
-// Architecture:
-//   - Submits to same `jobs` table as repair/photography, with job_type = 'staging'
-//   - Same bids table, same RPCs, same 3% fee model
-//   - After submission: navigates to job detail screen to watch bids come in
+// Validation: address required, at least one scope selected
 //
-// Backend wiring:
-//   Current: console.log + mock delay + navigation
-//   Wire to: supabase.rpc('rpc_create_job', {
-//     job_type: 'staging',
-//     address, sqft, occupied_or_vacant, rooms_count, staging_scope, due_date, notes
-//   })
+// @demo: handleSubmit uses 800ms setTimeout + console.log + Alert.
+//        No real job ID returned — "View Job" just calls goBack().
+// @backend: will wire to useCreateJob → supabase.rpc('rpc_create_job')
+//           Payload: job_type='staging', address, sqft, occupied_or_vacant,
+//           rooms_count, staging_scope, due_date, notes
 //
 // Platform fee: 3% captured on bid accept (same as repair/photography)
 // ═══════════════════════════════════════════════════════════════
@@ -164,7 +161,8 @@ const PostStagingJobScreen: React.FC = () => {
 
     setIsSubmitting(true);
 
-    // 🔌 Wire to: supabase.rpc('rpc_create_job', { ... })
+    // @backend TODO: wire to useCreateJob → supabase.rpc('rpc_create_job')
+    // @demo Current: mock delay + console.log
     console.log('🪑 Submitting staging job:', {
       job_type: 'staging',
       address: address.trim(),
@@ -187,7 +185,8 @@ const PostStagingJobScreen: React.FC = () => {
         {
           text: 'View Job',
           onPress: () => {
-            // 🔌 Wire to: navigation.navigate('RepairJobDetails', { jobId: newJob.id })
+            // @backend TODO: navigation.navigate('RepairJobDetails', { jobId: newJob.id })
+            // @demo For now, just go back (no real jobId available)
             navigation.goBack();
           },
         },

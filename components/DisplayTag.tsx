@@ -1,8 +1,11 @@
 // DisplayTag.tsx
 // ═══════════════════════════════════════════════════════════════
-// Shared Display Tag — Read-only tag pills for profiles and cards
+// Shared Display Tag — Read-only tag pills for profiles and cards (274 lines)
+// Exports: DisplayTag, DisplayTagRow, StatPill
 // Ghost variant is tappable (for own-profile "Add" actions).
-// Import: import { DisplayTag, DisplayTagRow, StatPill } from './DisplayTag';
+//
+// @demo  No mock data — pure UI component
+// @backend none — stateless presenter
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

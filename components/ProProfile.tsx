@@ -1,6 +1,6 @@
 // ProProfile.tsx
 // ═══════════════════════════════════════════════════════════════
-// Pro Profile Screen — Reusable for Contractors, Partners, etc.
+// Pro Profile Screen — Reusable for all roles (1028 lines)
 // Navigated from: FindTab cards, NetworkTab contacts, bid cards
 // Conditional rendering:
 //   - is_own_profile: shows "Edit Profile" gear, hides CTAs
@@ -13,6 +13,9 @@
 // Session 9: Dual-param navigation — accepts profileId (preferred,
 // fetches via useProfile hook) or profile object (legacy mappers).
 // Vouch feed passes profileId → real data fetched on mount.
+//
+// @backend useProfile (wired) — profiles.id = profileId
+// @demo  Mock fallback in useProfile if Supabase fails
 // FindTab/NetworkTab still pass full profile object via mappers.
 // ═══════════════════════════════════════════════════════════════
 

@@ -1,11 +1,14 @@
 // CreateDealChat.tsx
 // ═══════════════════════════════════════════════════════════════
-// Create New Deal Chat — Single screen
+// Create New Deal Chat — Single screen (592 lines)
 // Header: Back + title + search field for closing partners
 // Body: Deal name (required), Property Address, Closing Date,
 //       info banner, selected participant chips
 // Footer: "Create Chat" button (disabled until name entered)
 // Searching shows contact list overlay in body area
+//
+// @demo  Mock contacts list, console.log on create
+// @backend TODO: rpc_create_deal_thread — create thread + add participants
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useRef } from 'react';

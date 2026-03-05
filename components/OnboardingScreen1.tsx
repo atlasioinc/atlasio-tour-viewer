@@ -1,21 +1,22 @@
 // OnboardingScreen1.tsx
 // ═══════════════════════════════════════════════════════════════
-// Onboarding Screen 1 of 4 — "Welcome to Atlasio"
-// Pixel-matched to Figma Dev Mode export
+// Onboarding Step 1 of 5 — "Welcome to Atlasio" (418 lines)
+// Splash screen with 3 benefit cards, "Get Started" CTA
 //
-// DEPENDENCIES:
-//   expo-linear-gradient
-//   expo-blur
-//   react-native-svg
-//   react-native-safe-area-context
+// Flow: App launch → OnboardingScreen1 → OnboardingRoleSelect
+// Progress bar: 1/5 (agent/partner) or 1/6 (contractor, after role branch)
 //
-// FIGMA SPEC REFERENCE:
-//   Frame: 393px wide (iPhone 14/15 viewport)
-//   Font: Inter (body/cards), Radio Canada Big (logo)
-//   Primary: #003DC3 | Gradient: #003DC3 → #0052FF
-//   Card bg: #F7F7FC | Body text: #4A5565 | Step text: #6A7282
-//   Progress track: #E5E7EB
-//   Icon gradient: #E8F0FE → #C2DBFF (135deg)
+// Uses LOCAL COLORS object (not lib/tokens.ts) — all onboarding screens
+// share this pattern for self-contained theming.
+//
+// Sections: Design Tokens, SVG Icons, Gradient Icon Box,
+//           Benefit Card Data, Benefit Card Component, Main Component
+//
+// @demo  No mock data — static UI
+// @backend none (no auth or data fetching on this screen)
+//
+// Figma spec: 393px frame, Inter + Radio Canada Big,
+//   Primary #003DC3, Gradient → #0052FF, Card bg #F7F7FC
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

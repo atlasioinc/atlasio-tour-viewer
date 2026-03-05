@@ -1,8 +1,17 @@
 // HomeTabAgent.tsx
 // ═══════════════════════════════════════════════════════════════
-// Home Tab — Agent View
+// Home Tab — Agent View (empty-state variant, 1211 lines)
 // Main dashboard after onboarding completion
-// Sections: Top Bar, Closing Squad, Quick Actions, Active Repairs, Vouch Feed
+// Sections: SVG Icons, Squad Slot Data, Quick Actions, Avatar, Main Component
+//
+// Layout: Top Bar → Closing Squad (4 slots) → Quick Actions (3 cards)
+//         → Active Repairs (RepairCard list) → Vouch Feed
+//
+// @demo  Squad slots + quick actions = local constants
+// @demo  Active repairs from RepairJobsData (ACTIVE_REPAIR_JOBS)
+//        Feature flag gate: FEATURE_FLAGS.USE_MOCK_DATA
+// @backend useAgentJobs (wired) — jobs.agent_id = auth.uid()
+// @backend useMyProfile (wired) — profiles.id = auth.uid()
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -228,7 +237,7 @@ const PostJobWrenchIcon: React.FC = () => (
 );
 
 // ─────────────────────────────────────────────
-// SQUAD SLOT DATA
+// @demo SQUAD SLOT DATA — static mock slots
 // ─────────────────────────────────────────────
 
 interface SquadSlot {

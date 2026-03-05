@@ -1,15 +1,31 @@
-// PostJobWizard.tsx
 // ═══════════════════════════════════════════════════════════════
-// Post New Job — 3-Step Wizard (Agent View)
+// components/PostJobWizard.tsx
+// Post Repair Job — 3-Step Wizard (Agent View)
 //
-// Step 1: Basics — Job title*, address, due date, budget range
-// Step 2: Details — Description*, photos, trade(s)*, bid window, invite toggle
-// Step 3: Review & Post — Summary card, info banner, post action
+// Entry point: HomeTab → QuickActionsRow → "Repair & Maintenance" card
+// Agent-only screen — contractors never see this.
+//
+// ─────────────────────────────────────────────
+// STEP FLOW:
+//   Step 1: Basics   — Job title*, address, due date, budget range
+//   Step 2: Details  — Description*, photos, trade(s)*, bid window, invite toggle
+//   Step 3: Review   — Summary card, info banner, post action
+//
+//   Validation gates: Step 1 requires title + address
+//                     Step 2 requires description + ≥1 trade
+//                     Step 3 always valid (review only)
+// ─────────────────────────────────────────────
 //
 // FIGMA STRUCTURE (all 3 steps):
 //   Header (61px): Back chevron | centered title 18/600/#003DC3 | progress bar
 //   Body (#F7F7FC): subtitle 16/600/#666 + step indicator 14/400/#666 → form
 //   Footer (81px): Primary button 48px r8 #003DC3, text 14/500/white
+//
+// @demo: handlePostJob uses 600ms setTimeout + mock ID generation.
+//        See TODO block for TanStack Query wiring target.
+// @backend: will wire to useCreateJob → supabase.rpc('rpc_create_job')
+//           Payload: job_type='repair', title, address, due_date,
+//           budget_min/max (cents), description, trades, bid_window_hours
 //
 // ARCHITECTURE: Single parent component, local state, inline steps.
 // PATTERN MATCHES: EditRepairJob, CreateDealChat, OnboardingScreen1
@@ -835,7 +851,7 @@ const PostJobWizard: React.FC = () => {
     };
     console.log('🚀 Post Job payload:', JSON.stringify(payload, null, 2));
 
-    // TODO: TanStack Query mutation → Supabase
+    // @backend TODO: TanStack Query mutation → useCreateJob (hooks/useData.ts)
     // mutatePostJob(payload, {
     //   onSuccess: (job) => {
     //     setNewJobId(job.id);
@@ -844,7 +860,7 @@ const PostJobWizard: React.FC = () => {
     //   },
     // });
 
-    // Simulated delay for demo — generate mock ID
+    // @demo Simulated delay for demo — generate mock ID
     setTimeout(() => {
       setNewJobId(`job_${Date.now()}`);
       setIsSubmitting(false);

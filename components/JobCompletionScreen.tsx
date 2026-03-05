@@ -1,15 +1,29 @@
-// JobCompletionScreen.tsx
 // ═══════════════════════════════════════════════════════════════
+// components/JobCompletionScreen.tsx
 // Job Completion — Shared Screen (Contractor + Agent Views)
+//
 // Two-sided handshake: contractor marks complete → agent confirms.
 // Role-conditional behavior controlled by `userRole` nav param.
 //
-// Contractor View: upload proof photos, add notes, "Mark Complete"
-// Agent View: review proof + notes, "Confirm Complete" or "Request Revision"
+// ─────────────────────────────────────────────
+// ROLE BRANCHING:
+//   Contractor: upload proof photos, add notes → "Mark Complete"
+//               status: in_progress → pending_confirmation
+//   Agent:      review proof + notes → "Confirm Complete" or "Request Revision"
+//               status: pending_confirmation → completed | under_review
+//   Both:       VouchPromptModal fires after agent confirms (mutual vouch)
+// ─────────────────────────────────────────────
 //
-// Triggers: 3% fee capture, mutual vouch prompts, deals_closed stat
-// Stack: HomeStack (agent) + ContractorJobStack (future)
+// Triggers on completion: 3% fee capture, mutual vouch prompts, deals_closed stat
+// Stack: HomeStack (agent) + ContractorHomeStack (contractor)
 // Presentation: fullScreenModal, slide_from_bottom
+//
+// @demo: all 3 handlers (markComplete, confirmComplete, requestRevision)
+//        use 800ms setTimeout — no backend calls. Mock data for job/photos.
+//        DEV role toggle at bottom of screen for testing both views.
+// @backend TODO: wire to useMarkJobComplete, useConfirmJobComplete,
+//                useRequestJobRevision (all exist in useData.ts)
+// @backend TODO: wire vouch submit to useCreateReview mutation (not yet in useData.ts)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -85,7 +99,7 @@ interface JobCompletionScreenProps {
 }
 
 // ─────────────────────────────────────────────
-// MOCK DATA
+// @demo MOCK DATA — replace with useJob(jobId) hook
 // ─────────────────────────────────────────────
 
 const MOCK_JOB: CompletionJobData = {
@@ -471,7 +485,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
   const isContractor = userRole === 'contractor';
   const isAgent = userRole === 'agent';
 
-  // ── Job data (mock fallback — future: TanStack Query hook) ──
+  // @demo Job data (mock fallback) — @backend TODO: wire to useJob(jobId)
   // Agent sees the pending version (contractor already submitted)
   const [job, setJob] = useState<CompletionJobData>(
     isAgent ? MOCK_JOB_PENDING : MOCK_JOB
@@ -628,6 +642,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
   );
 
   // ── CONTRACTOR: Mark Complete ──
+  // @backend TODO: wire to useMarkJobComplete(jobId, proofPhotos, completionNotes)
   const handleMarkComplete = useCallback(() => {
     Keyboard.dismiss();
 
@@ -654,6 +669,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
   }, [proofPhotos, completionNotes, showSuccessOverlay]);
 
   // ── AGENT: Confirm Complete ──
+  // @backend TODO: wire to useConfirmJobComplete(jobId)
   const handleConfirmComplete = useCallback(() => {
     Alert.alert(
       'Confirm Job Complete',
@@ -686,6 +702,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
   }, [job, showSuccessOverlay]);
 
   // ── AGENT: Request Revision ──
+  // @backend TODO: wire to useRequestJobRevision(jobId, revisionNotes)
   const handleRequestRevision = useCallback(() => {
     if (!showRevisionInput) {
       setShowRevisionInput(true);
@@ -712,7 +729,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
     (data: { rating: number; comment: string; tags: string[]; isVouch: boolean; isAnonymous?: boolean }) => {
       console.log('Vouch submitted:', data);
       setShowVouchModal(false);
-      // Future: create review + vouch rows via TanStack mutation
+      // @backend TODO: create review + vouch rows via TanStack mutation
     },
     []
   );

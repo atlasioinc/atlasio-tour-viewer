@@ -1,8 +1,14 @@
 // OnboardingScreen4.tsx
 // ═══════════════════════════════════════════════════════════════
-// Onboarding Screen 4 of 5 — "Verify Credentials"
+// Onboarding Step 4 of 5 — "Verify Credentials" (667 lines)
 // Document upload screen with optional file uploads and notes
-// Agent/Partner path only — contractors use dedicated flow
+// Agent/Partner path only — contractors use ContractorDetailsStep
+//
+// Flow: OnboardingScreen3 → HERE → OnboardingComplete
+// Receives formData via route params, passes forward
+//
+// @demo  No mock data — form collects user input
+// @backend none (data accumulated in route params, persisted at OnboardingComplete)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef } from 'react';

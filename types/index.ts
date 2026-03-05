@@ -1,15 +1,37 @@
-// types/index.ts
 // ═══════════════════════════════════════════════════════════════
+// types/index.ts
 // Shared Type Definitions — Single Source of Truth
-// Every entity maps 1:1 to a Supabase table or view.
-// Import from here instead of defining interfaces in screen files.
 //
-// Composite types (BidWithProfile, ChatThreadView, ProProfileData)
-// extend base interfaces with joined/derived fields for UI use.
+// Every interface maps to one of three categories:
+//
+//   1:1 TABLE     — mirrors a Supabase table exactly
+//                   Profile, PerformanceStats, Vouch, VouchLike, Connection,
+//                   Squad, SquadMember, Bid, Job, Review, ChatThread,
+//                   ThreadMember, Message, Notification, Report, PushToken,
+//                   BlockedUser, JobInvitation
+//
+//   COMPOSITE     — joins multiple tables for UI display
+//                   BidWithProfile (bids + profiles)
+//                   ChatThreadView (threads + members + presence)
+//                   ProProfileData (profiles + stats + vouches + connections)
+//                   ContractorJobDetail (jobs + agent profile + contractor bid)
+//                   NetworkContact (profiles + connections)
+//
+//   FRONTEND-ONLY — exist only in the app, no Supabase counterpart
+//                   VouchEntry (compact vouch for profile cards)
+//                   Recipient (chat compose picker)
+//                   NetworkContractor (invite modal subset)
+//
+// ENUMS (12) — match Supabase CREATE TYPE definitions exactly
+// NAV PARAMS — centralized stack param types for all navigators
+//
+// Import from here instead of defining interfaces in screen files.
 //
 // Supabase auto-generation:
 //   npx supabase gen types typescript --project-id YOUR_ID > types/supabase.ts
 //   Then re-export cleaned versions here.
+//
+// @backend: all 1:1 and composite types reference sql/schema.sql tables
 // ═══════════════════════════════════════════════════════════════
 
 import type { TagValue } from '../components/tagEnums';

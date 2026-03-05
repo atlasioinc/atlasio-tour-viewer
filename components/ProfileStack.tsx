@@ -1,6 +1,6 @@
 // ProfileStack.tsx
 // ═══════════════════════════════════════════════════════════════
-// Profile Stack Navigator
+// Profile Stack Navigator (79 lines)
 // Screens:
 //   ProfileMain (ProfileTab) — own profile view
 //   EditProfile (fullScreenModal) — edit profile form

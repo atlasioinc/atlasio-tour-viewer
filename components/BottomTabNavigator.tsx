@@ -1,12 +1,36 @@
-// BottomTabNavigator.tsx
 // ═══════════════════════════════════════════════════════════════
-// Bottom Tab Navigation — visible on all main app screens
-// Tabs: Home, Find, Network, Inbox, Profile
+// components/BottomTabNavigator.tsx
+// Bottom Tab Navigation — role-branching tab bar for main app
+//
+// Receives { role } via route params from App.tsx after auth.
+// Renders different tab configurations based on user role.
+//
+// ─────────────────────────────────────────────
+// TAB LAYOUT BY ROLE:
+//   Agent:      Home | Find | Network | Inbox | Profile
+//   Contractor: Home | Jobs | Inbox
+//
+//   Home     — agent: HomeStack (repair jobs, posting)
+//              contractor: ContractorHomeStackScreen (job feed, bid)
+//   Find     — agent only: FindStack (search pros)
+//   Network  — agent only: NetworkStack (connections, squads)
+//   Jobs     — contractor only: ContractorJobsStackScreen (job tracker)
+//   Inbox    — agent: InboxStack (chat threads)
+//              contractor: ContractorInboxStackScreen (chat)
+//   Profile  — agent only (contractor profile is future session)
+// ─────────────────────────────────────────────
+//
+// TAB BAR HIDING:
+//   Certain nested screens (e.g., SendSquad) hide the tab bar.
+//   Uses getFocusedRouteNameFromRoute() to detect nested route.
 //
 // @demo ROLE TOGGLE — Long-press (1s) on Inbox tab icon to switch
 //       between Agent and Contractor views. Swaps Home + Inbox screens.
 //       Remove DemoRoleContext, DemoRoleProvider, and all @demo blocks
 //       when wiring to real auth role from Supabase profiles table.
+//
+// @backend: supabase.auth.getUser() for realtime subscription userId
+// @backend: useRealtimeNotifications keeps notification cache fresh
 // ═══════════════════════════════════════════════════════════════
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';

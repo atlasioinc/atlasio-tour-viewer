@@ -1,9 +1,26 @@
-// components/LoginScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Login Screen — Magic Link Authentication
+// LoginScreen.tsx (225 lines)
+// Auth — rendered when authState === 'unauthenticated' (outside NavigationContainer)
 //
-// Simple email-based login using Supabase Auth magic links.
-// User enters email → receives a magic link → taps to sign in.
+// Magic link login screen. No password — user enters email, receives
+// a magic link, taps it to open the app and authenticate.
+//
+// Key behaviors:
+// - Calls supabase.auth.signInWithOtp with emailRedirectTo: atlasio://login-callback
+// - After send: shows "Check your email" confirmation with retry option
+// - Deep link handling is in App.tsx (expo-linking URL listener)
+// - On successful auth, App.tsx onAuthStateChange routes to onboarding or MainApp
+//
+// ─────────────────────────────────────────────────
+// STATE FLOW:
+// 1. User enters email → taps "Send Magic Link"
+// 2. signInWithOtp sends email with magic link pointing to atlasio://login-callback
+// 3. UI flips to "Check your email" confirmation
+// 4. User taps magic link in email → app opens → App.tsx deep link handler fires
+// 5. Token extracted → supabase.auth.setSession() → onAuthStateChange → routing
+// ─────────────────────────────────────────────────
+//
+// @backend: supabase.auth.signInWithOtp({ email, emailRedirectTo })
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -117,6 +134,9 @@ export default function LoginScreen() {
   );
 }
 
+// ─────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,

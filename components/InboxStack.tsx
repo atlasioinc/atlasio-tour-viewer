@@ -1,6 +1,6 @@
 // InboxStack.tsx
 // ═══════════════════════════════════════════════════════════════
-// Inbox Stack Navigator
+// Inbox Stack Navigator (75 lines)
 // Screens:
 //   InboxList → NewMessage → ChatScreen (1:1 flow)
 //   InboxList → NewMessage → CreateDealChat (deal setup)

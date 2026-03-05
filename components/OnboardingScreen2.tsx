@@ -1,6 +1,11 @@
 // OnboardingScreen2.tsx
 // ═══════════════════════════════════════════════════════════════
-// Onboarding Screen 2 of 4 — "Connect Instantly"
+// RETIRED — Route removed in Session 25, file preserved (453 lines)
+// Originally Onboarding Screen 2 of 4 — "Connect Instantly"
+// Replaced by OnboardingRoleSelect.tsx in the new 5/6-step flow
+//
+// @demo  Entire file is dead code — not in nav stack
+// @backend none
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

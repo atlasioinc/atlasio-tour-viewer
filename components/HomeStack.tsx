@@ -1,6 +1,6 @@
 // HomeStack.tsx
 // ═══════════════════════════════════════════════════════════════
-// Home Stack Navigator
+// Home Stack Navigator (128 lines)
 // Screens:
 //   HomeTabAgent → RepairJobDetails (drill into a repair job)
 //   HomeTabAgent → Notifications (bell icon)

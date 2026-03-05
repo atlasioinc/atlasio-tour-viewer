@@ -1,11 +1,22 @@
 // NetworkTab.tsx
 // ═══════════════════════════════════════════════════════════════
-// Network Tab — Agent View
+// Network Tab — Agent View (1073 lines)
 // View and manage your professional network
 // Two tabs: Closing Partners (grouped by role) & Contractors (grouped by trade)
 // Features: search, message button, invite to job
 // Connection Requests — bottom sheet behind header icon (Session 17)
 // Squad toggle removed (Session 21) — squad management lives on HomeTab
+//
+// Sections: SVG Icons, Connection Request Types & Mock Data,
+//           Network Contact Data, Mock Data (Partners + Contractors),
+//           Avatar, Connection Request Card, Network Pro Card,
+//           Main Component
+//
+// @demo  MOCK_CONNECTION_REQUESTS, MOCK_CLOSING_PARTNERS, MOCK_CONTRACTORS
+//        Feature flag gate: FEATURE_FLAGS.USE_MOCK_DATA
+// @backend useConnections (wired) — connections joined with profiles
+// @backend useConnectionRequests (wired) — pending incoming requests
+// @backend TODO: accept/decline mutations — rpc_accept/reject_connection_request
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
@@ -83,7 +94,8 @@ const XSmallIcon: React.FC = () => (
 );
 
 // ─────────────────────────────────────────────
-// CONNECTION REQUEST TYPES & MOCK DATA
+// @demo CONNECTION REQUEST TYPES & MOCK DATA
+// @backend useConnectionRequests (wired with feature flag gate)
 // ─────────────────────────────────────────────
 
 /**
@@ -170,8 +182,9 @@ interface NetworkContact {
 }
 
 // ─────────────────────────────────────────────
-// MOCK DATA — Closing Partners
+// @demo MOCK DATA — Closing Partners
 // Tags use standardized enums from tagEnums.ts
+// @backend Replace with useConnections (wired with feature flag gate)
 // ─────────────────────────────────────────────
 
 const PARTNERS: NetworkContact[] = [
@@ -204,7 +217,7 @@ const PARTNERS: NetworkContact[] = [
 ];
 
 // ─────────────────────────────────────────────
-// MOCK DATA — Contractors
+// @demo MOCK DATA — Contractors
 // Tags use standardized enums from tagEnums.ts
 // ─────────────────────────────────────────────
 

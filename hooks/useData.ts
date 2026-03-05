@@ -1,15 +1,47 @@
-// hooks/useData.ts
 // ═══════════════════════════════════════════════════════════════
+// hooks/useData.ts
 // Data Hooks — TanStack Query wrappers for all Supabase queries
 //
-// Each hook provides: { data, isLoading, error, refetch }
-// Each mutation provides: { mutate, mutateAsync, isPending }
+// Every screen fetches data through hooks exported from this file.
+// Screens never call Supabase directly — this is the data boundary.
 //
-// CURRENT STATE: Returns mock data (no Supabase calls yet)
-// TO ACTIVATE: Uncomment the Supabase query, remove mock fallback
+// Each useQuery hook provides:  { data, isLoading, error, refetch }
+// Each useMutation hook provides: { mutate, mutateAsync, isPending }
 //
-// This pattern means screens don't change at all when we
-// switch from mock → real data. They just call the same hook.
+// ─────────────────────────────────────────────
+// WIRING STATUS:
+//   All hooks follow the "wired with mock fallback" pattern:
+//   try { Supabase call } catch { console.warn + mock fallback }
+//   This means the demo app never breaks, even without Supabase.
+//   See CLAUDE.md § Backend Wiring Pattern for the canonical form.
+//
+//   STATUS annotations on each hook:
+//     wired   — Supabase call implemented, mock fallback preserved
+//     mock    — placeholder only, no Supabase call yet
+//
+//   @demo: all catch blocks contain mock fallbacks (TODO: [PRODUCTION])
+//   @backend: Supabase tables + RPCs referenced throughout
+// ─────────────────────────────────────────────
+//
+// HOOK CATALOG (49 hooks, 11 sections):
+//   QUERY KEYS           — centralized cache keys for invalidation
+//   PROFILE (5)          — useMyProfile, useProfile, useUpdateProfile,
+//                          useConnectionStatus, useProfileVouches
+//   NETWORK (9)          — useNetworkContacts, useConnections, useConnectionRequests,
+//                          useConnectionRequestCount, useConnectedPros, useToggleSquad,
+//                          useSendConnectionRequest, useAcceptConnection, useDeclineConnection
+//   REPAIR JOBS (13)     — useAgentJobs, useJobs, useJob, useJobBids,
+//                          useAcceptBid, useCounterBid, useRejectBid,
+//                          useMarkJobComplete, useConfirmJobComplete, useRequestJobRevision,
+//                          useCreateJob, useUpdateJob, useInviteContractors
+//   VOUCH FEED (2)       — useVouchFeed, useLikeVouch
+//   CHAT / INBOX (6)     — useChatThreads, useMarkThreadRead, useChatRecipients,
+//                          useCreateThread, useMessages, useSendMessage
+//   NOTIFICATIONS (3)    — useNotifications, useMarkNotificationsRead, useUnreadNotificationCount
+//   FIND / SEARCH (4)    — useSearchPros, useFindPros, useRecommendedPros, useTrendingPros
+//   SQUADS (3)           — useSquadMembers, useAssignSquadMember, useRemoveSquadMember
+//   CONTRACTOR JOBS (3)  — useContractorJobDetails, useSubmitBid, useRespondToCounter
+//   ONBOARDING (1)       — useCompleteOnboarding
 // ═══════════════════════════════════════════════════════════════
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -90,6 +122,7 @@ export const queryKeys = {
 
 // ═══════════════════════════════════════════════════════════════
 // PROFILE HOOKS
+// @backend: profiles table, connections table, vouches table
 // ═══════════════════════════════════════════════════════════════
 
 
@@ -282,6 +315,7 @@ export const useProfileVouches = (profileId: string) => {
 
 // ═══════════════════════════════════════════════════════════════
 // NETWORK HOOKS
+// @backend: connections table, rpc_accept_connection, rpc_reject_connection
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -561,6 +595,10 @@ export const useDeclineConnection = () => {
 
 // ═══════════════════════════════════════════════════════════════
 // REPAIR JOB HOOKS
+// @backend: jobs table, bids table, job_invitations table
+// RPCs: rpc_accept_bid, rpc_counter_bid, rpc_reject_bid,
+//       rpc_mark_complete, rpc_confirm_complete, rpc_request_revision,
+//       rpc_create_job, append_invited_contractors
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -988,6 +1026,7 @@ export const useInviteContractors = () => {
 
 // ═══════════════════════════════════════════════════════════════
 // VOUCH FEED HOOKS
+// @backend: vouches table, vouch_likes table, update_vouch_like_count RPC
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -1067,6 +1106,7 @@ export const useLikeVouch = () => {
 
 // ═══════════════════════════════════════════════════════════════
 // CHAT / INBOX HOOKS
+// @backend: threads table, thread_members table, messages table, rpc_create_thread
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -1300,6 +1340,7 @@ export const useSendMessage = () => {
 
 // ═══════════════════════════════════════════════════════════════
 // NOTIFICATION HOOKS
+// @backend: notifications table
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -1388,6 +1429,7 @@ export const useUnreadNotificationCount = () => {
 
 // ═══════════════════════════════════════════════════════════════
 // FIND / SEARCH HOOKS
+// @backend: profiles table (filtered by role, visibility, search text)
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -1510,6 +1552,7 @@ export const useTrendingPros = () => {
 
 // ═══════════════════════════════════════════════════════════════
 // SQUAD HOOKS
+// @backend: squad_members table (with profile join)
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -1599,6 +1642,8 @@ export const useRemoveSquadMember = () => {
 
 // ═══════════════════════════════════════════════════════════════
 // CONTRACTOR JOB DETAILS
+// @backend: jobs table, bids table (contractor-side views)
+// RPCs (not yet wired): rpc_submit_bid, rpc_respond_to_counter
 // ═══════════════════════════════════════════════════════════════
 
 /**

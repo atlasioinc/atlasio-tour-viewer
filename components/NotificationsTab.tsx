@@ -1,12 +1,14 @@
 // NotificationsTab.tsx
 // ═══════════════════════════════════════════════════════════════
-// Notifications Tab — Agent View
+// Notifications Tab — Agent View (735 lines)
 // Grouped by date (Today, Yesterday, Earlier)
 // Notification types: connection_request, vouch_received,
 //   bid_new, bid_accepted, bid_countered, bid_rejected,
 //   job_expired, mention, message_new
 // Unread indicators: blue left border (3.44px)
-// Production-ready: structured for TanStack Query + Supabase
+//
+// @demo  Mock notifications array, grouped by date
+// @backend TODO: useNotifications() — notifications table + date grouping
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useCallback, useMemo } from 'react';

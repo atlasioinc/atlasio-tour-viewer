@@ -1,8 +1,8 @@
 // VerificationBadge.tsx
 // ═══════════════════════════════════════════════════════════════
-// Small shield icon badge displayed next to verified user names.
+// Small shield icon badge next to verified user names (74 lines)
 // Returns null for 'none' level — safe to render unconditionally.
-// Import: import { VerificationBadge } from './shared/VerificationBadge';
+// @demo none  @backend none — pure UI component
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

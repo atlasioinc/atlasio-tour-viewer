@@ -1,6 +1,6 @@
 // QuickActionsRow.tsx
 // ═══════════════════════════════════════════════════════════════
-// Quick Actions — Horizontal scrollable row of 4 intent-driven cards
+// Quick Actions — Horizontal scrollable row of 4 cards (308 lines)
 // Surfaces high-frequency, time-sensitive decisions for agents.
 //
 // Cards:

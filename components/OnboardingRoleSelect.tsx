@@ -1,7 +1,18 @@
 // OnboardingRoleSelect.tsx
 // ═══════════════════════════════════════════════════════════════
-// Onboarding Step 2 of 5 — "Choose Your Role"
-// Role selection screen — cards are navigation triggers (no bottom CTA)
+// Onboarding Step 2 of 5 — "Choose Your Role" (437 lines)
+// 3 role cards — each card IS the navigation trigger (no bottom CTA)
+//
+// Role branching (single-value principle — formData.role = backend enum):
+//   Agent card       → role='real_estate_agent' → OnboardingScreen3 (3/5)
+//   Contractor card  → role='contractor'        → ContractorProfileBasics (3/6)
+//   Partner card     → role='partner'           → OnboardingScreen3 (3/5)
+//
+// Sections: Local Types, Design Tokens, SVG Icons, Reusable Components,
+//           Role Values, Navigation Types, Main Component
+//
+// @demo  No mock data — static UI with navigation routing
+// @backend none (role stored in formData route params, not persisted here)
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

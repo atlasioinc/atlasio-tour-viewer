@@ -1,6 +1,6 @@
 // SelectableChip.tsx
 // ═══════════════════════════════════════════════════════════════
-// Shared Selectable Chip + ChipGroup — Single source of truth
+// Shared Selectable Chip + ChipGroup (177 lines)
 //
 // Matches PostPhotoJobScreen turnaround preference pill pattern:
 //   - Padding: 16px horizontal, 9px vertical

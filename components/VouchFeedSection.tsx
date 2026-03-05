@@ -1,13 +1,15 @@
 /**
- * VouchFeedSection.tsx
- * 
+ * VouchFeedSection.tsx (795 lines)
+ *
  * Vouch activity feed for HomeTabAgent dashboard.
  * Shows recent vouches across the agent's network — celebratory, not a review board.
- * 
+ *
  * Architecture:
  * - VouchFeedItem interface maps 1:1 to: vouches JOIN profiles (voucher) JOIN profiles (recipient)
  * - 75% contractor content bias enforced via applyContractorBias() utility
  * - Filter tabs filter by RECIPIENT's role (who got vouched)
+ *
+ * @demo  MOCK_VOUCH_FEED (20 items) with contractor bias applied
  * - Names are tappable → ProProfile navigation
  * - No avatars in feed — text hierarchy is the primary signal
  *   (recipient photo can be added later when real images exist in Supabase)

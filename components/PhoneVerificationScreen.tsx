@@ -1,8 +1,10 @@
 // PhoneVerificationScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Phone OTP Verification — MOCK FLOW
+// Phone OTP Verification — MOCK FLOW (377 lines)
 // fullScreenModal in ProfileStack (slide_from_bottom)
 // Safe area: useSafeAreaInsets() + manual padding (Dynamic Island)
+//
+// @demo  Accepts any phone + any 6-digit code with simulated delays
 //
 // MOCK MODE: Accepts any phone, any 6-digit code. Simulated delays.
 // TODO: PRODUCTION — swap mockSendOtp/mockVerifyOtp with real Supabase calls:

@@ -1,10 +1,18 @@
 // ProfileTab.tsx
 // ═══════════════════════════════════════════════════════════════
-// Profile Tab — Agent View
-// Sections: Profile Card, Performance Stats
+// Profile Tab — Agent View (484 lines)
+// Sections: Profile Card, Performance Stats, Settings/Actions
 // Edit modal: Change photo + edit bio (400 char limit)
 // Designed as reusable base — Partner/Contractor variants
 // will extend with different performance metrics
+//
+// Uses LOCAL COLORS object (not lib/tokens.ts) — inline design tokens
+//
+// Sections: Design Tokens, SVG Icons, Profile Avatar,
+//           Mock Sparkline, Main Component
+//
+// @demo  Mock specialties + languages via FEATURE_FLAGS.USE_MOCK_DATA
+// @backend useMyProfile (wired) — profiles.id = auth.uid()
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -85,7 +93,8 @@ const ProfileAvatar: React.FC<{ photoUri?: string; size?: number }> = ({ photoUr
 };
 
 // ─────────────────────────────────────────────
-// MOCK SPARKLINE (simple network growth chart)
+// @demo MOCK SPARKLINE — hardcoded SVG path
+// @backend TODO: Generate from connections growth data
 // ─────────────────────────────────────────────
 
 const Sparkline: React.FC = () => (

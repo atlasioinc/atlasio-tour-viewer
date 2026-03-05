@@ -1,10 +1,13 @@
 // PortfolioGallery.tsx
 // ═══════════════════════════════════════════════════════════════
-// Reusable Portfolio Gallery Component
+// Reusable Portfolio Gallery Component (451 lines)
 // Shows a large photo viewer + horizontal thumbnail strip
 // Role-gated: Only renders for Contractor, Home Stager,
 //   Real Estate Photographer roles
 // Max 8 photos enforced. Own-profile shows upload prompt.
+//
+// @demo  Placeholder images (gray boxes), no actual uploads
+// @backend TODO: Supabase Storage upload + portfolio_photos column
 //
 // Props:
 //   photos: string[]       — image URLs (max 8)

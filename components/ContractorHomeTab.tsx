@@ -1,16 +1,31 @@
 // ContractorHomeTab.tsx
 // ═══════════════════════════════════════════════════════════════
-// Home Tab — Contractor View
+// Home Tab — Contractor View (1637 lines)
 // Main dashboard for contractors after onboarding
-// Sections: Top Bar, Active Jobs, New Invitations, Matching Jobs,
-//           Earnings Summary, Market Pulse
 //
-// @demo  — Demo toggle (Empty/Filled) hidden behind scroll pull-down
-// @demo  — Role toggle at top to switch Agent ↔ Contractor view
-//          Production: remove toggle, use auth role from context
+// Layout: Top Bar → Priority-Ordered Feed → Earnings → Market Pulse
+// Feed priority: Active Jobs (in_progress first) → Invitations → Matching Jobs
 //
-// @backend — All mock data annotated with Supabase queries
-//            Replace MOCK_ arrays with TanStack Query hooks
+// Card components (3):
+//   ActiveJobCard   — in-progress / pending_completion / awarded work
+//   JobInviteCard   — agent invitations with bid CTA
+//   MatchingJobCard — browse jobs matching contractor's trade
+//
+// Empty / Filled toggle:
+//   Hidden behind scroll pull-down (showDevToggle state).
+//   Switches between MOCK_* arrays and empty arrays.
+//   @demo Remove toggle + empty state in production.
+//
+// @demo  All MOCK_* data arrays (lines ~425–650)
+// @demo  Role toggle at top to switch Agent ↔ Contractor view
+//        Production: remove toggle, use auth role from context
+//
+// @backend TODO: Replace MOCK_ arrays with TanStack Query hooks
+//   → useContractorActiveJobs()    — jobs.status IN (awarded, in_progress, pending_completion)
+//   → useContractorInvitations()   — job_invitations.contractor_id = auth.uid()
+//   → useContractorMatchingJobs()  — jobs filtered by contractor trade + service area
+//   → useContractorEarnings()      — aggregate from completed bids
+//   → useMarketPulse()             — aggregate job stats by trade
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -420,7 +435,8 @@ const FeeTierBadge: React.FC<{ tier: EarningsData['feeTier']; label: string; per
 };
 
 // ═══════════════════════════════════════════════════════════════
-// MOCK DATA
+// @demo MOCK DATA — all arrays below are demo-only
+// @backend Replace each MOCK_ with TanStack Query hook (see header)
 // ═══════════════════════════════════════════════════════════════
 
 /**

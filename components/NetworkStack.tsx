@@ -1,6 +1,6 @@
 // NetworkStack.tsx
 // ═══════════════════════════════════════════════════════════════
-// Network Stack Navigator
+// Network Stack Navigator (45 lines)
 // Screens:
 //   NetworkTab → ProProfile (tap any contact card)
 // Pattern matches HomeStack / InboxStack architecture

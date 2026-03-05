@@ -1,7 +1,24 @@
 // ContractorTradeStep.tsx
 // ═══════════════════════════════════════════════════════════════
-// Contractor Onboarding Step 4 of 6 — Trade Selection
-// Chip grid for selecting primary trade + up to 2 secondary trades
+// Contractor Onboarding Step 4 of 6 — Trade Selection (472 lines)
+// Chip grid with ALL 22 trades from schema.sql trades_enum
+//
+// Two-phase selection:
+//   1. First tap → primary trade (filled blue chip)
+//   2. Additional taps → secondary trades (outlined blue, max 2)
+//   Tapping primary again deselects it; helper text updates dynamically
+//
+// TRADES constant uses schema display names exactly (not snake_case):
+//   'Electrical', 'Plumbing', 'Roofing', ... 'Other' (22 total)
+//
+// Flow: ContractorProfileBasics → HERE → ContractorDetailsStep
+// "Next" disabled until primary trade selected
+//
+// Sections: Design Tokens, SVG Icons, Gradient Icon Box,
+//           Trades List, Local Types, Navigation Types, Main Component
+//
+// @demo  No mock data — user selection UI
+// @backend none (trades stored in formData route params)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';

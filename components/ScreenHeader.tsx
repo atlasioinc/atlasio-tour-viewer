@@ -1,8 +1,8 @@
 // ScreenHeader.tsx
 // ═══════════════════════════════════════════════════════════════
-// Shared Screen Header — Bookend centering pattern
+// Shared Screen Header — Bookend centering pattern (228 lines)
 // Equal-width left/right containers ensure mathematical centering
-// Import: import { ScreenHeader } from './ScreenHeader';
+// @demo none  @backend none — pure UI component
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

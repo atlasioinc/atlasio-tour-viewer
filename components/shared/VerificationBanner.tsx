@@ -1,8 +1,8 @@
 // VerificationBanner.tsx
 // ═══════════════════════════════════════════════════════════════
-// Persistent amber banner encouraging profile verification.
+// Persistent amber banner encouraging profile verification (165 lines)
 // Not shown when fully_verified. Contextual messaging by level + role.
-// Import: import { VerificationBanner } from './shared/VerificationBanner';
+// @demo none  @backend none — reads verification_level from props
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

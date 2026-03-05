@@ -1,7 +1,10 @@
 // VouchPromptModal.tsx
 // ═══════════════════════════════════════════════════════════════
-// Vouch Prompt Modal — Post-Completion Review + Vouch Flow
+// Vouch Prompt Modal — Post-Completion Review + Vouch Flow (606 lines)
 // Fires after agent confirms job completion (both sides see it).
+//
+// @demo  Console.log on submit, no actual persistence
+// @backend TODO: rpc_create_review + rpc_create_vouch (conditional on 4+ stars)
 //
 // Features:
 //   - 1–5 star rating (required, tappable)

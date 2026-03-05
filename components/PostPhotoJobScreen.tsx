@@ -1,29 +1,26 @@
-// PostPhotoJobScreen.tsx
 // ═══════════════════════════════════════════════════════════════
+// components/PostPhotoJobScreen.tsx
 // Post Photography Job — Single-screen lightweight job posting
 //
-// Entry point: QuickActionsRow → "Listing Photographer" card
+// Entry point: HomeTab → QuickActionsRow → "Listing Photographer" card
+// Agent-only screen — photographers bid on these jobs.
 //
 // Fields:
-//   - Property address (text input)
+//   - Property address (text input) *required
 //   - Approx square footage (number input)
-//   - Date needed (date selector)
-//   - Service packages (multi-select chips: Photos, Drone, Video, 3D Tour)
-//   - Special instructions (optional text area)
+//   - Date needed (date selector) *required
+//   - Service packages (multi-select chips: Photos, Drone, Video, 3D Tour) *required
+//   - Turnaround preference (single-select: 24h, 48h, 1 week, Flexible)
+//   - Special instructions (optional text area, 500 char max)
 //
-// Architecture:
-//   - Submits to same `jobs` table as repair jobs, with job_type = 'photography'
-//   - Same bids table, same RPCs, same 3% fee model
-//   - After submission: navigates to job detail screen to watch bids come in
-//   - Form validation: address + date required, at least one package selected
+// Validation: address + date required, at least one package selected
 //
-// Backend wiring:
-//   Current: console.log + mock delay + navigation
-//   Wire to: supabase.rpc('rpc_create_job', {
-//     job_type: 'photography',
-//     address, sqft, due_date, service_packages, notes
-//   })
-//   RPC creates job row + auto-notifies photographers in service area
+// @demo: handleSubmit uses 800ms setTimeout + console.log + Alert.
+//        No real job ID returned — "View Job" just calls goBack().
+// @backend: will wire to useCreateJob → supabase.rpc('rpc_create_job')
+//           Payload: job_type='photography', address, sqft, due_date,
+//           service_packages, turnaround_preference, notes
+//           RPC creates job row + auto-notifies photographers in area
 //
 // Platform fee: 3% captured on bid accept (same as repair jobs)
 // ═══════════════════════════════════════════════════════════════
@@ -148,8 +145,8 @@ const PostPhotoJobScreen: React.FC = () => {
 
     setIsSubmitting(true);
 
-    // 🔌 Wire to: supabase.rpc('rpc_create_job', { ... })
-    // Current: mock delay + console.log
+    // @backend TODO: wire to useCreateJob → supabase.rpc('rpc_create_job')
+    // @demo Current: mock delay + console.log
     console.log('📸 Submitting photography job:', {
       job_type: 'photography',
       address: address.trim(),
@@ -171,8 +168,8 @@ const PostPhotoJobScreen: React.FC = () => {
         {
           text: 'View Job',
           onPress: () => {
-            // 🔌 Wire to: navigation.navigate('RepairJobDetails', { jobId: newJob.id })
-            // For now, just go back
+            // @backend TODO: navigation.navigate('RepairJobDetails', { jobId: newJob.id })
+            // @demo For now, just go back (no real jobId available)
             navigation.goBack();
           },
         },

@@ -1,9 +1,23 @@
 // OnboardingScreen3.tsx
 // ═══════════════════════════════════════════════════════════════
-// Onboarding Screen 3 of 5 — "Tell Us About You"
-// Agent/Partner profile form with conditional sub-role dropdown,
-// name, company, and service area fields
-// Contractor path branches at OnboardingRoleSelect → ContractorProfileBasics
+// Onboarding Step 3 of 5 — "Tell Us About You" (926 lines)
+// Agent/Partner profile form — contractor path is NOT routed here
+//
+// Conditional fields:
+//   - Sub-role dropdown (partner only, 6 options — single-value principle)
+//   - Full name (required for all)
+//   - Company (optional)
+//   - Service area (optional)
+//
+// Receives formData via route params from OnboardingRoleSelect
+// Navigates to OnboardingScreen4 with accumulated formData
+//
+// Sections: Design Tokens, SVG Icons, Gradient Icon Box,
+//           Dropdown Options, Form Data Type, Navigation Types,
+//           Error Tracking, Dropdown Modal Component, Main Component
+//
+// @demo  No mock data — form collects user input
+// @backend none (data accumulated in route params, persisted at OnboardingComplete)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';

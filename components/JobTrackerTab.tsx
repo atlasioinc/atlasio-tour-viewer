@@ -1,11 +1,16 @@
 // JobTrackerTab.tsx
 // ═══════════════════════════════════════════════════════════════
-// Job Tracker — Contractor pipeline view
+// Job Tracker — Contractor pipeline view (511 lines)
 // Filtered list of all jobs the contractor is involved with,
 // grouped by pipeline stage: Invited → Bid Sent → Active → Completed
 //
-// @demo  Full mock data across all pipeline stages
-// @backend Will use: useContractorJobs() hook with status grouping
+// Filter chips (5): All, Invited, Bid Sent, Active, Completed
+//   → useMemo filters MOCK_TRACKER_JOBS by stage
+//   → Stage counts shown as badge on each chip
+//
+// @demo  9 mock jobs across all 4 pipeline stages (lines ~62–197)
+//        2 invited, 2 bid_sent, 3 active, 2 completed
+// @backend TODO: useContractorJobs() hook with status grouping
 //   → supabase.from('jobs')
 //     .select('*, bids!inner(*)')
 //     .eq('bids.contractor_id', auth.uid())

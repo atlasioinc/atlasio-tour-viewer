@@ -1,8 +1,14 @@
 // OnboardingComplete.tsx
 // ═══════════════════════════════════════════════════════════════
-// Reusable onboarding completion screen
-// Renders role-specific content based on the role param
-// Supports: Real Estate Agent, Partner, Contractor
+// Onboarding Completion — Final step (605 lines)
+// Renders role-specific content based on formData.role
+// Progress bar: contractor 6/6, agent/partner 5/5
+//
+// CTA logs full rpc_complete_onboarding payload via console.log
+// Then navigates to MainApp with { role: formData.role }
+//
+// @demo  Console.log payload stub — no actual RPC call
+// @backend TODO: rpc_complete_onboarding(formData) — persist all onboarding data
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';

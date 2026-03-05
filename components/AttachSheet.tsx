@@ -1,8 +1,10 @@
 // AttachSheet.tsx
 // ═══════════════════════════════════════════════════════════════
-// Reusable Attach Bottom Sheet
+// Reusable Attach Bottom Sheet (166 lines)
 // Slides up with Photo and Document options
-// Used in: DirectChat, DealChat, RepairJobChat
+// Used in: ChatScreen, DealChatScreen, RepairChatScreen
+// @demo  Uses expo-image-picker + expo-document-picker (real APIs)
+// @backend TODO: Upload selected files to Supabase Storage
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useRef, useEffect } from 'react';

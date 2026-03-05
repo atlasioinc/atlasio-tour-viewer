@@ -1,6 +1,6 @@
 // FormField.tsx
 // ═══════════════════════════════════════════════════════════════
-// Shared Form Input — Single source of truth for text inputs
+// Shared Form Input — Single source of truth for text inputs (163 lines)
 //
 // Matches PostJobWizard pattern:
 //   - Height: 50px (single-line), auto-expand (multiline)

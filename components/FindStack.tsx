@@ -1,6 +1,6 @@
 // FindStack.tsx
 // ═══════════════════════════════════════════════════════════════
-// Find Stack Navigator
+// Find Stack Navigator (53 lines)
 // Screens:
 //   FindTab → ProProfile (tap any pro card)
 // Pattern matches HomeStack / InboxStack architecture

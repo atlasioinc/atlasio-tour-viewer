@@ -1,11 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// InviteToJobModal.tsx — Invite Contractor to Repair Job
+// InviteToJobModal.tsx — Invite Contractor to Repair Job (706 lines)
 // 2-step flow:
 //   Step 1: Bottom sheet — contractor card + Invite to Existing / Create New
 //   Step 2: Full-screen job selector — search, selectable job cards, message, send
 //
 // Entry points: FindTab, NetworkTab, ProProfile (contractor cards)
-// Backend: TODO wire useMutation → rpc_invite_to_job(jobId, contractorId, message?)
+//
+// @demo  Mock job list for selector, console.log on send
+// @backend TODO: rpc_invite_to_job(jobId, contractorId, message?)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';

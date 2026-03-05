@@ -1,12 +1,21 @@
 // ChatScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Chat Screen — 1:1 conversation view
+// Chat Screen — 1:1 conversation view (692 lines)
 // Three states:
 //   1. Empty — centered avatar + "No messages yet"
 //   2. Conversation — message bubbles
 //   3. Add contact — contact list in body
 // Header: Back + avatar + name/company (conversation mode)
 //    OR:  Back + "New Message" + To: field (compose mode)
+//
+// Sections: Design Tokens, SVG Icons, Data Types, All Contacts,
+//           Mock Conversation, Avatar, Add-Contact Row, Main Screen
+//
+// @demo  MOCK_MESSAGES (5 messages), ALL_CONTACTS (4 contacts)
+//        Feature flag gate: FEATURE_FLAGS.USE_MOCK_DATA
+// @backend useMessages (wired) — messages for thread
+// @backend useSendMessage (wired) — insert message
+// @backend useMarkThreadRead (wired) — mark thread as read
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -102,7 +111,7 @@ interface Recipient {
 type ChatScreenRouteProp = RouteProp<InboxStackParamList, 'ChatScreen'>;
 
 // ─────────────────────────────────────────────
-// ALL CONTACTS
+// @demo ALL CONTACTS — 4 mock contacts for compose mode
 // ─────────────────────────────────────────────
 
 const ALL_CONTACTS: Recipient[] = [
@@ -119,7 +128,8 @@ const ALL_CONTACTS: Recipient[] = [
 ];
 
 // ─────────────────────────────────────────────
-// MOCK CONVERSATION DATA
+// @demo MOCK CONVERSATION DATA — 5 messages
+// @backend Replace with useMessages (wired, feature flag gate)
 // ─────────────────────────────────────────────
 
 const MOCK_MESSAGES: Message[] = [

@@ -1,9 +1,12 @@
 // SquadSlotPicker.tsx
 // ═══════════════════════════════════════════════════════════════
-// Squad Slot Picker — Bottom Sheet Modal
+// Squad Slot Picker — Bottom Sheet Modal (586 lines)
 // Shows connected pros filtered by role for filling squad slots
 // Single-select: tap a pro → slot fills → sheet dismisses
 // Entry: agent taps an empty squad slot on HomeTabAgent
+//
+// @demo  Mock pro candidates, no hooks wired
+// @backend TODO: useConnections filtered by squad role
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';

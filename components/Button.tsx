@@ -1,8 +1,9 @@
 // Button.tsx
 // ═══════════════════════════════════════════════════════════════
-// Shared Button Component — Single source of truth for all CTAs
+// Shared Button Component — Single source of truth for all CTAs (246 lines)
+// Exports: PrimaryButton, SecondaryButton, CardButton
 // Variants: primary (filled blue), secondary (outlined), card (compact)
-// Import: import { PrimaryButton, SecondaryButton, CardButton } from './Button';
+// @demo none  @backend none — pure UI component
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

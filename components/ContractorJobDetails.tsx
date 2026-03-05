@@ -1,17 +1,24 @@
 // ContractorJobDetails.tsx
 // ═══════════════════════════════════════════════════════════════
-// Contractor Job Details — Single job view from contractor's perspective
-// Sections: Header, Trade+Urgency, Title, Budget, Scope, Details Grid,
-//           Agent Card, Your Bid (conditional), Counter-Offer (conditional),
-//           Sticky Bottom CTA
+// Contractor Job Details — Single job view (672 lines, 10 sections)
+//
+// Sections: Route Params, SVG Icons, Helpers, Bid Status Chip,
+//           Mock Data, Main Component (render: Header, Trade+Urgency,
+//           Title, Budget, Scope, Details Grid, Agent Card,
+//           Your Bid, Counter-Offer, Sticky CTA)
 //
 // Navigated from: ContractorHomeTab cards (ActiveJobCard, JobInviteCard, MatchingJobCard)
 // Route param: { jobId: string }
 //
-// @demo Cycles through 3 states via pull-down toggle:
-//   1. Open job, no bid yet → CTA = "Submit Bid"
-//   2. Bid submitted, pending → shows "Your Bid" section
-//   3. Counter-offer received → shows comparison card + Accept/Counter/Decline
+// @demo Cycles through 3 demo states via pull-down toggle (demoStateIndex):
+//   0 → Open job, no bid yet        → CTA = "Submit Bid"
+//   1 → Bid submitted, pending      → shows "Your Bid" section
+//   2 → Counter-offer received      → comparison card + Accept/Counter/Decline
+//   Toggle increments mod 3 on each pull-down.
+//
+// @backend useRespondToCounter (wired) — rpc_respond_to_counter_offer
+// @backend TODO: useContractorJobDetails(jobId) — replace 3 MOCK_ objects
+//   → jobs + bids join, filtered by contractor_id = auth.uid()
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -226,6 +233,7 @@ const ContractorJobDetails: React.FC = () => {
   const isPendingCompletion = job.jobStatus === 'pending_completion';
 
   // ── Counter-offer handlers ──
+  // @backend All 3 use useRespondToCounter → rpc_respond_to_counter_offer
 
   const handleAcceptCounter = () => {
     if (!job.myBid) return;

@@ -1,8 +1,9 @@
 // SearchField.tsx
 // ═══════════════════════════════════════════════════════════════
-// Shared Search Field — Atlasio
-// Reusable search input used across Find Tab, Network Tab, etc.
+// Shared Search Field (94 lines)
+// Reusable search input used across FindTab, NetworkTab, InboxList
 // Flex-fills horizontally, consistent height/padding everywhere.
+// @demo none  @backend none — pure UI component
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

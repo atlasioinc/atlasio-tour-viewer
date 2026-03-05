@@ -1,7 +1,11 @@
-// repairJobsData.tsx
+// RepairJobsData.tsx
 // ═══════════════════════════════════════════════════════════════
-// Mock Repair Jobs — shared data for HomeTab + RepairJobDetails
+// @demo Mock Repair Jobs — shared data for HomeTab + RepairJobDetails (308 lines)
+// Exports: MOCK_REPAIR_JOBS (6 jobs), ACTIVE_REPAIR_JOBS (filtered)
 // Each job includes full bid details for the detail screen
+// Types: Job & { bids: BidWithProfile[] } from types/index.ts
+//
+// @backend Replace with useAgentJobs() — already wired with feature flag gate
 // ═══════════════════════════════════════════════════════════════
 
 import type { Job, BidWithProfile } from '../types';

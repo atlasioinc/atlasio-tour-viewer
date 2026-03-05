@@ -1,7 +1,18 @@
 // ContractorProfileBasics.tsx
 // ═══════════════════════════════════════════════════════════════
-// Contractor Onboarding Step 3 of 6 — "Tell Us About You"
-// Collects full name (required) and business name (optional)
+// Contractor Onboarding Step 3 of 6 — "Tell Us About You" (519 lines)
+// 2 fields only — clean and fast:
+//   - Full name (required, validated on "Next")
+//   - Business name (optional)
+//
+// Flow: OnboardingRoleSelect → HERE → ContractorTradeStep
+// Receives formData via route params, passes forward with name + company
+//
+// Sections: Design Tokens, SVG Icons, Gradient Icon Box,
+//           Types, Error Tracking, Main Component
+//
+// @demo  No mock data — form collects user input
+// @backend none (data accumulated in route params, persisted at OnboardingComplete)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef } from 'react';

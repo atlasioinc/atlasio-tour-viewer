@@ -1,7 +1,20 @@
+// ═══════════════════════════════════════════════════════════════
 // lib/featureFlags.ts
-// Demo mode toggle — controls whether screens use mock data or live Supabase queries.
-// Set to true for investor demos, false for production/development.
+// Feature Flags — Runtime toggles for demo vs live behavior
+//
+// These flags control which code paths execute at runtime.
+// Set to appropriate values before device testing or investor demos.
 // Future: wire to hidden dev menu (triple-tap avatar on ProfileTab).
+//
+// Flags:
+//   USE_MOCK_DATA     — true: all hooks return mock data (demo mode)
+//                       false: hooks query live Supabase
+//                       @demo: controls mock fallback in hooks/useData.ts
+//
+//   LIVE_ONBOARDING   — true: OnboardingComplete calls rpc_complete_onboarding
+//                       false: console.log only (safe for demos)
+//                       @backend: gates rpc_complete_onboarding in OnboardingComplete.tsx
+// ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
   USE_MOCK_DATA: false,  // true = mock data (demo), false = live Supabase

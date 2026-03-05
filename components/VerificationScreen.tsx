@@ -1,11 +1,14 @@
 // VerificationScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Profile Verification — Phone OTP, License, Insurance
+// Profile Verification — Phone OTP, License, Insurance (364 lines)
 // fullScreenModal in ProfileStack (slide_from_bottom)
 // Safe area: useSafeAreaInsets() + manual padding (Dynamic Island)
 //
 // Verification tiers:
 //   none → basic (phone verified) → verified (+ license) → fully_verified (+ insurance)
+//
+// @demo  Mock verification state (localStorage toggle)
+// @backend TODO: ARELLO API for license, Supabase Storage for insurance
 //
 // Deferred integrations:
 //   - ARELLO API for license verification (saves locally, shows "Pending")

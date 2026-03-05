@@ -1,8 +1,25 @@
-// tokens.ts
 // ═══════════════════════════════════════════════════════════════
-// Atlasio Design Tokens — Single Source of Truth
-// All screens import from here. Never hardcode colors/sizes.
+// lib/tokens.ts
+// Design System Tokens — Single Source of Truth
+//
+// All screens and components import from here. Never hardcode
+// colors, sizes, typography, or spacing inline. If a value appears
+// in more than one screen, it belongs here.
+//
+// Exports (6):
+//   COLORS       — 105 named colors (brand, text, borders, status, overlays, chat)
+//   TYPOGRAPHY   — 14 text styles (display, heading, body, caption, micro, section)
+//   SPACING      — 10-step scale (xs=2 → 5xl=48)
+//   DIMENSIONS   — 24 component sizes (headers, buttons, inputs, cards, avatars, modals)
+//   SHADOWS      — 2 presets (card, modal)
+//   ICONS        — 5 size tiers (nav, action, inline, small, tabBar)
+//
+// NOTE: Onboarding screens (Onboarding1–4, ContractorProfileBasics, etc.)
+// maintain their own local COLORS objects — they do NOT import from here.
+// This is intentional: onboarding has a distinct visual style.
+//
 // Last audited: Feb 22, 2026 — 25 screen files
+// @backend: none — purely client-side constants
 // ═══════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────

@@ -1,6 +1,6 @@
 // RepairCard.tsx
 // ═══════════════════════════════════════════════════════════════
-// Repair Card — Shared data-driven card for repair jobs
+// Repair Card — Shared data-driven card for repair jobs (357 lines)
 // Used on: HomeTabAgent (Active Repairs horizontal scroll)
 //
 // State-adaptive layout — content shifts based on job lifecycle:

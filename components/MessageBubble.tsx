@@ -1,9 +1,16 @@
 // MessageBubble.tsx
 // ═══════════════════════════════════════════════════════════════
-// Reusable Message Bubble Component
-// Same bubble style for both 1:1 and Deal Chats
-// Deal chat adds: sender name above + 40px avatar beside received
+// Reusable Message Bubble Component (160 lines)
+// Shared by: ChatScreen, DealChatScreen
+// (RepairChatScreen has its own inline bubble — future consolidation TODO)
+//
+// Modes:
+//   1:1 chat — isMine right-aligns (blue), received left-aligns (gray)
+//   Deal chat — adds sender name above + 40px avatar beside received
 // Timestamp always inside the bubble
+//
+// @demo  No mock data — pure UI component
+// @backend none — stateless presenter, data comes from parent
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';

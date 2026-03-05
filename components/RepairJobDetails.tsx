@@ -1,9 +1,27 @@
-// RepairJobDetails.tsx
 // ═══════════════════════════════════════════════════════════════
-// Repair Job Details — Agent View
-// Shows job info, photos, bids received, and bid action buttons
-// Updated: company name, trade+licensed pill, message icon, repair chat nav
-// Updated: Status timeline for awarded jobs (post-bid lifecycle tracking)
+// components/RepairJobDetails.tsx
+// Repair Job Details — Agent View (1,853 lines)
+//
+// Shows job info, photos, bids received, and bid action modals.
+// Agent-only screen — contractors see ContractorJobDetails instead.
+// Navigation: HomeStack → RepairJobDetails
+//
+// ─────────────────────────────────────────────
+// KEY SECTIONS:
+//   Bid Card Component  — contractor name, trade pill, price, timeline
+//   Sort Dropdown       — Recommended / Lowest Price / Highest Rated / Fastest
+//   Bid Action Modals   — Accept / Counter / Reject (3 modal flows)
+//   Status Timeline     — 4-step post-award tracker (visible after bid accepted)
+//   Invite Modal        — triggers InviteContractorsModal
+// ─────────────────────────────────────────────
+//
+// @backend: useJob(jobId), useJobBids(jobId) — live data with mock fallback
+// @backend: useRealtimeBids(jobId) — realtime subscription for bid updates
+// @demo: bid action handlers use 600ms setTimeout + optimistic UI updates.
+//        Mutations (useAcceptBid, useCounterBid, useRejectBid) exist in
+//        useData.ts but are NOT yet wired here — handlers use console.log.
+// @demo: DEV helpers (handleSimulateProgress, handleOpenContractorView)
+//        for testing job status progression and contractor view.
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -630,7 +648,7 @@ const RepairJobDetails: React.FC = () => {
     }
   };
 
-  // ── DEV: Simulate job status progression ──
+  // @demo DEV: Simulate job status progression ──
   const JOB_STATUS_SEQUENCE: JobStatus[] = [
     'in_progress',
     'pending_completion',
@@ -644,7 +662,7 @@ const RepairJobDetails: React.FC = () => {
     setJob((prev) => ({ ...prev, status: nextStatus }));
   };
 
-  // ── DEV: Open contractor view directly ──
+  // @demo DEV: Open contractor view directly ──
   const handleOpenContractorView = () => {
     navigation.navigate('JobCompletion', {
       jobId: job.id,
@@ -697,6 +715,8 @@ const RepairJobDetails: React.FC = () => {
 
   // ─────────────────────────────────────────────
   // BID ACTION HANDLERS
+  // @demo: all 3 handlers use setTimeout + console.log (optimistic UI only)
+  // @backend TODO: wire to useAcceptBid, useCounterBid, useRejectBid
   // ─────────────────────────────────────────────
 
   const handleAcceptBid = async () => {

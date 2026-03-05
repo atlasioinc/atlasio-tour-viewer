@@ -1,10 +1,13 @@
 // SendSquadScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Send Squad to Client — Full Screen Flow
+// Send Squad to Client — Full Screen Flow (987 lines)
 // Agent reviews their closing squad, can swap members,
 // add a personal intro message, and share via native share sheet.
 // Entry: "Send to Client" CTA on HomeTabAgent squad section
 // Stack: HomeStack → SendSquadScreen
+//
+// @demo  Mock squad members, native Share API used
+// @backend TODO: useSquadMembers() + share tracking
 //
 // Fix: Uses useSafeAreaInsets() instead of SafeAreaView edges
 // because fullScreenModal presentation on iOS doesn't reliably

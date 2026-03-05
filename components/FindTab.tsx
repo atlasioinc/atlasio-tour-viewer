@@ -1,6 +1,6 @@
 // FindTab.tsx
 // ═══════════════════════════════════════════════════════════════
-// Find Tab — Agent View
+// Find Tab — Agent View (632 lines)
 // Search & discover pros with role-specific filters and sorting
 // Two states: Default (browse) vs Search (filtered list)
 //
@@ -10,6 +10,16 @@
 //   - All other partner roles:
 //       → [Request to Connect] solid (single full-width button)
 //   - No Message button — messaging requires connection first
+//
+// Sections: Constants, SVG Icons, Role Pills / Sort Options,
+//           Filter Definitions, Pro Data, Avatar, Pro Card,
+//           Filter Chip, Main Component
+//
+// @demo  ALL_PROS array (10 mock profiles, lines ~186–225)
+//        Feature flag gate: FEATURE_FLAGS.USE_MOCK_DATA
+// @backend useFindPros (wired) — profiles filtered by role + search
+// @backend useRecommendedPros (wired) — recommended by connections
+// @backend useTrendingPros (wired) — trending by vouch count
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';
@@ -183,7 +193,8 @@ const ROLE_FILTERS: { [key: string]: FilterGroup[] } = {
 };
 
 // ─────────────────────────────────────────────
-// PRO DATA
+// @demo PRO DATA — 10 mock profiles (all unconnected)
+// @backend Replace with useFindPros / useRecommendedPros / useTrendingPros
 // ─────────────────────────────────────────────
 
 interface ProCard {

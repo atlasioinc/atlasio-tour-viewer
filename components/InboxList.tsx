@@ -1,8 +1,17 @@
 // InboxList.tsx
 // ═══════════════════════════════════════════════════════════════
-// Inbox List Screen — Thread list with pinned/recent sections
+// Inbox List Screen — Agent inbox (683 lines)
+// Thread list with Pinned / Recent sections
 // Swipe-right: Pin/Unpin  |  Swipe-left: Mute, Delete
-// Lives inside InboxStack, navigates to ChatScreen / DealChatScreen
+// Navigates to ChatScreen (1:1) or DealChatScreen (deal thread)
+//
+// Sections: Navigation Type, SVG Icons, Data Types, Mock Data,
+//           Swipe Constants, Avatar, Swipeable Thread Row, Main Screen
+//
+// @demo  12 mock threads with unread counts + pinned state
+//        Feature flag gate: FEATURE_FLAGS.USE_MOCK_DATA
+// @backend useChatThreads (wired) — threads + profiles join
+// @backend TODO: pin/mute/delete mutations — update threads table
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useCallback } from 'react';
@@ -121,7 +130,8 @@ interface ChatThread {
 }
 
 // ─────────────────────────────────────────────
-// INITIAL MOCK DATA
+// @demo INITIAL MOCK DATA — 12 threads with pinned/unread state
+// @backend Replace with useChatThreads (wired, feature flag gate)
 // ─────────────────────────────────────────────
 
 const INITIAL_THREADS: ChatThread[] = [

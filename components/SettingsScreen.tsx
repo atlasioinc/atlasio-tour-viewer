@@ -1,6 +1,6 @@
 // SettingsScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Settings — Account management, notifications, preferences
+// Settings — Account management, notifications, preferences (434 lines)
 //
 // Entry point: ProfileTab gear icon → navigation.navigate('Settings')
 //

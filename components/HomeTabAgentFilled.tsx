@@ -1,8 +1,18 @@
-// HomeTabAgent.tsx
+// HomeTabAgentFilled.tsx
 // ═══════════════════════════════════════════════════════════════
-// Home Tab — Agent View
-// Main dashboard after onboarding completion
-// Sections: Top Bar, Closing Squad, Quick Actions, Vouch Feed
+// Home Tab — Agent View (filled-state variant, 1388 lines)
+// Dashboard with populated data — vouch feed, active repairs, squad
+// Sections: Design Tokens, SVG Icons, Squad Slot Data,
+//           Quick Actions, Vouch Feed Data, Tab Filters,
+//           Avatar, Main Component
+//
+// Vouch feed: tab-filtered (Contractors first — MVP revenue driver)
+//   All | Contractors | Photographers | Stagers | Partners
+//
+// @demo  Squad slots, quick actions, vouch feed = local constants
+// @demo  Active repairs from RepairJobsData (MOCK_REPAIR_JOBS)
+//        Feature flag gate: FEATURE_FLAGS.USE_MOCK_DATA
+// @backend useAgentJobs (wired) — jobs.agent_id = auth.uid()
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -306,9 +316,10 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 // ─────────────────────────────────────────────
-// VOUCH FEED DATA
+// @demo VOUCH FEED DATA — mock vouch cards
 // ~75% Contractor vouches, ~25% Partner vouches
 // Reflects MVP revenue driver: agent ↔ contractor activity
+// @backend TODO: useVouchFeed() — vouches + profiles join
 // ─────────────────────────────────────────────
 
 interface VouchCard {

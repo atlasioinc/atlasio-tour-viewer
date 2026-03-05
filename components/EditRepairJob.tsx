@@ -1,9 +1,19 @@
-// EditRepairJob.tsx
 // ═══════════════════════════════════════════════════════════════
+// components/EditRepairJob.tsx
 // Edit Repair Job — Agent View
-// Full-screen edit form triggered from RepairJobDetails "Edit"
-// Reuses: Trade pills (FindTab pattern), Date field (CreateDealChat)
-// Navigation: HomeStack → RepairJobDetails → EditRepairJob
+//
+// Full-screen edit form triggered from RepairJobDetails → "Edit" button.
+// Agent-only screen. Navigation: HomeStack → RepairJobDetails → EditRepairJob
+//
+// Fields: title, trade(s) multi-select, due date, budget min/max,
+//         description, photos (ImagePicker)
+// Validation: title + at least 1 trade required
+//
+// @demo: handleSave passes updated job object via nav params (no mutation).
+//        handleDelete shows Alert + console.log (no actual deletion).
+// @backend TODO: wire handleSave to useUpdateJob mutation
+// @backend TODO: wire handleDelete to useDeleteJob mutation (not yet in useData.ts)
+// @backend TODO: wire photo uploads to Supabase Storage
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -192,7 +202,7 @@ const EditRepairJob: React.FC = () => {
   // Determine if Save button should be active
   const hasChanges = jobTitle.trim().length > 0 && selectedTrades.size > 0;
 
-  // Handle save — build updated job and navigate back with it
+  // @demo Handle save — build updated job and navigate back via params (no mutation)
   const handleSave = () => {
     const updatedJob: Job & { bids: BidWithProfile[] } = {
       ...job,
@@ -210,7 +220,7 @@ const EditRepairJob: React.FC = () => {
     navigation.navigate('RepairJobDetails', { job: updatedJob });
   };
 
-  // Handle delete
+  // @demo Handle delete — Alert + console.log only, no backend call
   const handleDelete = () => {
     Alert.alert(
       'Delete Job',

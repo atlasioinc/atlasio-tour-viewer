@@ -1,7 +1,20 @@
 // ContractorDetailsStep.tsx
 // ═══════════════════════════════════════════════════════════════
-// Contractor Onboarding Step 5 of 6 — "Service Details"
-// Service area, radius selection, and license/insurance toggles
+// Contractor Onboarding Step 5 of 6 — "Service Details" (524 lines)
+// Two info cards:
+//   Card 1: Service area — "Denver Metro Area" preset + radius pills
+//           (10mi / 25mi / 50mi, default 25mi)
+//   Card 2: License & Insurance — toggle rows (both optional)
+//           Social proof: "Licensed & insured contractors get 3x more job invites"
+//
+// Flow: ContractorTradeStep → HERE → OnboardingComplete
+// "Complete Setup" navigates to OnboardingComplete with full formData
+//
+// Sections: Design Tokens, Local Types, Navigation Types,
+//           SVG Icons, Gradient Icon Box, Radius Options, Main Component
+//
+// @demo  No mock data — user selection UI
+// @backend none (settings stored in formData route params)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';

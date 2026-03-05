@@ -1,6 +1,6 @@
 // RepairChatScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Repair Chat — Job Thread (agent ↔ bidder)
+// Repair Chat — Job Thread (agent ↔ bidder) (551 lines)
 // Auto-created when a contractor submits a bid
 // Thread type: job_thread (distinct from one_to_one and deal_chat)
 //
@@ -14,6 +14,15 @@
 //
 // Navigation: HomeStack → RepairJobDetails → RepairChatScreen
 // Params: { bidId, bidderName, bidderAvatarColor, jobId, jobTitle }
+//
+// Sections: Design Tokens, Route Params, Message Type, SVG Icons,
+//           Avatar, Context Tip Banner, Message Bubble, Mock Messages,
+//           Main Component
+//
+// @demo  Mock messages array (4 messages, lines ~270–295)
+//        No feature flag gate — fully mock, no hooks wired
+// @backend TODO: useMessages + useSendMessage — same as ChatScreen
+// @backend TODO: Realtime subscription for live message updates
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useCallback } from 'react';
@@ -267,7 +276,7 @@ const MessageBubble: React.FC<{ message: ChatMessage; senderName: string; sender
 };
 
 // ─────────────────────────────────────────────
-// MOCK MESSAGES (demo state)
+// @demo MOCK MESSAGES — 4 repair thread messages
 // ─────────────────────────────────────────────
 
 const INITIAL_MESSAGES: ChatMessage[] = [];

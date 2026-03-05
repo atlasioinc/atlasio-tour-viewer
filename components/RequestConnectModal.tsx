@@ -1,8 +1,11 @@
 // RequestConnectModal.tsx
 // ═══════════════════════════════════════════════════════════════
-// "Request to Connect" Modal — Atlasio
-// Reusable modal that appears when an agent taps
-// "Request to Connect" on any pro card in the Find Tab.
+// "Request to Connect" Modal (370 lines)
+// Reusable modal — agent taps "Request to Connect" on any pro card
+// Entry points: FindTab, ProProfile
+//
+// @demo  Console.log on send, simulated success
+// @backend TODO: rpc_send_connection_request(target_id, message?)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';

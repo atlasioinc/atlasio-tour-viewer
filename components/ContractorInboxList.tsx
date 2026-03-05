@@ -1,6 +1,6 @@
 // ContractorInboxList.tsx
 // ═══════════════════════════════════════════════════════════════
-// Contractor Inbox — Job-Scoped Chat Threads
+// Contractor Inbox — Job-Scoped Chat Threads (812 lines)
 //
 // Business rule: Contractors can ONLY chat in the context of a job.
 // No proactive outreach, no standalone DMs. Every thread is tied
@@ -16,7 +16,12 @@
 //   - Active: invited / bid_submitted / awarded / in_progress → read/write
 //   - Past: completed / cancelled → read-only archive, swipe to delete
 //
-// @backend const { data: threads } = useContractorJobChats();
+// Sections: SVG Icons, Avatar, Status Badge, Data Types, Mock Data,
+//           Thread Row, Section Header, Empty State, Main Component
+// No search, no FAB — intentionally minimal (business-scoped only)
+//
+// @demo  12 mock threads (8 active, 4 past) with unread counts (lines ~225–340)
+// @backend TODO: useContractorJobChats() — replace mock data
 //   → supabase.from('job_chat_threads')
 //     .select('*, jobs(title, address, status, due_date), profiles!agent_id(name, avatar_url)')
 //     .eq('contractor_id', auth.uid())
@@ -220,7 +225,7 @@ interface JobChatThread {
 }
 
 // ─────────────────────────────────────────────
-// MOCK DATA
+// @demo MOCK DATA — 12 threads (8 active, 4 past)
 // ─────────────────────────────────────────────
 
 /**

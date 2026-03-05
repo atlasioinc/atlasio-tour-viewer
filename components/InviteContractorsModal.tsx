@@ -1,10 +1,18 @@
-// InviteContractorsModal.tsx
 // ═══════════════════════════════════════════════════════════════
+// components/InviteContractorsModal.tsx
 // Invite Contractors Modal — Agent View
-// Searchable list of network contractors (filtered by trade)
-// Multi-select up to 5 contractors with optional note
-// Production: Replace mock data with network contacts query
-//   filtered by role='contractor' & connections.state='accepted'
+//
+// Searchable list of network contractors filtered by job trade.
+// Multi-select up to 5 contractors with optional note.
+// Triggered from RepairJobDetails → "Invite Pros" button.
+//
+// @demo: uses MOCK_NETWORK_CONTRACTORS hardcoded array (10 contractors).
+//        handleSendInvites logs to console + shows Alert (no backend call).
+// @backend TODO: replace mock data with useInviteContractors hook
+//   Query: supabase.from('connections').select('*, profiles(*)')
+//          .eq('status', 'accepted').eq('profiles.role', 'contractor')
+//   Mutation: useInviteContractors → append_invited_contractors RPC
+//             + create job_invitations + send notifications
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -44,12 +52,10 @@ export interface NetworkContractor {
 }
 
 // ─────────────────────────────────────────────
-// MOCK NETWORK CONTRACTORS
-// Production: Replace with query:
-//   supabase.from('connections')
-//     .select('*, profiles(*)')
-//     .eq('state', 'accepted')
-//     .eq('profiles.role', 'contractor')
+// @demo MOCK NETWORK CONTRACTORS
+// @backend TODO: Replace with useNetworkContractors or similar query:
+//   supabase.from('connections').select('*, profiles(*)')
+//     .eq('status', 'accepted').eq('profiles.role', 'contractor')
 // ─────────────────────────────────────────────
 
 const MOCK_NETWORK_CONTRACTORS: NetworkContractor[] = [
@@ -171,11 +177,10 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
       .filter((c) => selectedIds.has(c.id))
       .map((c) => c.name);
 
-    // Production: API call to:
-    //   1. Update jobs.invites array (append pro_ids)
-    //   2. Create notification for each invited contractor:
-    //      "[Agent Name] invited you to bid on [Job Title]—view now?"
-    //      with deep_link to RepairJobDetails
+    // @backend TODO: wire to useInviteContractors mutation:
+    //   1. RPC append_invited_contractors(p_job_id, p_contractor_ids)
+    //   2. Insert job_invitations rows for tracking
+    //   3. Auto-notification: "[Agent] invited you to bid on [Job]"
     console.log('Invites sent:', {
       contractors: selectedNames,
       jobTitle,

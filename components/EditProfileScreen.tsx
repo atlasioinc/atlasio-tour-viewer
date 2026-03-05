@@ -1,6 +1,6 @@
 // EditProfileScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Edit Profile — Shared across Agent, Contractor, Partner roles
+// Edit Profile — Shared across all roles (715 lines)
 // Role-conditional field sets via route param { role: string }
 //
 // Entry points:

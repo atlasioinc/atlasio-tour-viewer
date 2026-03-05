@@ -1,14 +1,21 @@
 // BidSubmissionScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Bid Submission Form — fullScreenModal (slide_from_bottom)
+// Bid Submission Form — fullScreenModal (slide_from_bottom) (408 lines)
 // Sections: Header, Job Context Mini Card, Amount Input,
-//           Timeline Pills, Notes, Fee Receipt, Sticky Submit Bar
+//           Timeline Pills (5 options), Notes, Fee Receipt, Sticky Submit Bar
 //
 // Navigated from: ContractorJobDetails "Submit Bid" / "Edit Bid" / "Counter"
 // Route params: { jobId, prefillAmount?, prefillTimeline?, prefillNotes?, isEdit? }
 //
-// @demo Uses mock fee tier (launch_promo, 0%) — swap for
-//       useMyProfile().fee_tier when wired to Supabase.
+// Fee tier calculation (revenue model):
+//   launch_promo  = 0%  (first 3 accepted bids)
+//   early_adopter = 5%  (months 4-9)
+//   standard      = 10% (month 10+)
+//   Receipt shows: bid amount − fee = take-home
+//   @demo Uses MOCK_FEE_TIER (launch_promo, 0%) — swap for
+//         useMyProfile().fee_tier when wired to Supabase.
+//
+// @backend useSubmitBid (wired) — rpc_submit_bid(p_job_id, p_amount, p_timeline, p_notes)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';

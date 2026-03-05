@@ -1,9 +1,16 @@
 // NewMessageScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// New Message Screen — Contact picker for 1:1 and deal chats
+// New Message Screen — Contact picker for 1:1 and deal chats (252 lines)
 // Tapping a contact → ChatScreen (1:1)
 // Tapping "New Deal Chat" → CreateDealChat (deal flow)
-// Contractors hidden from 1:1 contacts (Closing Partners only)
+// Business rule: Contractors hidden from contact list (Closing Partners only)
+//
+// Sections: Design Tokens, Navigation Type, SVG Icons,
+//           Data Types, Mock Data, Avatar, Contact Row, Main Screen
+//
+// @demo  5 mock contacts — all Closing Partners (no contractors)
+//        Fully mock — no hooks, no feature flag gate
+// @backend TODO: useConnections() filtered by partner roles only
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo } from 'react';
@@ -63,7 +70,7 @@ interface SuggestedContact {
 }
 
 // ─────────────────────────────────────────────
-// MOCK DATA — Closing Partners only (no Contractors)
+// @demo MOCK DATA — 5 Closing Partners only (no Contractors)
 // ─────────────────────────────────────────────
 
 const SUGGESTED_CONTACTS: SuggestedContact[] = [
