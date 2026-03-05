@@ -1,3 +1,47 @@
+// ═══════════════════════════════════════════════════════════════
+// App.tsx
+// Root component — auth state machine + navigation container
+//
+// Controls the entire app lifecycle: loading → login → onboarding → main app.
+// All auth routing flows through a single onAuthStateChange listener.
+// Deep link handler captures magic link tokens from atlasio://login-callback.
+//
+// Key behaviors:
+// - Auth state machine determines which screen tree to render
+// - Profile check (display_role) distinguishes new users from onboarded users
+// - Deep link listener extracts access_token/refresh_token from URL fragment
+// - OnboardingFormData accumulates through route params across onboarding screens
+// - Role-branching: contractors get 6-step flow, agents/partners get 5-step flow
+//
+// ─────────────────────────────────────────────────
+// STATE FLOW:
+// 1. App mounts → authState = 'loading', shows spinner
+// 2. supabase.auth.onAuthStateChange fires:
+//    - No session → authState = 'unauthenticated' → LoginScreen
+//    - SIGNED_OUT → authState = 'unauthenticated', queryClient cleared
+//    - SIGNED_IN / INITIAL_SESSION / TOKEN_REFRESHED → checkProfile(userId)
+// 3. checkProfile queries profiles.display_role:
+//    - display_role exists → authState = 'authenticated' → MainApp (BottomTabNavigator)
+//    - display_role missing or profile missing → authState = 'onboarding' → Onboarding1
+// 4. Deep link (separate useEffect):
+//    - atlasio://login-callback#access_token=...&refresh_token=...
+//    - Extracts tokens → supabase.auth.setSession() → triggers onAuthStateChange
+// ─────────────────────────────────────────────────
+//
+// ROUTES REGISTERED:
+//   Onboarding1           — Splash / welcome screen (step 1)
+//   OnboardingRoleSelect  — Role card picker (step 2)
+//   Onboarding3           — Agent/partner profile form (step 3/5)
+//   Onboarding4           — Agent/partner credentials (step 4/5)
+//   ContractorProfileBasics — Contractor name/company (step 3/6)
+//   ContractorTradeStep     — Contractor trade chips (step 4/6)
+//   ContractorDetailsStep   — Contractor service area + license (step 5/6)
+//   OnboardingComplete      — Role-specific completion + CTA (final step)
+//   MainApp                 — BottomTabNavigator (role passed via params)
+//
+// @backend: supabase.auth.onAuthStateChange, profiles.display_role query
+// ═══════════════════════════════════════════════════════════════
+
 import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -22,6 +66,20 @@ import OnboardingComplete from './components/OnboardingComplete';
 import BottomTabNavigator from './components/BottomTabNavigator';
 
 import type { Session } from '@supabase/supabase-js';
+
+// ─────────────────────────────────────────────────────────────
+// @demo TEMP: Dev bypass for device testing
+// Set to false before any investor demo or production build
+// DEV_BYPASS_AUTH = false is the production-ready state
+// Supabase auth service issue tracked — revert when resolved
+// ─────────────────────────────────────────────────────────────
+const DEV_BYPASS_AUTH = __DEV__ && true; // @demo TEMP
+
+// ─────────────────────────────────────────────
+// TYPES — OnboardingFormData accumulates through route params.
+// formData.role is ALWAYS a backend enum value (single-value principle).
+// See OnboardingRoleSelect.tsx for the role card definitions.
+// ─────────────────────────────────────────────
 
 type OnboardingFormData = {
   role: string;
@@ -50,12 +108,23 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// ─────────────────────────────────────────────
+// AUTH STATE MACHINE
+// loading          → initial state, shows spinner while checking session
+// unauthenticated  → no session, renders LoginScreen (outside NavigationContainer)
+// onboarding       → session exists but display_role is null, starts onboarding flow
+// authenticated    → session + display_role present, renders MainApp
+// ─────────────────────────────────────────────
 type AuthState = 'loading' | 'unauthenticated' | 'onboarding' | 'authenticated';
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [userRole, setUserRole] = useState<string>('Agent');
 
+  // ─────────────────────────────────────────────
+  // AUTH LISTENER — single listener handles all auth events.
+  // @backend: supabase.auth.onAuthStateChange + profiles table query
+  // ─────────────────────────────────────────────
   useEffect(() => {
     // Check profile to determine if onboarding is complete
     const checkProfile = async (userId: string) => {
@@ -143,6 +212,10 @@ export default function App() {
     return () => linkSubscription.remove();
   }, []);
 
+  // ─────────────────────────────────────────────
+  // RENDER — three branches based on auth state
+  // ─────────────────────────────────────────────
+
   // Loading state
   if (authState === 'loading') {
     return (
@@ -151,6 +224,27 @@ export default function App() {
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </SafeAreaProvider>
+    );
+  }
+
+  // @demo TEMP: skip login for device testing — bypasses auth entirely
+  if (DEV_BYPASS_AUTH) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <Stack.Navigator
+              initialRouteName="MainApp"
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            >
+              <Stack.Screen name="MainApp" component={BottomTabNavigator} initialParams={{ role: userRole }} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </QueryClientProvider>
     );
   }
 

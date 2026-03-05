@@ -392,6 +392,71 @@ Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, Co
 tsc status: 0 errors
 
 ---
+Session 27 — Codebase Documentation Pass Part 1 (Infrastructure + Revenue)
+Branch: frontend/session-25-onboarding-redesign
+Commit: f25f858 (combined with S28)
+
+- **16 infrastructure + revenue files documented** with 7 handoff rules:
+  1. Enhanced file headers with line counts
+  2. @backend markers on every Supabase call/RPC
+  3. @demo markers on mock data, setTimeout, console.log stubs, feature flag gates
+  4. Section dividers (═══ major, ─── minor)
+  5. Sections catalog in header
+  6. Flow context (navigation paths, receives/passes)
+  7. Role branching comments
+- Files covered: tokens.ts, featureFlags.ts, supabase.ts, typeAdapters.ts, proProfileHelpers.ts, useData.ts (49 hooks), useDebounce.ts, useRealtime.ts, types/index.ts, schema.sql (reference only), RepairJobDetails.tsx, PostJobWizard.tsx, PostPhotoJobScreen.tsx, PostStagingJobScreen.tsx, JobCompletionScreen.tsx, EditRepairJob.tsx
+
+---
+Session 28 — Codebase Documentation Pass Part 2 (All Remaining Files)
+Branch: frontend/session-25-onboarding-redesign
+Commit: f25f858 (combined with S27)
+
+- **54 remaining files documented** across 5 batches:
+  - Batch 1: Contractor screens (5) — ContractorHomeTab, ContractorJobDetails, JobTrackerTab, BidSubmissionScreen, ContractorInboxList
+  - Batch 2: Contractor onboarding (6) — OnboardingScreen1, OnboardingRoleSelect, OnboardingScreen3, ContractorProfileBasics, ContractorTradeStep, ContractorDetailsStep
+  - Batch 3: Agent core screens (5) — HomeTabAgent, HomeTabAgentFilled, FindTab, NetworkTab, ProfileTab
+  - Batch 4: Messaging + shared (6) — InboxList, ChatScreen, RepairChatScreen, DealChatScreen, NewMessageScreen, MessageBubble
+  - Batch 5: Remaining 38 files — screens, data, shared components, nav stacks, shared/
+- **73 files total changed** (S27+S28): 750 insertions, 251 deletions — zero logic changes
+- All files now have: line counts in headers, @demo/@backend markers where applicable, section dividers, flow context
+- Fixed HomeTabAgentFilled.tsx incorrect self-reference (said HomeTabAgent.tsx in its own header)
+
+---
+Cumulative Progress (Sessions 1-28)
+
+- Session 1: Type alignment (types/index.ts ↔ schema.sql)
+- Session 2: 11 T1 revenue-critical hooks wired
+- Session 3: 16 T2 core-experience hooks wired
+- Session 4: 9 remaining hooks wired — all 36 hooks now wired
+- Session 5: 14 tsc errors fixed, feature flag system, all 10 screens connected to hooks
+- Session 6: Type adapters (lib/typeAdapters.ts), ChatScreen threadId, FindTab sections wired
+- Session 7/7B: Feature flag flipped to live, pre-backend polish audit (6 fixes identified)
+- Session 9: Fixes 2-6 complete (empty states, ProProfile by ID, tags below bio, headline)
+- Session 10: sender_name fix, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved
+- Session 11: ProProfile CTAs wired, Recommended/Trending differentiated, NotificationsTab flash fixed, InboxList avatar_colors, useChatRecipients + useCreateThread created, useProProfile deleted
+- Session 12: Realtime subscriptions (3 hooks), is_unread + useMarkThreadRead, rpc_create_thread, 4 edge function stubs
+- Session 13: 7 edge functions (4 implemented + 3 new), auth state management, LoginScreen, storage policies
+- Session 14-15: Edge function deployment prep, E2E verification, demo cleanup
+- Session 16: Phase 6 verification components (DisplayTag, VerificationBadge, VerificationBanner, VerificationScreen, PhoneVerificationScreen)
+- Session 17: Badge wired to ProProfile/ProCard, banner wired to HomeTabAgent/ProfileTab
+- Session 18: Progressive gating (hard gate on job posting, soft banners on 4 screens, Licensed & Insured chips, connect nudge)
+- Session 22: ContractorJobDetails + BidSubmissionScreen (2 new screens), 3 hook stubs, ContractorInboxList token cleanup
+- Session 23: Contractor demo loop closed — card nav, inbox chat, job completion CTA wiring, token cleanup
+- Session 24: JobTrackerTab rebuilt (pipeline list + filter chips), ContractorJobsStack, conditional tabs (agent 5 / contractor 3)
+- Session 25: Onboarding redesigned (role-branching flow, 4 new contractor screens, formData accumulation), ProfileTab contractor stats
+- Session 26: Onboarding wired to backend (single-value principle, useCompleteOnboarding hook, LIVE_ONBOARDING flag, subRole eliminated, ROLE_MAP eliminated)
+- Session 27: Codebase documentation pass Part 1 — 16 infrastructure + revenue files (tokens, hooks, types, job screens)
+- Session 28: Codebase documentation pass Part 2 — 54 remaining files (all screens, components, nav stacks)
+
+49 hooks total (46 wired + 3 mock stubs). 7 edge functions. 3 realtime subscriptions. 0 type casts. 0 tsc errors.
+73 files documented with @demo/@backend markers, line counts, section dividers, flow context.
+
+Contractor screens: 5 (ContractorHomeTab, ContractorJobDetails, ContractorInboxList, BidSubmissionScreen, JobTrackerTab) + 3 shared (ChatScreen, ProProfile, JobCompletionScreen)
+Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, ContractorProfileBasics, ContractorTradeStep, ContractorDetailsStep, Screen2 retired)
+
+tsc status: 0 errors
+
+---
 Recommended Next Session Priorities
 
 1. Deploy rpc_complete_onboarding to Supabase, flip LIVE_ONBOARDING flag, test end-to-end

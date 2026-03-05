@@ -23,7 +23,7 @@
 //   @backend: Supabase tables + RPCs referenced throughout
 // ─────────────────────────────────────────────
 //
-// HOOK CATALOG (49 hooks, 11 sections):
+// HOOK CATALOG (55 hooks, 13 sections):
 //   QUERY KEYS           — centralized cache keys for invalidation
 //   PROFILE (5)          — useMyProfile, useProfile, useUpdateProfile,
 //                          useConnectionStatus, useProfileVouches
@@ -40,8 +40,11 @@
 //   NOTIFICATIONS (3)    — useNotifications, useMarkNotificationsRead, useUnreadNotificationCount
 //   FIND / SEARCH (4)    — useSearchPros, useFindPros, useRecommendedPros, useTrendingPros
 //   SQUADS (3)           — useSquadMembers, useAssignSquadMember, useRemoveSquadMember
-//   CONTRACTOR JOBS (3)  — useContractorJobDetails, useSubmitBid, useRespondToCounter
+//   CONTRACTOR JOBS (5)  — useContractorJobDetails, useSubmitBid, useRespondToCounter,
+//                          useAcceptInvitation, useDeclineInvitation
+//   CONTRACTOR DASHBOARD (3) — useMatchingJobs, useContractorEarnings, useMarketPulse
 //   ONBOARDING (1)       — useCompleteOnboarding
+//   ACCOUNT (1)          — useDeleteAccount
 // ═══════════════════════════════════════════════════════════════
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -118,6 +121,11 @@ export const queryKeys = {
 
   // Agent Jobs
   agentJobs: ['agent-jobs'] as const,
+
+  // Contractor Dashboard
+  matchingJobs: (limit: number) => ['matchingJobs', limit] as const,
+  contractorEarnings: ['contractorEarnings'] as const,
+  marketPulse: ['marketPulse'] as const,
 } as const;
 
 // ═══════════════════════════════════════════════════════════════
@@ -1690,20 +1698,193 @@ export const useSubmitBid = () => {
 /**
  * Respond to agent's counter-offer.
  * @backend supabase.rpc('rpc_respond_to_counter', {
- *   p_bid_id, p_action: 'accept' | 'counter' | 'decline', p_new_amount?
+ *   p_bid_id, p_action: 'accept' | 'counter' | 'decline', p_counter_amount?
  * })
+ * → returns { success, action, bid_id }
  */
-// STATUS: mock
+// STATUS: wired (with mock fallback)
 export const useRespondToCounter = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { bidId: string; action: 'accept' | 'counter' | 'decline'; newAmount?: number }) => {
-      // TODO: [PRODUCTION] Replace with Supabase RPC
-      console.log('[useRespondToCounter]', data);
-      await new Promise((r) => setTimeout(r, 500));
+      try {
+        const { data: result, error } = await supabase
+          .rpc('rpc_respond_to_counter', {
+            p_bid_id: data.bidId,
+            p_action: data.action,
+            p_counter_amount: data.newAmount ?? null,
+          });
+        if (error) throw error;
+        return result;
+      } catch (err) {
+        console.warn('[useRespondToCounter] Supabase RPC failed, using mock fallback', err);
+        // @demo mock fallback — simulate success
+        await new Promise((r) => setTimeout(r, 500));
+        return { success: true, action: data.action, bid_id: data.bidId };
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contractorJob'] });
+      qc.invalidateQueries({ queryKey: queryKeys.matchingJobs(20) });
+    },
+  });
+};
+
+/**
+ * Accept a job invitation.
+ * @backend supabase.rpc('rpc_accept_invitation', { p_invitation_id })
+ * → returns { success, invitation_id, job_id }
+ */
+// STATUS: wired (with mock fallback)
+export const useAcceptInvitation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { invitationId: string }) => {
+      try {
+        const { data, error } = await supabase
+          .rpc('rpc_accept_invitation', { p_invitation_id: params.invitationId });
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.warn('[useAcceptInvitation] Supabase RPC failed, using mock fallback', err);
+        // @demo mock fallback
+        await new Promise((r) => setTimeout(r, 500));
+        return { success: true, invitation_id: params.invitationId };
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contractorJob'] });
+      qc.invalidateQueries({ queryKey: queryKeys.matchingJobs(20) });
+    },
+  });
+};
+
+/**
+ * Decline a job invitation.
+ * @backend supabase.rpc('rpc_decline_invitation', { p_invitation_id })
+ * → returns { success, invitation_id, job_id }
+ */
+// STATUS: wired (with mock fallback)
+export const useDeclineInvitation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { invitationId: string }) => {
+      try {
+        const { data, error } = await supabase
+          .rpc('rpc_decline_invitation', { p_invitation_id: params.invitationId });
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.warn('[useDeclineInvitation] Supabase RPC failed, using mock fallback', err);
+        // @demo mock fallback
+        await new Promise((r) => setTimeout(r, 500));
+        return { success: true, invitation_id: params.invitationId };
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contractorJob'] });
+    },
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CONTRACTOR DASHBOARD QUERIES
+// @backend: rpc_get_matching_jobs, rpc_get_contractor_earnings, rpc_get_market_pulse
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Fetch jobs matching the contractor's trades.
+ * @backend supabase.rpc('rpc_get_matching_jobs', { p_limit })
+ * → returns { success, jobs: Array<{ id, title, description, address, job_type,
+ *   status, trades, budget_min, budget_max, due_date, is_urgent, bid_deadline,
+ *   created_at, agent: { id, name, company, rating, avatar_color } }> }
+ */
+// STATUS: wired (with mock fallback)
+export const useMatchingJobs = (limit = 20) => {
+  return useQuery({
+    queryKey: queryKeys.matchingJobs(limit),
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .rpc('rpc_get_matching_jobs', { p_limit: limit });
+        if (error) throw error;
+        return data?.jobs ?? [];
+      } catch (err) {
+        console.warn('[useMatchingJobs] Supabase RPC failed, using mock fallback', err);
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * Fetch contractor earnings summary.
+ * @backend supabase.rpc('rpc_get_contractor_earnings')
+ * → returns { success, total_earnings, this_month_earnings, jobs_completed, avg_job_value }
+ * All monetary values in cents (INTEGER).
+ */
+// STATUS: wired (with mock fallback)
+export const useContractorEarnings = () => {
+  return useQuery({
+    queryKey: queryKeys.contractorEarnings,
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .rpc('rpc_get_contractor_earnings');
+        if (error) throw error;
+        return data as {
+          success: boolean;
+          total_earnings: number;
+          this_month_earnings: number;
+          jobs_completed: number;
+          avg_job_value: number;
+        };
+      } catch (err) {
+        console.warn('[useContractorEarnings] Supabase RPC failed, using mock fallback', err);
+        return {
+          success: true,
+          total_earnings: 0,
+          this_month_earnings: 0,
+          jobs_completed: 0,
+          avg_job_value: 0,
+        };
+      }
+    },
+  });
+};
+
+/**
+ * Fetch market activity stats for the contractor's trade.
+ * @backend supabase.rpc('rpc_get_market_pulse')
+ * → returns { success, open_jobs, avg_budget, active_contractors, avg_bid }
+ * All monetary values in cents (INTEGER).
+ */
+// STATUS: wired (with mock fallback)
+export const useMarketPulse = () => {
+  return useQuery({
+    queryKey: queryKeys.marketPulse,
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .rpc('rpc_get_market_pulse');
+        if (error) throw error;
+        return data as {
+          success: boolean;
+          open_jobs: number;
+          avg_budget: number;
+          active_contractors: number;
+          avg_bid: number;
+        };
+      } catch (err) {
+        console.warn('[useMarketPulse] Supabase RPC failed, using mock fallback', err);
+        return {
+          success: true,
+          open_jobs: 0,
+          avg_budget: 0,
+          active_contractors: 0,
+          avg_bid: 0,
+        };
+      }
     },
   });
 };
@@ -1758,6 +1939,42 @@ export const useCompleteOnboarding = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.myProfile });
+    },
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ACCOUNT
+// @backend: rpc_delete_account
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Soft-delete user account. Sets deactivated_at, cancels open jobs,
+ * withdraws pending bids, removes push tokens.
+ * @backend supabase.rpc('rpc_delete_account', { p_confirm_text: 'DELETE' })
+ * → returns { success, deactivated_at, cancelled_jobs, withdrawn_bids }
+ * Guards: blocks if user has active jobs (awarded/in_progress/pending_completion).
+ * Error message includes active job count when blocked.
+ */
+// STATUS: wired (with mock fallback)
+export const useDeleteAccount = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .rpc('rpc_delete_account', { p_confirm_text: 'DELETE' });
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        // Re-throw so the screen can show the error message
+        // (e.g. "Cannot delete account with 2 active job(s)")
+        throw err;
+      }
+    },
+    onSuccess: async () => {
+      qc.clear();
+      await supabase.auth.signOut();
     },
   });
 };

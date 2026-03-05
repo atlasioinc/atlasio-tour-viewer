@@ -1,6 +1,10 @@
-// lib/supabase.ts
 // ═══════════════════════════════════════════════════════════════
-// Supabase Client Configuration
+// lib/supabase.ts
+// Supabase Client — single shared instance for the entire app
+//
+// Provides the configured Supabase client used by all hooks in
+// hooks/useData.ts, all realtime subscriptions in hooks/useRealtime.ts,
+// and auth operations in App.tsx + LoginScreen.tsx.
 //
 // Setup steps:
 //   1. Create project at supabase.com
@@ -8,11 +12,18 @@
 //   3. Add to .env: EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY
 //   4. Install: npx expo install @supabase/supabase-js @react-native-async-storage/async-storage
 //
-// This client handles:
-//   - Auth (sign-up, login, session persistence)
-//   - Database queries (CRUD on all tables)
-//   - Realtime subscriptions (chat, notifications)
-//   - Storage (avatar photos, repair job photos)
+// Key config:
+//   - AsyncStorage for session persistence (survives app restarts)
+//   - detectSessionInUrl: false — deep link tokens are extracted manually
+//     in App.tsx via expo-linking (more reliable in Expo than auto-detect)
+//   - autoRefreshToken: true — Supabase SDK handles JWT refresh
+//
+// Exports:
+//   supabase          — the client instance
+//   getCurrentUserId  — async helper, reads from auth.getUser()
+//   getStorageUrl     — builds public URL for storage bucket files
+//
+// @backend: Supabase project config (URL + anon key via .env)
 // ═══════════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js';
