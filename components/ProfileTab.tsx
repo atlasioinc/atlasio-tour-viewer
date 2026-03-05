@@ -11,11 +11,15 @@
 // Sections: Design Tokens, SVG Icons, Profile Avatar,
 //           Mock Sparkline, Main Component
 //
+// Verification: VerificationBanner at top of scroll (soft nudge).
+// Business rule: NEVER hard-gate ProfileTab — it's a trust-building upsell.
+// Hard gates belong ONLY on: PostJobWizard, PostPhotoJob, PostStagingJob.
+//
 // @demo  Mock specialties + languages via FEATURE_FLAGS.USE_MOCK_DATA
 // @backend useMyProfile (wired) — profiles.id = auth.uid()
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -123,7 +127,6 @@ const Sparkline: React.FC = () => (
 
 const ProfileTab: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   // Live profile hook (runs even in mock mode to keep cache warm)
   const { data: liveProfile } = useMyProfile();
@@ -164,25 +167,18 @@ const ProfileTab: React.FC = () => {
         </View>
       </View>
 
-      {/* ── Verification Banner ── */}
-      {!bannerDismissed && liveProfile && liveProfile.verification_level !== 'fully_verified' && (
-        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-          <VerificationBanner
-            level={liveProfile.verification_level ?? 'none'}
-            role={liveProfile.role === 'agent' ? 'agent' : 'contractor'}
-            onPress={() => {
-              navigation.navigate('Verification');
-            }}
-            onDismiss={() => setBannerDismissed(true)}
-          />
-        </View>
-      )}
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 16, paddingBottom: 32, paddingHorizontal: 16, gap: 16 }}
       >
+        {/* Soft verification nudge — returns null if already verified */}
+        <VerificationBanner
+          level={liveProfile?.verification_level ?? 'none'}
+          role={liveProfile?.role === 'contractor' ? 'contractor' : 'agent'}
+          onPress={() => navigation.navigate('Verification')}
+        />
+
         {/* ══════════════════════════════════════════
             PROFILE CARD
             ══════════════════════════════════════════ */}
