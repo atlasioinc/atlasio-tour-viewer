@@ -84,8 +84,16 @@ const HomeStack: React.FC = () => (
     }}
   >
     <Stack.Screen name="HomeMain" component={HomeTabAgent} />
-    <Stack.Screen name="RepairJobDetails" component={RepairJobDetails} />
-    <Stack.Screen name="EditRepairJob" component={EditRepairJob} />
+    <Stack.Screen
+      name="RepairJobDetails"
+      component={RepairJobDetails}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
+    <Stack.Screen
+      name="EditRepairJob"
+      component={EditRepairJob}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
     <Stack.Screen
       name="RepairChatScreen"
       component={RepairChatScreen}

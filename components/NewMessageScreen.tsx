@@ -21,7 +21,7 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -141,6 +141,7 @@ const ContactRow: React.FC<{
 
 const NewMessageScreen: React.FC = () => {
   const navigation = useNavigation<NewMessageNavProp>();
+  const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState('');
 
   const filteredContacts = useMemo(() => {
@@ -169,12 +170,12 @@ const NewMessageScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* Header */}
       <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, height: 48 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, paddingTop: 8 + insets.top }}>
           <Pressable
             onPress={() => navigation.goBack()}
             hitSlop={12}
@@ -252,7 +253,7 @@ const NewMessageScreen: React.FC = () => {
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

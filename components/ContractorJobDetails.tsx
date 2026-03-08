@@ -30,9 +30,9 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { COLORS, DIMENSIONS, SHADOWS } from '../lib/tokens';
@@ -82,12 +82,6 @@ const CalendarIcon: React.FC = () => (
 const StarIcon: React.FC = () => (
   <Svg width={12} height={12} viewBox="0 0 14 14" fill="none">
     <Path d="M7 1.17L8.82 4.87L12.88 5.46L9.94 8.32L10.64 12.36L7 10.44L3.36 12.36L4.06 8.32L1.12 5.46L5.18 4.87L7 1.17Z" fill={COLORS.starColor} stroke={COLORS.starColor} strokeWidth={1.17} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-const ChevronRightIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-    <Path d="M9 18L15 12L9 6" stroke={COLORS.lightText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -220,6 +214,7 @@ const DEMO_LABELS = ['No Bid', 'Bid Pending', 'Countered'];
 const ContractorJobDetails: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<RouteProp<ContractorJobDetailsParams, 'ContractorJobDetails'>>();
+  const insets = useSafeAreaInsets();
 
   // @demo State toggle (cycles through 3 mock states)
   const [demoStateIndex, setDemoStateIndex] = useState(0);
@@ -280,8 +275,69 @@ const ContractorJobDetails: React.FC = () => {
   // ── Sticky CTA logic ──
 
   const renderStickyCTA = () => {
-    // Hide sticky bar when counter-offer section is showing (has inline actions)
-    if (isCountered) return null;
+    // Countered state — 3 action buttons in sticky bar
+    if (isCountered) {
+      return (
+        <View style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          paddingHorizontal: 16,
+          paddingTop: 12,
+          paddingBottom: Math.max(insets.bottom, 24),
+          backgroundColor: COLORS.background,
+          borderTopWidth: DIMENSIONS.cardBorderWidth,
+          borderTopColor: COLORS.border,
+        }}>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Pressable
+              onPress={handleDeclineCounter}
+              style={({ pressed }) => ({
+                flex: 1,
+                height: 48,
+                borderRadius: DIMENSIONS.buttonRadius,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.rejectRed, lineHeight: 20 }}>Decline</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleCounterBack}
+              style={({ pressed }) => ({
+                flex: 1,
+                height: 48,
+                borderRadius: DIMENSIONS.buttonRadius,
+                backgroundColor: COLORS.background,
+                borderWidth: 1,
+                borderColor: COLORS.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.primary, lineHeight: 20 }}>Counter</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleAcceptCounter}
+              style={({ pressed }) => ({
+                flex: 1,
+                height: 48,
+                borderRadius: DIMENSIONS.buttonRadius,
+                backgroundColor: COLORS.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF', lineHeight: 20 }}>Accept</Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    }
 
     let label = '';
     let onPress = () => {};
@@ -324,8 +380,13 @@ const ContractorJobDetails: React.FC = () => {
 
     return (
       <View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingTop: 12,
+        paddingBottom: Math.max(insets.bottom, 24),
         backgroundColor: COLORS.background,
         borderTopWidth: DIMENSIONS.cardBorderWidth,
         borderTopColor: COLORS.border,
@@ -361,16 +422,17 @@ const ContractorJobDetails: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* ── Header ── */}
       <View style={{
-        height: DIMENSIONS.headerHeight,
+        paddingTop: 8 + insets.top,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
+        paddingBottom: 12,
         borderBottomWidth: DIMENSIONS.headerBorderWidth,
         borderBottomColor: COLORS.border,
         backgroundColor: COLORS.background,
@@ -381,7 +443,6 @@ const ContractorJobDetails: React.FC = () => {
         <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.primary, lineHeight: 24 }}>Job Details</Text>
         <Pressable
           onPress={() => Alert.alert('Actions', '', [
-            { text: 'Share Job', onPress: () => {} },
             { text: 'Report Job', onPress: () => {}, style: 'destructive' },
             { text: 'Cancel', style: 'cancel' },
           ])}
@@ -396,7 +457,7 @@ const ContractorJobDetails: React.FC = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: 80 + Math.max(insets.bottom, 24) }}
         contentOffset={{ x: 0, y: 50 }}
       >
         {/* @demo Toggle — hidden above scroll start */}
@@ -449,14 +510,29 @@ const ContractorJobDetails: React.FC = () => {
             backgroundColor: COLORS.statBg,
             borderRadius: DIMENSIONS.cardRadius,
             padding: 16,
-            gap: 4,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
           }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.primary, lineHeight: 28 }}>
-              {centsToDisplay(job.budgetMin)} – {centsToDisplay(job.budgetMax)}
-            </Text>
-            <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
-              Agent's budget range
-            </Text>
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.primary, lineHeight: 28 }}>
+                {centsToDisplay(job.budgetMin)} – {centsToDisplay(job.budgetMax)}
+              </Text>
+              <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+                Agent's budget range
+              </Text>
+            </View>
+            {/* @demo Show contractor's bid — replace with job.myBid.amount from useContractorJobDetails */}
+            {hasBid && (
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.primary, lineHeight: 28 }}>
+                  {centsToDisplay(job.myBid!.amount)}
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+                  Your bid
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* ── 5. Scope Section ── */}
@@ -503,12 +579,9 @@ const ContractorJobDetails: React.FC = () => {
             </View>
           </View>
 
-          {/* ── 7. Agent Card ── */}
-          <Pressable
-            onPress={() => navigation.dispatch(
-              CommonActions.navigate({ name: 'ProProfile', params: { profileId: job.agent.id } }),
-            )}
-            style={({ pressed }) => ({
+          {/* ── 7. Agent Card (non-tappable — agent profile view is post-MVP) ── */}
+          <View
+            style={{
               flexDirection: 'row',
               alignItems: 'center',
               padding: 14,
@@ -517,8 +590,7 @@ const ContractorJobDetails: React.FC = () => {
               borderWidth: 1,
               borderColor: COLORS.border,
               ...SHADOWS.card,
-              opacity: pressed ? 0.85 : 1,
-            })}
+            }}
           >
             <AvatarPlaceholder name={job.agent.name} color={job.agent.avatarColor} size={40} />
             <View style={{ flex: 1, marginLeft: 12, gap: 2 }}>
@@ -538,8 +610,7 @@ const ContractorJobDetails: React.FC = () => {
                 </Text>
               </View>
             </View>
-            <ChevronRightIcon />
-          </Pressable>
+          </View>
 
           {/* ── 8. Your Bid Section (conditional) ── */}
           {hasBid && !isCountered && (
@@ -614,57 +685,6 @@ const ContractorJobDetails: React.FC = () => {
                 )}
               </View>
 
-              {/* Action buttons row */}
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                {/* Accept */}
-                <Pressable
-                  onPress={handleAcceptCounter}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    height: 44,
-                    borderRadius: DIMENSIONS.buttonRadius,
-                    backgroundColor: COLORS.primary,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: pressed ? 0.85 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF', lineHeight: 20 }}>Accept</Text>
-                </Pressable>
-
-                {/* Counter back */}
-                <Pressable
-                  onPress={handleCounterBack}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    height: 44,
-                    borderRadius: DIMENSIONS.buttonRadius,
-                    backgroundColor: COLORS.background,
-                    borderWidth: 1,
-                    borderColor: COLORS.primary,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: pressed ? 0.85 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.primary, lineHeight: 20 }}>Counter</Text>
-                </Pressable>
-
-                {/* Decline */}
-                <Pressable
-                  onPress={handleDeclineCounter}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    height: 44,
-                    borderRadius: DIMENSIONS.buttonRadius,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: pressed ? 0.85 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.rejectRed, lineHeight: 20 }}>Decline</Text>
-                </Pressable>
-              </View>
             </View>
           )}
 
@@ -673,7 +693,7 @@ const ContractorJobDetails: React.FC = () => {
 
       {/* ── 10. Sticky Bottom CTA ── */}
       {renderStickyCTA()}
-    </SafeAreaView>
+    </View>
   );
 };
 

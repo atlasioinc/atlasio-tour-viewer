@@ -40,7 +40,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -530,6 +530,7 @@ const SORT_OPTIONS = ['Recommended', 'Lowest Price', 'Highest Rated', 'Fastest R
 const RepairJobDetails: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<RepairJobDetailsRouteProp>();
+  const insets = useSafeAreaInsets();
 
   const [job, setJob] = useState<JobWithBidProfiles>(route.params.job);
   const [selectedSort, setSelectedSort] = useState('Recommended');
@@ -830,15 +831,16 @@ const RepairJobDetails: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      {/* HEADER: 56px, #E5E7EB bottom border */}
+      {/* HEADER */}
       <View
         style={{
-          height: 56,
+          paddingTop: 8 + insets.top,
           paddingLeft: 8,
           paddingRight: 16,
+          paddingBottom: 12,
           backgroundColor: COLORS.background,
           borderBottomWidth: 0.68,
           borderBottomColor: COLORS.border,
@@ -905,6 +907,7 @@ const RepairJobDetails: React.FC = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{ flex: 1, backgroundColor: COLORS.screenBg }}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
       >
         {/* Job Info Card */}
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
@@ -1866,7 +1869,7 @@ const RepairJobDetails: React.FC = () => {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

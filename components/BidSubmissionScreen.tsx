@@ -31,7 +31,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -103,6 +103,7 @@ const BidSubmissionScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<RouteProp<BidSubmissionParams, 'BidSubmission'>>();
 
+  const insets = useSafeAreaInsets();
   const { jobId, prefillAmount, prefillTimeline, prefillNotes, isEdit } = route.params;
   const submitBid = useSubmitBid();
 
@@ -167,15 +168,16 @@ const BidSubmissionScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* ── Header ── */}
       <View style={{
-        height: DIMENSIONS.headerHeight,
+        paddingTop: 8 + insets.top,
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
+        paddingBottom: 12,
         borderBottomWidth: DIMENSIONS.headerBorderWidth,
         borderBottomColor: COLORS.border,
       }}>
@@ -378,37 +380,36 @@ const BidSubmissionScreen: React.FC = () => {
           borderTopColor: COLORS.border,
           paddingHorizontal: 16,
           paddingTop: 12,
+          paddingBottom: Math.max(insets.bottom, 24),
         }}>
-          <SafeAreaView edges={['bottom']}>
-            <Pressable
-              onPress={handleSubmit}
-              disabled={!isFormValid || submitBid.isPending}
-              style={({ pressed }) => ({
-                height: DIMENSIONS.buttonModalHeight,
-                backgroundColor: isFormValid && !submitBid.isPending ? COLORS.primary : COLORS.disabledBg,
-                borderRadius: DIMENSIONS.buttonRadius,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed && isFormValid ? 0.85 : 1,
-              })}
-            >
-              {submitBid.isPending ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={{
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: isFormValid ? '#FFFFFF' : COLORS.disabledText,
-                  lineHeight: 24,
-                }}>
-                  {isEdit ? 'Update Bid' : 'Submit Bid'}
-                </Text>
-              )}
-            </Pressable>
-          </SafeAreaView>
+          <Pressable
+            onPress={handleSubmit}
+            disabled={!isFormValid || submitBid.isPending}
+            style={({ pressed }) => ({
+              height: DIMENSIONS.buttonModalHeight,
+              backgroundColor: isFormValid && !submitBid.isPending ? COLORS.primary : COLORS.disabledBg,
+              borderRadius: DIMENSIONS.buttonRadius,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed && isFormValid ? 0.85 : 1,
+            })}
+          >
+            {submitBid.isPending ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: isFormValid ? '#FFFFFF' : COLORS.disabledText,
+                lineHeight: 24,
+              }}>
+                {isEdit ? 'Update Bid' : 'Submit Bid'}
+              </Text>
+            )}
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

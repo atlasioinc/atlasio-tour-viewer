@@ -96,7 +96,11 @@ const ContractorHomeStackNav = createNativeStackNavigator();
 const ContractorHomeStackScreen: React.FC = () => (
   <ContractorHomeStackNav.Navigator screenOptions={{ headerShown: false }}>
     <ContractorHomeStackNav.Screen name="ContractorHomeMain" component={ContractorHomeTab} />
-    <ContractorHomeStackNav.Screen name="ContractorJobDetails" component={ContractorJobDetails} />
+    <ContractorHomeStackNav.Screen
+      name="ContractorJobDetails"
+      component={ContractorJobDetails}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
     <ContractorHomeStackNav.Screen
       name="BidSubmission"
       component={BidSubmissionScreen}
@@ -116,7 +120,11 @@ const ContractorJobsStackNav = createNativeStackNavigator();
 const ContractorJobsStackScreen: React.FC = () => (
   <ContractorJobsStackNav.Navigator screenOptions={{ headerShown: false }}>
     <ContractorJobsStackNav.Screen name="ContractorJobsMain" component={JobTrackerTab} />
-    <ContractorJobsStackNav.Screen name="ContractorJobDetails" component={ContractorJobDetails} />
+    <ContractorJobsStackNav.Screen
+      name="ContractorJobDetails"
+      component={ContractorJobDetails}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
     <ContractorJobsStackNav.Screen
       name="BidSubmission"
       component={BidSubmissionScreen}
@@ -467,7 +475,7 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
             return {
               tabBarIcon: ({ color }) => <HomeIcon color={color} />,
               tabBarStyle: hideOnScreens.includes(routeName)
-              ? { display: 'none' }
+              ? { display: 'none', height: 0, overflow: 'hidden' as const }
               : {
                   backgroundColor: COLORS.background,
                   borderTopWidth: 0.71,
@@ -479,7 +487,7 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
             };
           }}
         />
-        
+
         {/* @demo Agent-only tabs: Find + Network */}
         {demoRole === 'agent' && (
           <Tab.Screen

@@ -51,7 +51,11 @@ const InboxStack: React.FC = () => (
     }}
   >
     <Stack.Screen name="InboxList" component={InboxList} />
-    <Stack.Screen name="NewMessage" component={NewMessageScreen} />
+    <Stack.Screen
+      name="NewMessage"
+      component={NewMessageScreen}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
     <Stack.Screen
       name="ChatScreen"
       component={ChatScreen}
@@ -60,7 +64,11 @@ const InboxStack: React.FC = () => (
         animation: 'slide_from_bottom',
       }}
     />
-    <Stack.Screen name="CreateDealChat" component={CreateDealChat} />
+    <Stack.Screen
+      name="CreateDealChat"
+      component={CreateDealChat}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
     <Stack.Screen
       name="DealChatScreen"
       component={DealChatScreen}

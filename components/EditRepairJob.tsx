@@ -28,7 +28,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -172,6 +172,7 @@ const AddPhotoButton: React.FC<{ onPress: () => void }> = ({ onPress }) => (
 const EditRepairJob: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<EditRepairJobRouteProp>();
+  const insets = useSafeAreaInsets();
   const { job } = route.params;
 
   // ── Form State (pre-populated from job) ──
@@ -260,17 +261,18 @@ const EditRepairJob: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* ══════════════════════════════════════════
-          HEADER: 64px, ← Edit Job | Save
+          HEADER: ← Edit Job | Save
           ══════════════════════════════════════════ */}
       <View
         style={{
-          height: 48,
+          paddingTop: 8 + insets.top,
           paddingLeft: 8,
           paddingRight: 16,
+          paddingBottom: 12,
           backgroundColor: COLORS.background,
           borderBottomWidth: 0.7,
           borderBottomColor: COLORS.border,
@@ -548,9 +550,13 @@ const EditRepairJob: React.FC = () => {
           ══════════════════════════════════════════ */}
       <View
         style={{
-          paddingTop: 17,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          paddingTop: 12,
           paddingHorizontal: 16,
-          paddingBottom: 24,
+          paddingBottom: Math.max(insets.bottom, 24),
           backgroundColor: COLORS.background,
           borderTopWidth: 0.68,
           borderTopColor: COLORS.border,
@@ -576,7 +582,7 @@ const EditRepairJob: React.FC = () => {
           </Text>
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

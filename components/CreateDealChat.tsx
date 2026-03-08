@@ -22,7 +22,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
@@ -158,6 +158,7 @@ const ContactRow: React.FC<{
 
 const CreateDealChat: React.FC = () => {
   const navigation = useNavigation<NavProp>();
+  const insets = useSafeAreaInsets();
 
   // ── State ──
   const [searchText, setSearchText] = useState('');
@@ -237,7 +238,7 @@ const CreateDealChat: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <KeyboardAvoidingView
@@ -253,7 +254,7 @@ const CreateDealChat: React.FC = () => {
           {/* Title row */}
           <Pressable
             onPress={handleDismissSearch}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, height: 48 }}
+            style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, paddingTop: 8 + insets.top }}
           >
             <Pressable
               onPress={() => {
@@ -560,35 +561,40 @@ const CreateDealChat: React.FC = () => {
         {/* ══════════════════════════════════════════
             FOOTER — Create Chat button
             ══════════════════════════════════════════ */}
-        <View style={{ backgroundColor: COLORS.background, borderTopWidth: 0.68, borderTopColor: COLORS.border, paddingHorizontal: 16, paddingTop: 17 }}>
-          <SafeAreaView edges={['bottom']}>
-            <Pressable
-              onPress={handleCreateChat}
-              style={({ pressed }) => ({
-                height: 52,
-                backgroundColor: canCreate ? COLORS.primary : COLORS.disabledBg,
-                borderRadius: 9999,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed && canCreate ? 0.85 : 1,
-              })}
+        <View style={{
+          backgroundColor: COLORS.background,
+          borderTopWidth: 0.68,
+          borderTopColor: COLORS.border,
+          paddingHorizontal: 16,
+          paddingTop: 12,
+          paddingBottom: Math.max(insets.bottom, 24),
+        }}>
+          <Pressable
+            onPress={handleCreateChat}
+            style={({ pressed }) => ({
+              height: 52,
+              backgroundColor: canCreate ? COLORS.primary : COLORS.disabledBg,
+              borderRadius: 9999,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed && canCreate ? 0.85 : 1,
+            })}
+          >
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: canCreate ? '#FFFFFF' : COLORS.disabledText,
+                lineHeight: 24,
+                textAlign: 'center',
+              }}
             >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: canCreate ? '#FFFFFF' : COLORS.disabledText,
-                  lineHeight: 24,
-                  textAlign: 'center',
-                }}
-              >
-                Create Chat
-              </Text>
-            </Pressable>
-          </SafeAreaView>
+              Create Chat
+            </Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

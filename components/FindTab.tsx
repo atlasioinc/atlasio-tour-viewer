@@ -272,9 +272,18 @@ const ProCardComponent: React.FC<{
             <VerificationBadge level={pro.verification_level ?? 'none'} size="small" />
           </View>
           <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }} numberOfLines={1}>{pro.company}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
-            {pro.trade || pro.role}
-          </Text>
+          <View style={{
+            alignSelf: 'flex-start',
+            marginTop: 2,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            backgroundColor: COLORS.tagBg,
+            borderRadius: 9999,
+          }}>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.primary, lineHeight: 16 }}>
+              {pro.trade ?? pro.role}
+            </Text>
+          </View>
         </View>
       </View>
       <View style={{ alignItems: 'flex-end', gap: 2 }}>
