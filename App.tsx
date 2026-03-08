@@ -216,18 +216,8 @@ export default function App() {
   // RENDER — three branches based on auth state
   // ─────────────────────────────────────────────
 
-  // Loading state
-  if (authState === 'loading') {
-    return (
-      <SafeAreaProvider>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      </SafeAreaProvider>
-    );
-  }
-
   // @demo TEMP: skip login for device testing — bypasses auth entirely
+  // Must come FIRST before loading check so it never waits for Supabase auth
   if (DEV_BYPASS_AUTH) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -245,6 +235,17 @@ export default function App() {
           </NavigationContainer>
         </SafeAreaProvider>
       </QueryClientProvider>
+    );
+  }
+
+  // Loading state
+  if (authState === 'loading') {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </SafeAreaProvider>
     );
   }
 
