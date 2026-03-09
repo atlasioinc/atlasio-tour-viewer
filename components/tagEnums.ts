@@ -119,7 +119,7 @@ export const TC_TAGS = {
 // Removed "Clean Work" — better as a derived tag from vouches.
 // ─────────────────────────────────────────────
 export const CONTRACTOR_TAGS = {
-  LICENSED_INSURED:         'Licensed & Insured',
+  // 'Licensed & Insured' removed — belongs to verification layer, not self-select tags
   FAST_RESPONSE:            'Fast Response',
   EMERGENCY_SERVICE:        'Emergency Service',
   ON_TIME_COMPLETION:       'On-Time Completion',

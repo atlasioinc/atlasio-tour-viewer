@@ -185,6 +185,8 @@ const ROLE_FILTERS: { [key: string]: FilterGroup[] } = {
       { key: 'trade_cleaning', label: 'Home Cleaning & Junk Removal', type: 'chip' }, { key: 'trade_driveway', label: 'Driveway / Paving', type: 'chip' },
     ]},
     { title: 'Preferences', options: [
+      // @backend — wire to verification_level >= 'licensed' (NOT profiles.specialties tags)
+      // This is an agent-facing search filter, not a tag match
       { key: 'licensed_insured', label: 'Licensed & Insured', type: 'toggle' },
       { key: 'on_time', label: 'On-Time Completion', type: 'toggle' },
       { key: 'emergency', label: 'Emergency Service', type: 'toggle' },
@@ -212,22 +214,22 @@ interface ProCard {
 }
 
 const ALL_PROS: ProCard[] = [
-  { id: '1', name: 'Rachel Williams', company: 'First Choice Lending', role: 'Mortgage Pro', rating: 4.9, vouches: 127, tags: ['VA Specialist', 'Fast Closer', 'Spanish-Speaking'], headline: 'Closes in 19 days', avatarColor: '#C4A882', closingDays: 19, distanceMi: 2.1 },
-  { id: '2', name: 'Brian Cooper', company: 'ProBuild Contractors', role: 'Contractor', trade: 'General Contractor', secondary_trades: ['Carpentry', 'Drywall'], rating: 5.0, vouches: 67, tags: ['Licensed & Insured', 'Fast Response', 'On-Time Expert'], headline: '24hr response', avatarColor: '#7BA3C9', closingDays: 5, distanceMi: 4.8 },
-  { id: '3', name: 'Maria Santos', company: 'HomeGuard Inspections', role: 'Home Inspector', rating: 5.0, vouches: 156, tags: ['Same-Day Turnaround', 'Detailed Reports', 'Spanish-Speaking'], headline: 'Same-day reports', avatarColor: '#D4A8B5', closingDays: 1, distanceMi: 1.3 },
-  { id: '4', name: 'Emma Thompson', company: 'Elite Title Services', role: 'Title/Escrow', rating: 4.9, vouches: 104, tags: ['Fast Turnaround', 'Clear Communication', 'Spanish-Speaking'], headline: '$795 fee avg', avatarColor: '#A8C5DA', closingDays: 7, distanceMi: 3.2 },
-  { id: '5', name: 'Marcus Lee', company: 'Apex Mortgage', role: 'Mortgage Pro', rating: 4.8, vouches: 142, tags: ['FHA Approved', 'Fast Closer', 'Spanish-Speaking'], headline: 'FHA specialist', avatarColor: '#B5C4A8', closingDays: 21, distanceMi: 5.5 },
-  { id: '6', name: 'Kevin Park', company: 'Secure Title Co', role: 'Title/Escrow', rating: 4.8, vouches: 93, tags: ['Cash Buyer Expert', 'Fast Turnaround', 'No Junk Fees'], headline: 'Avg 7-day close', avatarColor: '#C9B87B', closingDays: 7, distanceMi: 6.1 },
-  { id: '7', name: 'Sarah Chen', company: 'Mountain View Appraisals', role: 'Appraiser', rating: 4.9, vouches: 89, tags: ['FHA Approved', 'Fast Turnaround'], headline: '48hr turnaround', avatarColor: '#A8B5D4', closingDays: 2, distanceMi: 3.7 },
-  { id: '8', name: 'James Foster', company: 'Summit Roofing', role: 'Contractor', trade: 'Roofer', secondary_trades: ['Gutters', 'Siding'], rating: 4.7, vouches: 52, tags: ['Licensed & Insured', 'Emergency Service', 'Warranty Offered'], headline: 'Avg bid $2,800', avatarColor: '#D4C5A8', closingDays: 3, distanceMi: 7.2 },
-  { id: '9', name: 'Lisa Martinez', company: 'Denver Home Warranty', role: 'Warranty', rating: 4.8, vouches: 76, tags: ['Fast Turnaround', 'Clear Communication'], headline: '$450/yr starting', avatarColor: '#B8A8D4', closingDays: 14, distanceMi: 2.8 },
-  { id: '10', name: 'David Kim', company: 'RE Law Group', role: 'Attorney', rating: 5.0, vouches: 64, tags: ['Complex Specialist', 'Spanish-Speaking'], headline: 'Flat fee $750', avatarColor: '#A8D4B5', closingDays: 3, distanceMi: 1.9 },
-  { id: '11', name: 'Angela Rivera', company: 'Precision Inspections', role: 'Home Inspector', rating: 4.8, vouches: 112, tags: ['Same-Day Turnaround', 'Foundation Specialist', 'Detailed Reports'], headline: 'Same-day reports', avatarColor: '#D4A8C5', closingDays: 1, distanceMi: 4.2 },
-  { id: '12', name: 'Tom Anderson', company: 'VA Loan Pros', role: 'Mortgage Pro', rating: 4.9, vouches: 98, tags: ['VA Specialist', 'Fast Closer', 'No Junk Fees'], headline: 'Closes in 17 days', avatarColor: '#C5D4A8', closingDays: 17, distanceMi: 8.3 },
-  { id: '13', name: 'Carlos Mendoza', company: 'Mendoza General Contracting', role: 'Contractor', trade: 'General Contractor', secondary_trades: ['Kitchen & Bath', 'Flooring'], rating: 4.9, vouches: 84, tags: ['Licensed & Insured', 'Full Remodels', 'On-Time Expert'], headline: 'Full remodels', avatarColor: '#A8C9B5', closingDays: 14, distanceMi: 3.4 },
-  { id: '14', name: 'Derek Washington', company: 'Volt Electric Co', role: 'Contractor', trade: 'Electrician', secondary_trades: ['Lighting', 'EV Chargers'], rating: 4.9, vouches: 71, tags: ['Licensed & Insured', 'Fast Response', 'Spanish-Speaking'], headline: '<2hr response', avatarColor: '#8BA8C9', closingDays: 2, distanceMi: 2.6 },
-  { id: '15', name: 'Tony Ruiz', company: 'Front Range Plumbing', role: 'Contractor', trade: 'Plumber', secondary_trades: ['Sewer', 'Water Heaters'], rating: 4.8, vouches: 93, tags: ['Licensed & Insured', 'Emergency Service', 'Warranty Offered'], headline: 'Same-day available', avatarColor: '#C9A87B', closingDays: 1, distanceMi: 5.1 },
-  { id: '16', name: 'Mike Petrov', company: 'Mile High Paving', role: 'Contractor', trade: 'Driveway / Paving', secondary_trades: ['Concrete', 'Drainage'], rating: 4.7, vouches: 48, tags: ['Licensed & Insured', 'Free Estimates', 'On-Time Expert'], headline: 'Avg bid $3,200', avatarColor: '#B5A8C9', closingDays: 7, distanceMi: 6.8 },
+  { id: '1', name: 'Rachel Williams', company: 'First Choice Lending', role: 'Mortgage Pro', rating: 4.9, vouches: 127, tags: ['VA Specialist', 'Fast Closer', 'Spanish-Speaking'], headline: 'VA loans closed in under 19 days', avatarColor: '#C4A882', closingDays: 19, distanceMi: 2.1 },
+  { id: '2', name: 'Brian Cooper', company: 'ProBuild Contractors', role: 'Contractor', trade: 'General Contractor', secondary_trades: ['Carpentry', 'Drywall'], rating: 5.0, vouches: 67, tags: ['Fast Response', 'On-Time Expert'], headline: 'On-site within 24 hours', avatarColor: '#7BA3C9', closingDays: 5, distanceMi: 4.8 },
+  { id: '3', name: 'Maria Santos', company: 'HomeGuard Inspections', role: 'Home Inspector', rating: 5.0, vouches: 156, tags: ['Same-Day Turnaround', 'Detailed Reports', 'Spanish-Speaking'], headline: 'Same-day inspection reports', avatarColor: '#D4A8B5', closingDays: 1, distanceMi: 1.3 },
+  { id: '4', name: 'Emma Thompson', company: 'Elite Title Services', role: 'Title/Escrow', rating: 4.9, vouches: 104, tags: ['Fast Turnaround', 'Clear Communication', 'Spanish-Speaking'], headline: 'Avg closing fee $795, no surprises', avatarColor: '#A8C5DA', closingDays: 7, distanceMi: 3.2 },
+  { id: '5', name: 'Marcus Lee', company: 'Apex Mortgage', role: 'Mortgage Pro', rating: 4.8, vouches: 142, tags: ['FHA Approved', 'Fast Closer', 'Spanish-Speaking'], headline: 'Denver\'s go-to FHA specialist', avatarColor: '#B5C4A8', closingDays: 21, distanceMi: 5.5 },
+  { id: '6', name: 'Kevin Park', company: 'Secure Title Co', role: 'Title/Escrow', rating: 4.8, vouches: 93, tags: ['Cash Buyer Expert', 'Fast Turnaround', 'No Junk Fees'], headline: 'Cash deals closed in 7 days', avatarColor: '#C9B87B', closingDays: 7, distanceMi: 6.1 },
+  { id: '7', name: 'Sarah Chen', company: 'Mountain View Appraisals', role: 'Appraiser', rating: 4.9, vouches: 89, tags: ['FHA Approved', 'Fast Turnaround'], headline: '48hr appraisal turnaround', avatarColor: '#A8B5D4', closingDays: 2, distanceMi: 3.7 },
+  { id: '8', name: 'James Foster', company: 'Summit Roofing', role: 'Contractor', trade: 'Roofer', secondary_trades: ['Gutters', 'Siding'], rating: 4.7, vouches: 52, tags: ['Emergency Available', 'On-Time Expert'], headline: '10yr warranty on every job', avatarColor: '#D4C5A8', closingDays: 3, distanceMi: 7.2 },
+  { id: '9', name: 'Lisa Martinez', company: 'Denver Home Warranty', role: 'Warranty', rating: 4.8, vouches: 76, tags: ['Fast Turnaround', 'Clear Communication'], headline: 'Coverage starting at $450/yr', avatarColor: '#B8A8D4', closingDays: 14, distanceMi: 2.8 },
+  { id: '10', name: 'David Kim', company: 'RE Law Group', role: 'Attorney', rating: 5.0, vouches: 64, tags: ['Complex Specialist', 'Spanish-Speaking'], headline: 'Flat fee $750, no hourly billing', avatarColor: '#A8D4B5', closingDays: 3, distanceMi: 1.9 },
+  { id: '11', name: 'Angela Rivera', company: 'Precision Inspections', role: 'Home Inspector', rating: 4.8, vouches: 112, tags: ['Same-Day Turnaround', 'Foundation Specialist', 'Detailed Reports'], headline: 'Foundation specialist, same-day', avatarColor: '#D4A8C5', closingDays: 1, distanceMi: 4.2 },
+  { id: '12', name: 'Tom Anderson', company: 'VA Loan Pros', role: 'Mortgage Pro', rating: 4.9, vouches: 98, tags: ['VA Specialist', 'Fast Closer', 'No Junk Fees'], headline: 'Zero junk fees, avg 17-day close', avatarColor: '#C5D4A8', closingDays: 17, distanceMi: 8.3 },
+  { id: '13', name: 'Carlos Mendoza', company: 'Mendoza General Contracting', role: 'Contractor', trade: 'General Contractor', secondary_trades: ['Kitchen & Bath', 'Flooring'], rating: 4.9, vouches: 84, tags: ['Full Remodels', 'On-Time Expert'], headline: 'Full kitchen & bath remodels', avatarColor: '#A8C9B5', closingDays: 14, distanceMi: 3.4 },
+  { id: '14', name: 'Derek Washington', company: 'Volt Electric Co', role: 'Contractor', trade: 'Electrician', secondary_trades: ['Lighting', 'EV Chargers'], rating: 4.9, vouches: 71, tags: ['Fast Response', 'Spanish-Speaking'], headline: 'Response in under 2 hours', avatarColor: '#8BA8C9', closingDays: 2, distanceMi: 2.6 },
+  { id: '15', name: 'Tony Ruiz', company: 'Front Range Plumbing', role: 'Contractor', trade: 'Plumber', secondary_trades: ['Sewer', 'Water Heaters'], rating: 4.8, vouches: 93, tags: ['Emergency Service', 'Warranty Offered'], headline: 'Emergency calls, same-day service', avatarColor: '#C9A87B', closingDays: 1, distanceMi: 5.1 },
+  { id: '16', name: 'Mike Petrov', company: 'Mile High Paving', role: 'Contractor', trade: 'Driveway / Paving', secondary_trades: ['Concrete', 'Drainage'], rating: 4.7, vouches: 48, tags: ['Free Estimates', 'On-Time Expert'], headline: 'Free estimates, always on time', avatarColor: '#B5A8C9', closingDays: 7, distanceMi: 6.8 },
 ];
 
 const RECOMMENDED_PROS = ALL_PROS.slice(0, 5);
@@ -295,46 +297,27 @@ const ProCardComponent: React.FC<{
       </View>
     </View>
     <View style={{ gap: 8 }}>
-      <View style={{ flexDirection: 'row', flexWrap: 'nowrap', gap: 6 }}>
-        {/* Combine secondary trades + tags into a single pill pool, capped at 2 visible.
-            Trades render first (brand-tinted border) then general tags fill remaining slot.
-            Session 16: nowrap + cap fixes inconsistent card heights.
-            Session 18: Reduced cap from 3→2 to guarantee fit within 325px card width. */}
-        {(() => {
-          const tradePills = (pro.secondary_trades || []).slice(0, 2).map((st) => ({ key: `trade-${st}`, label: st, isTrade: true }));
-          const tagPills = pro.tags.map((tag) => ({ key: `tag-${tag}`, label: tag, isTrade: false }));
-          const allPills = [...tradePills, ...tagPills];
-          const MAX_VISIBLE = 2;
-          const visiblePills = allPills.slice(0, MAX_VISIBLE);
-          const overflowCount = allPills.length - MAX_VISIBLE;
-
-          return (
-            <>
-              {visiblePills.map((pill) =>
-                pill.isTrade ? (
-                  <View key={pill.key} style={{ paddingHorizontal: 9, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 9999, borderWidth: 0.68, borderColor: 'rgba(0, 61, 195, 0.35)' }}>
-                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.primary, lineHeight: 16 }}>{pill.label}</Text>
-                  </View>
-                ) : (
-                  <View key={pill.key} style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: COLORS.tagBg, borderRadius: 10 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.tagText, lineHeight: 16 }}>{pill.label}</Text>
-                  </View>
-                )
-              )}
-              {overflowCount > 0 && (
-                <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: '#F3F4F6', borderRadius: 10 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '400', color: COLORS.lightText, lineHeight: 14 }}>+{overflowCount} more</Text>
-                </View>
-              )}
-            </>
-          );
-        })()}
-      </View>
       {pro.headline ? (
-        <Text style={{ fontSize: 13, fontWeight: '400', fontStyle: 'italic', color: COLORS.secondaryText, lineHeight: 18 }} numberOfLines={1}>
-          {pro.headline}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 6 }}>
+          <LightningIcon />
+          <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.primary, lineHeight: 16 }} numberOfLines={1}>
+            {pro.headline}
+          </Text>
+        </View>
       ) : null}
+      {/* Tags — max 2 visible + "+N more" overflow pill */}
+      <View style={{ flexDirection: 'row', flexWrap: 'nowrap', gap: 6, marginTop: 8, overflow: 'hidden' }}>
+        {pro.tags.slice(0, 2).map((tag) => (
+          <View key={tag} style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 9999, flexShrink: 1 }}>
+            <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '400', color: COLORS.tagText, lineHeight: 16 }}>{tag}</Text>
+          </View>
+        ))}
+        {pro.tags.length > 2 && (
+          <View style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 9999, flexShrink: 0 }}>
+            <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>+{pro.tags.length - 2}</Text>
+          </View>
+        )}
+      </View>
     </View>
 
     {/* Action Buttons: Job-eligible gets 2 buttons, Partners get 1 */}
