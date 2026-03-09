@@ -457,13 +457,108 @@ Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, Co
 tsc status: 0 errors
 
 ---
+Session 30 — Wire 7 Contractor RPCs + Dev Auth Bypass
+Branch: frontend/session-25-onboarding-redesign
+Commit: 5d72db9
+
+- **7 contractor RPC hooks wired** (all STATUS: wired with mock fallback):
+  - `useContractorJobDetails(jobId)` — rpc_get_contractor_job_details
+  - `useSubmitBid()` — rpc_submit_bid mutation
+  - `useRespondToCounter()` — rpc_respond_to_counter mutation
+  - `useContractorActiveJobs()` — rpc_get_contractor_active_jobs
+  - `useJobInvitations()` — rpc_get_job_invitations
+  - `useMatchingJobs()` — rpc_get_matching_jobs
+  - `useContractorEarnings()` — rpc_get_contractor_earnings
+- **DEV_BYPASS_AUTH** — `const DEV_BYPASS_AUTH = __DEV__ && true` in App.tsx, skips auth for device testing
+- **LIVE_CONTRACTOR_HOOKS flag** — Added to featureFlags.ts (currently false)
+
+---
+Session 31 — UX Polish Batch (fullScreenModal + CTA + FindTab + ProCard)
+Branch: frontend/session-25-onboarding-redesign
+Commits: 6cd0366, 5ad6f07, 5dc79dd, fc70f1b, 83102e4
+
+**fullScreenModal conversions (5 screens):**
+- ContractorJobDetails, RepairJobDetails, EditRepairJob, NewMessageScreen, CreateDealChat
+- Presentation: `fullScreenModal` + `slide_from_bottom` — slides over tab bar entirely
+- Safe area pattern: `paddingTop: 8 + insets.top` on headers, `paddingBottom: Math.max(insets.bottom, 24)` on CTAs
+- Eliminates tab bar snap/layout issues — no more `hideOnScreens` complexity
+
+**CTA safe area fixes:**
+- ContractorJobDetails: `position: 'absolute'` CTA bar, countered action buttons (Accept/Counter/Decline) moved to sticky bottom bar
+- BidSubmissionScreen: X button behind Dynamic Island fixed, CTA bottom padding
+- EditRepairJob: Delete Job CTA made position:absolute
+
+**Tab bar simplification:**
+- BottomTabNavigator: hideOnScreens reduced to `['SendSquad']` only (Home tab)
+- Jobs tab: entire hideOnScreens conditional removed
+- Remaining hideOnScreens uses instant hide: `{ display: 'none', height: 0, overflow: 'hidden' }`
+
+**App.tsx startup fix:**
+- DEV_BYPASS_AUTH check moved before loading state check — instant startup without waiting for Supabase auth
+
+**FindTab flash fix:**
+- `USE_MOCK_DATA` flipped back to `true` — eliminates frame-1 flash from async hook resolution
+- `activeFilters` useEffect: early return when filters already empty, prevents unnecessary re-render on mount
+
+**ProCard polish (FindTab.tsx):**
+- Trade/role pill: `COLORS.tagBg` bg + `COLORS.primary` text, `borderRadius: 9999`
+- Headline: light blue container (tagBg) with LightningIcon, moved above tags
+- Tags: cap at 2 visible + "+N" overflow pill, `flexShrink` for compression, `overflow: hidden`
+- Updated all 16 ALL_PROS headlines with benefit-focused taglines
+
+**"Licensed & Insured" removed from contractor self-select tags:**
+- tagEnums.ts: `LICENSED_INSURED` removed from `CONTRACTOR_TAGS`
+- FindTab.tsx: removed from all 6 contractor mock data entries, replaced with behavioral tags
+- Filter panel `licensed_insured` toggle kept — annotated as agent-facing search filter wired to `verification_level`
+
+**Other fixes:**
+- ChatScreen: trash icon + delete confirmation dialog in header
+- Remove "Share Job" from ContractorJobDetails 3-dot menu
+- ProfileTab soft nudge + AsyncStorage safe wrapper
+- HomeStack/InboxStack: fullScreenModal presentation options registered
+
+---
+Cumulative Progress (Sessions 1-31)
+
+- Session 1: Type alignment (types/index.ts ↔ schema.sql)
+- Session 2: 11 T1 revenue-critical hooks wired
+- Session 3: 16 T2 core-experience hooks wired
+- Session 4: 9 remaining hooks wired — all 36 hooks now wired
+- Session 5: 14 tsc errors fixed, feature flag system, all 10 screens connected to hooks
+- Session 6: Type adapters (lib/typeAdapters.ts), ChatScreen threadId, FindTab sections wired
+- Session 7/7B: Feature flag flipped to live, pre-backend polish audit (6 fixes identified)
+- Session 9: Fixes 2-6 complete (empty states, ProProfile by ID, tags below bio, headline)
+- Session 10: sender_name fix, useUpdateProfile created, EditProfileScreen wired, ProfileTab live data, all type casts resolved
+- Session 11: ProProfile CTAs wired, Recommended/Trending differentiated, NotificationsTab flash fixed, InboxList avatar_colors, useChatRecipients + useCreateThread created, useProProfile deleted
+- Session 12: Realtime subscriptions (3 hooks), is_unread + useMarkThreadRead, rpc_create_thread, 4 edge function stubs
+- Session 13: 7 edge functions (4 implemented + 3 new), auth state management, LoginScreen, storage policies
+- Session 14-15: Edge function deployment prep, E2E verification, demo cleanup
+- Session 16: Phase 6 verification components (DisplayTag, VerificationBadge, VerificationBanner, VerificationScreen, PhoneVerificationScreen)
+- Session 17: Badge wired to ProProfile/ProCard, banner wired to HomeTabAgent/ProfileTab
+- Session 18: Progressive gating (hard gate on job posting, soft banners on 4 screens, Licensed & Insured chips, connect nudge)
+- Session 22: ContractorJobDetails + BidSubmissionScreen (2 new screens), 3 hook stubs, ContractorInboxList token cleanup
+- Session 23: Contractor demo loop closed — card nav, inbox chat, job completion CTA wiring, token cleanup
+- Session 24: JobTrackerTab rebuilt (pipeline list + filter chips), ContractorJobsStack, conditional tabs (agent 5 / contractor 3)
+- Session 25: Onboarding redesigned (role-branching flow, 4 new contractor screens, formData accumulation), ProfileTab contractor stats
+- Session 26: Onboarding wired to backend (single-value principle, useCompleteOnboarding hook, LIVE_ONBOARDING flag, subRole eliminated, ROLE_MAP eliminated)
+- Session 27: Codebase documentation pass Part 1 — 16 infrastructure + revenue files (tokens, hooks, types, job screens)
+- Session 28: Codebase documentation pass Part 2 — 54 remaining files (all screens, components, nav stacks)
+- Session 30: 7 contractor RPC hooks wired, DEV_BYPASS_AUTH, LIVE_CONTRACTOR_HOOKS flag
+- Session 31: UX polish batch — 5 fullScreenModal conversions, CTA safe area fixes, FindTab flash fix, ProCard polish, "Licensed & Insured" tag removal, ChatScreen delete, tab bar simplification
+
+49 hooks total (46 wired + 3 mock stubs) + 7 contractor RPC hooks. 7 edge functions. 3 realtime subscriptions. 0 tsc errors.
+73 files documented with @demo/@backend markers, line counts, section dividers, flow context.
+Feature flags: USE_MOCK_DATA=true, LIVE_ONBOARDING=false, LIVE_CONTRACTOR_HOOKS=false, DEV_BYPASS_AUTH=true.
+
+Contractor screens: 5 (ContractorHomeTab, ContractorJobDetails, ContractorInboxList, BidSubmissionScreen, JobTrackerTab) + 3 shared (ChatScreen, ProProfile, JobCompletionScreen)
+Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, ContractorProfileBasics, ContractorTradeStep, ContractorDetailsStep, Screen2 retired)
+
+---
 Recommended Next Session Priorities
 
 1. Deploy rpc_complete_onboarding to Supabase, flip LIVE_ONBOARDING flag, test end-to-end
-2. Wire contractor hooks to Supabase (useContractorJobDetails, useSubmitBid, useRespondToCounter)
-3. Create remaining T4 hook stubs (useContractorActiveJobs, useJobInvitations, useMatchingJobs, useContractorEarnings)
-4. Wire ProProfile portfolio_photos from portfolio_photos table
-5. Wire notification deep links (replace console.log with navigation.navigate)
-6. Polish pass: ContractorHomeTab RepairChat nav → ChatScreen alignment
-7. Performance: add staleTime/gcTime to high-frequency hooks
-8. EditProfileScreen: add contractor-specific fields (trades, license, insurance)
+2. Wire ProProfile portfolio_photos from portfolio_photos table
+3. Wire notification deep links (replace console.log with navigation.navigate)
+4. Performance: add staleTime/gcTime to high-frequency hooks
+5. EditProfileScreen: add contractor-specific fields (trades, license, insurance)
+6. Polish: NetworkTab + RepairJobsData mock data — remove "Licensed & Insured" from contractor tags
