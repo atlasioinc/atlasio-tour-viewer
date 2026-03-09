@@ -21,7 +21,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA: false,  // true = mock data (demo), false = live Supabase
+  USE_MOCK_DATA: true,  // @demo — set false when Supabase is populated
   LIVE_ONBOARDING: false, // true = call rpc_complete_onboarding, false = console.log only
   LIVE_CONTRACTOR_HOOKS: false, // true = contractor hooks call live RPCs, false = mock fallback
 } as const;

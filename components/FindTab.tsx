@@ -437,7 +437,7 @@ const FindTab: React.FC = () => {
   };
 
   useEffect(() => { if (searchText.length > 0 && showFilters) setShowFilters(false); }, [searchText]);
-  useEffect(() => { setActiveFilters(new Set()); }, [activeRole]);
+  useEffect(() => { if (activeFilters.size === 0) return; setActiveFilters(new Set()); }, [activeRole]);
 
   const toggleFilter = (key: string): void => {
     setActiveFilters((prev) => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; });
