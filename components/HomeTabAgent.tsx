@@ -600,20 +600,6 @@ const HomeTabAgent: React.FC = () => {
         </Pressable>
       </View>
 
-      {/* ── Verification Banner ── */}
-      {!bannerDismissed && myProfile && myProfile.verification_level !== 'fully_verified' && (
-        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-          <VerificationBanner
-            level={myProfile.verification_level ?? 'none'}
-            role={myProfile.role === 'agent' ? 'agent' : 'contractor'}
-            onPress={() => {
-              // TODO: PRODUCTION — navigate to VerificationScreen (requires cross-stack navigation)
-            }}
-            onDismiss={() => setBannerDismissed(true)}
-          />
-        </View>
-      )}
-
       {/* ══════════════════════════════════════════
           SCROLLABLE CONTENT
           ══════════════════════════════════════════ */}
@@ -621,6 +607,20 @@ const HomeTabAgent: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentOffset={{ x: 0, y: 64 }}
       >
+
+        {/* ── Verification Banner — inside scroll so it sits on screenBg naturally ── */}
+        {!bannerDismissed && myProfile && myProfile.verification_level !== 'fully_verified' && (
+          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+            <VerificationBanner
+              level={myProfile.verification_level ?? 'none'}
+              role={myProfile.role === 'agent' ? 'agent' : 'contractor'}
+              onPress={() => {
+                // TODO: PRODUCTION — navigate to VerificationScreen (requires cross-stack navigation)
+              }}
+              onDismiss={() => setBannerDismissed(true)}
+            />
+          </View>
+        )}
 
         {/* ── DEMO TOGGLE — visible on pull down ── */}
         <View
@@ -826,18 +826,47 @@ const HomeTabAgent: React.FC = () => {
                       <PlusIcon size={24} color="#FFFFFF" />
                     )}
                   </View>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: '400',
-                      color: COLORS.bodyText,
-                      lineHeight: 16,
-                      textAlign: 'center',
-                    }}
-                    numberOfLines={2}
-                  >
-                    {member ? member.name : slot.label}
-                  </Text>
+                  {member ? (
+                    <View style={{ alignItems: 'center', gap: 2 }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '500',
+                          color: COLORS.bodyText,
+                          lineHeight: 16,
+                          textAlign: 'center',
+                        }}
+                        numberOfLines={1}
+                      >
+                        {member.name.split(' ')[0]}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '400',
+                          color: COLORS.secondaryText,
+                          lineHeight: 14,
+                          textAlign: 'center',
+                        }}
+                        numberOfLines={1}
+                      >
+                        {slot.role}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '400',
+                        color: COLORS.bodyText,
+                        lineHeight: 16,
+                        textAlign: 'center',
+                      }}
+                      numberOfLines={2}
+                    >
+                      {slot.label}
+                    </Text>
+                  )}
                 </Pressable>
               );
             })}
@@ -1050,6 +1079,7 @@ const HomeTabAgent: React.FC = () => {
             : undefined
         }
         currentProId={pickerCurrentProId}
+        isAdditionalRole={isAdditionalSlot(pickerSlotId)}
       />
 
       {/* ── ADD ANOTHER ROLE MODAL ── */}

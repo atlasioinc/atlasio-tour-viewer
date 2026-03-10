@@ -545,26 +545,26 @@ const InboxList: React.FC = () => {
           </View>
         </View>
 
-        {/* ── Verification Banner ── */}
-        {showVerifyBanner && !verifyBannerDismissed && (
-          <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-            <VerificationBanner
-              level={verifyLevel}
-              role="agent"
-              onPress={() => navigation.dispatch(
-                CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
-              )}
-              onDismiss={() => setVerifyBannerDismissed(true)}
-            />
-          </View>
-        )}
-
         {/* Thread List */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           style={{ flex: 1, backgroundColor: COLORS.screenBg }}
           keyboardShouldPersistTaps="handled"
         >
+
+          {/* ── Verification Banner — inside scroll so it sits on screenBg naturally ── */}
+          {showVerifyBanner && !verifyBannerDismissed && (
+            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+              <VerificationBanner
+                level={verifyLevel}
+                role="agent"
+                onPress={() => navigation.dispatch(
+                  CommonActions.navigate({ name: 'Profile', params: { screen: 'Verification' } }),
+                )}
+                onDismiss={() => setVerifyBannerDismissed(true)}
+              />
+            </View>
+          )}
           {threads.length === 0 && searchText.length === 0 ? (
             /* ── True Empty State — No conversations yet ── */
             /* @demo Replace threads.length check with real thread count from useChatThreads() */

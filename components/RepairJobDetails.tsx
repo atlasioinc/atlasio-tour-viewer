@@ -838,17 +838,16 @@ const RepairJobDetails: React.FC = () => {
       <View
         style={{
           paddingTop: 8 + insets.top,
-          paddingLeft: 8,
-          paddingRight: 16,
+          paddingHorizontal: 8,
           paddingBottom: 12,
           backgroundColor: COLORS.background,
           borderBottomWidth: 0.68,
           borderBottomColor: COLORS.border,
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',
         }}
       >
+        {/* Back button — fixed width so title centering is symmetric */}
         <Pressable
           onPress={() => navigation.goBack()}
           hitSlop={12}
@@ -864,29 +863,23 @@ const RepairJobDetails: React.FC = () => {
           <BackIcon />
         </Pressable>
 
-        <View
+        {/* Title — flex:1 fills remaining space, text centered within it */}
+        <Text
           style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            alignItems: 'center',
-            pointerEvents: 'none',
+            flex: 1,
+            fontSize: 16,
+            fontWeight: '500',
+            color: COLORS.darkText,
+            lineHeight: 24,
+            textAlign: 'center',
+            paddingHorizontal: 8,
           }}
+          numberOfLines={1}
         >
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: '500',
-              color: COLORS.darkText,
-              lineHeight: 24,
-              textAlign: 'center',
-            }}
-            numberOfLines={1}
-          >
-            {job.title}
-          </Text>
-        </View>
+          {job.title}
+        </Text>
 
+        {/* More icon — fixed width matches back button for symmetric layout */}
         <Pressable
           onPress={() => setShowActionMenu(true)}
           hitSlop={12}
