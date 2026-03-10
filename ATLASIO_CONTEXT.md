@@ -552,7 +552,55 @@ Commit: 87afdf5
 - Headline max: 35 chars
 
 ---
-Cumulative Progress (Sessions 1-31)
+Session 32 — Closing Squad UX + Verification Banner + Header Fixes
+Branch: frontend/session-25-onboarding-redesign
+Commit: 49c9246
+
+**Closing Squad (HomeTabAgent):**
+- `isAdditionalRole` prop passed to SquadSlotPicker — "Remove role" button now shows on empty additional slots
+- Filled squad cards: first name + role label (stacked View, font 12/500 name + font 11/400 role)
+
+**Verification banner (3 screens):**
+- Moved from outside ScrollView to first child inside ScrollView on HomeTabAgent, NetworkTab, InboxList
+- Root cause: SafeAreaView white bg bled through wrapper — moving inside ScrollView (screenBg) eliminates it
+
+**RepairJobDetails header:**
+- Replaced absolute-positioned title View with 3-column flex row: `[back w:36] [title flex:1 center] [right w:36]`
+- `paddingHorizontal: 8` (symmetric), no absolute positioning
+
+**Header audit:** All 68 .tsx files checked — broken pattern was unique to RepairJobDetails
+
+---
+Session 33 — ContractorJobDetails Redesign
+Branch: frontend/session-25-onboarding-redesign
+
+**tokens.ts changes:**
+- `TYPOGRAPHY.displayM.fontWeight`: `'700'` → `'600'`
+- Added: `inRangeGreen` (#008236), `budgetLabelText` (#DBEAFE), `budgetSeparator` (#BEDBFF)
+
+**ContractorJobDetails.tsx (major redesign):**
+- Budget card: statBg → solid accentBlue fill, white displayM amounts, "Agent's Budget" eyebrow, budgetSeparator dash
+- Bid cards moved directly after budget card (visual pair with matching eyebrow labels inside cards)
+- Pending bid card: accentBlue border, displayM amount, "In range" indicator (CheckCircleIcon + inRangeGreen), "Pending" filled badge
+- Counter-offer card: counterAmber border, displayM amount, "Countered" filled badge (no border), inline "Agent's counter: $380" row
+- Job photos strip: NEW — 3 placeholder camera tiles (112x88), horizontal scroll, edge-to-edge via negative margin
+- Photo lightbox: NEW — full-screen paginated viewer with "1/3" counter, ✕ close, swipe navigation
+- Bid count: conditional (1–3 only, hidden at 0 and 4+), green "Only X bids so far"
+- Header title: COLORS.primary → COLORS.darkText
+- Notes text unified: fontSize 13, COLORS.bodyText, lineHeight 18 across both cards
+- New SVG icons: CheckCircleIcon, CameraIcon
+- renderStickyCTA() untouched — all Decline/Counter/Accept logic preserved
+
+**Design rules established (S32–33):**
+- Verification banner must live inside ScrollView
+- Header: 3-column flex row, never absolute-position the title
+- Budget/Bid card pair: matching eyebrow labels inside cards, no external section headings
+- Status pills: filled background only, no border
+- Bid count: 1–3 visible (urgency signal), 0 and 4+ hidden
+- Notes text: fontSize 13, COLORS.bodyText, lineHeight 18 — unified across all card types
+
+---
+Cumulative Progress (Sessions 1-33)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
 - Session 2: 11 T1 revenue-critical hooks wired
@@ -579,6 +627,8 @@ Cumulative Progress (Sessions 1-31)
 - Session 28: Codebase documentation pass Part 2 — 54 remaining files (all screens, components, nav stacks)
 - Session 30: 7 contractor RPC hooks wired, DEV_BYPASS_AUTH, LIVE_CONTRACTOR_HOOKS flag
 - Session 31: UX polish batch — fullScreenModal conversions, CTA safe area, FindTab flash, ProCard polish, tag removal, headline pill + profile IA overhaul
+- Session 32: Squad UX (isAdditionalRole + role labels), verification banner inside ScrollView (3 screens), RepairJobDetails 3-col flex header, full header audit (68 files, 0 additional fixes)
+- Session 33: ContractorJobDetails redesign — accentBlue budget card, bid cards (pending/countered) with eyebrow labels, job photos strip + lightbox, conditional bid count, tokens.ts displayM 600 + 3 new colors
 
 49 hooks total (46 wired + 3 mock stubs) + 7 contractor RPC hooks. 7 edge functions. 3 realtime subscriptions. 0 tsc errors.
 73 files documented with @demo/@backend markers, line counts, section dividers, flow context.
@@ -592,8 +642,9 @@ Recommended Next Session Priorities
 
 1. Deploy rpc_complete_onboarding to Supabase, flip LIVE_ONBOARDING flag, test end-to-end
 2. Add `headline TEXT CHECK(char_length(headline) <= 35)` column to profiles table in Supabase
-3. Wire ProProfile portfolio_photos from portfolio_photos table
-4. Wire notification deep links (replace console.log with navigation.navigate)
-5. Performance: add staleTime/gcTime to high-frequency hooks
-6. EditProfileScreen: add contractor-specific fields (trades, license, insurance)
-7. BottomTabNavigator: investigate icon position flash (style-only fixes insufficient, may need custom tabBar)
+3. RepairJobDetails: apply same budget card redesign (accentBlue + displayM) + add job photos strip + lightbox
+4. Wire ProProfile portfolio_photos from portfolio_photos table
+5. Wire notification deep links (replace console.log with navigation.navigate)
+6. Performance: add staleTime/gcTime to high-frequency hooks
+7. EditProfileScreen: add contractor-specific fields (trades, license, insurance)
+8. BottomTabNavigator: investigate icon position flash (style-only fixes insufficient, may need custom tabBar)

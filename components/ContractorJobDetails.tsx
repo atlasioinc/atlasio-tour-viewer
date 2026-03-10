@@ -1,24 +1,24 @@
 // ContractorJobDetails.tsx
 // ═══════════════════════════════════════════════════════════════
-// Contractor Job Details — Single job view (672 lines, 10 sections)
+// WHAT: Full job detail screen for contractors. Shows job info,
+//       agent's budget (redesigned solid blue card), contractor's
+//       own bid state (3 card designs: no-bid / pending / countered),
+//       job photos strip with lightbox, and inline counter comparison.
 //
-// Sections: Route Params, SVG Icons, Helpers, Bid Status Chip,
-//           Mock Data, Main Component (render: Header, Trade+Urgency,
-//           Title, Budget, Scope, Details Grid, Agent Card,
-//           Your Bid, Counter-Offer, Sticky CTA)
+// WHERE IN NAV:
+//   ContractorHomeStack:  ContractorHomeTab → ContractorJobDetails
+//   ContractorJobsStack:  JobTrackerTab → ContractorJobDetails
+//   Route param: { jobId: string }
 //
-// Navigated from: ContractorHomeTab cards (ActiveJobCard, JobInviteCard, MatchingJobCard)
-// Route param: { jobId: string }
+// DEMO STATES (toggle via segmented control hidden above scroll):
+//   Index 0 → MOCK_JOB_NO_BID       → no bid card, CTA = "Submit Bid"
+//   Index 1 → MOCK_JOB_BID_PENDING  → bid card (pending), CTA = "Edit Bid"
+//   Index 2 → MOCK_JOB_COUNTERED    → counter card, CTA = Decline/Counter/Accept
 //
-// @demo Cycles through 3 demo states via pull-down toggle (demoStateIndex):
-//   0 → Open job, no bid yet        → CTA = "Submit Bid"
-//   1 → Bid submitted, pending      → shows "Your Bid" section
-//   2 → Counter-offer received      → comparison card + Accept/Counter/Decline
-//   Toggle increments mod 3 on each pull-down.
-//
-// @backend useRespondToCounter (wired) — rpc_respond_to_counter_offer
-// @backend TODO: useContractorJobDetails(jobId) — replace 3 MOCK_ objects
-//   → jobs + bids join, filtered by contractor_id = auth.uid()
+// @demo All job data is mock. Replace with:
+//   useContractorJobDetails(jobId) → jobs + bids join, filtered by contractor_id = auth.uid()
+// @backend RPC: rpc_submit_bid (via BidSubmissionScreen)
+// @backend RPC: rpc_respond_to_counter_offer (useRespondToCounter — already wired S30)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -29,13 +29,16 @@ import {
   ScrollView,
   StatusBar,
   Alert,
+  Modal,
+  Dimensions,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import { COLORS, DIMENSIONS, SHADOWS } from '../lib/tokens';
+import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
 import { useRespondToCounter } from '../hooks/useData';
@@ -95,6 +98,24 @@ const BidIcon: React.FC = () => (
   <Svg width={14} height={14} viewBox="0 0 14 14" fill="none">
     <Path d="M11.67 8.17C11.67 8.48 11.55 8.78 11.33 9L7.58 12.75C7.36 12.97 7.06 13.09 6.75 13.09C6.44 13.09 6.14 12.97 5.92 12.75L1.75 8.58V2.33H7.99L11.33 5.67C11.55 5.89 11.67 6.19 11.67 6.5V8.17Z" stroke={COLORS.bodyText} strokeWidth={1.17} strokeLinecap="round" strokeLinejoin="round" />
     <Circle cx={4.67} cy={5.25} r={0.58} fill={COLORS.bodyText} />
+  </Svg>
+);
+
+const CheckCircleIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
+  width = 16, height = 16, color = COLORS.inRangeGreen,
+}) => (
+  <Svg width={width} height={height} viewBox="0 0 24 24" fill="none">
+    <Path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M22 4L12 14.01l-3-3" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const CameraIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
+  width = 24, height = 24, color = COLORS.lightText,
+}) => (
+  <Svg width={width} height={height} viewBox="0 0 24 24" fill="none">
+    <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Circle cx={12} cy={13} r={4} stroke={color} strokeWidth={1.5} />
   </Svg>
 );
 
@@ -207,6 +228,14 @@ const MOCK_JOB_COUNTERED: ContractorJobDetail = {
 const DEMO_STATES: ContractorJobDetail[] = [MOCK_JOB_NO_BID, MOCK_JOB_BID_PENDING, MOCK_JOB_COUNTERED];
 const DEMO_LABELS = ['No Bid', 'Bid Pending', 'Countered'];
 
+// @demo 3 placeholder photo tiles — replace with job.photos[] array of signed Supabase storage URLs
+// @backend Storage bucket: job-photos (agent upload, 5MB limit, accessible to bidding contractors)
+const DEMO_PHOTOS = [
+  { isPlaceholder: true, url: null as string | null },
+  { isPlaceholder: true, url: null as string | null },
+  { isPlaceholder: true, url: null as string | null },
+];
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -218,6 +247,10 @@ const ContractorJobDetails: React.FC = () => {
 
   // @demo State toggle (cycles through 3 mock states)
   const [demoStateIndex, setDemoStateIndex] = useState(0);
+
+  // Lightbox state for job photos
+  const [lightboxVisible, setLightboxVisible] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const job = DEMO_STATES[demoStateIndex];
   const respondToCounter = useRespondToCounter();
 
@@ -440,7 +473,7 @@ const ContractorJobDetails: React.FC = () => {
         <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
           <BackArrowIcon />
         </Pressable>
-        <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.primary, lineHeight: 24 }}>Job Details</Text>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>Job Details</Text>
         <Pressable
           onPress={() => Alert.alert('Actions', '', [
             { text: 'Report Job', onPress: () => {}, style: 'destructive' },
@@ -506,34 +539,234 @@ const ContractorJobDetails: React.FC = () => {
           </Text>
 
           {/* ── 4. Budget Card ── */}
+          {/* @demo budgetMin/budgetMax from MOCK_JOB_* (stored in cents). Replace with job.budget_min / job.budget_max */}
+          {/* @backend fields: jobs.budget_min, jobs.budget_max (integer cents) */}
           <View style={{
-            backgroundColor: COLORS.statBg,
-            borderRadius: DIMENSIONS.cardRadius,
-            padding: 16,
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
+            backgroundColor: COLORS.accentBlue,   // Solid fill — gradient flattened for RN (Figma spec: #155DFC→#1447E6)
+            borderRadius: 14,
+            paddingHorizontal: 16,
+            paddingVertical: 16,
           }}>
-            <View style={{ gap: 4 }}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.primary, lineHeight: 28 }}>
-                {centsToDisplay(job.budgetMin)} – {centsToDisplay(job.budgetMax)}
+            <Text style={{
+              fontSize: 12,
+              fontWeight: '600',
+              lineHeight: 16,
+              color: COLORS.budgetLabelText,        // #DBEAFE
+              marginBottom: 4,
+            }}>
+              Agent's Budget
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text style={{ ...TYPOGRAPHY.displayM, color: COLORS.background }}>
+                {centsToDisplay(job.budgetMin)}
               </Text>
-              <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
-                Agent's budget range
+              <Text style={{ fontSize: 18, fontWeight: '400', lineHeight: 28, color: COLORS.budgetSeparator }}>
+                {' – '}
+              </Text>
+              <Text style={{ ...TYPOGRAPHY.displayM, color: COLORS.background }}>
+                {centsToDisplay(job.budgetMax)}
               </Text>
             </View>
-            {/* @demo Show contractor's bid — replace with job.myBid.amount from useContractorJobDetails */}
-            {hasBid && (
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.primary, lineHeight: 28 }}>
-                  {centsToDisplay(job.myBid!.amount)}
+          </View>
+
+          {/* ── 8. Your Bid Card (pending state) ── */}
+          {/* Shows when contractor has an active bid that hasn't been countered yet */}
+          {/* @demo Renders for MOCK_JOB_BID_PENDING (demoStateIndex === 1) */}
+          {/* @backend myBid fields from bids table: amount, timeline_days, notes, status */}
+          {hasBid && !isCountered && (
+            <View style={{
+              backgroundColor: COLORS.background,
+              borderRadius: DIMENSIONS.cardRadius,
+              borderWidth: 1,
+              borderColor: COLORS.accentBlue,      // Blue border = pending / active bid state
+              padding: 16,
+              ...SHADOWS.card,
+            }}>
+              {/* Eyebrow label — matches "Agent's Budget" presentation on blue card above */}
+              <Text style={{
+                fontSize: 12,
+                fontWeight: '600',
+                lineHeight: 16,
+                color: COLORS.bodyText,
+                marginBottom: 4,
+              }}>
+                Your Bid
+              </Text>
+
+              {/* Row 1: Amount + In Range indicator + Pending badge */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ ...TYPOGRAPHY.displayM, color: COLORS.headingText }}>
+                    {centsToDisplay(job.myBid!.amount)}
+                  </Text>
+                  {/* "In range" — show only when bid is within agent's budget band */}
+                  {/* @demo Always true for MOCK_JOB_BID_PENDING ($450 is within $200–$600) */}
+                  {/* @backend condition: myBid.amount >= job.budget_min && myBid.amount <= job.budget_max */}
+                  {job.myBid!.amount >= job.budgetMin && job.myBid!.amount <= job.budgetMax && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <CheckCircleIcon width={16} height={16} color={COLORS.inRangeGreen} />
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.inRangeGreen, lineHeight: 16 }}>
+                        In range
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {/* Pending badge */}
+                <View style={{
+                  backgroundColor: COLORS.infoBg,      // #EFF6FF light blue bg
+                  borderRadius: 9999,
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.accentBlue, lineHeight: 16 }}>
+                    Pending
+                  </Text>
+                </View>
+              </View>
+
+              {/* Row 2: Timeline */}
+              {/* @backend Replace timelineDays with job.myBid.timeline_days */}
+              <Text style={{ fontSize: 14, color: COLORS.statText, lineHeight: 20, marginBottom: job.myBid!.notes ? 6 : 0 }}>
+                Timeline: {job.myBid!.timelineDays} {job.myBid!.timelineDays === 1 ? 'day' : 'days'}
+              </Text>
+
+              {/* Row 3: Notes (optional) */}
+              {job.myBid!.notes ? (
+                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }} numberOfLines={3}>
+                  {job.myBid!.notes}
                 </Text>
-                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
-                  Your bid
+              ) : null}
+            </View>
+          )}
+
+          {/* ── 9. Counter-Offer Card ── */}
+          {/* Shows when the agent has issued a counter-offer to this contractor's bid */}
+          {/* ACTION BUTTONS (Accept / Counter / Decline) live in renderStickyCTA() — NOT here */}
+          {/* @demo Renders for MOCK_JOB_COUNTERED (demoStateIndex === 2) */}
+          {/* @backend counterAmount from job.myBid.counter_amount, counterNotes from job.myBid.counter_notes */}
+          {isCountered && job.myBid && (
+            <View style={{
+              backgroundColor: COLORS.background,
+              borderRadius: DIMENSIONS.cardRadius,
+              borderWidth: 1,
+              borderColor: COLORS.counterAmber,     // #D97706 amber border = agent has responded
+              padding: 16,
+              ...SHADOWS.card,
+            }}>
+              {/* Eyebrow label — matches "Agent's Budget" presentation on blue card above */}
+              <Text style={{
+                fontSize: 12,
+                fontWeight: '600',
+                lineHeight: 16,
+                color: COLORS.bodyText,
+                marginBottom: 4,
+              }}>
+                Your Bid
+              </Text>
+
+              {/* Row 1: Original bid amount + "Countered" badge */}
+              {/* Note: "In range" indicator is intentionally NOT shown in countered state */}
+              {/* Business rule: counter supersedes budget range relevance — agent's counter is the new reference point */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ ...TYPOGRAPHY.displayM, color: COLORS.headingText }}>
+                  {centsToDisplay(job.myBid.amount)}
+                </Text>
+                <View style={{
+                  backgroundColor: COLORS.warningBg,     // #FFFBEB amber tint
+                  borderRadius: 9999,
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.counterAmber, lineHeight: 16 }}>
+                    Countered
+                  </Text>
+                </View>
+              </View>
+
+              {/* Row 2: Agent's counter amount — amber highlighted */}
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: job.myBid.counterNotes ? 10 : 0,
+              }}>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.counterAmber, lineHeight: 20 }}>
+                  Agent's counter:{' '}
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.counterAmber, lineHeight: 20 }}>
+                  {centsToDisplay(job.myBid.counterAmount!)}
                 </Text>
               </View>
-            )}
-          </View>
+
+              {/* Row 3: Agent's counter note (optional) */}
+              {job.myBid.counterNotes ? (
+                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+                  "{job.myBid.counterNotes}"
+                </Text>
+              ) : null}
+            </View>
+          )}
+
+          {/* ── 4b. Job Photos Strip ── */}
+          {/* @demo Renders DEMO_PHOTOS (3 placeholder camera tiles). Replace with job.photos[] from useContractorJobDetails */}
+          {/* @backend job.photos is string[] of signed Supabase storage URLs from the job-photos bucket */}
+          {/* Render strip whenever photos exist. In demo, DEMO_PHOTOS.length > 0 always shows it. */}
+          {DEMO_PHOTOS.length > 0 && (
+            <View style={{ marginHorizontal: -16 }}>
+              {/* Negative margin breaks out of parent paddingHorizontal: 16 so strip reads edge-to-edge */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+              >
+                {DEMO_PHOTOS.map((photo, index) => (
+                  <Pressable
+                    key={index}
+                    onPress={() => {
+                      setLightboxIndex(index);
+                      setLightboxVisible(true);
+                    }}
+                    style={({ pressed }) => ({
+                      width: 112,
+                      height: 88,
+                      borderRadius: 10,
+                      overflow: 'hidden',
+                      backgroundColor: COLORS.chipBg,
+                      opacity: pressed ? 0.85 : 1,
+                    })}
+                  >
+                    {photo.isPlaceholder ? (
+                      // @demo Placeholder — remove when job.photos[] has real URLs
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <CameraIcon width={24} height={24} color={COLORS.lightText} />
+                      </View>
+                    ) : (
+                      <Image
+                        source={{ uri: photo.url! }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    )}
+
+                    {/* Overflow overlay on 4th tile when more than 4 photos exist */}
+                    {/* @demo Not active at 3 photos — activates when job.photos.length > 4 */}
+                    {index === 3 && DEMO_PHOTOS.length > 4 && (
+                      <View style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.45)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background }}>
+                          +{DEMO_PHOTOS.length - 4}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* ── 5. Scope Section ── */}
           <View style={{ gap: 8 }}>
@@ -570,13 +803,17 @@ const ContractorJobDetails: React.FC = () => {
               </View>
             </View>
 
-            {/* Bid count */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <BidIcon />
-              <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
-                {job.bidCount} {job.bidCount === 1 ? 'bid' : 'bids'} so far
-              </Text>
-            </View>
+            {/* Bid count — show only when 1–3 bids. Hidden at 0 and at 4+. */}
+            {/* Business rule: Low count is a competitive urgency signal. High count is discouraging — hide it. */}
+            {/* @demo bidCount is set per MOCK_JOB_* object. Replace with job.bids_count from useContractorJobDetails */}
+            {job.bidCount >= 1 && job.bidCount <= 3 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <BidIcon />
+                <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.successGreen, lineHeight: 18 }}>
+                  {`Only ${job.bidCount} ${job.bidCount === 1 ? 'bid' : 'bids'} so far`}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* ── 7. Agent Card (non-tappable — agent profile view is post-MVP) ── */}
@@ -612,87 +849,99 @@ const ContractorJobDetails: React.FC = () => {
             </View>
           </View>
 
-          {/* ── 8. Your Bid Section (conditional) ── */}
-          {hasBid && !isCountered && (
-            <View style={{ gap: 8 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
-                Your Bid
-              </Text>
-              <View style={{
-                padding: 16,
-                backgroundColor: COLORS.background,
-                borderRadius: DIMENSIONS.cardRadius,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                gap: 10,
-              }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.primary, lineHeight: 28 }}>
-                    {centsToDisplay(job.myBid!.amount)}
-                  </Text>
-                  <BidStatusChip status={job.myBid!.status} />
-                </View>
-                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
-                  Timeline: {job.myBid!.timelineDays} {job.myBid!.timelineDays === 1 ? 'day' : 'days'}
-                </Text>
-                {job.myBid!.notes ? (
-                  <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }} numberOfLines={3}>
-                    {job.myBid!.notes}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          )}
-
-          {/* ── 9. Counter-Offer Section (conditional) ── */}
-          {isCountered && job.myBid && (
-            <View style={{ gap: 12 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
-                Counter-Offer from {job.agent.name}
-              </Text>
-
-              {/* Comparison card */}
-              <View style={{
-                padding: 16,
-                backgroundColor: COLORS.background,
-                borderRadius: DIMENSIONS.cardRadius,
-                borderWidth: 1,
-                borderColor: COLORS.counterAmber,
-                gap: 12,
-              }}>
-                {/* Amount comparison row */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                  <View style={{ alignItems: 'center', gap: 2 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.lightText, lineHeight: 16 }}>Your bid</Text>
-                    <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.bodyText, lineHeight: 22 }}>
-                      {centsToDisplay(job.myBid.amount)}
-                    </Text>
-                  </View>
-                  <ArrowRightIcon />
-                  <View style={{ alignItems: 'center', gap: 2 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.lightText, lineHeight: 16 }}>Counter</Text>
-                    <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.counterAmber, lineHeight: 28 }}>
-                      {centsToDisplay(job.myBid.counterAmount!)}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Counter notes */}
-                {job.myBid.counterNotes && (
-                  <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18, textAlign: 'center' }}>
-                    "{job.myBid.counterNotes}"
-                  </Text>
-                )}
-              </View>
-
-            </View>
-          )}
 
         </View>
       </ScrollView>
 
       {/* ── 10. Sticky Bottom CTA ── */}
       {renderStickyCTA()}
+
+      {/* ── Photo Lightbox Modal ── */}
+      {/* Full-screen swipeable photo viewer. Triggered by tapping any tile in the photos strip. */}
+      {/* @demo Renders placeholder tiles (camera icon + "No photo"). Replace with real photo.url values */}
+      {/* @backend Photo URLs come from job.photos[] — signed Supabase storage URLs (job-photos bucket) */}
+      <Modal
+        visible={lightboxVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLightboxVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+
+          {/* Counter: "1 / 3" */}
+          <Text style={{
+            position: 'absolute',
+            top: 60,
+            alignSelf: 'center',
+            zIndex: 10,
+            fontSize: 14,
+            fontWeight: '600',
+            color: COLORS.background,
+          }}>
+            {lightboxIndex + 1} / {DEMO_PHOTOS.length}
+          </Text>
+
+          {/* Close button */}
+          <Pressable
+            onPress={() => setLightboxVisible(false)}
+            hitSlop={16}
+            style={({ pressed }) => ({
+              position: 'absolute',
+              top: 56,
+              right: 20,
+              zIndex: 10,
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 24, color: COLORS.background, fontWeight: '300', lineHeight: 28 }}>✕</Text>
+          </Pressable>
+
+          {/* Horizontally paginated photo viewer */}
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(
+                e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
+              );
+              setLightboxIndex(index);
+            }}
+            contentOffset={{ x: lightboxIndex * Dimensions.get('window').width, y: 0 }}
+            style={{ flex: 1 }}
+          >
+            {DEMO_PHOTOS.map((photo, index) => (
+              <View
+                key={index}
+                style={{
+                  width: Dimensions.get('window').width,
+                  flex: 1,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                {photo.isPlaceholder ? (
+                  // @demo Placeholder — remove when job.photos[] has real URLs
+                  <View style={{ alignItems: 'center', gap: 12 }}>
+                    <CameraIcon width={48} height={48} color={COLORS.lightText} />
+                    <Text style={{ fontSize: 14, color: COLORS.lightText }}>No photo</Text>
+                  </View>
+                ) : (
+                  <Image
+                    source={{ uri: photo.url! }}
+                    style={{
+                      width: Dimensions.get('window').width,
+                      height: Dimensions.get('window').height * 0.75,
+                    }}
+                    resizeMode="contain"
+                  />
+                )}
+              </View>
+            ))}
+          </ScrollView>
+
+        </View>
+      </Modal>
     </View>
   );
 };

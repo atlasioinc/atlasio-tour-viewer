@@ -82,6 +82,11 @@ export const COLORS = {
   warningBg: '#FFFBEB',
   warningText: '#92400E',
 
+  // Budget card tokens (ContractorJobDetails — S33)
+  inRangeGreen: '#008236',      // "In range" bid indicator — intentionally darker than successGreen (informational vs celebration state)
+  budgetLabelText: '#DBEAFE',   // "Agent's Budget" label text on accentBlue filled card
+  budgetSeparator: '#BEDBFF',   // The – dash between budget min/max values on blue card
+
   // ── Fee/Success (contractor-side) ──
   feeBg: '#F0FDF4',
   feeText: '#15803D',
@@ -128,7 +133,7 @@ export const COLORS = {
 export const TYPOGRAPHY = {
   // ── Display — prices, hero numbers ──
   displayL:    { fontSize: 30, fontWeight: '700' as const, lineHeight: 36, letterSpacing: 0.4 },
-  displayM:    { fontSize: 24, fontWeight: '700' as const, lineHeight: 32, letterSpacing: 0.07 },
+  displayM:    { fontSize: 24, fontWeight: '600' as const, lineHeight: 32, letterSpacing: 0.07 },
 
   // ── Headings ──
   headingL:    { fontSize: 18, fontWeight: '600' as const, lineHeight: 28 },
