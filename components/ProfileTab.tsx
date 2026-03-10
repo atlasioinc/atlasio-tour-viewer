@@ -140,7 +140,8 @@ const ProfileTab: React.FC = () => {
   const profileBio = liveProfile?.bio ?? '';
   const profileRating = liveProfile?.rating ?? 0;
   const profileVouches = liveProfile?.vouch_count ?? 0;
-  const profileActiveSince = liveProfile?.active_since ?? '';
+  const profileActiveSince = liveProfile?.active_since ?? ''; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const profileHeadline = liveProfile?.headline ?? 'Top listing agent, luxury market'; // @demo — replace with real profiles.headline
   const profileVisible = liveProfile?.is_visible ?? true;
 
   // ── Specialties & Languages ──
@@ -211,23 +212,49 @@ const ProfileTab: React.FC = () => {
           </Text>
 
           {/* Stats pills */}
+          {/* activeSince: retained in data, not rendered on self-view. @demo */}
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
             <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.tagBg, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>{profileRating.toFixed(1)} ★</Text>
               <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>{profileVouches} Vouches</Text>
             </View>
-            {profileActiveSince ? (
-              <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.tagBg, borderRadius: 9999 }}>
-                <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>Active Since {profileActiveSince}</Text>
-              </View>
-            ) : null}
           </View>
 
-          {/* Bio */}
-          {profileBio ? (
-            <Text style={{ textAlign: 'center', color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 22.75 }}>
-              {profileBio}
-            </Text>
+          {/* ── HEADLINE ── */}
+          {/* @backend: wire to profiles.headline column via useMyProfile() hook */}
+          {profileHeadline ? (
+            <View
+              style={{
+                backgroundColor: COLORS.tagBg,
+                borderRadius: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <Svg width={13} height={13} viewBox="0 0 13 13" fill="none">
+                <Path
+                  d="M7.5 1.5L3 7.5h4l-2 4 6-7H7.5l1-3z"
+                  fill={COLORS.primary}
+                  strokeWidth={0.5}
+                  stroke={COLORS.primary}
+                />
+              </Svg>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: COLORS.primary,
+                  lineHeight: 20,
+                  flex: 1,
+                }}
+              >
+                {profileHeadline}
+              </Text>
+            </View>
           ) : null}
 
           {/* Specialties & Languages pills */}
@@ -240,10 +267,12 @@ const ProfileTab: React.FC = () => {
                     paddingHorizontal: 14,
                     paddingVertical: 7,
                     borderRadius: 9999,
-                    backgroundColor: COLORS.tagBg,
+                    backgroundColor: 'transparent',
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.statText, lineHeight: 18 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '400', color: '#364153', lineHeight: 18 }}>
                     {item}
                   </Text>
                 </View>
@@ -255,10 +284,12 @@ const ProfileTab: React.FC = () => {
                     paddingHorizontal: 14,
                     paddingVertical: 7,
                     borderRadius: 9999,
-                    backgroundColor: COLORS.tagBg,
+                    backgroundColor: 'transparent',
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.statText, lineHeight: 18 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '400', color: '#364153', lineHeight: 18 }}>
                     {item}
                   </Text>
                 </View>

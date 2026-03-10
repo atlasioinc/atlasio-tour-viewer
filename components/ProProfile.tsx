@@ -86,6 +86,9 @@ export interface ProProfileData {
   licensed: string;
   distance: string;
   bio: string;
+  /** Short punchy tagline — max 35 chars, displayed with lightning icon.
+   *  @backend wire to profiles.headline */
+  headline: string | null;
   avatarColor: string;
   performance_stats: PerformanceStats;
   tags: string[];
@@ -133,6 +136,7 @@ export const MOCK_PRO_PROFILE: ProProfileData = {
   licensed: 'Licensed CO',
   distance: '12 mi',
   bio: 'Licensed Electrician servicing the Denver Area since 2015. Free quotes and available M-Sat by appointment. Feel free to connect.',
+  headline: 'Response in under 2 hours',
   avatarColor: '#003DC3',
   performance_stats: {
     completed_jobs: 14,
@@ -372,6 +376,7 @@ const ProProfile: React.FC = () => {
     licensed,
     distance,
     bio,
+    headline,
     avatarColor,
     performance_stats,
     tags,
@@ -585,39 +590,7 @@ const ProProfile: React.FC = () => {
 
                 {/* Info pills */}
                 <View style={{ gap: 8 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', gap: 12 }}>
-                    <View
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        backgroundColor: COLORS.chipBg,
-                        borderRadius: 9999,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.statText, lineHeight: 20 }}>
-                        {rating} ★
-                      </Text>
-                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.statText, lineHeight: 20 }}>
-                        {vouches} Vouches
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        backgroundColor: COLORS.chipBg,
-                        borderRadius: 9999,
-                      }}
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.statText, lineHeight: 20 }}>
-                        Active Since {active_since}
-                      </Text>
-                    </View>
-                  </View>
-
+                  {/* Row 1 — Credentials (qualifying info) */}
                   <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
                     {/* Primary Trade + License chip */}
                     <View
@@ -678,22 +651,42 @@ const ProProfile: React.FC = () => {
                       </Text>
                     </View>
                   </View>
+
+                  {/* Row 2 — Social proof */}
+                  {/* active_since not rendered — retained in data for future use */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', gap: 12 }}>
+                    <View
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        backgroundColor: COLORS.chipBg,
+                        borderRadius: 9999,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.statText, lineHeight: 20 }}>
+                        {rating} ★
+                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.statText, lineHeight: 20 }}>
+                        {vouches} Vouches
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             </View>
 
-            {/* Bio */}
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '400',
-                color: COLORS.statText,
-                lineHeight: 20,
-                textAlign: 'center',
-              }}
-            >
-              {bio}
-            </Text>
+            {/* ⚡ Headline — replaces bio. @demo hardcoded below, @backend wire to profiles.headline */}
+            {headline ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.tagBg, borderRadius: 6 }}>
+                <LightningStatIcon />
+                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20, flex: 1 }}>
+                  {headline}
+                </Text>
+              </View>
+            ) : null}
 
             {/* Self-selected tags (max 3) — below bio, before CTAs */}
             {tags.length > 0 && (
@@ -704,13 +697,13 @@ const ProProfile: React.FC = () => {
                     style={{
                       paddingHorizontal: 10,
                       paddingVertical: 6,
-                      backgroundColor: COLORS.background,
+                      backgroundColor: 'transparent',
                       borderRadius: 9999,
-                      borderWidth: 0.68,
-                      borderColor: COLORS.primary,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
                     }}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.primary, lineHeight: 16, textAlign: 'center' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '400', color: '#364153', lineHeight: 18, textAlign: 'center' }}>
                       {tag}
                     </Text>
                   </View>

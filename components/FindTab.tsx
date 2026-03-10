@@ -298,9 +298,9 @@ const ProCardComponent: React.FC<{
     </View>
     <View style={{ gap: 8 }}>
       {pro.headline ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 6 }}>
           <LightningIcon />
-          <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.primary, lineHeight: 16 }} numberOfLines={1}>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20, flex: 1 }} numberOfLines={1}>
             {pro.headline}
           </Text>
         </View>

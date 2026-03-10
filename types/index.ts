@@ -155,6 +155,7 @@ export interface Profile {
   display_role: string;                // human-readable (e.g., "Mortgage Lender")
   location: string;                    // e.g., "Denver, CO"
   bio: string;
+  headline: string | null;            // short tagline, max 35 chars — @backend add to profiles table
   avatar_url: string | null;          // Supabase Storage URL
   avatar_color: string;               // fallback color for initials
   rating: number;                      // 0–5, derived from vouches

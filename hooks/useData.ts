@@ -158,7 +158,7 @@ export const useMyProfile = () => {
         return {
           id: 'mock-user-1', name: 'Demo Agent', company: 'Atlasio Demo', role: 'agent',
           display_role: 'Real Estate Agent', location: 'Denver, CO', bio: '', avatar_url: null,
-          avatar_color: '#7BA3C9', rating: 4.8, vouch_count: 12, deals_closed: 24,
+          avatar_color: '#7BA3C9', rating: 4.8, vouch_count: 12, deals_closed: 24, headline: null,
           tags: [], trades: [], trade: null, specialties: [], licensed: null,
           active_since: '2022', service_area: 'Denver Metro', phone: null,
           profile_visibility: 'public', is_visible: true, is_verified: false, is_banned: false,
@@ -199,7 +199,7 @@ export const useProfile = (profileId: string) => {
         return {
           id: profileId, name: 'Unknown', company: '', role: 'agent',
           display_role: '', location: '', bio: '', avatar_url: null,
-          avatar_color: '#7BA3C9', rating: 0, vouch_count: 0, deals_closed: 0,
+          avatar_color: '#7BA3C9', rating: 0, vouch_count: 0, deals_closed: 0, headline: null,
           tags: [], trades: [], trade: null, specialties: [], licensed: null,
           active_since: '', service_area: '', phone: null,
           profile_visibility: 'public', is_visible: true, is_verified: false, is_banned: false,

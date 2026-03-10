@@ -69,6 +69,7 @@ export const mapFindProToProfile = (pro: FindTabProCard): ProProfileData => ({
   licensed: 'Licensed CO',
   distance: pro.distanceMi ? `${pro.distanceMi} mi` : '—',
   bio: `${pro.role} at ${pro.company}.${pro.headline ? ` ${pro.headline}.` : ''} Highly vouched by agents in the Denver area.`,
+  headline: pro.headline || null,
   avatarColor: pro.avatarColor,
   // Production: these come from the profiles + performance tables
   performance_stats: {
@@ -122,6 +123,7 @@ export const mapNetworkContactToProfile = (contact: NetworkTabContact): ProProfi
   licensed: contact.tab === 'contractors' ? 'Licensed CO' : '',
   distance: '—', // Production: computed from geolocation
   bio: `${contact.role} at ${contact.company}. Part of the Denver professional network.`,
+  headline: null, // @backend wire to profiles.headline
   avatarColor: contact.avatarColor,
   // Production: fetched from performance table
   performance_stats: {
@@ -164,6 +166,7 @@ export const mapProfileToProProfileData = (
   licensed: p.licensed || '',
   distance: '—', // TODO: compute from geolocation
   bio: p.bio || '',
+  headline: p.headline || null,
   avatarColor: p.avatar_color,
   performance_stats: p.performance_stats
     ? {

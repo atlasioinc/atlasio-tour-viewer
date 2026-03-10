@@ -533,9 +533,10 @@ const EditProfileScreen: React.FC = () => {
         <FormField
           label="Headline"
           value={form.headline}
-          onChangeText={(text) => updateField('headline', text.slice(0, 60))}
+          onChangeText={(text) => updateField('headline', text.slice(0, 35))}
           placeholder="Professional tagline (e.g., 'Fast closings, no surprises')"
-          maxLength={60}
+          maxLength={35}
+          helperText="35 chars max — one punchy line agents remember"
         />
 
         <FormField
