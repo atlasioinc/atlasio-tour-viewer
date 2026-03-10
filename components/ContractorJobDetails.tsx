@@ -110,6 +110,18 @@ const CheckCircleIcon: React.FC<{ width?: number; height?: number; color?: strin
   </Svg>
 );
 
+const MessageIcon: React.FC = () => (
+  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+    <Path
+      d="M17.5 13.33A1.67 1.67 0 0 1 15.83 15H5.83L2.5 18.33V5A1.67 1.67 0 0 1 4.17 3.33H15.83A1.67 1.67 0 0 1 17.5 5V13.33Z"
+      stroke={COLORS.primary}
+      strokeWidth={1.67}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
 const CameraIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
   width = 24, height = 24, color = COLORS.lightText,
 }) => (
@@ -816,7 +828,7 @@ const ContractorJobDetails: React.FC = () => {
             )}
           </View>
 
-          {/* ── 7. Agent Card (non-tappable — agent profile view is post-MVP) ── */}
+          {/* ── 7. Agent Card ── */}
           <View
             style={{
               flexDirection: 'row',
@@ -847,6 +859,47 @@ const ContractorJobDetails: React.FC = () => {
                 </Text>
               </View>
             </View>
+            {/* Message button — icon-only, matches agent-side BidCard pattern */}
+            {/* @backend requires active connection between contractor and agent */}
+            {/* @demo job.hasUnreadAgentMessages flag controls red notification dot */}
+            {/*       In production: set via realtime subscription or chat_threads table query */}
+            <Pressable
+              onPress={() => {
+                // @nav → ChatScreen modal (1:1 agent message thread)
+                navigation.navigate('ChatScreen', {
+                  contactId: job.agent.id,
+                  contactName: job.agent.name,
+                  contactAvatarColor: job.agent.avatarColor,
+                  contactCompany: job.agent.company,
+                });
+              }}
+              hitSlop={8}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                alignSelf: 'flex-start',
+                opacity: pressed ? 0.5 : 1,
+              })}
+            >
+              <MessageIcon />
+              {(job as any).hasUnreadAgentMessages && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 14,
+                    height: 14,
+                    borderRadius: 9999,
+                    backgroundColor: COLORS.notificationRed,
+                    borderWidth: 2,
+                    borderColor: COLORS.background,
+                  }}
+                />
+              )}
+            </Pressable>
           </View>
 
 

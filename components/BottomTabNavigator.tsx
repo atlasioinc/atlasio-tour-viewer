@@ -112,6 +112,11 @@ const ContractorHomeStackScreen: React.FC = () => (
       component={JobCompletionScreen as React.ComponentType<any>}
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
     />
+    <ContractorHomeStackNav.Screen
+      name="ChatScreen"
+      component={ChatScreen}
+      options={{ presentation: 'fullScreenModal' }}
+    />
   </ContractorHomeStackNav.Navigator>
 );
 
@@ -134,6 +139,11 @@ const ContractorJobsStackScreen: React.FC = () => (
       name="JobCompletion"
       component={JobCompletionScreen as React.ComponentType<any>}
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
+    <ContractorJobsStackNav.Screen
+      name="ChatScreen"
+      component={ChatScreen}
+      options={{ presentation: 'fullScreenModal' }}
     />
   </ContractorJobsStackNav.Navigator>
 );

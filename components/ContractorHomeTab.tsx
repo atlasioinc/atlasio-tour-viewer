@@ -805,18 +805,17 @@ const ActiveJobCard: React.FC<{ job: ActiveJob; onMarkComplete: () => void; onCh
 
 const JobInviteCard: React.FC<{
   invite: JobInvite;
-  onAccept: () => void;
-  onDecline: () => void;
-  onChat?: () => void;
-  hasBid?: boolean;
-}> = ({ invite, onAccept, onDecline, onChat, hasBid = false }) => (
-  <View
-    style={{
+  onPress: () => void;
+}> = ({ invite, onPress }) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => ({
       backgroundColor: COLORS.background,
       borderRadius: DIMENSIONS.cardRadius,
       borderWidth: 1, borderColor: COLORS.border,
       ...SHADOWS.card,
-    }}
+      opacity: pressed ? 0.85 : 1,
+    })}
   >
     {/* Row 1: Trade pill + Time — scan layer */}
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 0 }}>
@@ -889,51 +888,8 @@ const JobInviteCard: React.FC<{
           </Text>
         </View>
       )}
-
-      {/* Row 6: CTAs */}
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-        {/* Chat icon — only visible after bid has been submitted */}
-        {hasBid && onChat && (
-          <Pressable
-            onPress={onChat}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              borderWidth: 0.68,
-              borderColor: COLORS.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.5 : 1,
-            })}
-          >
-            <ChatBubbleSmallIcon />
-          </Pressable>
-        )}
-        <Pressable
-          onPress={onDecline}
-          style={({ pressed }) => ({
-            flex: 1,
-            height: 36,
-            borderRadius: 8,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.5 : 1,
-          })}
-        >
-          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.secondaryText, lineHeight: 20 }}>
-            Decline
-          </Text>
-        </Pressable>
-        <CardButton
-          label={hasBid ? "View Bid" : "Accept & Bid"}
-          onPress={onAccept}
-          variant="filled"
-          flex
-        />
-      </View>
     </View>
-  </View>
+  </Pressable>
 );
 
 // ─────────────────────────────────────────────
@@ -1552,22 +1508,10 @@ const ContractorHomeTab: React.FC = () => {
                   <JobInviteCard
                     key={`invite-${item.data.id}`}
                     invite={item.data}
-                    hasBid={item.data.hasBid}
-                    onAccept={() => {
+                    onPress={() => {
                       // @nav → ContractorJobDetails (contractor views full job before bidding)
                       navigation.navigate('ContractorJobDetails', { jobId: item.data.id });
                     }}
-                    onDecline={() => {
-                      // @backend supabase.from('job_invitations').update({ status: 'declined' }).eq('id', item.data.id)
-                      console.log('Decline:', item.data.id);
-                    }}
-                    onChat={item.data.hasBid ? () => {
-                      navigation.navigate('RepairChat', {
-                        jobId: item.data.id,
-                        agentName: item.data.agentName,
-                        address: item.data.address,
-                      });
-                    } : undefined}
                   />
                 );
               }
