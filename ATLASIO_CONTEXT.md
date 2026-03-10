@@ -518,6 +518,40 @@ Commits: 6cd0366, 5ad6f07, 5dc79dd, fc70f1b, 83102e4
 - HomeStack/InboxStack: fullScreenModal presentation options registered
 
 ---
+Session 31 (continued) — Headline Pill + Profile IA Polish
+Branch: frontend/session-25-onboarding-redesign
+Commit: 87afdf5
+
+**Headline feature (cross-surface):**
+- `Profile.headline: string | null` added to types/index.ts (@backend add to profiles table)
+- `ProProfileData.headline: string | null` added to ProProfile.tsx interface
+- All 3 mapper functions in proProfileHelpers.ts pass headline through
+- Mock fallbacks in useData.ts include `headline: null`
+- EditProfileScreen: headline maxLength 60→35, added helperText
+
+**ProProfile.tsx IA overhaul:**
+- Bio replaced by full-width headline pill (LightningStatIcon + COLORS.tagBg, font 14, flex: 1)
+- Credential row (trade/license/distance) moved ABOVE social proof row (rating/vouches)
+- "Active Since" removed from display (data retained in interface + mock)
+- Self-selected tag pills → outlined style (transparent bg, 1px COLORS.border, #364153 text, font 13)
+
+**ProfileTab.tsx IA update:**
+- "Active Since" pill removed from stats row (data retained)
+- Bio replaced by headline pill (inline lightning SVG 13x13, full width, COLORS.tagBg)
+- Mock headline: 'Top listing agent, luxury market'
+- Specialty/language tag pills → outlined style (transparent bg, 1px COLORS.border, #364153 text)
+
+**FindTab.tsx headline polish:**
+- Headline pill: removed alignSelf flex-start (full width), font 12→14, lineHeight 16→20, added flex: 1
+
+**Design rules established (S31):**
+- Outlined pill = self-described attribute (transparent bg, gray border, gray text)
+- Filled pill = verified credential (system-confirmed)
+- Headline pill = full width, COLORS.tagBg, lightning icon, font 14/500, COLORS.primary
+- "Active Since" permanently removed from all profile surfaces
+- Headline max: 35 chars
+
+---
 Cumulative Progress (Sessions 1-31)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
@@ -544,7 +578,7 @@ Cumulative Progress (Sessions 1-31)
 - Session 27: Codebase documentation pass Part 1 — 16 infrastructure + revenue files (tokens, hooks, types, job screens)
 - Session 28: Codebase documentation pass Part 2 — 54 remaining files (all screens, components, nav stacks)
 - Session 30: 7 contractor RPC hooks wired, DEV_BYPASS_AUTH, LIVE_CONTRACTOR_HOOKS flag
-- Session 31: UX polish batch — 5 fullScreenModal conversions, CTA safe area fixes, FindTab flash fix, ProCard polish, "Licensed & Insured" tag removal, ChatScreen delete, tab bar simplification
+- Session 31: UX polish batch — fullScreenModal conversions, CTA safe area, FindTab flash, ProCard polish, tag removal, headline pill + profile IA overhaul
 
 49 hooks total (46 wired + 3 mock stubs) + 7 contractor RPC hooks. 7 edge functions. 3 realtime subscriptions. 0 tsc errors.
 73 files documented with @demo/@backend markers, line counts, section dividers, flow context.
@@ -557,8 +591,9 @@ Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, Co
 Recommended Next Session Priorities
 
 1. Deploy rpc_complete_onboarding to Supabase, flip LIVE_ONBOARDING flag, test end-to-end
-2. Wire ProProfile portfolio_photos from portfolio_photos table
-3. Wire notification deep links (replace console.log with navigation.navigate)
-4. Performance: add staleTime/gcTime to high-frequency hooks
-5. EditProfileScreen: add contractor-specific fields (trades, license, insurance)
-6. Polish: NetworkTab + RepairJobsData mock data — remove "Licensed & Insured" from contractor tags
+2. Add `headline TEXT CHECK(char_length(headline) <= 35)` column to profiles table in Supabase
+3. Wire ProProfile portfolio_photos from portfolio_photos table
+4. Wire notification deep links (replace console.log with navigation.navigate)
+5. Performance: add staleTime/gcTime to high-frequency hooks
+6. EditProfileScreen: add contractor-specific fields (trades, license, insurance)
+7. BottomTabNavigator: investigate icon position flash (style-only fixes insufficient, may need custom tabBar)
