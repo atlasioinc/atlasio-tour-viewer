@@ -1072,6 +1072,105 @@ const MarketPulseSection: React.FC<{ data: MarketPulseData }> = ({ data }) => {
   );
 };
 
+// =============================================================================
+// EMPTY STATE CALLOUT
+// Shown in each section when no data exists (first launch, new contractor).
+// Branded light-blue container with section-specific icon, headline, subtext.
+// @demo: renders whenever section data array is empty
+// =============================================================================
+
+// Empty state icons — inline SVG, COLORS.primary stroke, 24x24
+const InviteEmptyIcon = (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M3 8l9 6 9-6M3 8v10a1 1 0 001 1h16a1 1 0 001-1V8M3 8a1 1 0 011-1h16a1 1 0 011 1"
+      stroke={COLORS.primary}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+const JobsEmptyIcon = (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M3 9a2 2 0 012-2h14a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+      stroke={COLORS.primary}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2"
+      stroke={COLORS.primary}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M3 13h18"
+      stroke={COLORS.primary}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+const ActiveWorkEmptyIcon = (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M15 12l-8.5 8.5a2.12 2.12 0 01-3-3L12 9M15 12l2.5-2.5M17.5 9.5L21 6l-3-3-3.5 3.5"
+      stroke={COLORS.primary}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+interface EmptyStateCalloutProps {
+  icon: React.ReactNode;
+  headline: string;
+  subtext: string;
+}
+
+const EmptyStateCallout: React.FC<EmptyStateCalloutProps> = ({
+  icon,
+  headline,
+  subtext,
+}) => (
+  <View style={{
+    backgroundColor: COLORS.backgroundInfo,
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center' as const,
+    marginHorizontal: 4,
+    marginBottom: 8,
+  }}>
+    {icon}
+    <Text style={{
+      fontSize: 14,
+      fontWeight: '600',
+      color: COLORS.darkText,
+      textAlign: 'center',
+      marginBottom: 4,
+      marginTop: 8,
+    }}>
+      {headline}
+    </Text>
+    <Text style={{
+      fontSize: 13,
+      fontWeight: '400',
+      color: COLORS.secondaryText,
+      textAlign: 'center',
+      lineHeight: 18,
+    }}>
+      {subtext}
+    </Text>
+  </View>
+);
+
 // ─────────────────────────────────────────────
 // EMPTY STATE COMPONENT
 // ─────────────────────────────────────────────
@@ -1258,10 +1357,12 @@ const ContractorHomeTab: React.FC = () => {
               removeClippedSubviews={true}
             />
           ) : (
-            <View style={{ paddingHorizontal: 16, paddingVertical: 24, alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, textAlign: 'center' }}>
-                No invites yet. Agents will reach out directly when they need your expertise. Check out New Jobs to find work!
-              </Text>
+            <View style={{ paddingHorizontal: 16 }}>
+              <EmptyStateCallout
+                icon={InviteEmptyIcon}
+                headline="No invites yet"
+                subtext="Agents will invite you directly when your trade matches their job."
+              />
             </View>
           )}
         </View>
@@ -1302,10 +1403,12 @@ const ContractorHomeTab: React.FC = () => {
               removeClippedSubviews={true}
             />
           ) : (
-            <View style={{ paddingHorizontal: 16, paddingVertical: 24, alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, textAlign: 'center' }}>
-                No new jobs matching your trade right now. Check back soon or browse all jobs in the Jobs tab!
-              </Text>
+            <View style={{ paddingHorizontal: 16 }}>
+              <EmptyStateCallout
+                icon={JobsEmptyIcon}
+                headline="No jobs in your area yet"
+                subtext="New repair jobs matching your trade will show up here as agents post them."
+              />
             </View>
           )}
         </View>
@@ -1340,10 +1443,12 @@ const ContractorHomeTab: React.FC = () => {
               ))}
             </View>
           ) : (
-            <View style={{ paddingHorizontal: 16, paddingVertical: 24, alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, textAlign: 'center' }}>
-                No active jobs yet. Submit bids on open jobs to get started!
-              </Text>
+            <View style={{ paddingHorizontal: 16 }}>
+              <EmptyStateCallout
+                icon={ActiveWorkEmptyIcon}
+                headline="No active work yet"
+                subtext="Once you win a bid, your in-progress jobs will appear here."
+              />
             </View>
           )}
         </View>
