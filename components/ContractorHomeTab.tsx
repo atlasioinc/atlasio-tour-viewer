@@ -1,22 +1,24 @@
 // ContractorHomeTab.tsx
 // ═══════════════════════════════════════════════════════════════
-// Home Tab — Contractor View (1637 lines)
-// Main dashboard for contractors after onboarding
+// Home Tab — Contractor View
+// Triage dashboard: horizontal scroll sections + vertical active work
 //
-// Layout: Top Bar → Priority-Ordered Feed → Earnings → Market Pulse
-// Feed priority: Active Jobs (in_progress first) → Invitations → Matching Jobs
+// Layout: Greeting → Job Invites (horiz) → New Jobs (horiz) →
+//         Active Work (vert) → Earnings → Market Pulse
 //
 // Card components (3):
-//   ActiveJobCard   — in-progress / pending_completion / awarded work
-//   JobInviteCard   — agent invitations with bid CTA
-//   MatchingJobCard — browse jobs matching contractor's trade
+//   JobInviteCard   — horizontal scroll, reuse from S34 (tappable, no CTA footer)
+//   NewJobCard      — horizontal scroll, marketplace browse cards
+//   ActiveWorkCard  — vertical stack, progress bar + agent info
+//
+// Pull-to-refresh: RefreshControl on outer ScrollView
 //
 // Empty / Filled toggle:
 //   Hidden behind scroll pull-down (showDevToggle state).
 //   Switches between MOCK_* arrays and empty arrays.
 //   @demo Remove toggle + empty state in production.
 //
-// @demo  All MOCK_* data arrays (lines ~425–650)
+// @demo  All MOCK_* data arrays
 // @demo  Role toggle at top to switch Agent ↔ Contractor view
 //        Production: remove toggle, use auth role from context
 //
@@ -34,16 +36,16 @@ import {
   Text,
   Pressable,
   ScrollView,
+  FlatList,
+  RefreshControl,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, TYPOGRAPHY, SPACING, DIMENSIONS, SHADOWS } from '../lib/tokens';
-import { CardButton } from './Button';
-import { DisplayTag, DisplayTagRow, StatPill } from './DisplayTag';
+import { DisplayTag } from './DisplayTag';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -57,6 +59,8 @@ interface ActiveJob {
   address: string;
   agentName: string;
   agentAvatar: string; // color placeholder
+  agentRating: number;
+  agentCompany: string;
   jobStatus: 'in_progress' | 'pending_completion' | 'awarded';
   deadline: string;
   acceptedAmount: string;
@@ -65,6 +69,7 @@ interface ActiveJob {
 
 interface JobInvite {
   id: string;
+  title: string;
   address: string;
   tradeNeeded: string;
   budgetRange: string;
@@ -82,6 +87,7 @@ interface JobInvite {
 
 interface MatchingJob {
   id: string;
+  title: string;
   address: string;
   tradeNeeded: string;
   budgetRange: string;
@@ -89,6 +95,7 @@ interface MatchingJob {
   dueDate: string;
   bidCount: number;
   isUrgent: boolean;
+  postedTime: string;
   /** Whether the contractor has already submitted a bid.
    *  When true: chat icon appears, CTA changes to "View Bid".
    *  @backend Derived: EXISTS(bid WHERE job_id AND contractor_id) */
@@ -151,7 +158,7 @@ const BellIcon: React.FC = () => (
   </Svg>
 );
 
-const CalendarIcon: React.FC<{ size?: number; color?: string }> = ({ size = 14, color = COLORS.lightText }) => (
+const CalendarIcon: React.FC<{ size?: number; color?: string }> = ({ size = 16, color = COLORS.secondaryText }) => (
   <Svg width={size} height={size} viewBox="0 0 14 14" fill="none">
     <Path
       d="M4.67 1.17V3.5M9.33 1.17V3.5M1.75 5.83H12.25M2.33 2.33H11.67C11.99 2.33 12.25 2.59 12.25 2.92V11.67C12.25 11.99 11.99 12.25 11.67 12.25H2.33C2.01 12.25 1.75 11.99 1.75 11.67V2.92C1.75 2.59 2.01 2.33 2.33 2.33Z"
@@ -469,8 +476,10 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
     address: '4521 Elm Street, Denver CO',
     agentName: 'Rachel Williams',
     agentAvatar: '#C4A882',
+    agentRating: 4.9,
+    agentCompany: 'Keller Williams',
     jobStatus: 'in_progress',
-    deadline: 'Mar 2',
+    deadline: 'Mar 12',
     acceptedAmount: '$280',
     trade: 'Plumber',
   },
@@ -480,8 +489,10 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
     address: '782 Maple Drive, Lakewood CO',
     agentName: 'Marcus Lee',
     agentAvatar: '#B5C4A8',
+    agentRating: 4.7,
+    agentCompany: 'RE/MAX Alliance',
     jobStatus: 'pending_completion',
-    deadline: 'Mar 5',
+    deadline: 'Mar 15',
     acceptedAmount: '$1,450',
     trade: 'Plumber',
   },
@@ -491,8 +502,10 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
     address: '1150 Pine Court, Aurora CO',
     agentName: 'Emma Thompson',
     agentAvatar: '#A8C5DA',
+    agentRating: 4.8,
+    agentCompany: 'Compass',
     jobStatus: 'awarded',
-    deadline: 'Mar 8',
+    deadline: 'Mar 18',
     acceptedAmount: '$2,200',
     trade: 'Plumber',
   },
@@ -510,6 +523,7 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
 const MOCK_INVITATIONS: JobInvite[] = [
   {
     id: 'inv1',
+    title: 'Water Heater Replacement',
     address: '331 Oak Boulevard, Denver CO',
     tradeNeeded: 'Plumber',
     budgetRange: '$200 – $600',
@@ -523,6 +537,7 @@ const MOCK_INVITATIONS: JobInvite[] = [
   },
   {
     id: 'inv2',
+    title: 'Toilet Repair & Overflow Fix',
     address: '1847 Elm Street, Denver CO',
     tradeNeeded: 'Plumber',
     budgetRange: '$150 – $400',
@@ -534,6 +549,7 @@ const MOCK_INVITATIONS: JobInvite[] = [
   },
   {
     id: 'inv3',
+    title: 'Kitchen Remodel Plumbing',
     address: '205 Birch Lane, Centennial CO',
     tradeNeeded: 'General Contractor',
     budgetRange: '$500 – $1,200',
@@ -545,6 +561,7 @@ const MOCK_INVITATIONS: JobInvite[] = [
   },
   {
     id: 'inv4',
+    title: 'Sump Pump Installation',
     address: '900 Aspen Way, Littleton CO',
     tradeNeeded: 'Plumber',
     budgetRange: '$300 – $800',
@@ -572,54 +589,64 @@ const MOCK_INVITATIONS: JobInvite[] = [
 const MOCK_MATCHING_JOBS: MatchingJob[] = [
   {
     id: 'mj1',
+    title: 'Toilet Repair & Overflow Fix',
     address: '742 Pine Avenue, Denver CO',
     tradeNeeded: 'Plumber',
     budgetRange: '$100 – $250',
     distanceMi: 2.3,
-    dueDate: 'Mar 3',
+    dueDate: 'Mar 13',
     bidCount: 2,
     isUrgent: true,
+    postedTime: '2h ago',
     hasBid: true,
   },
   {
     id: 'mj2',
+    title: 'Water Heater Maintenance',
     address: '1560 Willow Creek, Aurora CO',
     tradeNeeded: 'Plumber',
     budgetRange: '$400 – $900',
     distanceMi: 5.1,
-    dueDate: 'Mar 9',
+    dueDate: 'Mar 19',
     bidCount: 1,
     isUrgent: false,
+    postedTime: '5h ago',
   },
   {
     id: 'mj3',
+    title: 'Kitchen Cabinet Remodel',
     address: '88 Spruce Drive, Lakewood CO',
     tradeNeeded: 'General Contractor',
     budgetRange: '$800 – $2,000',
     distanceMi: 7.4,
-    dueDate: 'Mar 14',
+    dueDate: 'Mar 24',
     bidCount: 0,
     isUrgent: false,
+    postedTime: '1d ago',
   },
   {
     id: 'mj4',
+    title: 'Garbage Disposal Replacement',
     address: '3200 Cherry Lane, Centennial CO',
     tradeNeeded: 'Plumber',
     budgetRange: '$200 – $500',
     distanceMi: 3.8,
-    dueDate: 'Mar 6',
+    dueDate: 'Mar 16',
     bidCount: 3,
     isUrgent: true,
+    postedTime: '3h ago',
   },
   {
     id: 'mj5',
+    title: 'Deck & Patio Expansion',
     address: '415 Magnolia Blvd, Denver CO',
     tradeNeeded: 'General Contractor',
     budgetRange: '$1,500 – $3,000',
     distanceMi: 1.9,
-    dueDate: 'Mar 20',
+    dueDate: 'Mar 28',
     bidCount: 0,
     isUrgent: false,
+    postedTime: '2d ago',
   },
 ];
 
@@ -670,133 +697,70 @@ const MOCK_MARKET_PULSE: MarketPulseData = {
 // ═══════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────
-// ACTIVE JOB CARD
-// Vertical full-width card for in-progress work
+// ACTIVE WORK CARD (S35)
+// Vertical full-width card with progress bar + agent info
 // ─────────────────────────────────────────────
 
-const ActiveJobCard: React.FC<{ job: ActiveJob; onMarkComplete: () => void; onChat: () => void }> = ({ job, onMarkComplete, onChat }) => (
-  <View
-    style={{
-      backgroundColor: COLORS.background,
-      borderRadius: DIMENSIONS.cardRadius,
-      borderWidth: 1, borderColor: COLORS.border,
-      ...SHADOWS.card,
-    }}
-  >
-    {/* Row 1: Trade pill + Status chip — scan layer */}
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 0 }}>
-      <DisplayTag label={job.trade} />
-      <JobStatusChip status={job.jobStatus} />
-    </View>
+const ActiveWorkCard: React.FC<{ job: ActiveJob; onPress: () => void }> = ({ job, onPress }) => {
+  // @demo Calculate progress from job status
+  // @backend In production: derive from job.progress field or milestone count
+  const progress = job.jobStatus === 'in_progress' ? 0.6 : job.jobStatus === 'pending_completion' ? 0.9 : 0.3;
 
-    {/* Row 2: Blue header — Job title + Amount — decision layer */}
-    <View
-      style={{
-        backgroundColor: COLORS.statBg,
-        paddingHorizontal: 14,
-        paddingVertical: 14,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        backgroundColor: COLORS.background,
+        borderRadius: DIMENSIONS.cardRadius,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        padding: 16,
         gap: 12,
-        margin: 8,
-        borderRadius: 10,
-      }}
+        opacity: pressed ? 0.95 : 1,
+        ...SHADOWS.card,
+      })}
     >
-
-      <Text
-        style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 22, flex: 1 }}
-        numberOfLines={2}
-      >
+      {/* Job title */}
+      <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }} numberOfLines={2}>
         {job.title}
       </Text>
-      <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.primary, lineHeight: 22 }}>
-        {job.acceptedAmount}
-      </Text>
-    </View>
 
-    {/* Detail layer */}
-    <View style={{ paddingTop: 8, paddingHorizontal: 16, paddingBottom: 16, gap: 10 }}>
-      {/* Row 3: Agent */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <AvatarPlaceholder name={job.agentName} color={job.agentAvatar} size={28} />
-        <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
-          {job.agentName}
+      {/* Location + due date */}
+      <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+        {job.address} · Due {job.deadline}
+      </Text>
+
+      {/* Progress bar */}
+      <View style={{ gap: 4 }}>
+        <View style={{ height: 6, backgroundColor: COLORS.border, borderRadius: 9999, overflow: 'hidden' }}>
+          <View style={{ height: 6, width: `${progress * 100}%`, backgroundColor: COLORS.primary, borderRadius: 9999 }} />
+        </View>
+        <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.primary, lineHeight: 16 }}>
+          {Math.round(progress * 100)}% complete
         </Text>
       </View>
 
-      {/* Row 4: Address + Due date */}
-      <View style={{ gap: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <MapPinSmallIcon />
-          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20, flex: 1 }} numberOfLines={1}>
-            {job.address}
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <CalendarIcon color={COLORS.bodyText} />
-          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-            Due {job.deadline}
-          </Text>
-        </View>
-      </View>
-
-      {/* Row 5: CTA + Chat button */}
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-        {/* Chat icon button — always visible on active jobs */}
-        <Pressable
-          onPress={onChat}
-          style={({ pressed }) => ({
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            borderWidth: 0.68,
-            borderColor: COLORS.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.5 : 1,
-          })}
-        >
-          <ChatBubbleSmallIcon />
-        </Pressable>
-
-        {/* Primary CTA — fills remaining width */}
+      {/* Agent info */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <AvatarPlaceholder name={job.agentName} color={job.agentAvatar} size={32} />
         <View style={{ flex: 1 }}>
-          {job.jobStatus === 'in_progress' && (
-            <CardButton
-              label="Mark Complete"
-              onPress={onMarkComplete}
-              variant="filled"
-              fullWidth
-            />
-          )}
-          {job.jobStatus === 'pending_completion' && (
-            <View style={{
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              backgroundColor: 'rgba(234, 88, 12, 0.06)',
-              borderRadius: 8,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.counterAmber, lineHeight: 20, flex: 1 }}>
-                Waiting for agent to confirm
-              </Text>
-            </View>
-          )}
-          {job.jobStatus === 'awarded' && (
-            <CardButton
-              label="Start Work"
-              onPress={() => console.log('Start work:', job.id)}
-              variant="outlined"
-              fullWidth
-            />
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
+              {job.agentName}
+            </Text>
+            <StarIcon size={12} />
+            <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+              {job.agentRating.toFixed(1)}
+            </Text>
+          </View>
+          <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
+            {job.agentCompany}
+          </Text>
         </View>
       </View>
-    </View>
-  </View>
-);
+    </Pressable>
+  );
+};
 
 // ─────────────────────────────────────────────
 // JOB INVITE CARD
@@ -810,207 +774,146 @@ const JobInviteCard: React.FC<{
   <Pressable
     onPress={onPress}
     style={({ pressed }) => ({
+      width: 320,
       backgroundColor: COLORS.background,
       borderRadius: DIMENSIONS.cardRadius,
       borderWidth: 1, borderColor: COLORS.border,
+      padding: 16,
       ...SHADOWS.card,
-      opacity: pressed ? 0.85 : 1,
+      opacity: pressed ? 0.95 : 1,
     })}
   >
-    {/* Row 1: Trade pill + Time — scan layer */}
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 0 }}>
+    {/* Row 1: Trade badge + Timestamp — context group with title (4px) */}
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
       <DisplayTag label={invite.tradeNeeded} />
-      <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+      <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText }}>
         {invite.invitedAgo}
       </Text>
     </View>
 
-    {/* Row 2: Blue header — Address + Budget — decision layer */}
-    <View
-      style={{
-        backgroundColor: COLORS.statBg,
-        paddingHorizontal: 14,
-        paddingVertical: 14,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 12,
-        margin: 8,
-        borderRadius: 10,
-      }}
+    {/* Row 2: Job title — GROUPED with address (4px) */}
+    <Text
+      style={{ ...TYPOGRAPHY.headingM, color: COLORS.darkText, marginBottom: 4 }}
+      numberOfLines={1}
+      ellipsizeMode="tail"
     >
-      <Text
-        style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 22, flex: 1 }}
-        numberOfLines={2}
-      >
-        {invite.address}
-      </Text>
-      <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.primary, lineHeight: 22 }}>
-        {invite.budgetRange}
+      {invite.title}
+    </Text>
+
+    {/* Row 3: Address */}
+    <Text
+      style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 12 }}
+      numberOfLines={1}
+      ellipsizeMode="tail"
+    >
+      {invite.address}
+    </Text>
+
+    {/* Row 4: Budget label — GROUPED with price (4px) */}
+    <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, marginBottom: 4 }}>
+      Budget
+    </Text>
+
+    {/* Row 5: Price range */}
+    <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary, marginBottom: 12 }}>
+      {invite.budgetRange}
+    </Text>
+
+    {/* Row 6: Due date */}
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+      <CalendarIcon size={16} color={COLORS.secondaryText} />
+      <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginLeft: 6 }}>
+        Due {invite.dueDate}
       </Text>
     </View>
 
-    {/* Detail layer */}
-    <View style={{ paddingTop: 8, paddingHorizontal: 16, paddingBottom: 16, gap: 10 }}>
-      {/* Row 3: Agent + Rating */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <AvatarPlaceholder name={invite.agentName} color={invite.agentAvatar} size={28} />
-        <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
-          {invite.agentName}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-          <StarIcon size={14} />
-          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
-            {invite.agentRating}
-          </Text>
-        </View>
-      </View>
-
-      {/* Row 4: Due date */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <CalendarIcon color={COLORS.bodyText} />
-        <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-          Due {invite.dueDate}
-        </Text>
-      </View>
-
-      {/* Row 5 (optional): Agent note */}
-      {invite.note && (
-        <View style={{
-          padding: 10,
-          backgroundColor: COLORS.quoteBg,
-          borderRadius: 8,
-          borderLeftWidth: 3,
-          borderLeftColor: COLORS.primary,
-        }}>
-          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, fontStyle: 'italic' }}>
-            "{invite.note}"
-          </Text>
-        </View>
-      )}
+    {/* Row 7: Agent info */}
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: invite.note ? 12 : 0 }}>
+      <AvatarPlaceholder name={invite.agentName} color={invite.agentAvatar} size={24} />
+      <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 8 }} numberOfLines={1}>
+        {invite.agentName}
+      </Text>
+      <StarIcon size={12} />
+      <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 4 }}>
+        {invite.agentRating}
+      </Text>
     </View>
+
+    {/* Row 8 (optional): Agent comment — last element, no marginBottom */}
+    {/* @backend TODO: Show invite.note in ContractorJobDetails screen */}
+    {/* (deferred to future session - see S35 decision log) */}
+    {invite.note ? (
+      <View style={{
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        backgroundColor: COLORS.quoteBg,
+        borderRadius: 6,
+        borderLeftWidth: 3,
+        borderLeftColor: COLORS.primary,
+      }}>
+        <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, fontStyle: 'italic' }} numberOfLines={1} ellipsizeMode="tail">
+          "{invite.note}"
+        </Text>
+      </View>
+    ) : null}
   </Pressable>
 );
 
 // ─────────────────────────────────────────────
-// MATCHING JOB CARD
-// Vertical full-width card for browse jobs
+// NEW JOB CARD (S35)
+// Horizontal scroll card for marketplace browse
 // ─────────────────────────────────────────────
 
-const MatchingJobCard: React.FC<{
-  job: MatchingJob;
-  onViewBid: () => void;
-  onChat?: () => void;
-  hasBid?: boolean;
-}> = ({ job, onViewBid, onChat, hasBid = false }) => (
-  <View
-    style={{
+const NewJobCard: React.FC<{ job: MatchingJob; onPress: () => void }> = ({ job, onPress }) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => ({
+      width: 320,
       backgroundColor: COLORS.background,
       borderRadius: DIMENSIONS.cardRadius,
-      borderWidth: 1, borderColor: COLORS.border,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      padding: 16,
+      opacity: pressed ? 0.95 : 1,
       ...SHADOWS.card,
-    }}
+    })}
   >
-    {/* Row 1: Trade pill + Urgent badge — scan layer */}
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 0 }}>
+    {/* Row 1: Trade badge + Timestamp — context group with title (4px) */}
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
       <DisplayTag label={job.tradeNeeded} />
-      {job.isUrgent ? (
-        <View style={{
-          paddingHorizontal: 8,
-          paddingVertical: 3,
-          backgroundColor: COLORS.urgentBg,
-          borderRadius: 9999,
-        }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.urgentText, lineHeight: 16 }}>
-            URGENT
-          </Text>
-        </View>
-      ) : (
-        <View />
-      )}
-    </View>
-
-    {/* Row 2: Blue header — Address + Budget — decision layer */}
-    <View
-      style={{
-        backgroundColor: COLORS.statBg,
-        paddingHorizontal: 14,
-        paddingVertical: 14,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 12,
-        margin: 8,
-        borderRadius: 10,
-      }}
-    >
-      <Text
-        style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 22, flex: 1 }}
-        numberOfLines={2}
-      >
-        {job.address}
-      </Text>
-      <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.primary, lineHeight: 22 }}>
-        {job.budgetRange}
+      <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText }}>
+        {job.postedTime}
       </Text>
     </View>
 
-    {/* Detail layer */}
-    <View style={{ paddingTop: 8, paddingHorizontal: 16, paddingBottom: 16, gap: 10 }}>
-      {/* Row 3: Due date */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <CalendarIcon color={COLORS.bodyText} />
-        <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-          Due {job.dueDate}
-        </Text>
-      </View>
+    {/* Row 2: Job title — GROUPED with address (4px) */}
+    <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.darkText, marginBottom: 4 }} numberOfLines={1} ellipsizeMode="tail">
+      {job.title}
+    </Text>
 
-      {/* Row 4: Distance + Bid count */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <MapPinSmallIcon />
-          <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 18 }}>
-            {job.distanceMi} mi away
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <BidIcon />
-          <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.primary, lineHeight: 18 }}>
-            {job.bidCount} {job.bidCount === 1 ? 'bid' : 'bids'}
-          </Text>
-        </View>
-      </View>
+    {/* Row 3: Address */}
+    <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 12 }} numberOfLines={1} ellipsizeMode="tail">
+      {job.address}
+    </Text>
 
-      {/* Row 5: CTA + optional Chat */}
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-        {hasBid && onChat && (
-          <Pressable
-            onPress={onChat}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              borderWidth: 0.68,
-              borderColor: COLORS.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.5 : 1,
-            })}
-          >
-            <ChatBubbleSmallIcon />
-          </Pressable>
-        )}
-        <View style={{ flex: 1 }}>
-          <CardButton
-            label={hasBid ? "View Bid" : "View & Bid"}
-            onPress={onViewBid}
-            variant="outlined"
-            fullWidth
-          />
-        </View>
-      </View>
+    {/* Row 4: Budget label — GROUPED with price (4px) */}
+    <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, marginBottom: 4 }}>
+      Budget
+    </Text>
+
+    {/* Row 5: Price range */}
+    <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary, marginBottom: 12 }}>
+      {job.budgetRange}
+    </Text>
+
+    {/* Row 6: Due date — last element, no marginBottom */}
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <CalendarIcon size={16} color={COLORS.secondaryText} />
+      <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginLeft: 6 }}>
+        Due {job.dueDate}
+      </Text>
     </View>
-  </View>
+  </Pressable>
 );
 
 // ─────────────────────────────────────────────
@@ -1200,7 +1103,7 @@ const EmptyState: React.FC<{ title: string; message: string }> = ({ title, messa
 
 const ContractorHomeTab: React.FC = () => {
   const [isFilled, setIsFilled] = useState<boolean>(true);
-  const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   // ── Data (conditional on demo toggle) ──
@@ -1210,53 +1113,18 @@ const ContractorHomeTab: React.FC = () => {
   const earnings = isFilled ? MOCK_EARNINGS : null;
   const marketPulse = isFilled ? MOCK_MARKET_PULSE : null;
 
-  // ── Unified feed: tag each item with its type for rendering ──
-  type FeedItem =
-    | { type: 'active'; data: ActiveJob }
-    | { type: 'invite'; data: JobInvite }
-    | { type: 'matching'; data: MatchingJob };
+  // ── Time-based greeting ──
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  // Sort priority: Invitations → Urgent matching → In-progress → Pending confirmation → Awarded → Non-urgent matching
-  // @backend Replace with single sorted query: supabase.rpc('get_contractor_feed', { contractor_id, sort: 'priority' })
-  const allFeedItems: FeedItem[] = [
-    ...invitations.map((inv) => ({ type: 'invite' as const, data: inv })),
-    ...matchingJobs.filter((j) => j.isUrgent).map((j) => ({ type: 'matching' as const, data: j })),
-    ...activeJobs.filter((j) => j.jobStatus === 'in_progress').map((j) => ({ type: 'active' as const, data: j })),
-    ...activeJobs.filter((j) => j.jobStatus === 'pending_completion').map((j) => ({ type: 'active' as const, data: j })),
-    ...activeJobs.filter((j) => j.jobStatus === 'awarded').map((j) => ({ type: 'active' as const, data: j })),
-    ...matchingJobs.filter((j) => !j.isUrgent).map((j) => ({ type: 'matching' as const, data: j })),
-  ];
-
-  // ── Filter feed based on active pill ──
-  const filteredFeed = activeFilter === 'All'
-    ? allFeedItems
-    : allFeedItems.filter((item) => {
-        if (activeFilter === 'Active') return item.type === 'active';
-        if (activeFilter === 'Invitations') return item.type === 'invite';
-        if (activeFilter === 'Matching') return item.type === 'matching';
-        return true;
-      });
-
-  // ── Filter pill config ──
-  const FILTER_PILLS = [
-    { key: 'All', label: 'All', count: allFeedItems.length },
-    { key: 'Active', label: 'Active', count: activeJobs.length },
-    { key: 'Invitations', label: 'Invitations', count: invitations.length },
-    { key: 'Matching', label: 'Matching', count: matchingJobs.length },
-  ];
-
-  // ── Empty state messages per filter ──
-  const getEmptyState = () => {
-    switch (activeFilter) {
-      case 'Active':
-        return { title: 'No active jobs', message: 'Check your invitations or browse matching jobs to get started.' };
-      case 'Invitations':
-        return { title: 'No new invitations', message: 'Your profile is visible to agents — invites will appear here.' };
-      case 'Matching':
-        return { title: 'No matching jobs', message: "We'll notify you when new jobs are posted in your trade." };
-      default:
-        return { title: 'No jobs yet', message: 'Jobs, invitations, and matching opportunities will appear here.' };
-    }
+  // ── Pull-to-refresh ──
+  // @backend In production: invalidate TanStack Query cache
+  //          queryClient.invalidateQueries(['contractor-jobs']);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // @demo Simulate refresh delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setRefreshing(false);
   };
 
   return (
@@ -1264,152 +1132,21 @@ const ContractorHomeTab: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* ══════════════════════════════════════════
-          STICKY HEADER
-          ══════════════════════════════════════════ */}
-      <View style={{ backgroundColor: COLORS.background }}>
-        {/* Top Bar — Location, Title, Notifications */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingBottom: 12,
-          }}
-        >
-          {/* Location — fixed width bookend */}
-          <View style={{ width: 80 }}>
-            <Pressable
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                opacity: pressed ? 0.5 : 1,
-                alignSelf: 'flex-start',
-              })}
-            >
-              <LocationPinIcon />
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                {isFilled ? 'Denver ✦' : 'Denver'}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Title — true center */}
-          <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.primary }}>
-            Atlasio
-          </Text>
-
-          {/* Notification Bell — fixed width bookend */}
-          <View style={{ width: 80, alignItems: 'flex-end' }}>
-            <Pressable
-              onPress={() => navigation.navigate('Notifications')}
-              style={({ pressed }) => ({
-                width: 24,
-                height: 24,
-                position: 'relative' as const,
-                opacity: pressed ? 0.5 : 1,
-              })}
-            >
-            <BellIcon />
-            {isFilled && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -4,
-                  right: -8,
-                  width: 20,
-                  height: 20,
-                  borderRadius: 9999,
-                  backgroundColor: COLORS.notificationRed,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 2,
-                  borderColor: COLORS.background,
-                }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: '400', color: '#FFFFFF', lineHeight: 16 }}>
-                  3
-                </Text>
-              </View>
-            )}
-          </Pressable>
-          </View>
-        </View>
-
-        {/* Filter Pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12 }}
-        >
-          {FILTER_PILLS.map((pill) => {
-            const isActive = activeFilter === pill.key;
-            return (
-              <Pressable
-                key={pill.key}
-                onPress={() => setActiveFilter(pill.key)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 9999,
-                  backgroundColor: isActive ? COLORS.primary : COLORS.background,
-                  borderWidth: isActive ? 0 : 1,
-                  borderColor: COLORS.border,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: isActive ? '600' : '400',
-                    color: isActive ? '#FFFFFF' : COLORS.bodyText,
-                    lineHeight: 20,
-                  }}
-                >
-                  {pill.label}
-                </Text>
-                <View
-                  style={{
-                    minWidth: 20,
-                    height: 20,
-                    borderRadius: 9999,
-                    backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : COLORS.screenBg,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingHorizontal: 6,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: '600',
-                      color: isActive ? '#FFFFFF' : COLORS.bodyText,
-                      lineHeight: 16,
-                    }}
-                  >
-                    {pill.count}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* Header border */}
-        <View style={{ height: 0.69, backgroundColor: COLORS.border }} />
-      </View>
-
-      {/* ══════════════════════════════════════════
-          SCROLLABLE CONTENT
+          SCROLLABLE CONTENT — pull-to-refresh enabled
           ══════════════════════════════════════════ */}
       <ScrollView
         style={{ flex: 1, backgroundColor: COLORS.screenBg }}
         showsVerticalScrollIndicator={false}
         contentOffset={{ x: 0, y: 56 }}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
       >
         {/* ── DEMO TOGGLE — visible on pull down ──
             @demo Remove entire block for production */}
@@ -1473,74 +1210,141 @@ const ContractorHomeTab: React.FC = () => {
           </Pressable>
         </View>
 
-        {/* ═══════════════════════════════════════
-            UNIFIED JOB FEED
-            ═══════════════════════════════════════ */}
-        <View style={{ paddingTop: 20, paddingBottom: 24, paddingHorizontal: 16, gap: 12 }}>
-          {filteredFeed.length > 0 ? (
-            filteredFeed.map((item) => {
-              if (item.type === 'active') {
-                return (
-                  <Pressable
-                    key={`active-${item.data.id}`}
-                    onPress={() => navigation.navigate('ContractorJobDetails', { jobId: item.data.id })}
-                  >
-                    <ActiveJobCard
-                      job={item.data}
-                      onMarkComplete={() => {
-                        // @nav → JobCompletionScreen
-                        navigation.navigate('JobCompletion', { jobId: item.data.id, userRole: 'contractor' });
-                      }}
-                      onChat={() => {
-                        // @nav → RepairChatScreen tied to this job
-                        navigation.navigate('RepairChat', {
-                          jobId: item.data.id,
-                          agentName: item.data.agentName,
-                          address: item.data.address,
-                        });
-                      }}
-                    />
-                  </Pressable>
-                );
-              }
-              if (item.type === 'invite') {
-                return (
-                  <JobInviteCard
-                    key={`invite-${item.data.id}`}
-                    invite={item.data}
-                    onPress={() => {
-                      // @nav → ContractorJobDetails (contractor views full job before bidding)
-                      navigation.navigate('ContractorJobDetails', { jobId: item.data.id });
-                    }}
-                  />
-                );
-              }
-              if (item.type === 'matching') {
-                return (
-                  <MatchingJobCard
-                    key={`matching-${item.data.id}`}
-                    job={item.data}
-                    hasBid={item.data.hasBid}
-                    onViewBid={() => {
-                      // @nav → ContractorJobDetails → BidSubmissionScreen
-                      navigation.navigate('ContractorJobDetails', { jobId: item.data.id });
-                    }}
-                    onChat={item.data.hasBid ? () => {
-                      navigation.navigate('RepairChat', {
-                        jobId: item.data.id,
-                        address: item.data.address,
-                      });
-                    } : undefined}
-                  />
-                );
-              }
-              return null;
-            })
-          ) : (
-            <EmptyState
-              title={getEmptyState().title}
-              message={getEmptyState().message}
+        {/* ══════════════════════════════════════════
+            GREETING HEADER
+            ══════════════════════════════════════════ */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 16 }}>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: COLORS.darkText, lineHeight: 32 }}>
+            {greeting}, {CURRENT_CONTRACTOR.name.split(' ')[0]} 👋
+          </Text>
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, marginTop: 4 }}>
+            {invitations.length} {invitations.length === 1 ? 'invite' : 'invites'} · {matchingJobs.length} new jobs · {activeJobs.length} active
+          </Text>
+        </View>
+
+        {/* ══════════════════════════════════════════
+            SECTION 1 — JOB INVITES (horizontal scroll)
+            ══════════════════════════════════════════ */}
+        <View style={{ paddingBottom: 24 }}>
+          {/* Section header */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 26 }}>
+              Job Invites ({invitations.length})
+            </Text>
+            <Pressable onPress={() => navigation.navigate('Jobs')} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20 }}>
+                See All
+              </Text>
+            </Pressable>
+          </View>
+
+          {invitations.length > 0 ? (
+            <FlatList
+              horizontal
+              data={invitations}
+              renderItem={({ item }) => (
+                <JobInviteCard
+                  invite={item}
+                  onPress={() => {
+                    // @nav → ContractorJobDetails (invited job)
+                    navigation.navigate('ContractorJobDetails', { jobId: item.id });
+                  }}
+                />
+              )}
+              keyExtractor={(item) => `invite-${item.id}`}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              nestedScrollEnabled={true}
+              removeClippedSubviews={true}
             />
+          ) : (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 24, alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, textAlign: 'center' }}>
+                No invites yet. Agents will reach out directly when they need your expertise. Check out New Jobs to find work!
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* ══════════════════════════════════════════
+            SECTION 2 — NEW JOBS FOR YOU (horizontal scroll)
+            ══════════════════════════════════════════ */}
+        <View style={{ paddingBottom: 24 }}>
+          {/* Section header */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 26 }}>
+              New Jobs for You ({matchingJobs.length})
+            </Text>
+            <Pressable onPress={() => navigation.navigate('Jobs')} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20 }}>
+                See All
+              </Text>
+            </Pressable>
+          </View>
+
+          {matchingJobs.length > 0 ? (
+            <FlatList
+              horizontal
+              data={matchingJobs.slice(0, 50)}
+              renderItem={({ item }) => (
+                <NewJobCard
+                  job={item}
+                  onPress={() => {
+                    // @nav → ContractorJobDetails (marketplace browse)
+                    navigation.navigate('ContractorJobDetails', { jobId: item.id });
+                  }}
+                />
+              )}
+              keyExtractor={(item) => `new-${item.id}`}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              nestedScrollEnabled={true}
+              removeClippedSubviews={true}
+            />
+          ) : (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 24, alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, textAlign: 'center' }}>
+                No new jobs matching your trade right now. Check back soon or browse all jobs in the Jobs tab!
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* ══════════════════════════════════════════
+            SECTION 3 — ACTIVE WORK (vertical stack)
+            ══════════════════════════════════════════ */}
+        <View style={{ paddingBottom: 24 }}>
+          {/* Section header */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 26 }}>
+              Active Work ({activeJobs.length})
+            </Text>
+            <Pressable onPress={() => navigation.navigate('Jobs')} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20 }}>
+                See All
+              </Text>
+            </Pressable>
+          </View>
+
+          {activeJobs.length > 0 ? (
+            <View style={{ paddingHorizontal: 16, gap: 12 }}>
+              {activeJobs.map((job) => (
+                <ActiveWorkCard
+                  key={job.id}
+                  job={job}
+                  onPress={() => {
+                    // @nav → ContractorJobDetails (active work)
+                    navigation.navigate('ContractorJobDetails', { jobId: job.id });
+                  }}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 24, alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, textAlign: 'center' }}>
+                No active jobs yet. Submit bids on open jobs to get started!
+              </Text>
+            </View>
           )}
         </View>
 
