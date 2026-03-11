@@ -600,7 +600,69 @@ Branch: frontend/session-25-onboarding-redesign
 - Notes text: fontSize 13, COLORS.bodyText, lineHeight 18 — unified across all card types
 
 ---
-Cumulative Progress (Sessions 1-33)
+Session 34 — Invite Card Cleanup + Message Button on Agent Card
+
+Branch: frontend/session-25-onboarding-redesign (continued)
+Commit: ff67ca8
+
+Files modified (3):
+- components/ContractorHomeTab.tsx — JobInviteCard simplified: removed button row (Decline/Accept & Bid/Chat), entire card is now a single tappable Pressable with onPress prop (navigates to ContractorJobDetails). Removed onAccept, onDecline, onChat, hasBid props. Feed render block simplified from 5 props to 2.
+- components/ContractorJobDetails.tsx — Added icon-only MessageIcon (20x20 SVG) on Agent Card, replacing ChatBubbleIcon + "Message" label. 40x40 tappable area with red unread dot support (hasUnreadAgentMessages). Navigates to ChatScreen as fullscreen modal within same stack.
+- components/BottomTabNavigator.tsx — Added ChatScreen route to ContractorHomeStack and ContractorJobsStack as fullscreen modal presentation. Enables Message button navigation without cross-stack routing.
+
+Design rules established:
+- Invite cards: No inline CTAs — card tap navigates to detail screen, actions live on detail screen
+- Message buttons: Icon-only pattern (no label) with red notification dot for unread state, matching agent-side BidCard pattern
+- Chat navigation: ChatScreen registered as fullscreen modal in each stack (not cross-stack to Inbox)
+
+---
+Session 35 — Contractor Home Tab Horizontal Scroll Redesign
+
+Branch: frontend/session-25-onboarding-redesign (continued)
+Commit: a5fd252
+
+Files modified (1):
+- components/ContractorHomeTab.tsx — Complete redesign from unified vertical feed to sectioned triage dashboard. Replaced sticky header (location/Atlasio/bell), filter pills, and unified card feed with greeting header + 3 horizontal/vertical sections.
+
+New layout:
+- Greeting header: time-based message ("Good morning") + quick stats row (jobs in progress, pending invites, earnings)
+- Section 1 — Job Invites: horizontal FlatList, 320px cards with trade pill, title, address, budget label + price, calendar icon + due date, agent info (avatar + name + star rating), optional agent comment
+- Section 2 — New Jobs: horizontal FlatList, 320px cards with trade pill, title, address, budget label + price, calendar icon + due date (no agent info)
+- Section 3 — Active Work: vertical stack with progress bars + agent info
+- Pull-to-refresh on outer ScrollView
+- Earnings Summary + Market Pulse sections preserved from previous build
+
+Card architecture (S35):
+- Cards hug content naturally (no fixed height) — padding: 16 directly on Pressable, no inner View wrapper
+- Spacing rhythm: 4px for grouped pairs (trade→title, title→address, budget label→price), 12px for non-grouped elements
+- Budget label above price range (both card types)
+- Due date on dedicated row with CalendarIcon SVG (16px, COLORS.secondaryText)
+- Star rating: StarIcon before number with 4px gap (matches iOS convention)
+- JobInviteCard agent comment: quoteBg background, blue left border, single line with ellipsis, paddingVertical 6
+
+Types added:
+- JobInvite.title (string) — was missing, now matches MatchingJob pattern
+- ActiveJob.agentRating (number), ActiveJob.agentCompany (string) — for agent info on progress cards
+- MatchingJob.title (string), MatchingJob.postedTime (string) — for horizontal browse cards
+
+Components changed:
+- ActiveJobCard → ActiveWorkCard (progress bar + agent info row)
+- MatchingJobCard → NewJobCard (320px horizontal scroll card)
+- JobInviteCard restructured (trade pill, title, address, budget, due date, agent, comment)
+- CalendarIcon SVG re-added (was removed then restored)
+- Removed: old sticky header, filter pills, unified feed render block, CardButton/DisplayTagRow/StatPill imports
+
+Mock data updated:
+- MOCK_INVITATIONS: added title field to all 4 items
+- MOCK_ACTIVE_JOBS: added agentRating, agentCompany
+- MOCK_MATCHING_JOBS: added title, postedTime
+
+Deferred:
+- @backend TODO: Wire invite.note to ContractorJobDetails screen
+- Jobs tab filter param support from "See All" links
+
+---
+Cumulative Progress (Sessions 1-35)
 
 - Session 1: Type alignment (types/index.ts ↔ schema.sql)
 - Session 2: 11 T1 revenue-critical hooks wired
@@ -629,6 +691,8 @@ Cumulative Progress (Sessions 1-33)
 - Session 31: UX polish batch — fullScreenModal conversions, CTA safe area, FindTab flash, ProCard polish, tag removal, headline pill + profile IA overhaul
 - Session 32: Squad UX (isAdditionalRole + role labels), verification banner inside ScrollView (3 screens), RepairJobDetails 3-col flex header, full header audit (68 files, 0 additional fixes)
 - Session 33: ContractorJobDetails redesign — accentBlue budget card, bid cards (pending/countered) with eyebrow labels, job photos strip + lightbox, conditional bid count, tokens.ts displayM 600 + 3 new colors
+- Session 34: Invite card cleanup (JobInviteCard → single tappable card, no button row), Message button on Agent Card (icon-only + red unread dot), ChatScreen fullscreen modal in contractor stacks
+- Session 35: Contractor Home Tab horizontal scroll redesign — 3-section triage dashboard (Job Invites horizontal, New Jobs horizontal, Active Work vertical), greeting header, pull-to-refresh, 320px cards with budget labels + calendar due dates, natural card heights
 
 49 hooks total (46 wired + 3 mock stubs) + 7 contractor RPC hooks. 7 edge functions. 3 realtime subscriptions. 0 tsc errors.
 73 files documented with @demo/@backend markers, line counts, section dividers, flow context.
@@ -636,6 +700,7 @@ Feature flags: USE_MOCK_DATA=true, LIVE_ONBOARDING=false, LIVE_CONTRACTOR_HOOKS=
 
 Contractor screens: 5 (ContractorHomeTab, ContractorJobDetails, ContractorInboxList, BidSubmissionScreen, JobTrackerTab) + 3 shared (ChatScreen, ProProfile, JobCompletionScreen)
 Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, ContractorProfileBasics, ContractorTradeStep, ContractorDetailsStep, Screen2 retired)
+Nav stacks: ChatScreen now registered as fullscreen modal in ContractorHomeStack + ContractorJobsStack (in addition to ContractorInboxStack)
 
 ---
 Recommended Next Session Priorities
