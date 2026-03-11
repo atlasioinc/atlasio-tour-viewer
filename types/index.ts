@@ -421,6 +421,11 @@ export interface ContractorJobDetail {
   photos: string[];
   bidCount: number;
   jobStatus: JobStatus;
+  // Invite fields — populated when contractor was personally invited
+  job_type?: 'open' | 'invite';       // @backend: rpc_get_job_details
+  agent_message?: string | null;      // @backend: job_invitations.note
+  invited_by_name?: string | null;    // @backend: joined from agent profile
+  invited_at?: string | null;         // @backend: formatted from job_invitations.created_at
   agent: {
     id: string;
     name: string;

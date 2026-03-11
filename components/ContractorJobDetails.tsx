@@ -148,6 +148,61 @@ const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }
   );
 };
 
+// =============================================================================
+// AGENT MESSAGE BANNER
+// Shows when contractor was personally invited to a job (job_type === 'invite').
+// Preserves the agent's personal note throughout the bid decision flow.
+// @backend: agent_message from rpc_get_job_details → job_invitations.note
+// =============================================================================
+
+interface AgentMessageBannerProps {
+  agentName: string;
+  message: string;
+  invitedAt: string;
+}
+
+const AgentMessageBanner: React.FC<AgentMessageBannerProps> = ({
+  agentName,
+  message,
+  invitedAt,
+}) => (
+  <View style={{
+    backgroundColor: '#EFF6FF',         // @token: flag for future COLORS.backgroundInfo addition
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+  }}>
+    <Text style={{
+      fontSize: 11,
+      fontWeight: '600',
+      color: COLORS.lightText,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 8,
+    }}>
+      Invited by {agentName}
+    </Text>
+    <Text style={{
+      fontSize: 15,
+      fontWeight: '400',
+      color: COLORS.darkText,
+      lineHeight: 22,
+      marginBottom: 6,
+    }}>
+{`\u201C${message}\u201D`}
+    </Text>
+    <Text style={{
+      fontSize: 13,
+      fontWeight: '400',
+      color: COLORS.lightText,
+    }}>
+      — {agentName}, {invitedAt}
+    </Text>
+  </View>
+);
+
 // ─────────────────────────────────────────────
 // BID STATUS CHIP
 // ─────────────────────────────────────────────
@@ -182,7 +237,7 @@ const BidStatusChip: React.FC<{ status: string }> = ({ status }) => {
  *   + supabase.from('bids').select('*').eq('job_id', jobId).eq('contractor_id', auth.uid()).maybeSingle()
  */
 
-// @demo State 1: Open job, no bid yet
+// @demo State 1: Invite job, no bid yet
 const MOCK_JOB_NO_BID: ContractorJobDetail = {
   id: 'mj1',
   title: 'Fix Leaking Kitchen Faucet & Under-Sink Pipes',
@@ -196,6 +251,10 @@ const MOCK_JOB_NO_BID: ContractorJobDetail = {
   photos: [],
   bidCount: 3,
   jobStatus: 'open',
+  job_type: 'invite',           // @demo — replace with real job.job_type from rpc_get_job_details
+  agent_message: "Hot water heater leaking — need this done fast. You came highly recommended.", // @demo — replace with real job.agent_message from rpc_get_job_details
+  invited_by_name: "Rachel Williams",  // @demo — replace with real job.agent_name from rpc_get_job_details
+  invited_at: "2h ago",         // @demo — replace with formatted real timestamp from rpc_get_job_details
   agent: {
     id: 'agent-1',
     name: 'Rachel Williams',
@@ -220,10 +279,14 @@ const MOCK_JOB_BID_PENDING: ContractorJobDetail = {
   },
 };
 
-// @demo State 3: Counter-offer received
+// @demo State 3: Counter-offer received (marketplace job — no invite banner)
 const MOCK_JOB_COUNTERED: ContractorJobDetail = {
   ...MOCK_JOB_NO_BID,
   id: 'mj3',
+  job_type: 'open',
+  agent_message: undefined,
+  invited_by_name: undefined,
+  invited_at: undefined,
   bidCount: 4,
   myBid: {
     id: 'bid-2',
@@ -534,6 +597,16 @@ const ContractorJobDetails: React.FC = () => {
         </View>
 
         <View style={{ paddingHorizontal: 16, gap: 16 }}>
+
+          {/* ── Agent Message Banner ── */}
+          {/* Conditional: only renders for invite jobs with a message (States 1 + 2) */}
+          {job.job_type === 'invite' && job.agent_message ? (
+            <AgentMessageBanner
+              agentName={job.invited_by_name ?? 'Agent'}
+              message={job.agent_message}
+              invitedAt={job.invited_at ?? ''}
+            />
+          ) : null}
 
           {/* ── 2. Trade + Urgency Row ── */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
