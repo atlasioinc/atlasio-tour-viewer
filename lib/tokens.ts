@@ -40,6 +40,7 @@ export const COLORS = {
   chipBg: '#F3F4F6',         // inactive filter chips, tag chips
   infoBg: '#EFF6FF',         // info banners, category badges
   infoBorder: '#DBEAFE',     // border for info banners
+  backgroundInfo: '#EFF6FF', // Light blue — invite banners, informational callouts (AgentMessageBanner)
   sortBg: '#F2F2F7',         // sort dropdown pill
   quoteBg: '#F5F5F5',        // vouch quote backgrounds
 

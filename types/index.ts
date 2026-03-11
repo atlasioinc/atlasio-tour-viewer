@@ -424,8 +424,7 @@ export interface ContractorJobDetail {
   // Invite fields — populated when contractor was personally invited
   job_type?: 'open' | 'invite';       // @backend: rpc_get_job_details
   agent_message?: string | null;      // @backend: job_invitations.note
-  invited_by_name?: string | null;    // @backend: joined from agent profile
-  invited_at?: string | null;         // @backend: formatted from job_invitations.created_at
+  invited_at?: string | null;         // @backend: rpc_get_job_details → job_invitations.created_at (ISO string)
   agent: {
     id: string;
     name: string;

@@ -149,6 +149,26 @@ const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }
 };
 
 // =============================================================================
+// FORMAT RELATIVE TIME
+// Converts ISO timestamp to relative label ("2h ago", "3d ago", "just now").
+// Used for invite timestamps on AgentMessageBanner.
+// @backend: called with job_invitations.created_at ISO string
+// =============================================================================
+const formatRelativeTime = (isoString: string): string => {
+  if (!isoString) return '';
+  const now = new Date();
+  const past = new Date(isoString);
+  const diffMs = now.getTime() - past.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+};
+
+// =============================================================================
 // AGENT MESSAGE BANNER
 // Shows when contractor was personally invited to a job (job_type === 'invite').
 // Preserves the agent's personal note throughout the bid decision flow.
@@ -167,7 +187,7 @@ const AgentMessageBanner: React.FC<AgentMessageBannerProps> = ({
   invitedAt,
 }) => (
   <View style={{
-    backgroundColor: '#EFF6FF',         // @token: flag for future COLORS.backgroundInfo addition
+    backgroundColor: COLORS.backgroundInfo,
     borderLeftWidth: 4,
     borderLeftColor: COLORS.primary,
     borderRadius: 8,
@@ -251,10 +271,7 @@ const MOCK_JOB_NO_BID: ContractorJobDetail = {
   photos: [],
   bidCount: 3,
   jobStatus: 'open',
-  job_type: 'invite',           // @demo — replace with real job.job_type from rpc_get_job_details
-  agent_message: "Hot water heater leaking — need this done fast. You came highly recommended.", // @demo — replace with real job.agent_message from rpc_get_job_details
-  invited_by_name: "Rachel Williams",  // @demo — replace with real job.agent_name from rpc_get_job_details
-  invited_at: "2h ago",         // @demo — replace with formatted real timestamp from rpc_get_job_details
+  job_type: 'invite',           // @demo — valid test value; real value comes from rpc_get_job_details
   agent: {
     id: 'agent-1',
     name: 'Rachel Williams',
@@ -284,9 +301,6 @@ const MOCK_JOB_COUNTERED: ContractorJobDetail = {
   ...MOCK_JOB_NO_BID,
   id: 'mj3',
   job_type: 'open',
-  agent_message: undefined,
-  invited_by_name: undefined,
-  invited_at: undefined,
   bidCount: 4,
   myBid: {
     id: 'bid-2',
@@ -602,9 +616,9 @@ const ContractorJobDetails: React.FC = () => {
           {/* Conditional: only renders for invite jobs with a message (States 1 + 2) */}
           {job.job_type === 'invite' && job.agent_message ? (
             <AgentMessageBanner
-              agentName={job.invited_by_name ?? 'Agent'}
-              message={job.agent_message}
-              invitedAt={job.invited_at ?? ''}
+              agentName={job.agent?.name ?? 'Agent'}          // @backend: rpc_get_job_details → agent.name
+              message={job.agent_message ?? ''}               // @backend: rpc_get_job_details → job_invitations.note
+              invitedAt={formatRelativeTime(job.invited_at ?? '')}  // @backend: rpc_get_job_details → job_invitations.created_at
             />
           ) : null}
 
