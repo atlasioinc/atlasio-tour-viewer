@@ -1120,12 +1120,44 @@ const JobsEmptyIcon = (
 const ActiveWorkEmptyIcon = (
   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
     <Path
-      d="M15 12l-8.5 8.5a2.12 2.12 0 01-3-3L12 9M15 12l2.5-2.5M17.5 9.5L21 6l-3-3-3.5 3.5"
+      d="M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"
       stroke={COLORS.primary}
       strokeWidth={1.5}
       strokeLinecap="round"
       strokeLinejoin="round"
     />
+    <Path d="M3 10h18" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" />
+    <Path d="M8 3v4" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" />
+    <Path d="M16 3v4" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" />
+  </Svg>
+);
+
+const EarningsEmptyIcon = (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"
+      stroke={COLORS.primary}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path d="M12 7v10" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" />
+    <Path
+      d="M14.5 9.5a2.5 2.5 0 00-5 0c0 1.5 1 2 2.5 2.5s2.5 1 2.5 2.5a2.5 2.5 0 01-5 0"
+      stroke={COLORS.primary}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+const MarketDataEmptyIcon = (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path d="M4 18v-4" stroke={COLORS.primary} strokeWidth={2.5} strokeLinecap="round" />
+    <Path d="M12 18V8" stroke={COLORS.primary} strokeWidth={2.5} strokeLinecap="round" />
+    <Path d="M20 18V4" stroke={COLORS.primary} strokeWidth={2.5} strokeLinecap="round" />
+    <Path d="M2 18h20" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" />
   </Svg>
 );
 
@@ -1143,10 +1175,9 @@ const EmptyStateCallout: React.FC<EmptyStateCalloutProps> = ({
   <View style={{
     backgroundColor: COLORS.backgroundInfo,
     borderRadius: 10,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
     alignItems: 'center' as const,
-    marginHorizontal: 4,
-    marginBottom: 8,
   }}>
     {icon}
     <Text style={{
@@ -1154,8 +1185,8 @@ const EmptyStateCallout: React.FC<EmptyStateCalloutProps> = ({
       fontWeight: '600',
       color: COLORS.darkText,
       textAlign: 'center',
+      marginTop: 10,
       marginBottom: 4,
-      marginTop: 8,
     }}>
       {headline}
     </Text>
@@ -1167,30 +1198,6 @@ const EmptyStateCallout: React.FC<EmptyStateCalloutProps> = ({
       lineHeight: 18,
     }}>
       {subtext}
-    </Text>
-  </View>
-);
-
-// ─────────────────────────────────────────────
-// EMPTY STATE COMPONENT
-// ─────────────────────────────────────────────
-
-const EmptyState: React.FC<{ title: string; message: string }> = ({ title, message }) => (
-  <View
-    style={{
-      padding: 24,
-      backgroundColor: COLORS.background,
-      borderRadius: DIMENSIONS.cardRadius,
-      borderWidth: 1, borderColor: COLORS.border,
-      alignItems: 'center',
-      gap: 8,
-    }}
-  >
-    <Text style={{ fontSize: 15, fontWeight: '500', color: COLORS.bodyText, lineHeight: 22 }}>
-      {title}
-    </Text>
-    <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, textAlign: 'center', lineHeight: 20, paddingHorizontal: 16 }}>
-      {message}
     </Text>
   </View>
 );
@@ -1357,7 +1364,7 @@ const ContractorHomeTab: React.FC = () => {
               removeClippedSubviews={true}
             />
           ) : (
-            <View style={{ paddingHorizontal: 16 }}>
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
               <EmptyStateCallout
                 icon={InviteEmptyIcon}
                 headline="No invites yet"
@@ -1403,7 +1410,7 @@ const ContractorHomeTab: React.FC = () => {
               removeClippedSubviews={true}
             />
           ) : (
-            <View style={{ paddingHorizontal: 16 }}>
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
               <EmptyStateCallout
                 icon={JobsEmptyIcon}
                 headline="No jobs in your area yet"
@@ -1443,7 +1450,7 @@ const ContractorHomeTab: React.FC = () => {
               ))}
             </View>
           ) : (
-            <View style={{ paddingHorizontal: 16 }}>
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
               <EmptyStateCallout
                 icon={ActiveWorkEmptyIcon}
                 headline="No active work yet"
@@ -1469,10 +1476,18 @@ const ContractorHomeTab: React.FC = () => {
           {earnings ? (
             <EarningsSummaryCard earnings={earnings} />
           ) : (
-            <EmptyState
-              title="No earnings yet"
-              message="Complete your first job to start tracking earnings here."
-            />
+            <View style={{
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: DIMENSIONS.cardRadius,
+              overflow: 'hidden',
+            }}>
+              <EmptyStateCallout
+                icon={EarningsEmptyIcon}
+                headline="No earnings yet"
+                subtext="Completed job payments will show up here once you start winning bids."
+              />
+            </View>
           )}
         </View>
 
@@ -1492,10 +1507,18 @@ const ContractorHomeTab: React.FC = () => {
           {marketPulse ? (
             <MarketPulseSection data={marketPulse} />
           ) : (
-            <EmptyState
-              title="Market data loading"
-              message="We're gathering data for your trade in Denver. Check back soon."
-            />
+            <View style={{
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: DIMENSIONS.cardRadius,
+              overflow: 'hidden',
+            }}>
+              <EmptyStateCallout
+                icon={MarketDataEmptyIcon}
+                headline="No market data yet"
+                subtext="Local pricing trends for your trade will appear here as activity picks up."
+              />
+            </View>
           )}
         </View>
       </ScrollView>
