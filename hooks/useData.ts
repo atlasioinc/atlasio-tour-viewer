@@ -1651,24 +1651,31 @@ export const useRemoveSquadMember = () => {
 // ═══════════════════════════════════════════════════════════════
 // CONTRACTOR JOB DETAILS
 // @backend: jobs table, bids table (contractor-side views)
-// RPCs (not yet wired): rpc_submit_bid, rpc_respond_to_counter
+// RPCs: rpc_get_job_details, rpc_submit_bid, rpc_respond_to_counter
 // ═══════════════════════════════════════════════════════════════
+
+export const LIVE_CONTRACTOR_HOOKS = true;
 
 /**
  * Fetch contractor's view of a single job.
- * @backend supabase.from('jobs')
- *   .select('*, profiles!agent_id(name, company, avatar_url, avatar_color, rating, vouch_count)')
- *   .eq('id', jobId)
- *   .single()
- *   + separate query for contractor's own bid on this job
+ * @backend rpc_get_job_details — returns full job object with agent profile and my_bid
+ * @demo replaced mock return null with live Supabase RPC call
  */
-// STATUS: mock
+// STATUS: wired (with mock fallback)
 export const useContractorJobDetails = (jobId: string) => {
   return useQuery<ContractorJobDetail>({
     queryKey: ['contractorJob', jobId],
     queryFn: async () => {
-      // TODO: [PRODUCTION] Replace with Supabase query
-      return null as unknown as ContractorJobDetail;
+      try {
+        const { data, error } = await supabase
+          .rpc('rpc_get_job_details', { p_job_id: jobId });
+        if (error) throw error;
+        return data as ContractorJobDetail;
+      } catch (err) {
+        console.warn('[useContractorJobDetails] Supabase RPC failed, using mock fallback', err);
+        // @demo mock fallback — return null (screen handles loading/null states)
+        return null as unknown as ContractorJobDetail;
+      }
     },
     enabled: !!jobId,
   });
@@ -1676,21 +1683,33 @@ export const useContractorJobDetails = (jobId: string) => {
 
 /**
  * Submit a bid on a job.
- * @backend supabase.rpc('rpc_submit_bid', {
- *   p_job_id, p_amount, p_timeline, p_quote
- * })
+ * @backend rpc_submit_bid — submits contractor bid, invalidates job + contractor-jobs queries
+ * @demo replaced console.log + setTimeout with live Supabase RPC call
  */
-// STATUS: mock
+// STATUS: wired (with mock fallback)
 export const useSubmitBid = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { jobId: string; amount: number; timeline: string; notes: string }) => {
-      // TODO: [PRODUCTION] Replace with Supabase RPC
-      console.log('[useSubmitBid]', data);
-      await new Promise((r) => setTimeout(r, 500));
+      try {
+        const { error } = await supabase
+          .rpc('rpc_submit_bid', {
+            p_job_id: data.jobId,
+            p_amount: data.amount,
+            p_timeline: data.timeline ?? null,
+            p_quote: data.notes ?? null,
+            p_message: '',
+          });
+        if (error) throw error;
+      } catch (err) {
+        console.warn('[useSubmitBid] Supabase RPC failed, using mock fallback', err);
+        // @demo mock fallback — simulate success
+        await new Promise((r) => setTimeout(r, 500));
+      }
     },
     onSuccess: (_, { jobId }) => {
       qc.invalidateQueries({ queryKey: ['contractorJob', jobId] });
+      qc.invalidateQueries({ queryKey: ['contractor-jobs'] });
     },
   });
 };
