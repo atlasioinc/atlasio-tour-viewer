@@ -30,7 +30,7 @@
 //   → useMarketPulse()             — aggregate job stats by trade
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -39,8 +39,12 @@ import {
   FlatList,
   RefreshControl,
   StatusBar,
+  Modal,
+  Animated,
+  Dimensions,
+  StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -924,7 +928,7 @@ const NewJobCard: React.FC<{ job: MatchingJob; onPress: () => void }> = ({ job, 
 // EARNINGS SUMMARY CARD
 // ─────────────────────────────────────────────
 
-const EarningsSummaryCard: React.FC<{ earnings: EarningsData }> = ({ earnings }) => (
+const EarningsSummaryCard: React.FC<{ earnings: EarningsData; onViewInsights?: () => void }> = ({ earnings, onViewInsights }) => (
   <View
     style={{
       padding: 16,
@@ -1015,6 +1019,33 @@ const EarningsSummaryCard: React.FC<{ earnings: EarningsData }> = ({ earnings })
           ${earnings.pendingPayments.toLocaleString()}
         </Text>
       </View>
+    )}
+
+    {/* View Insights CTA — opens earnings insight bottom sheet */}
+    {/* @demo: always visible. Production: only show when sufficient data available */}
+    {onViewInsights && (
+      <Pressable
+        onPress={onViewInsights}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          alignSelf: 'flex-start',
+          marginTop: 0,
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        <Text style={{
+          fontSize: 14,
+          fontWeight: '500',
+          color: COLORS.primary,
+          lineHeight: 20,
+        }}>
+          View Insights
+        </Text>
+        {/* @design: replace › with ChevronRightIcon SVG when available */}
+        <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>›</Text>
+      </Pressable>
     )}
   </View>
 );
@@ -1238,6 +1269,45 @@ const ContractorHomeTab: React.FC = () => {
   const [isFilled, setIsFilled] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const insets = useSafeAreaInsets();
+
+  // Earnings insights bottom sheet visibility
+  const [showInsightsSheet, setShowInsightsSheet] = useState(false);
+  const [insightsSheetMounted, setInsightsSheetMounted] = useState(false);
+  const insightsBackdropAnim = useRef(new Animated.Value(0)).current;
+  const insightsSlideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+
+  useEffect(() => {
+    if (showInsightsSheet) {
+      setInsightsSheetMounted(true);
+      Animated.parallel([
+        Animated.timing(insightsBackdropAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(insightsSlideAnim, {
+          toValue: 0,
+          damping: 24,
+          stiffness: 220,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (insightsSheetMounted) {
+      Animated.parallel([
+        Animated.timing(insightsBackdropAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(insightsSlideAnim, {
+          toValue: Dimensions.get('window').height,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setInsightsSheetMounted(false));
+    }
+  }, [showInsightsSheet]);
 
   // ── Data (conditional on demo toggle) ──
   const activeJobs = isFilled ? MOCK_ACTIVE_JOBS : [];
@@ -1522,7 +1592,7 @@ const ContractorHomeTab: React.FC = () => {
           </View>
 
           {earnings ? (
-            <EarningsSummaryCard earnings={earnings} />
+            <EarningsSummaryCard earnings={earnings} onViewInsights={() => setShowInsightsSheet(true)} />
           ) : (
             <View style={{
               borderWidth: 1,
@@ -1570,6 +1640,174 @@ const ContractorHomeTab: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* ─────────────────────────────────────────
+          EARNINGS INSIGHTS BOTTOM SHEET
+          @demo: all insight values hardcoded
+          @backend: derive from:
+            - rpc_get_contractor_earnings (avg bid, monthly totals)
+            - rpc_get_market_data (market avg bid, platform win rate)
+            - Calculated: contractor win rate from bid history
+      ───────────────────────────────────────── */}
+      <Modal
+        visible={insightsSheetMounted}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowInsightsSheet(false)}
+      >
+        {/* Backdrop */}
+        <Animated.View style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          opacity: insightsBackdropAnim,
+        }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setShowInsightsSheet(false)}
+          />
+        </Animated.View>
+
+        {/* Sheet */}
+        <Animated.View style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: COLORS.background,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          paddingHorizontal: 24,
+          paddingTop: 12,
+          paddingBottom: insets.bottom + 16,
+          transform: [{ translateY: insightsSlideAnim }],
+        }}>
+          {/* Handle bar */}
+          <View style={{
+            width: 36,
+            height: 4,
+            backgroundColor: COLORS.border,
+            borderRadius: 2,
+            alignSelf: 'center',
+            marginBottom: 20,
+          }} />
+
+          {/* Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: COLORS.darkText }}>
+              Earnings Insights
+            </Text>
+            <Pressable
+              onPress={() => setShowInsightsSheet(false)}
+              style={({ pressed }) => ({
+                width: 32,
+                height: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 20, color: COLORS.secondaryText, lineHeight: 24 }}>×</Text>
+            </Pressable>
+          </View>
+
+          {/* Row 1 — Pricing Insight */}
+          {/* @demo: hardcoded. @backend: (marketAvgBid - contractorAvgBid) / marketAvgBid * 100 */}
+          <View style={{
+            backgroundColor: COLORS.backgroundInfo,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 12,
+            gap: 4,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Text style={{ fontSize: 15 }}>{'\uD83D\uDCA1'}</Text>
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: COLORS.primary,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                // @design: intentional 13pt uppercase eyebrow label exception
+              }}>
+                Pricing Insight
+              </Text>
+            </View>
+            <Text style={{
+              fontSize: 15,
+              fontWeight: '400',
+              color: COLORS.darkText,
+              lineHeight: 22,
+            }}>
+              Your avg bid ($1,132) is 39% below the Denver market average ($1,850).
+            </Text>
+          </View>
+
+          {/* Row 2 — Win Rate */}
+          {/* @demo: hardcoded. @backend: bidsWon / totalBids from bid history */}
+          <View style={{
+            backgroundColor: 'rgba(22, 163, 74, 0.08)',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 12,
+            gap: 4,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Text style={{ fontSize: 15 }}>{'\uD83D\uDCC8'}</Text>
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: COLORS.primary,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                // @design: intentional 13pt uppercase eyebrow label exception
+              }}>
+                Win Rate
+              </Text>
+            </View>
+            <Text style={{
+              fontSize: 15,
+              fontWeight: '400',
+              color: COLORS.darkText,
+              lineHeight: 22,
+            }}>
+              You're winning 60% of bids — above the platform average of 44%.
+            </Text>
+          </View>
+
+          {/* Row 3 — Opportunity (synthesis row) */}
+          {/* @demo: hardcoded synthesis. @backend: AI-calculated recommendation using win rate + market delta */}
+          <View style={{
+            backgroundColor: COLORS.warningBg,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 12,
+            gap: 4,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Text style={{ fontSize: 15 }}>{'\uD83C\uDFAF'}</Text>
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: COLORS.primary,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                // @design: intentional 13pt uppercase eyebrow label exception
+              }}>
+                Opportunity
+              </Text>
+            </View>
+            <Text style={{
+              fontSize: 15,
+              fontWeight: '400',
+              color: COLORS.darkText,
+              lineHeight: 22,
+            }}>
+              Raising your avg bid by 15–20% would still keep you competitive and could add ~$800/month in earnings.
+            </Text>
+          </View>
+
+        </Animated.View>
+      </Modal>
     </SafeAreaView>
   );
 };
