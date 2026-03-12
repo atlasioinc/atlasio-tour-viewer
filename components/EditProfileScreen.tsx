@@ -375,7 +375,7 @@ const EditProfileScreen: React.FC = () => {
         name: form.fullName.trim(),
         bio: form.bio.trim(),
         company: form.company.trim(),
-        licensed: form.licenseNumber.trim() || null,
+        // license_number managed in VerificationScreen — not saved from EditProfile
         service_area: form.serviceArea.trim() || null,
         specialties: form.specialties,
         trade: form.primaryTrade || null,
@@ -548,12 +548,34 @@ const EditProfileScreen: React.FC = () => {
           error={errors.company}
         />
 
-        <FormField
-          label="License Number"
-          value={form.licenseNumber}
-          onChangeText={(text) => updateField('licenseNumber', text)}
-          placeholder="e.g., MLS #123456"
-        />
+        {/* License — read-only, managed in VerificationScreen */}
+        <View style={{ gap: 8 }}>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 20 }}>
+            License
+          </Text>
+          <Pressable
+            onPress={() => (navigation as any).navigate('Verification')}
+            style={({ pressed }) => ({
+              height: 50,
+              paddingHorizontal: 16,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 14,
+              borderWidth: 1.35,
+              borderColor: COLORS.inputBorder,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '400', color: form.licenseNumber ? COLORS.darkText : COLORS.lightText }}>
+              {form.licenseNumber || 'Not added'}
+            </Text>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>
+              {form.licenseNumber ? 'Update →' : 'Add License →'}
+            </Text>
+          </Pressable>
+        </View>
 
         <FormField
           label="Service Area"

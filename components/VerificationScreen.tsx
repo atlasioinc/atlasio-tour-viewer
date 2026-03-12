@@ -319,7 +319,7 @@ const VerificationScreen: React.FC = () => {
                   {licenseSaving ? 'Saving...' : 'Save License'}
                 </Text>
               </Pressable>
-              <Text style={{ fontSize: 11, color: COLORS.lightText, textAlign: 'center' }}>
+              <Text style={{ fontSize: 12, color: COLORS.secondaryText, textAlign: 'center', lineHeight: 18 }}>
                 {/* TODO: PRODUCTION — wire to ARELLO API verify-license edge function */}
                 License will be verified manually. This may take 1-2 business days.
               </Text>

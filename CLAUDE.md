@@ -194,3 +194,136 @@ Claude Code's learning memory only. All progress tracking lives in Notion.
    - Next session priorities
 
 The user will then run "Log b-e session" in Claude Chat to update all Notion docs.
+
+## Design System Rules (non-negotiable — added S41-S44)
+
+### Typography
+- Minimum fontSize 14pt for ALL regular text — no exceptions
+- Exception: `textTransform: 'uppercase'` section headers may use fontSize 12
+- `COLORS.lightText` only permitted on fontSize 14+
+- At fontSize 12, use `COLORS.secondaryText` instead
+- Section header pattern (use exactly):
+  ```tsx
+  fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
+  textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12
+  ```
+
+### Icon Touch Targets (App Store compliance)
+- All SVG icons: width={24} height={24}
+- ALL interactive icon Pressables: width: 44, height: 44,
+  alignItems: 'center', justifyContent: 'center'
+- NEVER use hitSlop as a touch target substitute — it expands
+  tap area invisibly without fixing layout
+- Exceptions: tab bar icons, Button component variants, logo SVGs
+
+### Tokens (always import from lib/tokens.ts — never local COLORS)
+- COLORS.backgroundInfo = '#EFF6FF' (added S38)
+- COLORS.warningAmber = '#D97706' (added S43)
+- COLORS.counterAmber = '#D97706' (same value, different semantic)
+- All hex values must trace back to a named token — no inline hex
+
+---
+
+## Shared Components (always reuse — never recreate inline)
+Located in components/shared/index.ts (barrel export)
+- Button — 6 variants: Primary, Secondary, Danger, Counter + 2 more
+- ScreenHeader
+- DisplayTag — 6 variants including ghost (use for unverified/empty CTAs)
+- VerificationBadge — 3 states, 2 sizes
+- VerificationBanner — amber, role/level-aware, returns null if verified
+- PortfolioGallery — reuse unchanged, never rebuild inline
+
+---
+
+## Feature Flags (lib/featureFlags.ts)
+- USE_MOCK_DATA: true → demo mode. false → live Supabase
+- LIVE_ONBOARDING: false for demos, true for live testing
+- LIVE_CONTRACTOR_HOOKS: true (flipped S36)
+- All new feature flags default to false until explicitly tested
+
+Demo mode rule: Flip flags to true for live testing, back to false
+before investor demos. Never commit with flags true unless intentional.
+
+---
+
+## Architecture Rules (hard constraints)
+
+### Single-Value Principle
+Data flowing across screens must always be in its final
+backend-ready format at the point of entry. No translation layers,
+mapping functions, or intermediate values requiring downstream
+conversion. UI-only groupings stay as local UI logic only.
+
+### One Layout Tree Per Screen
+Role-conditional content lives WITHIN zones of a single layout tree.
+Never create separate layout trees or separate files per role.
+ProfileTab.tsx handles agent | contractor | partner via role-conditional
+zone content — not separate components.
+
+### Profile Architecture (established S43-S44)
+- ProfileTab.tsx — own profile view for ALL roles (agent/contractor/partner)
+- ProProfile.tsx — public view for ALL roles
+- ContractorProfileTab.tsx — DELETED in S44 (merged into ProfileTab)
+- isOwnProfile boolean gates control layer (Z6 Stats, Z7 Controls)
+
+### Bottom Sheet Animation Pattern (use consistently)
+All bottom sheets use this exact spring pattern:
+- animationType="none" on Modal
+- Backdrop: Animated.View, opacity 0→0.5, 300ms, Easing.out(Easing.ease)
+- Sheet: spring translateY, damping: 24, stiffness: 220
+- Close: reverse both animations, set visible=false in callback
+- useSafeAreaInsets() for paddingBottom: insets.bottom + 16
+Examples: SquadSlotPicker, ConnectionRequests, EarningsInsights,
+VouchesBottomSheet
+
+### Navigation Params
+- Always pass IDs not objects: { profileId: string }, { jobId: string }
+- Cross-stack: CommonActions.navigate({ name, params: { screen, params } })
+- ProfileStack: ProfileMain → EditProfile → Settings
+- ContractorHomeStack: Home → ContractorJobDetails → BidSubmission (modal)
+  → JobCompletion (modal)
+- ContractorJobsStack: JobTrackerTab → ContractorJobDetails → BidSubmission
+- BottomTabNavigator: Agent = 5 tabs, Contractor = 3 tabs
+
+---
+
+## @demo and @backend Markers (required in every file)
+
+Every piece of mock data must have:
+```tsx
+// @demo hardcoded — replace with real data in production
+// @backend rpc_name — params: { p_param: value }
+```
+
+Every live data point must have the RPC name and exact params.
+This is the handoff contract for future engineers.
+
+---
+
+## Session Prompt Requirements (include in EVERY Claude Code prompt)
+1. File headers (what/who/where in nav)
+2. Role branching comments (why + business rule)
+3. @backend markers (RPC name + params)
+4. @demo markers (what to replace with)
+5. Descriptive naming (handleTradeSelection not handleNext)
+6. State flow comment block above main component
+7. Section dividers in long files
+8. "Flag scope expansions before executing. If a task can be
+   completed more thoroughly than planned, confirm before
+   exceeding the original scope."
+9. "Read all relevant files before writing a single line of code.
+   Produce a plan and wait for approval before executing."
+
+---
+
+## Verification Checklist (before marking any session complete)
+- npx tsc --noEmit → 0 errors
+- Shared components reused (not recreated inline)
+- No local COLORS objects — all tokens from lib/tokens.ts
+- No inline hex values
+- All interactive icons have 44×44 Pressable touch targets
+- All regular text ≥ 14pt fontSize
+- @demo markers on all mock data
+- @backend markers on all live data points
+- Both role visual checks passed (switch userRole, verify render)
+- App.tsx returned to default userRole='Agent' after testing
