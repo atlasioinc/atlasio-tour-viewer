@@ -2,26 +2,37 @@
 // lib/featureFlags.ts
 // Feature Flags — Runtime toggles for demo vs live behavior
 //
-// These flags control which code paths execute at runtime.
-// Set to appropriate values before device testing or investor demos.
-// Future: wire to hidden dev menu (triple-tap avatar on ProfileTab).
+// Usage: import { FEATURE_FLAGS } from '../lib/featureFlags';
+// Change a flag value, save the file — app hot-reloads instantly.
+// No rebuild required.
+//
+// Before ANY investor demo: verify USE_MOCK_DATA = true,
+// LIVE_ONBOARDING = false, all LIVE_* hooks = false.
 //
 // Flags:
-//   USE_MOCK_DATA     — true: all hooks return mock data (demo mode)
-//                       false: hooks query live Supabase
-//                       @demo: controls mock fallback in hooks/useData.ts
+//   USE_MOCK_DATA           — true: hooks return mock data (demo mode)
+//                             false: hooks query live Supabase
 //
-//   LIVE_ONBOARDING   — true: OnboardingComplete calls rpc_complete_onboarding
-//                       false: console.log only (safe for demos)
-//                       @backend: gates rpc_complete_onboarding in OnboardingComplete.tsx
+//   LIVE_ONBOARDING         — true: OnboardingComplete calls rpc_complete_onboarding
+//                             false: console.log only (safe for demos)
 //
-//   LIVE_CONTRACTOR_HOOKS — true: contractor hooks call live Supabase RPCs
-//                           false: hooks use mock fallback (safe for demos)
-//                           @backend: gates 7 contractor RPCs in hooks/useData.ts
+//   LIVE_CONTRACTOR_HOOKS   — true: contractor hooks call live Supabase RPCs
+//                             false: mock fallback
+//
+//   LIVE_VERIFICATION_HOOKS — true: VerificationScreen calls rpc_submit_license_verification
+//                             false: console.log + mock success (safe for demos)
+//                             @backend: gates useSubmitLicenseVerification mutation
+//
+//   LIVE_INSURANCE_HOOKS    — true: InsuranceUploadScreen calls real document picker +
+//                                   Supabase credentials bucket + rpc_upload_insurance_document
+//                             false: mock toggle + setTimeout success (safe for demos)
+//                             @backend: gates useUploadInsuranceDocument mutation
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA: true,  // @demo — set false when Supabase is populated
-  LIVE_ONBOARDING: false, // true = call rpc_complete_onboarding, false = console.log only
-  LIVE_CONTRACTOR_HOOKS: false, // true = contractor hooks call live RPCs, false = mock fallback
+  USE_MOCK_DATA:            true,   // @demo — set false when Supabase is populated
+  LIVE_ONBOARDING:          false,  // true = call rpc_complete_onboarding
+  LIVE_CONTRACTOR_HOOKS:    false,  // true = contractor hooks call live RPCs
+  LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
+  LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
 } as const;

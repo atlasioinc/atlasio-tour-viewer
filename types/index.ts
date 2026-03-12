@@ -184,6 +184,7 @@ export interface Profile {
   is_public: boolean;                 // public profile flag
   license_number: string | null;     // state license number
   license_state: string;             // default 'CO'
+  license_status: string | null;     // 'pending' | 'verified' | null — set by rpc_submit_license_verification (S47)
   license_verified: boolean;         // verified via ARELLO or manual review
   license_verified_at: string | null; // TIMESTAMPTZ
   phone_verified: boolean;           // verified via OTP
