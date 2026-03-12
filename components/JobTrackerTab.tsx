@@ -242,6 +242,52 @@ const CalendarIcon: React.FC<{ color?: string }> = ({ color = COLORS.bodyText })
   </Svg>
 );
 
+// ── Empty state icons (one per filter) ──
+
+const ClipboardIcon: React.FC<{ size?: number; color?: string }> = ({ size = 32, color = COLORS.primary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M16 4H18C19.1046 4 20 4.89543 20 6V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20V6C4 4.89543 4.89543 4 6 4H8" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M15 2H9C8.44772 2 8 2.44772 8 3V5C8 5.55228 8.44772 6 9 6H15C15.5523 6 16 5.55228 16 5V3C16 2.44772 15.5523 2 15 2Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const EnvelopeIcon: React.FC<{ size?: number; color?: string }> = ({ size = 32, color = COLORS.primary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M22 6L12 13L2 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const PaperPlaneIcon: React.FC<{ size?: number; color?: string }> = ({ size = 32, color = COLORS.primary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M22 2L11 13" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M22 2L15 22L11 13L2 9L22 2Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const HammerIcon: React.FC<{ size?: number; color?: string }> = ({ size = 32, color = COLORS.primary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M15 12L20.66 17.66C21.04 18.04 21.04 18.66 20.66 19.04L19.04 20.66C18.66 21.04 18.04 21.04 17.66 20.66L12 15" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M12 15L3.34 6.34C2.96 5.96 2.96 5.34 3.34 4.96L6.17 2.13C6.55 1.75 7.17 1.75 7.55 2.13L15 9.59" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M9 6L6 3" stroke={color} strokeWidth={2} strokeLinecap="round" />
+  </Svg>
+);
+
+const CheckCircleIcon: React.FC<{ size?: number; color?: string }> = ({ size = 32, color = COLORS.primary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9818C18.7182 19.709 16.9033 20.9725 14.8354 21.5839C12.7674 22.1953 10.5573 22.1219 8.53447 21.3746C6.51168 20.6273 4.78465 19.2461 3.61096 17.4371C2.43727 15.628 1.87979 13.4881 2.02168 11.3363C2.16356 9.18457 2.99721 7.13633 4.39828 5.49707C5.79935 3.85782 7.69279 2.71538 9.79619 2.24015C11.8996 1.76491 14.1003 1.98234 16.07 2.86" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M22 4L12 14.01L9 11.01" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const EMPTY_STATE_CONFIG: Record<FilterOption, { icon: React.ReactNode; headline: string; body: string }> = {
+  all:       { icon: <ClipboardIcon />,   headline: 'No jobs yet',           body: 'Browse matching jobs from the Home tab.' },
+  invited:   { icon: <EnvelopeIcon />,    headline: 'No invitations',        body: 'Agent invitations will appear here.' },
+  bid_sent:  { icon: <PaperPlaneIcon />,  headline: 'No bids sent',          body: 'Submit a bid on a job to see it here.' },
+  active:    { icon: <HammerIcon />,      headline: 'No active jobs',        body: 'Jobs you\'re working on will appear here.' },
+  completed: { icon: <CheckCircleIcon />, headline: 'No completed jobs',     body: 'Finished jobs will appear here.' },
+};
+
 const AvatarPlaceholder: React.FC<{ name: string; color: string; size: number }> = ({ name, color, size }) => {
   const initials = name
     .split(' ')
@@ -260,7 +306,8 @@ const AvatarPlaceholder: React.FC<{ name: string; color: string; size: number }>
         justifyContent: 'center',
       }}
     >
-      <Text style={{ fontSize: size * 0.38, fontWeight: '600', color: '#FFFFFF' }}>
+      {/* Fixed minimum — size * 0.38 resolves to ~9pt which is illegible */}
+      <Text style={{ fontSize: Math.max(10, size * 0.38), fontWeight: '600', color: COLORS.background }}>
         {initials}
       </Text>
     </View>
@@ -282,7 +329,12 @@ const JobCard: React.FC<{ job: TrackerJob; onPress: () => void }> = ({ job, onPr
         borderRadius: DIMENSIONS.cardRadius,
         borderWidth: DIMENSIONS.cardBorderWidth,
         borderColor: COLORS.cardBorder,
+        // Left border accent for invitation cards — signals response required
+        // @design: matches AgentMessageBanner attention pattern on ContractorJobDetails
+        borderLeftWidth: job.stage === 'invited' ? 4 : DIMENSIONS.cardBorderWidth,
+        borderLeftColor: job.stage === 'invited' ? COLORS.primary : COLORS.cardBorder,
         marginHorizontal: 16,
+        overflow: 'hidden' as const,
         opacity: pressed ? 0.85 : 1,
         ...SHADOWS.card,
       })}
@@ -343,36 +395,28 @@ const JobCard: React.FC<{ job: TrackerJob; onPress: () => void }> = ({ job, onPr
         </View>
       </View>
 
-      {/* Row 2: Address + Budget header */}
-      <View
-        style={{
-          backgroundColor: COLORS.statBg,
-          paddingHorizontal: 14,
-          paddingVertical: 14,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 12,
-          margin: 8,
-          borderRadius: 10,
-        }}
-      >
+      {/* Row 2: Card body — hero row, address, agent, timestamp */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 8 }}>
+        {/* ── HERO ROW: Job title + Budget ── */}
+        {/* Job title is the primary decision element. Budget qualifies it inline. */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+          <Text
+            style={{ ...TYPOGRAPHY.headingM, color: COLORS.darkText, flex: 1, paddingRight: 8 }}
+            numberOfLines={2}
+          >
+            {job.title}
+          </Text>
+          <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.primary, flexShrink: 0 }}>
+            {job.bidAmount ?? job.budgetRange}
+          </Text>
+        </View>
+
+        {/* ── ADDRESS: Secondary context ── */}
         <Text
-          style={{ ...TYPOGRAPHY.headingM, color: COLORS.darkText, flex: 1 }}
-          numberOfLines={2}
+          style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 2 }}
+          numberOfLines={1}
         >
           {job.address}
-        </Text>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.primary, lineHeight: 22 }}>
-          {job.bidAmount ?? job.budgetRange}
-        </Text>
-      </View>
-
-      {/* Row 3: Details */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14, gap: 8 }}>
-        {/* Title */}
-        <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.bodyText }} numberOfLines={1}>
-          {job.title}
         </Text>
 
         {/* Agent + Due date row */}
@@ -392,7 +436,8 @@ const JobCard: React.FC<{ job: TrackerJob; onPress: () => void }> = ({ job, onPr
         </View>
 
         {/* Time label */}
-        <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.lightText }}>
+        {/* @design: intentional 12pt — ambient timestamp, COLORS.secondaryText required at this size */}
+        <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText }}>
           {job.timeLabel}
         </Text>
       </View>
@@ -471,9 +516,9 @@ const JobTrackerTab: React.FC = () => {
               >
                 <Text
                   style={{
-                    ...TYPOGRAPHY.bodyS,
+                    ...TYPOGRAPHY.bodyM,
                     fontWeight: isActive ? '500' : '400',
-                    color: isActive ? '#FFFFFF' : COLORS.statText,
+                    color: isActive ? COLORS.background : COLORS.statText,
                   }}
                 >
                   {label} ({count})
@@ -496,14 +541,13 @@ const JobTrackerTab: React.FC = () => {
           />
         )}
         ListEmptyComponent={
-          <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 }}>
-            <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.darkText }}>
-              No jobs found
+          <View style={{ alignItems: 'center', paddingTop: 80, paddingHorizontal: 40, gap: 12 }}>
+            {EMPTY_STATE_CONFIG[activeFilter].icon}
+            <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.darkText, textAlign: 'center' }}>
+              {EMPTY_STATE_CONFIG[activeFilter].headline}
             </Text>
-            <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, textAlign: 'center', paddingHorizontal: 40 }}>
-              {activeFilter === 'all'
-                ? 'You don\'t have any jobs yet. Browse matching jobs from the Home tab.'
-                : `No jobs in the "${FILTER_OPTIONS.find((f) => f.key === activeFilter)?.label}" stage.`}
+            <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, textAlign: 'center' }}>
+              {EMPTY_STATE_CONFIG[activeFilter].body}
             </Text>
           </View>
         }

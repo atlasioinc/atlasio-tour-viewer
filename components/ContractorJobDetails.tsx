@@ -42,6 +42,7 @@ import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
 import { useRespondToCounter } from '../hooks/useData';
+import { CounterButton, DangerButton } from './Button';
 
 // ─────────────────────────────────────────────
 // ROUTE PARAMS
@@ -195,9 +196,9 @@ const AgentMessageBanner: React.FC<AgentMessageBannerProps> = ({
     marginBottom: 24,
   }}>
     <Text style={{
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '600',
-      color: COLORS.lightText,
+      color: COLORS.secondaryText,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
       marginBottom: 8,
@@ -214,9 +215,9 @@ const AgentMessageBanner: React.FC<AgentMessageBannerProps> = ({
 {`\u201C${message}\u201D`}
     </Text>
     <Text style={{
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: '400',
-      color: COLORS.lightText,
+      color: COLORS.secondaryText,
     }}>
       — {agentName}, {invitedAt}
     </Text>
@@ -239,7 +240,7 @@ const BidStatusChip: React.FC<{ status: string }> = ({ status }) => {
   const config = BID_STATUS_CONFIG[status] ?? BID_STATUS_CONFIG.pending;
   return (
     <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: config.bg, borderRadius: 9999 }}>
-      <Text style={{ fontSize: 12, fontWeight: '600', color: config.text, lineHeight: 16 }}>{config.label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '600', color: config.text, lineHeight: 16 }}>{config.label}</Text>
     </View>
   );
 };
@@ -286,6 +287,7 @@ const MOCK_JOB_NO_BID: ContractorJobDetail = {
 const MOCK_JOB_BID_PENDING: ContractorJobDetail = {
   ...MOCK_JOB_NO_BID,
   id: 'mj2',
+  job_type: 'invite',            // @demo: explicit job_type — do not rely on spread inheritance for demo state clarity
   bidCount: 4,
   myBid: {
     id: 'bid-1',
@@ -394,6 +396,24 @@ const ContractorJobDetails: React.FC = () => {
     });
   };
 
+  // ── Decline invite handler ──
+  // @demo: static copy — production should include agent name: "Decline [Agent Name]'s invitation?"
+  // @backend: replace navigation.goBack() with rpc_decline_job_invite(job_id, contractor_id, reason?) + success toast
+  const handleDeclineInvite = () => {
+    Alert.alert(
+      'Decline Invitation',
+      'Are you sure you want to decline this job invitation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: () => navigation.goBack(),
+        },
+      ]
+    );
+  };
+
   // ── Sticky CTA logic ──
 
   const renderStickyCTA = () => {
@@ -426,22 +446,12 @@ const ContractorJobDetails: React.FC = () => {
             >
               <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.rejectRed, lineHeight: 20 }}>Decline</Text>
             </Pressable>
-            <Pressable
+            <CounterButton
+              label="Counter"
               onPress={handleCounterBack}
-              style={({ pressed }) => ({
-                flex: 1,
-                height: 48,
-                borderRadius: DIMENSIONS.buttonRadius,
-                backgroundColor: COLORS.background,
-                borderWidth: 1,
-                borderColor: COLORS.primary,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.primary, lineHeight: 20 }}>Counter</Text>
-            </Pressable>
+              fullWidth={false}
+              flex={1}
+            />
             <Pressable
               onPress={handleAcceptCounter}
               style={({ pressed }) => ({
@@ -464,6 +474,48 @@ const ContractorJobDetails: React.FC = () => {
     let label = '';
     let onPress = () => {};
     let disabled = false;
+
+    if (!hasBid && job.job_type === 'invite') {
+      // Invited job, no bid yet — side-by-side: Decline + Submit Bid
+      const ctaBarStyle = {
+        position: 'absolute' as const,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: Math.max(insets.bottom, 24),
+        backgroundColor: COLORS.background,
+        borderTopWidth: DIMENSIONS.cardBorderWidth,
+        borderTopColor: COLORS.border,
+      };
+      return (
+        <View style={ctaBarStyle}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <DangerButton
+              label="Decline"
+              onPress={handleDeclineInvite}
+              fullWidth={false}
+              style={{ flex: 1 }}
+            />
+            <Pressable
+              onPress={() => navigation.navigate('BidSubmission', { jobId: job.id })}
+              style={({ pressed }) => ({
+                flex: 2,
+                height: 48,
+                borderRadius: DIMENSIONS.buttonRadius,
+                backgroundColor: COLORS.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF', lineHeight: 24 }}>Submit Bid</Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    }
 
     if (!hasBid) {
       label = 'Submit Bid';
@@ -602,7 +654,7 @@ const ContractorJobDetails: React.FC = () => {
                   borderBottomRightRadius: i === DEMO_LABELS.length - 1 ? 8 : 0,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '600', color: demoStateIndex === i ? '#FFFFFF' : COLORS.primary }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: demoStateIndex === i ? '#FFFFFF' : COLORS.primary }}>
                   {label}
                 </Text>
               </Pressable>
@@ -624,7 +676,9 @@ const ContractorJobDetails: React.FC = () => {
 
           {/* ── 2. Trade + Urgency Row ── */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <DisplayTag label={job.trade} variant="primary" />
+            {/* @design: intentional 12pt exception — trade is confirmatory context for matched contractor */}
+            <DisplayTag label={job.trade} variant="primary" fontSize={12} />
+            {/* @design: intentional 12pt exception — matches urgency pill on ContractorJobsTab, ambient context not decision-critical */}
             {job.isUrgent && (
               <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: COLORS.urgentBg, borderRadius: 9999 }}>
                 <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.urgentText, lineHeight: 16 }}>URGENT</Text>
@@ -647,7 +701,7 @@ const ContractorJobDetails: React.FC = () => {
             paddingVertical: 16,
           }}>
             <Text style={{
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: '600',
               lineHeight: 16,
               color: COLORS.budgetLabelText,        // #DBEAFE
@@ -683,7 +737,7 @@ const ContractorJobDetails: React.FC = () => {
             }}>
               {/* Eyebrow label — matches "Agent's Budget" presentation on blue card above */}
               <Text style={{
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: '600',
                 lineHeight: 16,
                 color: COLORS.bodyText,
@@ -704,7 +758,7 @@ const ContractorJobDetails: React.FC = () => {
                   {job.myBid!.amount >= job.budgetMin && job.myBid!.amount <= job.budgetMax && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <CheckCircleIcon width={16} height={16} color={COLORS.inRangeGreen} />
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.inRangeGreen, lineHeight: 16 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.inRangeGreen, lineHeight: 16 }}>
                         In range
                       </Text>
                     </View>
@@ -717,7 +771,7 @@ const ContractorJobDetails: React.FC = () => {
                   paddingHorizontal: 12,
                   paddingVertical: 4,
                 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.accentBlue, lineHeight: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.accentBlue, lineHeight: 16 }}>
                     Pending
                   </Text>
                 </View>
@@ -731,7 +785,7 @@ const ContractorJobDetails: React.FC = () => {
 
               {/* Row 3: Notes (optional) */}
               {job.myBid!.notes ? (
-                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }} numberOfLines={3}>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }} numberOfLines={3}>
                   {job.myBid!.notes}
                 </Text>
               ) : null}
@@ -754,7 +808,7 @@ const ContractorJobDetails: React.FC = () => {
             }}>
               {/* Eyebrow label — matches "Agent's Budget" presentation on blue card above */}
               <Text style={{
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: '600',
                 lineHeight: 16,
                 color: COLORS.bodyText,
@@ -776,7 +830,7 @@ const ContractorJobDetails: React.FC = () => {
                   paddingHorizontal: 12,
                   paddingVertical: 4,
                 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.counterAmber, lineHeight: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.counterAmber, lineHeight: 16 }}>
                     Countered
                   </Text>
                 </View>
@@ -798,7 +852,7 @@ const ContractorJobDetails: React.FC = () => {
 
               {/* Row 3: Agent's counter note (optional) */}
               {job.myBid.counterNotes ? (
-                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
                   "{job.myBid.counterNotes}"
                 </Text>
               ) : null}
@@ -884,11 +938,11 @@ const ContractorJobDetails: React.FC = () => {
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
                 <View style={{ marginTop: 2 }}><MapPinIcon /></View>
                 <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }} numberOfLines={2}>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }} numberOfLines={2}>
                     {job.address}
                   </Text>
                   <View style={{ paddingHorizontal: 8, paddingVertical: 2, backgroundColor: COLORS.chipBg, borderRadius: 9999, alignSelf: 'flex-start' }}>
-                    <Text style={{ fontSize: 11, fontWeight: '500', color: COLORS.bodyText }}>2.3 mi</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.bodyText }}>2.3 mi</Text>
                   </View>
                 </View>
               </View>
@@ -896,7 +950,7 @@ const ContractorJobDetails: React.FC = () => {
               {/* Due date */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <CalendarIcon />
-                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
                   {job.dueDate}
                 </Text>
               </View>
@@ -908,7 +962,7 @@ const ContractorJobDetails: React.FC = () => {
             {job.bidCount >= 1 && job.bidCount <= 3 && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <BidIcon />
-                <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.successGreen, lineHeight: 18 }}>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.successGreen, lineHeight: 18 }}>
                   {`Only ${job.bidCount} ${job.bidCount === 1 ? 'bid' : 'bids'} so far`}
                 </Text>
               </View>
@@ -933,15 +987,15 @@ const ContractorJobDetails: React.FC = () => {
               <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
                 {job.agent.name}
               </Text>
-              <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 18 }}>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 18 }}>
                 {job.agent.company}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                 <StarIcon />
-                <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.statText, lineHeight: 16 }}>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 16 }}>
                   {job.agent.rating.toFixed(1)}
                 </Text>
-                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.lightText, lineHeight: 16 }}>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
                   · {job.agent.vouchCount} vouches
                 </Text>
               </View>

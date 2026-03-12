@@ -431,10 +431,10 @@ const FeeTierBadge: React.FC<{ tier: EarningsData['feeTier']; label: string; per
       borderColor: c.border,
       gap: 4,
     }}>
-      <Text style={{ fontSize: 12, fontWeight: '600', color: c.text, lineHeight: 16 }}>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: c.text, lineHeight: 16, textTransform: 'uppercase' }}>
         {percent}%
       </Text>
-      <Text style={{ fontSize: 12, fontWeight: '400', color: c.text, lineHeight: 16 }}>
+      <Text style={{ fontSize: 12, fontWeight: '400', color: c.text, lineHeight: 16, textTransform: 'uppercase' }}>
         {label}
       </Text>
     </View>
@@ -726,7 +726,7 @@ const ActiveWorkCard: React.FC<{ job: ActiveJob; onPress: () => void }> = ({ job
       </Text>
 
       {/* Location + due date */}
-      <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
         {job.address} · Due {job.deadline}
       </Text>
 
@@ -735,7 +735,7 @@ const ActiveWorkCard: React.FC<{ job: ActiveJob; onPress: () => void }> = ({ job
         <View style={{ height: 6, backgroundColor: COLORS.border, borderRadius: 9999, overflow: 'hidden' }}>
           <View style={{ height: 6, width: `${progress * 100}%`, backgroundColor: COLORS.primary, borderRadius: 9999 }} />
         </View>
-        <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.primary, lineHeight: 16 }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 16 }}>
           {Math.round(progress * 100)}% complete
         </Text>
       </View>
@@ -749,11 +749,11 @@ const ActiveWorkCard: React.FC<{ job: ActiveJob; onPress: () => void }> = ({ job
               {job.agentName}
             </Text>
             <StarIcon size={12} />
-            <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
               {job.agentRating.toFixed(1)}
             </Text>
           </View>
-          <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
+          <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16, textTransform: 'uppercase' }}>
             {job.agentCompany}
           </Text>
         </View>
@@ -785,7 +785,9 @@ const JobInviteCard: React.FC<{
   >
     {/* Row 1: Trade badge + Timestamp — context group with title (4px) */}
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-      <DisplayTag label={invite.tradeNeeded} />
+      {/* @design: intentional 12pt exception — ambient/confirmatory context */}
+      <DisplayTag label={invite.tradeNeeded} fontSize={12} />
+      {/* @design: intentional 12pt exception — ambient/confirmatory context */}
       <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText }}>
         {invite.invitedAgo}
       </Text>
@@ -802,7 +804,7 @@ const JobInviteCard: React.FC<{
 
     {/* Row 3: Address */}
     <Text
-      style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 12 }}
+      style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 10 }}
       numberOfLines={1}
       ellipsizeMode="tail"
     >
@@ -810,17 +812,17 @@ const JobInviteCard: React.FC<{
     </Text>
 
     {/* Row 4: Budget label — GROUPED with price (4px) */}
-    <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, marginBottom: 4 }}>
+    <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textTransform: 'uppercase', marginBottom: 2 }}>
       Budget
     </Text>
 
     {/* Row 5: Price range */}
-    <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary, marginBottom: 12 }}>
+    <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary, marginBottom: 8 }}>
       {invite.budgetRange}
     </Text>
 
     {/* Row 6: Due date */}
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
       <CalendarIcon size={16} color={COLORS.secondaryText} />
       <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginLeft: 6 }}>
         Due {invite.dueDate}
@@ -828,7 +830,7 @@ const JobInviteCard: React.FC<{
     </View>
 
     {/* Row 7: Agent info */}
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: invite.note ? 12 : 0 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: invite.note ? 8 : 0 }}>
       <AvatarPlaceholder name={invite.agentName} color={invite.agentAvatar} size={24} />
       <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 8 }} numberOfLines={1}>
         {invite.agentName}
@@ -880,7 +882,9 @@ const NewJobCard: React.FC<{ job: MatchingJob; onPress: () => void }> = ({ job, 
   >
     {/* Row 1: Trade badge + Timestamp — context group with title (4px) */}
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-      <DisplayTag label={job.tradeNeeded} />
+      {/* @design: intentional 12pt exception — ambient/confirmatory context */}
+      <DisplayTag label={job.tradeNeeded} fontSize={12} />
+      {/* @design: intentional 12pt exception — ambient/confirmatory context */}
       <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText }}>
         {job.postedTime}
       </Text>
@@ -892,17 +896,17 @@ const NewJobCard: React.FC<{ job: MatchingJob; onPress: () => void }> = ({ job, 
     </Text>
 
     {/* Row 3: Address */}
-    <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 12 }} numberOfLines={1} ellipsizeMode="tail">
+    <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 10 }} numberOfLines={1} ellipsizeMode="tail">
       {job.address}
     </Text>
 
     {/* Row 4: Budget label — GROUPED with price (4px) */}
-    <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, marginBottom: 4 }}>
+    <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textTransform: 'uppercase', marginBottom: 2 }}>
       Budget
     </Text>
 
     {/* Row 5: Price range */}
-    <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary, marginBottom: 12 }}>
+    <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary, marginBottom: 8 }}>
       {job.budgetRange}
     </Text>
 
@@ -939,10 +943,27 @@ const EarningsSummaryCard: React.FC<{ earnings: EarningsData }> = ({ earnings })
       <FeeTierBadge tier={earnings.feeTier} label={earnings.feeTierLabel} percent={earnings.feePercent} />
     </View>
 
-    {/* Big earnings number */}
-    <Text style={{ fontSize: 32, fontWeight: '700', color: COLORS.primary, lineHeight: 40 }}>
-      ${earnings.monthTotal.toLocaleString()}
-    </Text>
+    {/* Big earnings number + trend chip */}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <Text style={{ fontSize: 32, fontWeight: '700', color: COLORS.primary, lineHeight: 40 }}>
+        ${earnings.monthTotal.toLocaleString()}
+      </Text>
+      {/* Earnings trend chip + context label — matches Market Pulse pattern */}
+      {/* @demo: hardcoded ↑ 18% — production calculates (currentMonthEarnings - lastMonthEarnings) / lastMonthEarnings * 100 */}
+      {/* @backend: rpc_get_contractor_earnings should return current_month and prior_month values for trend calculation */}
+      <View style={{ alignItems: 'center', gap: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: COLORS.feeBg, borderRadius: 9999 }}>
+          <TrendUpIcon />
+          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.successGreen, lineHeight: 20 }}>
+            ↑ 18%
+          </Text>
+        </View>
+        {/* @design: intentional 12pt — ambient context label under chip, not decision-critical text */}
+        <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText }}>
+          vs. last month
+        </Text>
+      </View>
+    </View>
 
     {/* Stats grid (2x2) */}
     <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -953,7 +974,7 @@ const EarningsSummaryCard: React.FC<{ earnings: EarningsData }> = ({ earnings })
         borderRadius: 10,
         gap: 4,
       }}>
-        <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+        <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
           Jobs Completed
         </Text>
         <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
@@ -967,7 +988,7 @@ const EarningsSummaryCard: React.FC<{ earnings: EarningsData }> = ({ earnings })
         borderRadius: 10,
         gap: 4,
       }}>
-        <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+        <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
           Avg Bid
         </Text>
         <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
@@ -1031,17 +1052,23 @@ const MarketPulseSection: React.FC<{ data: MarketPulseData }> = ({ data }) => {
       {/* Avg bid for trade */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ gap: 2 }}>
-          <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
             Avg {data.tradeName} bid in Denver
           </Text>
           <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.darkText, lineHeight: 28 }}>
             ${data.avgBidForTrade.toLocaleString()}
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: data.demandTrend === 'up' ? COLORS.feeBg : data.demandTrend === 'down' ? 'rgba(220, 38, 38, 0.06)' : COLORS.warningBg, borderRadius: 9999 }}>
-          <TrendIcon />
-          <Text style={{ fontSize: 14, fontWeight: '600', color: trendColor, lineHeight: 20 }}>
-            {trendLabel}
+        <View style={{ alignItems: 'center', gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: data.demandTrend === 'up' ? COLORS.feeBg : data.demandTrend === 'down' ? 'rgba(220, 38, 38, 0.06)' : COLORS.warningBg, borderRadius: 9999 }}>
+            <TrendIcon />
+            <Text style={{ fontSize: 14, fontWeight: '600', color: trendColor, lineHeight: 20 }}>
+              {trendLabel}
+            </Text>
+          </View>
+          {/* @design: intentional 12pt — ambient context label under chip, not decision-critical text */}
+          <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText }}>
+            vs. last month
           </Text>
         </View>
       </View>
@@ -1052,7 +1079,7 @@ const MarketPulseSection: React.FC<{ data: MarketPulseData }> = ({ data }) => {
       {/* Stats row */}
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <View style={{ flex: 1, gap: 4 }}>
-          <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
             Jobs This Week
           </Text>
           <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
@@ -1060,7 +1087,7 @@ const MarketPulseSection: React.FC<{ data: MarketPulseData }> = ({ data }) => {
           </Text>
         </View>
         <View style={{ flex: 1, gap: 4 }}>
-          <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
             Top Trades
           </Text>
           <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
@@ -1173,7 +1200,7 @@ const EmptyStateCallout: React.FC<EmptyStateCalloutProps> = ({
   subtext,
 }) => (
   <View style={{
-    backgroundColor: COLORS.backgroundInfo,
+    backgroundColor: COLORS.background,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 20,
@@ -1359,17 +1386,24 @@ const ContractorHomeTab: React.FC = () => {
               )}
               keyExtractor={(item) => `invite-${item.id}`}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 12 }}
               nestedScrollEnabled={true}
               removeClippedSubviews={true}
             />
           ) : (
             <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-              <EmptyStateCallout
-                icon={InviteEmptyIcon}
-                headline="No invites yet"
-                subtext="Agents will invite you directly when your trade matches their job."
-              />
+              <View style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: DIMENSIONS.cardRadius,
+                overflow: 'hidden',
+              }}>
+                <EmptyStateCallout
+                  icon={InviteEmptyIcon}
+                  headline="No invites yet"
+                  subtext="Agents will invite you directly when your trade matches their job."
+                />
+              </View>
             </View>
           )}
         </View>
@@ -1405,17 +1439,24 @@ const ContractorHomeTab: React.FC = () => {
               )}
               keyExtractor={(item) => `new-${item.id}`}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 12 }}
               nestedScrollEnabled={true}
               removeClippedSubviews={true}
             />
           ) : (
             <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-              <EmptyStateCallout
-                icon={JobsEmptyIcon}
-                headline="No jobs in your area yet"
-                subtext="New repair jobs matching your trade will show up here as agents post them."
-              />
+              <View style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: DIMENSIONS.cardRadius,
+                overflow: 'hidden',
+              }}>
+                <EmptyStateCallout
+                  icon={JobsEmptyIcon}
+                  headline="No jobs in your area yet"
+                  subtext="New repair jobs matching your trade will show up here as agents post them."
+                />
+              </View>
             </View>
           )}
         </View>
@@ -1451,11 +1492,18 @@ const ContractorHomeTab: React.FC = () => {
             </View>
           ) : (
             <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-              <EmptyStateCallout
-                icon={ActiveWorkEmptyIcon}
-                headline="No active work yet"
-                subtext="Once you win a bid, your in-progress jobs will appear here."
-              />
+              <View style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: DIMENSIONS.cardRadius,
+                overflow: 'hidden',
+              }}>
+                <EmptyStateCallout
+                  icon={ActiveWorkEmptyIcon}
+                  headline="No active work yet"
+                  subtext="Once you win a bid, your in-progress jobs will appear here."
+                />
+              </View>
             </View>
           )}
         </View>

@@ -1,8 +1,8 @@
 // Button.tsx
 // ═══════════════════════════════════════════════════════════════
 // Shared Button Component — Single source of truth for all CTAs (246 lines)
-// Exports: PrimaryButton, SecondaryButton, CardButton
-// Variants: primary (filled blue), secondary (outlined), card (compact)
+// Exports: PrimaryButton, SecondaryButton, CardButton, DangerButton, CounterButton
+// Variants: primary (filled blue), secondary (outlined), card (compact), danger (red), counter (amber)
 // @demo none  @backend none — pure UI component
 // ═══════════════════════════════════════════════════════════════
 
@@ -19,6 +19,7 @@ const COLORS = {
   background: '#FFFFFF',
   disabledBg: '#E5E7EB',
   disabledText: '#99A1AF',
+  counterAmber: '#D97706',
 };
 
 const DIMENSIONS = {
@@ -245,3 +246,54 @@ export const DangerButton: React.FC<DangerButtonProps> = ({
     </Pressable>
   );
 };
+
+// ─────────────────────────────────────────────
+// COUNTER BUTTON
+// counter — amber outlined, used for counter-offer / negotiation actions
+// Color token: COLORS.counterAmber
+// ─────────────────────────────────────────────
+
+interface CounterButtonProps extends ButtonProps {
+  /** flex value for sharing row space with sibling buttons */
+  flex?: number;
+}
+
+export const CounterButton: React.FC<CounterButtonProps> = ({
+  label,
+  onPress,
+  disabled = false,
+  fullWidth = true,
+  flex,
+  style,
+}) => (
+  <Pressable
+    onPress={onPress}
+    disabled={disabled}
+    style={({ pressed }) => ({
+      height: DIMENSIONS.buttonPrimaryHeight,
+      paddingHorizontal: 16,
+      backgroundColor: COLORS.background,
+      borderRadius: DIMENSIONS.buttonRadius,
+      borderWidth: 1.35,
+      borderColor: COLORS.counterAmber,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      opacity: pressed ? 0.7 : 1,
+      ...(flex ? { flex } : {}),
+      ...(fullWidth && !flex ? { width: '100%' as any } : {}),
+      ...style,
+    })}
+  >
+    <Text
+      style={{
+        fontSize: 14,
+        fontWeight: '500',
+        color: disabled ? COLORS.disabledText : COLORS.counterAmber,
+        lineHeight: 20,
+        textAlign: 'center',
+      }}
+    >
+      {label}
+    </Text>
+  </Pressable>
+);

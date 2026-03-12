@@ -52,7 +52,7 @@ export const DisplayTag: React.FC<DisplayTagProps> = ({
   variant = 'default',
   bgColor,
   textColor,
-  fontSize = 12,
+  fontSize = 14,
   onPress,
 }) => {
   const variantStyle = VARIANT_STYLES[variant];
