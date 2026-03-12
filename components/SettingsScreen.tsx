@@ -21,7 +21,7 @@
 //   - Wire default sort to Supabase user_preferences.default_sort
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -215,6 +215,19 @@ const SettingsScreen: React.FC = () => {
   const [profileVisible, setProfileVisible] = useState(true);
   const [defaultSort, setDefaultSort] = useState('Most Vouched');
 
+  // ── Auth Email ──
+  // @backend reads from live Supabase auth session (supabase.auth.getUser)
+  // Replaces hardcoded mock 'tony@atlasio.com'
+  const [userEmail, setUserEmail] = useState<string>('—');
+
+  useEffect(() => {
+    const fetchEmail = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) setUserEmail(user.email);
+    };
+    fetchEmail();
+  }, []);
+
   // ── Handlers ──
   const handleLogOut = () => {
     Alert.alert(
@@ -307,7 +320,8 @@ const SettingsScreen: React.FC = () => {
         {/* ── ACCOUNT ── */}
         <SectionHeader title="Account" />
         <View style={{ backgroundColor: COLORS.background }}>
-          <InfoRow label="Email" value="tony@atlasio.com" />
+          {/* @backend email read from supabase.auth.getUser() on mount */}
+          <InfoRow label="Email" value={userEmail} />
           <NavRow
             label="Change Password"
             onPress={() => {
