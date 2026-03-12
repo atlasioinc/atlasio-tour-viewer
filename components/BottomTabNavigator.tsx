@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────
 // TAB LAYOUT BY ROLE:
 //   Agent:      Home | Find | Network | Inbox | Profile
-//   Contractor: Home | Jobs | Inbox
+//   Contractor: Home | Jobs | Inbox | Profile
 //
 //   Home     — agent: HomeStack (repair jobs, posting)
 //              contractor: ContractorHomeStackScreen (job feed, bid)
@@ -17,7 +17,7 @@
 //   Jobs     — contractor only: ContractorJobsStackScreen (job tracker)
 //   Inbox    — agent: InboxStack (chat threads)
 //              contractor: ContractorInboxStackScreen (chat)
-//   Profile  — agent only (contractor profile is future session)
+//   Profile  — both roles: ProfileStack (7-zone layout, role-conditional content)
 // ─────────────────────────────────────────────
 //
 // TAB BAR HIDING:
@@ -52,6 +52,7 @@ import { supabase } from '../lib/supabase';
 // @demo — Import contractor screens for role toggle
 // Remove these imports when wiring to real auth role
 import ContractorHomeTab from './ContractorHomeTab';
+// ContractorProfileTab retired in S43 — contractors now use ProfileStack (7-zone layout)
 import ContractorInboxList from './ContractorInboxList';
 import ContractorJobDetails from './ContractorJobDetails';
 import BidSubmissionScreen from './BidSubmissionScreen';
@@ -552,8 +553,17 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
             ),
           }}
         />
-        {/* @demo Profile tab — agent only for now. Contractor profile tab is future session. */}
+        {/* Profile tab — both roles */}
         {demoRole === 'agent' && (
+          <Tab.Screen name="Profile" component={ProfileStack}
+            options={{
+              tabBarIcon: ({ color }) => <ProfileIcon color={color} />,
+            }}
+          />
+        )}
+        {/* Contractor profile — uses same ProfileStack (7-zone layout handles both roles) */}
+        {/* @backend: production removes @demo conditional; role from auth context */}
+        {demoRole === 'contractor' && (
           <Tab.Screen name="Profile" component={ProfileStack}
             options={{
               tabBarIcon: ({ color }) => <ProfileIcon color={color} />,
