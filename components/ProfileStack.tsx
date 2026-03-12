@@ -21,6 +21,7 @@ import EditProfileScreen from './EditProfileScreen';
 import SettingsScreen from './SettingsScreen';
 import VerificationScreen from './VerificationScreen';
 import PhoneVerificationScreen from './PhoneVerificationScreen';
+import InsuranceUploadScreen from './InsuranceUploadScreen';
 
 // ─────────────────────────────────────────────
 // TYPE DEFINITIONS
@@ -32,6 +33,7 @@ export type ProfileStackParamList = {
   Settings: undefined;
   Verification: undefined;
   PhoneVerification: undefined;
+  InsuranceUpload: undefined; // @demo — ready for production
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -68,6 +70,15 @@ const ProfileStack: React.FC = () => (
     <Stack.Screen
       name="PhoneVerification"
       component={PhoneVerificationScreen}
+      options={{
+        presentation: 'fullScreenModal',
+        animation: 'slide_from_bottom',
+      }}
+    />
+    {/* @demo — ready for production */}
+    <Stack.Screen
+      name="InsuranceUpload"
+      component={InsuranceUploadScreen}
       options={{
         presentation: 'fullScreenModal',
         animation: 'slide_from_bottom',

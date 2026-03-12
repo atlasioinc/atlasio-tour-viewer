@@ -193,6 +193,8 @@ const MOCK_CONTRACTOR_PROFILE = {
   license_state: 'CO',
   license_verified: false,
   insurance_uploaded: true,
+  insurance_status: 'approved' as const, // @demo hardcoded — strongest demo state
+  insurance_expiry: '2026-12', // @demo hardcoded — 9 months from now
   display_role: 'Contractor',
 };
 
@@ -230,6 +232,8 @@ const ProfileTab: React.FC = () => {
   const verificationLevel = mockSource?.verification_level ?? liveProfile?.verification_level ?? 'none';
   const licenseVerified = mockSource?.license_verified ?? liveProfile?.license_verified ?? false;
   const insuranceUploaded = mockSource?.insurance_uploaded ?? liveProfile?.insurance_uploaded ?? false;
+  const insuranceStatus = (mockSource as any)?.insurance_status ?? (liveProfile as any)?.insurance_status ?? 'none';
+  const insuranceExpiry = (mockSource as any)?.insurance_expiry ?? (liveProfile as any)?.insurance_expiry ?? '';
   const licenseNumber = mockSource?.license_number ?? liveProfile?.license_number ?? '';
   const licenseState = mockSource?.license_state ?? liveProfile?.license_state ?? '';
 
@@ -536,19 +540,43 @@ Credentials
               {/* Divider */}
               <View style={{ height: 1, backgroundColor: COLORS.cardBorder }} />
 
-              {/* Insurance row */}
+              {/* Insurance row — status-aware display */}
+              {/* @demo insuranceStatus drives icon color + label + CTA */}
+              {/* @backend rpc_get_my_profile → insurance_status, insurance_expiry */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <ShieldIcon color={insuranceUploaded ? COLORS.successGreen : COLORS.lightText} />
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
-                    {insuranceUploaded ? 'Insurance on file' : 'No insurance added'}
-                  </Text>
+                  <ShieldIcon
+                    color={
+                      insuranceStatus === 'approved'
+                        ? COLORS.successGreen
+                        : insuranceStatus === 'pending_review'
+                          ? COLORS.counterAmber
+                          : COLORS.lightText
+                    }
+                  />
+                  <View>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+                      {insuranceStatus === 'approved'
+                        ? 'Insured'
+                        : insuranceStatus === 'pending_review'
+                          ? 'Insurance — Pending Review'
+                          : 'No insurance added'}
+                    </Text>
+                    {insuranceStatus === 'approved' && (
+                      <Text
+                        onPress={() => navigation.navigate('InsuranceUpload')}
+                        style={{ fontSize: 12, color: COLORS.primary, marginTop: 2 }}
+                      >
+                        Update →
+                      </Text>
+                    )}
+                  </View>
                 </View>
-                {!insuranceUploaded && (
+                {insuranceStatus === 'none' && (
                   <DisplayTag
                     variant="ghost"
                     label="+ Add Proof"
-                    onPress={() => navigation.navigate('Verification')}
+                    onPress={() => navigation.navigate('InsuranceUpload')}
                   />
                 )}
               </View>

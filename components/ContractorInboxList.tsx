@@ -43,14 +43,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { COLORS, DIMENSIONS } from '../lib/tokens';
+import { Swipeable } from 'react-native-gesture-handler';
+import { COLORS, DIMENSIONS, TYPOGRAPHY } from '../lib/tokens';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const HEADER_BOOKEND_WIDTH = 80;
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -465,30 +465,18 @@ const SectionHeader: React.FC<{ title: string; count: number }> = ({ title, coun
     style={{
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingTop: 20,
+      gap: 8,
+      paddingHorizontal: 24,
+      paddingTop: 16,
       paddingBottom: 8,
     }}
   >
-    <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.bodyText, lineHeight: 20, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16, textTransform: 'uppercase', letterSpacing: 0.3 }}>
       {title}
     </Text>
-    <View
-      style={{
-        minWidth: 22,
-        height: 22,
-        borderRadius: 9999,
-        backgroundColor: COLORS.screenBg,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 6,
-      }}
-    >
-      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.bodyText, lineHeight: 16 }}>
-        {count}
-      </Text>
-    </View>
+    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16, letterSpacing: 0.3 }}>
+      {count}
+    </Text>
   </View>
 );
 
@@ -540,11 +528,10 @@ const ContractorInboxList: React.FC = () => {
     setDeletedIds((prev) => new Set(prev).add(threadId));
   };
 
+  const visibleActiveThreads = activeThreads.filter((t) => !deletedIds.has(t.id));
   const visiblePastThreads = pastThreads.filter((t) => !deletedIds.has(t.id));
 
-  const totalUnread = activeThreads.reduce((sum, t) => sum + t.unreadCount, 0);
-
-  const hasAnyThreads = activeThreads.length > 0 || visiblePastThreads.length > 0;
+  const hasAnyThreads = visibleActiveThreads.length > 0 || visiblePastThreads.length > 0;
 
   const handleThreadPress = (thread: JobChatThread) => {
     navigation.navigate('ChatScreen', {
@@ -561,57 +548,21 @@ const ContractorInboxList: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* ══════════════════════════════════════════
-          HEADER — Job Chats (no compose button)
+          HEADER — Job Chats (matches JobTracker / MyProfile header)
           ══════════════════════════════════════════ */}
       <View
         style={{
-          backgroundColor: COLORS.background,
+          height: DIMENSIONS.headerHeight,
+          alignItems: 'center',
+          justifyContent: 'center',
           borderBottomWidth: DIMENSIONS.headerBorderWidth,
           borderBottomColor: COLORS.border,
+          backgroundColor: COLORS.background,
         }}
       >
-        <View
-          style={{
-            height: DIMENSIONS.headerHeight,
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-          }}
-        >
-          {/* Left bookend */}
-          <View style={{ width: HEADER_BOOKEND_WIDTH, alignItems: 'flex-start' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <ChatBubbleIcon color={COLORS.bodyText} />
-              {totalUnread > 0 && (
-                <View
-                  style={{
-                    minWidth: 20,
-                    height: 20,
-                    borderRadius: 9999,
-                    backgroundColor: COLORS.notificationRed,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingHorizontal: 4,
-                  }}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>
-                    {totalUnread}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Center title */}
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.primary }}>
-              Job Chats
-            </Text>
-          </View>
-
-          {/* Right bookend — intentionally empty (no compose) */}
-          <View style={{ width: HEADER_BOOKEND_WIDTH, alignItems: 'flex-end' }} />
-        </View>
+        <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.primary }}>
+          Job Chats
+        </Text>
       </View>
 
       {/* ══════════════════════════════════════════
@@ -674,16 +625,39 @@ const ContractorInboxList: React.FC = () => {
           </View>
 
           {/* ─── ACTIVE THREADS ─── */}
-          {activeThreads.length > 0 && (
+          {visibleActiveThreads.length > 0 && (
             <View>
-              <SectionHeader title="Active Jobs" count={activeThreads.length} />
-              {activeThreads.map((thread, index) => (
+              <SectionHeader title="Active Jobs" count={visibleActiveThreads.length} />
+              {visibleActiveThreads.map((thread, index) => (
                 <View key={thread.id}>
-                  <ThreadRow
-                    thread={thread}
-                    onPress={() => handleThreadPress(thread)}
-                  />
-                  {index < activeThreads.length - 1 && (
+                  <Swipeable
+                    renderRightActions={() => (
+                      <Pressable
+                        onPress={() => {
+                          // @demo — log delete action to console
+                          console.log(`delete thread ${thread.id}`);
+                          // @backend: rpc_delete_chat_thread(threadId)
+                          handleDeleteThread(thread.id);
+                        }}
+                        style={{
+                          backgroundColor: COLORS.errorRed,
+                          width: 80,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <TrashIcon />
+                      </Pressable>
+                    )}
+                    rightThreshold={40}
+                    overshootRight={false}
+                  >
+                    <ThreadRow
+                      thread={thread}
+                      onPress={() => handleThreadPress(thread)}
+                    />
+                  </Swipeable>
+                  {index < visibleActiveThreads.length - 1 && (
                     <View style={{ height: 0.68, backgroundColor: COLORS.border, marginLeft: 76 }} />
                   )}
                 </View>
@@ -697,34 +671,34 @@ const ContractorInboxList: React.FC = () => {
               <SectionHeader title="Past Jobs" count={visiblePastThreads.length} />
               {visiblePastThreads.map((thread, index) => (
                 <View key={thread.id}>
-                  {/* Swipe-to-delete wrapper */}
-                  {/* @future Replace with react-native-gesture-handler Swipeable for production */}
-                  <View style={{ position: 'relative' }}>
+                  <Swipeable
+                    renderRightActions={() => (
+                      <Pressable
+                        onPress={() => {
+                          // @demo — log delete action to console
+                          console.log(`delete thread ${thread.id}`);
+                          // @backend: rpc_delete_chat_thread(threadId)
+                          handleDeleteThread(thread.id);
+                        }}
+                        style={{
+                          backgroundColor: COLORS.errorRed,
+                          width: 80,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <TrashIcon />
+                      </Pressable>
+                    )}
+                    rightThreshold={40}
+                    overshootRight={false}
+                  >
                     <ThreadRow
                       thread={thread}
                       onPress={() => handleThreadPress(thread)}
                       isPast
                     />
-                    {/* Delete button — long press to reveal for demo */}
-                    {/* In production, this is a swipe-to-delete gesture (same as InboxList) */}
-                    <Pressable
-                      onPress={() => handleDeleteThread(thread.id)}
-                      style={({ pressed }) => ({
-                        position: 'absolute',
-                        right: 16,
-                        top: '50%',
-                        marginTop: -16,
-                        width: 32,
-                        height: 32,
-                        borderRadius: 8,
-                        backgroundColor: pressed ? 'rgba(231, 0, 11, 0.8)' : COLORS.errorRed,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      })}
-                    >
-                      <TrashIcon />
-                    </Pressable>
-                  </View>
+                  </Swipeable>
                   {index < visiblePastThreads.length - 1 && (
                     <View style={{ height: 0.68, backgroundColor: COLORS.border, marginLeft: 76 }} />
                   )}

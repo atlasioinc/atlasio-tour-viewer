@@ -48,6 +48,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { queryClient } from './lib/queryClient';
 import { supabase } from './lib/supabase';
@@ -220,72 +221,80 @@ export default function App() {
   // Must come FIRST before loading check so it never waits for Supabase auth
   if (DEV_BYPASS_AUTH) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <NavigationContainer>
-            <Stack.Navigator
-              initialRouteName="MainApp"
-              screenOptions={{
-                headerShown: false,
-                animation: 'slide_from_right',
-              }}
-            >
-              <Stack.Screen name="MainApp" component={BottomTabNavigator} initialParams={{ role: userRole }} />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </SafeAreaProvider>
-      </QueryClientProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <NavigationContainer>
+              <Stack.Navigator
+                initialRouteName="MainApp"
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              >
+                <Stack.Screen name="MainApp" component={BottomTabNavigator} initialParams={{ role: userRole }} />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
     );
   }
 
   // Loading state
   if (authState === 'loading') {
     return (
-      <SafeAreaProvider>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     );
   }
 
   // Unauthenticated → show login
   if (authState === 'unauthenticated') {
     return (
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <LoginScreen />
-        </SafeAreaProvider>
-      </QueryClientProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <LoginScreen />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
     );
   }
 
   // Authenticated or onboarding → show navigator
   return (
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName={authState === 'onboarding' ? 'Onboarding1' : 'MainApp'}
-            screenOptions={{
-              headerShown: false,
-              animation: 'slide_from_right',
-            }}
-          >
-            <Stack.Screen name="Onboarding1" component={OnboardingScreen1} />
-            <Stack.Screen name="OnboardingRoleSelect" component={OnboardingRoleSelect} />
-            {/* Onboarding2 retired — role selection moved to OnboardingRoleSelect */}
-            <Stack.Screen name="Onboarding3" component={OnboardingScreen3} />
-            <Stack.Screen name="Onboarding4" component={OnboardingScreen4} />
-            <Stack.Screen name="ContractorProfileBasics" component={ContractorProfileBasics} />
-            <Stack.Screen name="ContractorTradeStep" component={ContractorTradeStep} />
-            <Stack.Screen name="ContractorDetailsStep" component={ContractorDetailsStep} />
-            <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
-            <Stack.Screen name="MainApp" component={BottomTabNavigator} initialParams={{ role: userRole }}/>
-          </Stack.Navigator>
-        </NavigationContainer>
-      </SafeAreaProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <Stack.Navigator
+              initialRouteName={authState === 'onboarding' ? 'Onboarding1' : 'MainApp'}
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            >
+              <Stack.Screen name="Onboarding1" component={OnboardingScreen1} />
+              <Stack.Screen name="OnboardingRoleSelect" component={OnboardingRoleSelect} />
+              {/* Onboarding2 retired — role selection moved to OnboardingRoleSelect */}
+              <Stack.Screen name="Onboarding3" component={OnboardingScreen3} />
+              <Stack.Screen name="Onboarding4" component={OnboardingScreen4} />
+              <Stack.Screen name="ContractorProfileBasics" component={ContractorProfileBasics} />
+              <Stack.Screen name="ContractorTradeStep" component={ContractorTradeStep} />
+              <Stack.Screen name="ContractorDetailsStep" component={ContractorDetailsStep} />
+              <Stack.Screen name="OnboardingComplete" component={OnboardingComplete} />
+              <Stack.Screen name="MainApp" component={BottomTabNavigator} initialParams={{ role: userRole }}/>
+            </Stack.Navigator>
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 

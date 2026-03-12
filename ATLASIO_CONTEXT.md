@@ -703,6 +703,32 @@ Onboarding screens: 9 total (Screen1, RoleSelect, Screen3, Screen4, Complete, Co
 Nav stacks: ChatScreen now registered as fullscreen modal in ContractorHomeStack + ContractorJobsStack (in addition to ContractorInboxStack)
 
 ---
+Session 45 — InsuranceUploadScreen
+
+Branch: frontend/session-25-onboarding-redesign
+
+New screen: InsuranceUploadScreen.tsx (components/)
+- Contractor COI upload flow: info card → upload zone → expiry inputs → what's next → sticky submit CTA
+- Success state: center-aligned shield icon + "Submitted for Review" + Back to Profile button
+- 4 sections: info card (backgroundInfo + blue left border), dashed upload zone (mock file toggle), MM/YYYY expiry inputs, what happens next card
+- Reuses: ScreenHeader, PrimaryButton from shared components
+- All @demo/@backend markers in place
+- @backend: rpc_upload_insurance_document (params: document_url, expiry_month, expiry_year)
+- @backend: expo-document-picker → Supabase credentials bucket
+
+Route registration: ProfileStack.tsx
+- Added InsuranceUpload to ProfileStackParamList
+- Registered as fullScreenModal + slide_from_bottom (same pattern as Verification, PhoneVerification)
+
+ProfileTab.tsx Z3 insurance row updates:
+- MOCK_CONTRACTOR_PROFILE: added insurance_status='approved', insurance_expiry='2026-12'
+- Z3 row now status-aware: approved (green "Insured"), pending_review (amber), none (gray + "+ Add Proof" CTA)
+- "+ Add Proof" ghost DisplayTag navigates to InsuranceUpload (was Verification)
+
+Files modified: 3 (ProfileStack.tsx, ProfileTab.tsx, InsuranceUploadScreen.tsx new)
+tsc: 0 errors
+
+---
 Recommended Next Session Priorities
 
 1. Deploy rpc_complete_onboarding to Supabase, flip LIVE_ONBOARDING flag, test end-to-end
@@ -713,3 +739,5 @@ Recommended Next Session Priorities
 6. Performance: add staleTime/gcTime to high-frequency hooks
 7. EditProfileScreen: add contractor-specific fields (trades, license, insurance)
 8. BottomTabNavigator: investigate icon position flash (style-only fixes insufficient, may need custom tabBar)
+9. Wire InsuranceUploadScreen: expo-document-picker + Supabase credentials bucket upload + rpc_upload_insurance_document
+10. Add insurance_status/insurance_expiry columns to profiles table in Supabase schema
