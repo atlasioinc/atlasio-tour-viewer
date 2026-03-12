@@ -1,25 +1,26 @@
 // ProfileTab.tsx
 // ═══════════════════════════════════════════════════════════════
-// Profile Tab — Agent View (484 lines)
-// Sections: Profile Card, Performance Stats, Settings/Actions
-// Edit modal: Change photo + edit bio (400 char limit)
-// Designed as reusable base — Partner/Contractor variants
-// will extend with different performance metrics
-//
-// Uses LOCAL COLORS object (not lib/tokens.ts) — inline design tokens
-//
-// Sections: Design Tokens, SVG Icons, Profile Avatar,
-//           Mock Sparkline, Main Component
+// Profile Tab — Own Profile View (7-Zone Layout)
+// Merged: ContractorProfileTab.tsx → ProfileTab.tsx (S44)
+//   Role-conditional content within a single layout tree.
+//   Contractor-specific: detailed Z3 (License & Insurance), headline, mock data.
+// Zones:
+//   Z1: Hero card (avatar, name, role pill, company, location)
+//   Z2: Trust bar (rating + vouch pill — tappable, vouches sheet)
+//   Z3: Credentials card (VerificationBadge + VerifyNudge)
+//   Z4: Specialties card (DisplayTag chips)
+//   Z5: Portfolio card (contractors only, PortfolioGallery)
+//   Z6: Your Stats card (3 stat tiles, "Visible only to you" pill)
+//   Z7: Controls card (visibility toggle + Edit Profile button)
 //
 // Verification: VerificationBanner at top of scroll (soft nudge).
-// Business rule: NEVER hard-gate ProfileTab — it's a trust-building upsell.
-// Hard gates belong ONLY on: PostJobWizard, PostPhotoJob, PostStagingJob.
+// Business rule: NEVER hard-gate ProfileTab — trust-building upsell.
 //
 // @demo  Mock specialties + languages via FEATURE_FLAGS.USE_MOCK_DATA
 // @backend useMyProfile (wired) — profiles.id = auth.uid()
 // ═══════════════════════════════════════════════════════════════
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,99 +28,173 @@ import {
   ScrollView,
   StatusBar,
   Switch,
+  Modal,
+  Animated,
+  Dimensions,
+  Easing,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
+import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useMyProfile } from '../hooks/useData';
-import { VerificationBanner } from './shared';
-
-// ─────────────────────────────────────────────
-// DESIGN TOKENS
-// ─────────────────────────────────────────────
-const COLORS = {
-  primary: '#003DC3',
-  background: '#FFFFFF',
-  screenBg: '#F7F7FC',
-  darkText: '#1C1C1E',
-  headingText: '#101828',
-  bodyText: '#4A5565',
-  statText: '#364153',
-  secondaryText: '#666666',
-  mutedText: '#6A7282',
-  border: '#E5E7EB',
-  cardBorder: '#F3F4F6',
-  tagBg: '#F3F4F6',
-  inputBg: '#F9FAFB',
-  errorRed: '#FB2C36',
-} as const;
+import { useMyProfile, useProfileVouches } from '../hooks/useData';
+import { VerificationBanner, VerificationBadge } from './shared';
+import { DisplayTag } from './DisplayTag';
+import PortfolioGallery from './PortfolioGallery';
+import { useDemoRole } from './BottomTabNavigator';
 
 // ─────────────────────────────────────────────
 // SVG ICONS
 // ─────────────────────────────────────────────
 
 const SettingsIcon: React.FC = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke={COLORS.bodyText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M19.4 15C19.2669 15.3016 19.2272 15.6362 19.286 15.9606C19.3448 16.285 19.4995 16.5843 19.73 16.82L19.79 16.88C19.976 17.0657 20.1235 17.2863 20.2241 17.5291C20.3248 17.7719 20.3766 18.0322 20.3766 18.295C20.3766 18.5578 20.3248 18.8181 20.2241 19.0609C20.1235 19.3037 19.976 19.5243 19.79 19.71C19.6043 19.896 19.3837 20.0435 19.1409 20.1441C18.8981 20.2448 18.6378 20.2966 18.375 20.2966C18.1122 20.2966 17.8519 20.2448 17.6091 20.1441C17.3663 20.0435 17.1457 19.896 16.96 19.71L16.9 19.65C16.6643 19.4195 16.365 19.2648 16.0406 19.206C15.7162 19.1472 15.3816 19.1869 15.08 19.32C14.7842 19.4468 14.532 19.6572 14.3543 19.9255C14.1766 20.1938 14.0813 20.5082 14.08 20.83V21C14.08 21.5304 13.8693 22.0391 13.4942 22.4142C13.1191 22.7893 12.6104 23 12.08 23C11.5496 23 11.0409 22.7893 10.6658 22.4142C10.2907 22.0391 10.08 21.5304 10.08 21V20.91C10.0723 20.579 9.96512 20.258 9.77251 19.9887C9.5799 19.7194 9.31074 19.5143 9 19.4C8.69838 19.2669 8.36381 19.2272 8.03941 19.286C7.71502 19.3448 7.41568 19.4995 7.18 19.73L7.12 19.79C6.93425 19.976 6.71368 20.1235 6.47088 20.2241C6.22808 20.3248 5.96783 20.3766 5.705 20.3766C5.44217 20.3766 5.18192 20.3248 4.93912 20.2241C4.69632 20.1235 4.47575 19.976 4.29 19.79C4.10405 19.6043 3.95653 19.3837 3.85588 19.1409C3.75523 18.8981 3.70343 18.6378 3.70343 18.375C3.70343 18.1122 3.75523 17.8519 3.85588 17.6091C3.95653 17.3663 4.10405 17.1457 4.29 16.96L4.35 16.9C4.58054 16.6643 4.73519 16.365 4.794 16.0406C4.85282 15.7162 4.81312 15.3816 4.68 15.08C4.55324 14.7842 4.34276 14.532 4.07447 14.3543C3.80618 14.1766 3.49179 14.0813 3.17 14.08H3C2.46957 14.08 1.96086 13.8693 1.58579 13.4942C1.21071 13.1191 1 12.6104 1 12.08C1 11.5496 1.21071 11.0409 1.58579 10.6658C1.96086 10.2907 2.46957 10.08 3 10.08H3.09C3.42099 10.0723 3.74197 9.96512 4.01118 9.77251C4.28038 9.5799 4.48571 9.31074 4.6 9C4.73312 8.69838 4.77282 8.36381 4.714 8.03941C4.65519 7.71502 4.50054 7.41568 4.27 7.18L4.21 7.12C4.02405 6.93425 3.87653 6.71368 3.77588 6.47088C3.67523 6.22808 3.62343 5.96783 3.62343 5.705C3.62343 5.44217 3.67523 5.18192 3.77588 4.93912C3.87653 4.69632 4.02405 4.47575 4.21 4.29C4.39575 4.10405 4.61632 3.95653 4.85912 3.85588C5.10192 3.75523 5.36217 3.70343 5.625 3.70343C5.88783 3.70343 6.14808 3.75523 6.39088 3.85588C6.63368 3.95653 6.85425 4.10405 7.04 4.29L7.1 4.35C7.33568 4.58054 7.63502 4.73519 7.95941 4.794C8.28381 4.85282 8.61838 4.81312 8.92 4.68H9C9.29577 4.55324 9.54802 4.34276 9.72569 4.07447C9.90337 3.80618 9.99872 3.49179 10 3.17V3C10 2.46957 10.2107 1.96086 10.5858 1.58579C10.9609 1.21071 11.4696 1 12 1C12.5304 1 13.0391 1.21071 13.4142 1.58579C13.7893 1.96086 14 2.46957 14 3V3.09C14.0013 3.41179 14.0966 3.72618 14.2743 3.99447C14.452 4.26276 14.7042 4.47324 15 4.6C15.3016 4.73312 15.6362 4.77282 15.9606 4.714C16.285 4.65519 16.5843 4.50054 16.82 4.27L16.88 4.21C17.0657 4.02405 17.2863 3.87653 17.5291 3.77588C17.7719 3.67523 18.0322 3.62343 18.295 3.62343C18.5578 3.62343 18.8181 3.67523 19.0609 3.77588C19.3037 3.87653 19.5243 4.02405 19.71 4.21C19.896 4.39575 20.0435 4.61632 20.1441 4.85912C20.2448 5.10192 20.2966 5.36217 20.2966 5.625C20.2966 5.88783 20.2448 6.14808 20.1441 6.39088C20.0435 6.63368 19.896 6.85425 19.71 7.04L19.65 7.1C19.4195 7.33568 19.2648 7.63502 19.206 7.95941C19.1472 8.28381 19.1869 8.61838 19.32 8.92V9C19.4468 9.29577 19.6572 9.54802 19.9255 9.72569C20.1938 9.90337 20.5082 9.99872 20.83 10H21C21.5304 10 22.0391 10.2107 22.4142 10.5858C22.7893 10.9609 23 11.4696 23 12C23 12.5304 22.7893 13.0391 22.4142 13.4142C22.0391 13.7893 21.5304 14 21 14H20.91C20.5882 14.0013 20.2738 14.0966 20.0055 14.2743C19.7372 14.452 19.5268 14.7042 19.4 15Z" stroke={COLORS.bodyText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+    <Path
+      d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+      stroke={COLORS.headingText}
+      strokeWidth={1.67}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M16.17 12.5a1.38 1.38 0 0 0 .28 1.52l.05.05a1.67 1.67 0 1 1-2.36 2.36l-.05-.05a1.38 1.38 0 0 0-1.52-.28 1.38 1.38 0 0 0-.84 1.27v.13a1.67 1.67 0 0 1-3.33 0v-.07A1.38 1.38 0 0 0 7.5 16.17a1.38 1.38 0 0 0-1.52.28l-.05.05a1.67 1.67 0 1 1-2.36-2.36l.05-.05a1.38 1.38 0 0 0 .28-1.52A1.38 1.38 0 0 0 2.63 11.73h-.13a1.67 1.67 0 0 1 0-3.33h.07A1.38 1.38 0 0 0 3.83 7.5a1.38 1.38 0 0 0-.28-1.52l-.05-.05a1.67 1.67 0 1 1 2.36-2.36l.05.05a1.38 1.38 0 0 0 1.52.28h.07a1.38 1.38 0 0 0 .83-1.27v-.13a1.67 1.67 0 0 1 3.33 0v.07a1.38 1.38 0 0 0 .84 1.27 1.38 1.38 0 0 0 1.52-.28l.05-.05a1.67 1.67 0 1 1 2.36 2.36l-.05.05a1.38 1.38 0 0 0-.28 1.52v.07a1.38 1.38 0 0 0 1.27.83h.13a1.67 1.67 0 0 1 0 3.33h-.07a1.38 1.38 0 0 0-1.27.84Z"
+      stroke={COLORS.headingText}
+      strokeWidth={1.67}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 
-const ShareIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-    <Path d="M2.67 8V13.33C2.67 13.69 2.81 14.03 3.07 14.27C3.33 14.51 3.67 14.67 4 14.67H12C12.35 14.67 12.69 14.51 12.93 14.27C13.17 14.03 13.33 13.69 13.33 13.33V8" stroke={COLORS.primary} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M10.67 4L8 1.33L5.33 4" stroke={COLORS.primary} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M8 1.33V10" stroke={COLORS.primary} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+const ChevronRightIcon: React.FC<{ color?: string; size?: number }> = ({
+  color = COLORS.mutedText,
+  size = 16,
+}) => (
+  <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+    <Path d="M6 12L10 8L6 4" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+// Shield check icon for license/insurance section (contractor Z3)
+const ShieldIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M12 2L3 7V12C3 16.4 7 20.6 12 22C17 20.6 21 16.4 21 12V7L12 2Z"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M9 12L11 14L15 10"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 
 // ─────────────────────────────────────────────
-// PROFILE AVATAR (with optional photo)
+// AVATAR PLACEHOLDER
 // ─────────────────────────────────────────────
 
-const ProfileAvatar: React.FC<{ photoUri?: string; size?: number }> = ({ photoUri, size = 120 }) => {
-  if (photoUri) {
-    return (
-      <View style={{ width: size, height: size, borderRadius: 9999, overflow: 'hidden', backgroundColor: COLORS.primary }}>
-        {/* In production, use <Image source={{ uri: photoUri }} /> */}
-        <View style={{ width: size, height: size, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: size * 0.35, fontWeight: '700', color: '#FFFFFF' }}>JD</Text>
-        </View>
-      </View>
-    );
-  }
+const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({
+  name,
+  color,
+  size = 120,
+}) => {
+  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
   return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.35, fontWeight: '700', color: '#FFFFFF' }}>JD</Text>
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 9999,
+        backgroundColor: color,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Text style={{ fontSize: size * 0.3, fontWeight: '600', color: '#FFFFFF' }}>
+        {initials}
+      </Text>
     </View>
   );
 };
 
 // ─────────────────────────────────────────────
-// @demo MOCK SPARKLINE — hardcoded SVG path
-// @backend TODO: Generate from connections growth data
+// VOUCH CARD (for bottom sheet)
 // ─────────────────────────────────────────────
 
-const Sparkline: React.FC = () => (
-  <View style={{ height: 60 }}>
-    <Svg width="100%" height={40} viewBox="0 0 329 20" preserveAspectRatio="none">
-      <Path
-        d="M5 18 L82 14 L164 10 L246 6 L324 2"
-        stroke={COLORS.primary}
-        strokeWidth={2}
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingTop: 4 }}>
-      {['Aug', 'Sep', 'Oct', 'Nov'].map((m) => (
-        <Text key={m} style={{ fontSize: 10, fontWeight: '400', color: COLORS.secondaryText, textAlign: 'center' }}>{m}</Text>
-      ))}
+interface VouchCardProps {
+  name: string;
+  role?: string;
+  quote: string;
+}
+
+const VouchCard: React.FC<VouchCardProps> = ({ name, role, quote }) => (
+  <View style={{ gap: 0 }}>
+    {/* Row 1: name left, role/company right */}
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText }}>{name}</Text>
+      {role ? (
+        <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.secondaryText }}>{role}</Text>
+      ) : null}
     </View>
+    {/* Row 2: comment text */}
+    <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.bodyText, marginTop: 8 }}>
+      {quote}
+    </Text>
   </View>
 );
+
+// ─────────────────────────────────────────────
+// ROLE DISPLAY HELPERS
+// ─────────────────────────────────────────────
+
+const ROLE_DISPLAY: Record<string, string> = {
+  agent: 'Real Estate Agent',
+  mortgage_pro: 'Mortgage Pro',
+  title_escrow: 'Title & Escrow',
+  home_inspector: 'Home Inspector',
+  contractor: 'Contractor',
+  appraiser: 'Appraiser',
+  transaction_coordinator: 'Transaction Coordinator',
+  attorney: 'Attorney',
+  warranty: 'Home Warranty',
+  home_stager: 'Home Stager',
+  real_estate_photographer: 'Real Estate Photographer',
+  other: 'Professional',
+};
+
+// ─────────────────────────────────────────────
+// @demo MOCK CONTRACTOR PROFILE
+// Merged from ContractorProfileTab.tsx (S44)
+// Gated by FEATURE_FLAGS.USE_MOCK_DATA
+// @backend: rpc_get_my_profile — profiles table, id = auth.uid()
+// ─────────────────────────────────────────────
+
+const MOCK_CONTRACTOR_PROFILE = {
+  name: 'Marcus Johnson',
+  company: 'Johnson Plumbing Co.',
+  role: 'contractor' as const,
+  trade: 'Plumbing',
+  headline: 'Licensed master plumber · Denver Metro',
+  location: 'Denver, CO',
+  avatar_color: '#4A90D9',
+  rating: 4.8,
+  vouch_count: 6,
+  is_visible: true,
+  verification_level: 'basic' as const,
+  specialties: ['Licensed', 'Insured', 'Emergency Service', 'Water Heaters', 'Drain Cleaning'],
+  license_number: 'CO-PLM-2847',
+  license_state: 'CO',
+  license_verified: false,
+  insurance_uploaded: true,
+  display_role: 'Contractor',
+};
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -127,41 +202,145 @@ const Sparkline: React.FC = () => (
 
 const ProfileTab: React.FC = () => {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
-  // Live profile hook (runs even in mock mode to keep cache warm)
+  // ── Live profile hook ──
   const { data: liveProfile } = useMyProfile();
+  const { demoRole } = useDemoRole();
 
-  // ── Profile State ──
-  const profilePhoto = liveProfile?.avatar_url ?? undefined;
-  const profileName = liveProfile?.name ?? 'Loading...';
-  const profileCompany = liveProfile?.company ?? '';
-  const profileLicense = liveProfile?.licensed ?? '';
-  const profileLocation = liveProfile?.location ?? 'Denver, CO';
-  const profileBio = liveProfile?.bio ?? '';
-  const profileRating = liveProfile?.rating ?? 0;
-  const profileVouches = liveProfile?.vouch_count ?? 0;
-  const profileActiveSince = liveProfile?.active_since ?? ''; // eslint-disable-line @typescript-eslint/no-unused-vars
-  const profileHeadline = liveProfile?.headline ?? 'Top listing agent, luxury market'; // @demo — replace with real profiles.headline
-  const profileVisible = liveProfile?.is_visible ?? true;
+  // ── Mock gating: use contractor mock when USE_MOCK_DATA + contractor demo role ──
+  // demoRole comes from DemoRoleContext (BottomTabNavigator), NOT liveProfile.role
+  // (useMyProfile mock fallback always returns role:'agent' regardless of demo role)
+  const isMockContractor = FEATURE_FLAGS.USE_MOCK_DATA && demoRole === 'contractor';
+  const mockSource = isMockContractor ? MOCK_CONTRACTOR_PROFILE : null;
 
-  // ── Specialties & Languages ──
+  // ── Profile data ──
+  const profileName = mockSource?.name ?? liveProfile?.name ?? 'Loading...';
+  const profileCompany = mockSource?.company ?? liveProfile?.company ?? '';
+  const profileLocation = mockSource?.location ?? liveProfile?.location ?? 'Denver, CO';
+  const profileRating = mockSource?.rating ?? liveProfile?.rating ?? 0;
+  const profileVouchCount = mockSource?.vouch_count ?? liveProfile?.vouch_count ?? 0;
+  const profileVisible = mockSource?.is_visible ?? liveProfile?.is_visible ?? true;
+  const profileAvatarColor = mockSource?.avatar_color ?? liveProfile?.avatar_color ?? COLORS.primary;
+  const profileRole = mockSource?.role ?? liveProfile?.role ?? 'agent';
+  const profileDisplayRole = mockSource?.display_role ?? liveProfile?.display_role ?? ROLE_DISPLAY[profileRole] ?? 'Professional';
+  const profileTrade = mockSource?.trade ?? liveProfile?.trade ?? null;
+  const profileHeadline = mockSource?.headline ?? liveProfile?.headline ?? null;
+  const profileLicensed = liveProfile?.licensed ?? '';
+  const verificationLevel = mockSource?.verification_level ?? liveProfile?.verification_level ?? 'none';
+  const licenseVerified = mockSource?.license_verified ?? liveProfile?.license_verified ?? false;
+  const insuranceUploaded = mockSource?.insurance_uploaded ?? liveProfile?.insurance_uploaded ?? false;
+  const licenseNumber = mockSource?.license_number ?? liveProfile?.license_number ?? '';
+  const licenseState = mockSource?.license_state ?? liveProfile?.license_state ?? '';
+
+  // ── Specialties ──
   const specialties = FEATURE_FLAGS.USE_MOCK_DATA
-    ? ['Residential', 'First-Time Buyers', 'Investment']
+    ? (mockSource?.specialties ?? ['Residential', 'First-Time Buyers', 'Investment'])
     : (liveProfile?.specialties ?? ['Residential', 'First-Time Buyers', 'Investment']);
-  const languages = FEATURE_FLAGS.USE_MOCK_DATA ? ['English', 'Spanish'] : ['English', 'Spanish'];
+
+  // ── Vouches (live data) ──
+  const resolvedProfileId = liveProfile?.id ?? '';
+  const { data: liveVouches } = useProfileVouches(
+    !FEATURE_FLAGS.USE_MOCK_DATA && resolvedProfileId ? resolvedProfileId : '',
+  );
+
+  // @demo Mock vouches — role-specific, count matches profile.vouch_count
+  const MOCK_AGENT_VOUCHES = [
+    { id: 'v-1', name: 'Sarah Mitchell', role: 'Agent · Keller Williams', quote: '"Closed three deals together this quarter — always responsive and fights for the best terms."' },
+    { id: 'v-2', name: 'Mike Reeves', role: 'Agent · RE/MAX', quote: '"Fast and professional. My go-to referral partner in the Denver Metro."' },
+    { id: 'v-3', name: 'Linda Chen', role: 'Agent · Compass', quote: '"Helped my buyer client navigate a tricky inspection — saved the deal."' },
+    { id: 'v-4', name: 'James Torres', role: 'Mortgage Pro · First Choice', quote: '"Smooth closings every time. Great communication with the lending team."' },
+    { id: 'v-5', name: 'Rachel Kim', role: 'Agent · eXp Realty', quote: '"Referred two clients and both had excellent experiences. Highly recommend."' },
+    { id: 'v-6', name: 'Tom Bradley', role: 'Inspector · Front Range', quote: '"Always schedules inspections quickly and follows up. A pleasure to work with."' },
+  ];
+
+  const MOCK_CONTRACTOR_VOUCHES = [
+    { id: 'vc-1', name: 'Sarah Mitchell', role: 'Agent · Keller Williams', quote: '"Marcus fixed a major pipe burst the day before closing. Saved the deal."' },
+    { id: 'vc-2', name: 'James Torres', role: 'Agent · RE/MAX', quote: '"On time, clean work, and communicated every step. Highly recommend."' },
+    { id: 'vc-3', name: 'Linda Park', role: 'Agent · Compass', quote: '"Completed a full water heater replacement in under 3 hours. Clients were thrilled."' },
+    { id: 'vc-4', name: 'Rachel Kim', role: 'Agent · eXp Realty', quote: '"Called him for an emergency leak on a Sunday and he showed up within the hour."' },
+    { id: 'vc-5', name: 'Tom Bradley', role: 'Agent · Coldwell Banker', quote: '"Handled plumbing for three of my listings. Always on budget, always on time."' },
+    { id: 'vc-6', name: 'Emma Davis', role: 'Agent · Sotheby\'s', quote: '"Professional, licensed, insured — exactly what you want before a closing."' },
+  ];
+
+  const mockVouches = profileRole === 'contractor' ? MOCK_CONTRACTOR_VOUCHES : MOCK_AGENT_VOUCHES;
+
+  const vouches = (liveVouches && liveVouches.length > 0)
+    ? liveVouches
+    : mockVouches;
+
+  // ── Vouches bottom sheet state ──
+  const [vouchSheetVisible, setVouchSheetVisible] = useState(false);
+  const sheetAnim = useRef(new Animated.Value(0)).current;
+  const { height: screenHeight } = Dimensions.get('window');
+
+  const openVouchSheet = () => {
+    setVouchSheetVisible(true);
+    Animated.spring(sheetAnim, {
+      toValue: 1,
+      damping: 24,
+      stiffness: 220,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeVouchSheet = () => {
+    Animated.timing(sheetAnim, {
+      toValue: 0,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => setVouchSheetVisible(false));
+  };
+
+  const sheetTranslateY = sheetAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [screenHeight, 0],
+  });
+
+  // ── Role-conditional flags ──
+  const isContractor = profileRole === 'contractor';
+  const isGalleryRole = ['contractor', 'home_stager', 'real_estate_photographer'].includes(profileRole);
+
+  // ── Portfolio photos (mock for demo) ──
+  const portfolioPhotos = FEATURE_FLAGS.USE_MOCK_DATA && isGalleryRole
+    ? [
+        'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&h=600&fit=crop',
+      ]
+    : [];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* ── Header ── */}
-      <View style={{ height: 48, backgroundColor: COLORS.background, justifyContent: 'center', borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
+      <View
+        style={{
+          height: DIMENSIONS.headerHeight,
+          backgroundColor: COLORS.background,
+          justifyContent: 'center',
+          borderBottomWidth: DIMENSIONS.headerBorderWidth,
+          borderBottomColor: COLORS.border,
+        }}
+      >
         <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.primary, lineHeight: 28 }}>My Profile</Text>
+          <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.primary }}>My Profile</Text>
           <Pressable
             onPress={() => navigation.navigate('Settings')}
             hitSlop={12}
-            style={({ pressed }) => ({ position: 'absolute', right: 16, width: 40, height: 40, borderRadius: 9999, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
+            style={({ pressed }) => ({
+              position: 'absolute',
+              right: 16,
+              width: 44,
+              height: 44,
+              borderRadius: 9999,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.5 : 1,
+            })}
           >
             <SettingsIcon />
           </Pressable>
@@ -170,58 +349,61 @@ const ProfileTab: React.FC = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: COLORS.screenBg }}
         contentContainerStyle={{ paddingTop: 16, paddingBottom: 32, paddingHorizontal: 16, gap: 16 }}
       >
         {/* Soft verification nudge — returns null if already verified */}
         <VerificationBanner
-          level={liveProfile?.verification_level ?? 'none'}
-          role={liveProfile?.role === 'contractor' ? 'contractor' : 'agent'}
+          level={verificationLevel}
+          role={profileRole === 'contractor' ? 'contractor' : 'agent'}
           onPress={() => navigation.navigate('Verification')}
         />
 
         {/* ══════════════════════════════════════════
-            PROFILE CARD
+            Z1: HERO CARD
+            Avatar, name, role pill, company, location
             ══════════════════════════════════════════ */}
         <View
           style={{
             padding: 24,
             backgroundColor: COLORS.background,
-            borderRadius: 16,
-            shadowColor: '#000000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.1,
-            shadowRadius: 3,
-            elevation: 2,
+            borderRadius: DIMENSIONS.cardRadius,
+            borderWidth: DIMENSIONS.cardBorderWidth,
+            borderColor: COLORS.cardBorder,
+            ...SHADOWS.card,
             gap: 12,
+            alignItems: 'center',
           }}
         >
-          {/* Avatar */}
-          <View style={{ alignItems: 'center' }}>
-            <ProfileAvatar photoUri={profilePhoto} />
+          <AvatarPlaceholder name={profileName} color={profileAvatarColor} size={DIMENSIONS.avatarHero} />
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ ...TYPOGRAPHY.displayM, color: COLORS.darkText, textAlign: 'center' }}>
+              {profileName}
+            </Text>
+            <VerificationBadge level={verificationLevel} />
           </View>
 
-          {/* Name */}
-          <Text style={{ textAlign: 'center', color: COLORS.darkText, fontSize: 24, fontWeight: '700', lineHeight: 36, letterSpacing: 0.07 }}>
-            {profileName}
-          </Text>
+          {/* Role pill */}
+          <View
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              backgroundColor: COLORS.tagBg,
+              borderRadius: DIMENSIONS.pillRadius,
+            }}
+          >
+            <Text style={{ ...TYPOGRAPHY.bodyM, fontWeight: '500', color: COLORS.primary }}>
+              {profileTrade || profileDisplayRole}
+            </Text>
+          </View>
 
           {/* Company + Location */}
-          <Text style={{ textAlign: 'center', color: COLORS.bodyText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>
-            {[profileCompany, profileLicense].filter(Boolean).join(' • ') + '\n' + profileLocation}
+          <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.bodyText, textAlign: 'center' }}>
+            {[profileCompany, profileLicensed].filter(Boolean).join(' · ')}{'\n'}{profileLocation}
           </Text>
 
-          {/* Stats pills */}
-          {/* activeSince: retained in data, not rendered on self-view. @demo */}
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
-            <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.tagBg, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>{profileRating.toFixed(1)} ★</Text>
-              <Text style={{ color: COLORS.statText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>{profileVouches} Vouches</Text>
-            </View>
-          </View>
-
-          {/* ── HEADLINE ── */}
-          {/* @backend: wire to profiles.headline column via useMyProfile() hook */}
+          {/* Headline (all roles, conditional on profile.headline existing) */}
           {profileHeadline ? (
             <View
               style={{
@@ -245,10 +427,9 @@ const ProfileTab: React.FC = () => {
               <Text
                 numberOfLines={1}
                 style={{
-                  fontSize: 14,
+                  ...TYPOGRAPHY.bodyM,
                   fontWeight: '500',
                   color: COLORS.primary,
-                  lineHeight: 20,
                   flex: 1,
                 }}
               >
@@ -256,264 +437,406 @@ const ProfileTab: React.FC = () => {
               </Text>
             </View>
           ) : null}
+        </View>
 
-          {/* Specialties & Languages pills */}
-          {(specialties.length > 0 || languages.length > 0) && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+        {/* ══════════════════════════════════════════
+            Z2: TRUST BAR
+            Rating + vouch pill — tappable with chevron
+            ══════════════════════════════════════════ */}
+        <Pressable
+          onPress={openVouchSheet}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            backgroundColor: COLORS.background,
+            borderRadius: DIMENSIONS.cardRadius,
+            borderWidth: DIMENSIONS.cardBorderWidth,
+            borderColor: COLORS.cardBorder,
+            ...SHADOWS.card,
+            gap: 12,
+            opacity: pressed ? 0.85 : 1,
+          })}
+        >
+          <View
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              backgroundColor: COLORS.chipBg,
+              borderRadius: DIMENSIONS.pillRadius,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.statText }}>
+              {profileRating.toFixed(1)} ★
+            </Text>
+            <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.statText }}>
+              {profileVouchCount} Vouches
+            </Text>
+          </View>
+          <ChevronRightIcon />
+        </Pressable>
+
+        {/* ══════════════════════════════════════════
+            Z3: CREDENTIALS CARD
+            Contractor: detailed license + insurance rows with ShieldIcon
+            Other roles: simple DisplayTag chips
+            ══════════════════════════════════════════ */}
+        <View
+          style={{
+            padding: 16,
+            backgroundColor: COLORS.background,
+            borderRadius: DIMENSIONS.cardRadius,
+            borderWidth: DIMENSIONS.cardBorderWidth,
+            borderColor: COLORS.cardBorder,
+            ...SHADOWS.card,
+            gap: 12,
+          }}
+        >
+          <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.headingText }}>
+Credentials
+          </Text>
+
+          {isContractor ? (
+            <>
+              {/* License row */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <ShieldIcon color={licenseVerified ? COLORS.successGreen : COLORS.lightText} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+                      {licenseNumber
+                        ? `${licenseState} License #${licenseNumber}`
+                        : 'No license added'}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: COLORS.secondaryText }}>
+                      {licenseVerified ? 'Verified' : 'Not yet verified'}
+                    </Text>
+                  </View>
+                </View>
+                {!licenseNumber ? (
+                  <DisplayTag
+                    variant="ghost"
+                    label="+ Add License"
+                    onPress={() => navigation.navigate('Verification')}
+                  />
+                ) : !licenseVerified ? (
+                  <DisplayTag
+                    variant="ghost"
+                    label="Verify"
+                    onPress={() => navigation.navigate('Verification')}
+                  />
+                ) : null}
+              </View>
+
+              {/* Divider */}
+              <View style={{ height: 1, backgroundColor: COLORS.cardBorder }} />
+
+              {/* Insurance row */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <ShieldIcon color={insuranceUploaded ? COLORS.successGreen : COLORS.lightText} />
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+                    {insuranceUploaded ? 'Insurance on file' : 'No insurance added'}
+                  </Text>
+                </View>
+                {!insuranceUploaded && (
+                  <DisplayTag
+                    variant="ghost"
+                    label="+ Add Proof"
+                    onPress={() => navigation.navigate('Verification')}
+                  />
+                )}
+              </View>
+            </>
+          ) : (
+            <>
+              {/* License row */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <ShieldIcon color={licenseVerified ? COLORS.successGreen : COLORS.lightText} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+                      {licenseNumber
+                        ? `${licenseState} License #${licenseNumber}`
+                        : 'No license added'}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: COLORS.secondaryText }}>
+                      {licenseVerified ? 'Verified' : 'Not yet verified'}
+                    </Text>
+                  </View>
+                </View>
+                {!licenseNumber ? (
+                  <DisplayTag
+                    variant="ghost"
+                    label="+ Add License"
+                    onPress={() => navigation.navigate('Verification')}
+                  />
+                ) : !licenseVerified ? (
+                  <DisplayTag
+                    variant="ghost"
+                    label="Verify"
+                    onPress={() => navigation.navigate('Verification')}
+                  />
+                ) : null}
+              </View>
+
+            </>
+          )}
+        </View>
+
+        {/* ══════════════════════════════════════════
+            Z4: SPECIALTIES CARD
+            DisplayTag chips
+            ══════════════════════════════════════════ */}
+        {specialties.length > 0 && (
+          <View
+            style={{
+              padding: 16,
+              backgroundColor: COLORS.background,
+              borderRadius: DIMENSIONS.cardRadius,
+              borderWidth: DIMENSIONS.cardBorderWidth,
+              borderColor: COLORS.cardBorder,
+              ...SHADOWS.card,
+              gap: 12,
+            }}
+          >
+            <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.headingText }}>Specialties</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {specialties.map((item) => (
-                <View
-                  key={item}
-                  style={{
-                    paddingHorizontal: 14,
-                    paddingVertical: 7,
-                    borderRadius: 9999,
-                    backgroundColor: 'transparent',
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '400', color: '#364153', lineHeight: 18 }}>
-                    {item}
-                  </Text>
-                </View>
-              ))}
-              {languages.map((item) => (
-                <View
-                  key={item}
-                  style={{
-                    paddingHorizontal: 14,
-                    paddingVertical: 7,
-                    borderRadius: 9999,
-                    backgroundColor: 'transparent',
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '400', color: '#364153', lineHeight: 18 }}>
-                    {item}
-                  </Text>
-                </View>
+                <DisplayTag key={item} label={item} />
               ))}
             </View>
-          )}
+          </View>
+        )}
 
+        {/* ══════════════════════════════════════════
+            Z5: PORTFOLIO CARD (contractors only)
+            ══════════════════════════════════════════ */}
+        <PortfolioGallery
+          photos={portfolioPhotos}
+          isOwnProfile={true}
+          role={isGalleryRole ? profileDisplayRole : profileRole}
+          onAddPhoto={() => console.log('Open image picker for portfolio upload')}
+          onRemovePhoto={(index) => console.log('Remove portfolio photo at index:', index)}
+        />
+
+        {/* ══════════════════════════════════════════
+            Z6: YOUR STATS CARD
+            3 stat tiles, "Visible only to you" pill
+            ══════════════════════════════════════════ */}
+        <View
+          style={{
+            padding: 16,
+            backgroundColor: COLORS.background,
+            borderRadius: DIMENSIONS.cardRadius,
+            borderWidth: DIMENSIONS.cardBorderWidth,
+            borderColor: COLORS.cardBorder,
+            ...SHADOWS.card,
+            gap: 16,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.headingText }}>Your Stats</Text>
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                backgroundColor: COLORS.chipBg,
+                borderRadius: DIMENSIONS.pillRadius,
+              }}
+            >
+              <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.mutedText }}>Visible only to you</Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {isContractor ? (
+              <>
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>27</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    Jobs{'\n'}Completed
+                  </Text>
+                </View>
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>96%</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    On-Time{'\n'}Rate
+                  </Text>
+                </View>
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>$42K</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    Total{'\n'}Earnings
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>14</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    Jobs{'\n'}Posted
+                  </Text>
+                </View>
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>14</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    Jobs{'\n'}Completed
+                  </Text>
+                </View>
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>4</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    Avg Bids{'\n'}Per Job
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* ══════════════════════════════════════════
+            Z7: CONTROLS CARD
+            Visibility toggle + Edit Profile button
+            ══════════════════════════════════════════ */}
+        <View
+          style={{
+            padding: 16,
+            backgroundColor: COLORS.background,
+            borderRadius: DIMENSIONS.cardRadius,
+            borderWidth: DIMENSIONS.cardBorderWidth,
+            borderColor: COLORS.cardBorder,
+            ...SHADOWS.card,
+            gap: 16,
+          }}
+        >
           {/* Visibility toggle */}
-          <View style={{ height: 52, paddingLeft: 16, paddingRight: 16, backgroundColor: COLORS.inputBg, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', overflow: 'hidden' }}>
-            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.statText, lineHeight: 20 }}>
+          <View
+            style={{
+              height: 52,
+              paddingHorizontal: 16,
+              backgroundColor: COLORS.filterBg,
+              borderRadius: DIMENSIONS.inputRadius,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.statText }}>
               Profile Visible to: <Text style={{ fontWeight: '500' }}>{profileVisible ? 'All Agents' : 'Hidden'}</Text>
             </Text>
-            <View style={{ width: 51, height: 31, alignItems: 'center', justifyContent: 'center' }}>
-              <Switch
-                value={profileVisible}
-                onValueChange={() => {/* TODO: wire useUpdateProfile to toggle is_visible */}}
-                trackColor={{ false: '#D1D5DC', true: COLORS.primary }}
-                thumbColor="#FFFFFF"
-                ios_backgroundColor="#D1D5DC"
-              />
-            </View>
+            <Switch
+              value={profileVisible}
+              onValueChange={() => {/* TODO: wire useUpdateProfile to toggle is_visible */}}
+              trackColor={{ false: '#D1D5DC', true: COLORS.primary }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor="#D1D5DC"
+            />
           </View>
 
           {/* Edit Profile button */}
           <Pressable
-            onPress={() => navigation.navigate('EditProfile', { role: 'agent' })}
+            onPress={() => navigation.navigate('EditProfile', { role: profileRole })}
             style={({ pressed }) => ({
-              height: 48,
+              height: DIMENSIONS.buttonModalHeight,
               backgroundColor: COLORS.primary,
-              borderRadius: 8,
+              borderRadius: DIMENSIONS.buttonRadius,
               alignItems: 'center',
               justifyContent: 'center',
               opacity: pressed ? 0.85 : 1,
             })}
           >
-            <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '500', lineHeight: 20, textAlign: 'center' }}>
+            <Text style={{ ...TYPOGRAPHY.bodyMBold, color: '#FFFFFF', textAlign: 'center' }}>
               Edit Profile
             </Text>
           </Pressable>
-
-          {/* Share Profile */}
-          <Pressable
-            onPress={() => console.log('Share profile tapped')}
-            style={({ pressed }) => ({
-              height: 48,
-              borderRadius: 8,
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'row',
-              gap: 8,
-              opacity: pressed ? 0.5 : 1,
-            })}
-          >
-            <ShareIcon />
-            <Text style={{ color: COLORS.primary, fontSize: 14, fontWeight: '500', lineHeight: 20, textAlign: 'center' }}>
-              Share Profile
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* ══════════════════════════════════════════
-            PERFORMANCE STATS
-            ══════════════════════════════════════════ */}
-        <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.darkText, lineHeight: 24 }}>
-            Performance Stats
-          </Text>
-
-          {/* ── Contractor Stats (role-conditional) ── */}
-          {liveProfile?.role === 'contractor' ? (
-            <>
-              {/* Jobs Overview card */}
-              <View
-                style={{
-                  padding: 16,
-                  backgroundColor: COLORS.background,
-                  borderRadius: 16,
-                  shadowColor: '#000000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 3,
-                  elevation: 2,
-                  gap: 12,
-                }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
-                  Jobs Overview
-                </Text>
-                <View style={{ gap: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                    Jobs Completed: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>27</Text>
-                  </Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                    Avg Rating: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>4.8 ★</Text>
-                  </Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                    On-Time Rate: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>96%</Text>
-                  </Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                    Avg Response Time: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>2.4 hrs</Text>
-                  </Text>
-                </View>
-              </View>
-
-              {/* Earnings card (private) */}
-              <View
-                style={{
-                  padding: 16,
-                  backgroundColor: COLORS.background,
-                  borderRadius: 16,
-                  shadowColor: '#000000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 3,
-                  elevation: 2,
-                  gap: 12,
-                }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
-                  Earnings
-                </Text>
-                <View style={{ gap: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                    Total Earnings: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>$42,350</Text>
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.mutedText, lineHeight: 16 }}>
-                Visible only to you
-              </Text>
-              {/* TODO: Check EditProfileScreen for contractor-specific fields (trades, license, insurance) */}
-            </>
-          ) : (
-            <>
-              {/* ── Agent/Partner Stats ── */}
-              {/* Repair Jobs card */}
-              <View
-                style={{
-                  padding: 16,
-                  backgroundColor: COLORS.background,
-                  borderRadius: 16,
-                  shadowColor: '#000000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 3,
-                  elevation: 2,
-                  gap: 12,
-                }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
-                  Repair Jobs
-                </Text>
-                <View style={{ gap: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                    Repair Jobs Posted: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>14</Text>
-                  </Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                    Repair Jobs Completed: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>14</Text>
-                  </Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
-                    Avg Bids: <Text style={{ fontWeight: '500', color: COLORS.headingText }}>4 per job</Text>
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.mutedText, lineHeight: 16 }}>
-                Visible only to you
-              </Text>
-
-              {/* Top Partners card */}
-              <View
-                style={{
-                  padding: 16,
-                  backgroundColor: COLORS.background,
-                  borderRadius: 16,
-                  shadowColor: '#000000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 3,
-                  elevation: 2,
-                  gap: 12,
-                }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
-                  Top Partners
-                </Text>
-                <View style={{ gap: 12 }}>
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>Alex Chen</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.bodyText, lineHeight: 16 }}>Lender, 22 deals</Text>
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>Sarah Miller</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.bodyText, lineHeight: 16 }}>Title, 18 deals</Text>
-                  </View>
-                </View>
-              </View>
-            </>
-          )}
-
-          {/* Network Growth card */}
-          <View
-            style={{
-              padding: 16,
-              backgroundColor: COLORS.background,
-              borderRadius: 16,
-              shadowColor: '#000000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 3,
-              elevation: 2,
-              gap: 12,
-            }}
-          >
-            <View style={{ gap: 4 }}>
-              <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.headingText, lineHeight: 20 }}>Network Growth</Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>+12 connections this month</Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 16 }}>45% from Find tab</Text>
-            </View>
-            <Sparkline />
-          </View>
         </View>
       </ScrollView>
+
+      {/* ══════════════════════════════════════════
+          VOUCHES BOTTOM SHEET
+          Spring animation (damping:24, stiffness:220)
+          ══════════════════════════════════════════ */}
+      <Modal visible={vouchSheetVisible} transparent animationType="none" onRequestClose={closeVouchSheet}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: COLORS.overlayDark }}
+          onPress={closeVouchSheet}
+        />
+        <Animated.View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: COLORS.background,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingTop: 16,
+            paddingBottom: insets.bottom + 16,
+            paddingHorizontal: 24,
+            transform: [{ translateY: sheetTranslateY }],
+            ...SHADOWS.modal,
+          }}
+        >
+          {/* Handle */}
+          <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.border }} />
+          </View>
+
+          {/* Header */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ gap: 2 }}>
+              <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>Vouches</Text>
+              <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText }}>
+                {profileVouchCount} vouches · {profileRating.toFixed(1)} avg rating
+              </Text>
+            </View>
+            <Pressable
+              onPress={closeVouchSheet}
+              hitSlop={12}
+              style={({ pressed }) => ({
+                width: 32,
+                height: 32,
+                borderRadius: 9999,
+                backgroundColor: COLORS.chipBg,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.5 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 16, color: COLORS.mutedText }}>✕</Text>
+            </Pressable>
+          </View>
+
+          {/* Vouch list */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ maxHeight: screenHeight * 0.55 }}
+          >
+            <View style={{ gap: 12 }}>
+              {vouches.map((v) => (
+                <VouchCard
+                  key={v.id}
+                  name={v.name}
+                  role={'role' in v ? (v as { role?: string }).role : undefined}
+                  quote={v.quote}
+                />
+              ))}
+              {vouches.length === 0 && (
+                <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, textAlign: 'center', paddingVertical: 24 }}>
+                  No vouches yet
+                </Text>
+              )}
+            </View>
+          </ScrollView>
+        </Animated.View>
+      </Modal>
     </SafeAreaView>
   );
 };

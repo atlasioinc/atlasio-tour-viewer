@@ -72,6 +72,7 @@ export const COLORS = {
   addedGreen: '#219653',      // "Added to Squad" confirmation
   onlineGreen: '#00C950',     // online status dot, accept icons
   counterAmber: '#D97706',    // counter offer button, pending states
+  warningAmber: '#D97706',    // warning states, verify nudges (alias of counterAmber)
   bidOrange: '#FF6900',       // bid notification icons
   mentionPurple: '#AD46FF',   // mention notification icons
 
