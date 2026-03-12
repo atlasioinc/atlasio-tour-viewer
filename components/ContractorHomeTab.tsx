@@ -1044,7 +1044,7 @@ const EarningsSummaryCard: React.FC<{ earnings: EarningsData; onViewInsights?: (
           View Insights
         </Text>
         {/* @design: replace › with ChevronRightIcon SVG when available */}
-        <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>›</Text>
+        <Text style={{ fontSize: 20, fontWeight: '500', color: COLORS.primary, lineHeight: 24 }}>›</Text>
       </Pressable>
     )}
   </View>
@@ -1699,8 +1699,8 @@ const ContractorHomeTab: React.FC = () => {
             <Pressable
               onPress={() => setShowInsightsSheet(false)}
               style={({ pressed }) => ({
-                width: 32,
-                height: 32,
+                width: 44,
+                height: 44,
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.6 : 1,

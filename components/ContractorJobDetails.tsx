@@ -1087,7 +1087,7 @@ const ContractorJobDetails: React.FC = () => {
               opacity: pressed ? 0.6 : 1,
             })}
           >
-            <Text style={{ fontSize: 24, color: COLORS.background, fontWeight: '300', lineHeight: 28 }}>✕</Text>
+            <Text style={{ fontSize: 20, color: COLORS.background, fontWeight: '300', lineHeight: 24 }}>✕</Text>
           </Pressable>
 
           {/* Horizontally paginated photo viewer */}

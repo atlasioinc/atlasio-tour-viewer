@@ -85,8 +85,11 @@ const SearchField: React.FC<SearchFieldProps> = ({
       }}
     />
     {value.length > 0 && (
-      <Pressable onPress={() => onChangeText('')} hitSlop={8}>
-        <Text style={{ fontSize: 16, color: COLORS.lightText }}>✕</Text>
+      <Pressable
+        onPress={() => onChangeText('')}
+        style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -HORIZONTAL_PADDING }}
+      >
+        <Text style={{ fontSize: 20, lineHeight: 24, color: COLORS.lightText }}>✕</Text>
       </Pressable>
     )}
   </View>

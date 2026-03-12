@@ -360,8 +360,11 @@ const CreateDealChat: React.FC = () => {
 
               {/* Clear search */}
               {searchText.length > 0 && (
-                <Pressable onPress={() => setSearchText('')}>
-                  <Text style={{ fontSize: 16, color: COLORS.lightText }}>✕</Text>
+                <Pressable
+                  onPress={() => setSearchText('')}
+                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ fontSize: 20, lineHeight: 24, color: COLORS.lightText }}>✕</Text>
                 </Pressable>
               )}
             </View>
