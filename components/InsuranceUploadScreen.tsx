@@ -30,8 +30,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
-import { ScreenHeader } from './ScreenHeader';
 import { PrimaryButton } from './Button';
+
+const CloseIcon: React.FC = () => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path d="M18 6L6 18M6 6l12 12" stroke={COLORS.secondaryText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -177,7 +182,24 @@ const InsuranceUploadScreen: React.FC = () => {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
         <StatusBar barStyle="dark-content" />
-        <ScreenHeader title="Insurance Upload" onBack={() => navigation.goBack()} />
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 16,
+          borderBottomWidth: 0.68, borderBottomColor: COLORS.border, backgroundColor: COLORS.background,
+        }}>
+          <View style={{ width: 44 }} />
+          <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: COLORS.primary, textAlign: 'center' }}>
+            Insurance Upload
+          </Text>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => ({
+              width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <CloseIcon />
+          </Pressable>
+        </View>
         <View
           style={{
             flex: 1,
@@ -219,15 +241,33 @@ const InsuranceUploadScreen: React.FC = () => {
 
   // ── Main Upload Form ──
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.screenBg, paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
       <StatusBar barStyle="dark-content" />
-      <ScreenHeader title="Insurance Upload" onBack={() => navigation.goBack()} />
+      <View style={{
+        flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 16,
+        borderBottomWidth: 0.68, borderBottomColor: COLORS.border, backgroundColor: COLORS.background,
+      }}>
+        <View style={{ width: 44 }} />
+        <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: COLORS.primary, textAlign: 'center' }}>
+          Insurance Upload
+        </Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => ({
+            width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <CloseIcon />
+        </Pressable>
+      </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          style={{ backgroundColor: COLORS.screenBg }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             padding: 16,

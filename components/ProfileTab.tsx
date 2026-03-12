@@ -77,8 +77,8 @@ const ChevronRightIcon: React.FC<{ color?: string; size?: number }> = ({
 );
 
 // Shield check icon for license/insurance section (contractor Z3)
-const ShieldIcon: React.FC<{ color: string }> = ({ color }) => (
-  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+const ShieldIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 16 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M12 2L3 7V12C3 16.4 7 20.6 12 22C17 20.6 21 16.4 21 12V7L12 2Z"
       stroke={color}
@@ -191,10 +191,10 @@ const MOCK_CONTRACTOR_PROFILE = {
   specialties: ['Licensed', 'Insured', 'Emergency Service', 'Water Heaters', 'Drain Cleaning'],
   license_number: 'CO-PLM-2847',
   license_state: 'CO',
-  license_verified: false,
+  license_verified: true, // @demo hardcoded — strongest demo state
   insurance_uploaded: true,
   insurance_status: 'approved' as const, // @demo hardcoded — strongest demo state
-  insurance_expiry: '2026-12', // @demo hardcoded — 9 months from now
+  insurance_expiry: '12/2026', // @demo hardcoded — 9 months from now
   display_role: 'Contractor',
 };
 
@@ -487,8 +487,11 @@ const ProfileTab: React.FC = () => {
 
         {/* ══════════════════════════════════════════
             Z3: CREDENTIALS CARD
-            Contractor: detailed license + insurance rows with ShieldIcon
-            Other roles: simple DisplayTag chips
+            iOS Settings-style tappable credential rows
+            Agent: License row only
+            Contractor: License row + divider + Insurance row
+            All rows tappable (own profile) with ChevronRight
+            @backend rpc_get_my_profile → license fields, insurance_status, insurance_expiry
             ══════════════════════════════════════════ */}
         <View
           style={{
@@ -502,117 +505,89 @@ const ProfileTab: React.FC = () => {
           }}
         >
           <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.headingText }}>
-Credentials
+            Credentials
           </Text>
 
-          {isContractor ? (
-            <>
-              {/* License row */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                  <ShieldIcon color={licenseVerified ? COLORS.successGreen : COLORS.lightText} />
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
-                      {licenseNumber
-                        ? `${licenseState} License #${licenseNumber}`
-                        : 'No license added'}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: COLORS.secondaryText }}>
-                      {licenseVerified ? 'Verified' : 'Not yet verified'}
-                    </Text>
-                  </View>
-                </View>
-                {!licenseNumber ? (
-                  <DisplayTag
-                    variant="ghost"
-                    label="+ Add License"
-                    onPress={() => navigation.navigate('Verification')}
-                  />
-                ) : !licenseVerified ? (
-                  <DisplayTag
-                    variant="ghost"
-                    label="Verify"
-                    onPress={() => navigation.navigate('Verification')}
-                  />
-                ) : null}
-              </View>
+          {/* License row — tappable → VerificationScreen */}
+          <Pressable
+            onPress={() => navigation.navigate('Verification')}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              gap: 12,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <ShieldIcon
+              size={20}
+              color={licenseVerified ? COLORS.successGreen : COLORS.secondaryText}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '500', color: COLORS.darkText }}>
+                License
+              </Text>
+              <Text style={{ fontSize: 13, color: COLORS.secondaryText, marginTop: 2 }}>
+                {isContractor
+                  ? licenseVerified
+                    ? `${licenseNumber ? `CO-${licenseNumber}` : 'License'} · Verified`
+                    : licenseNumber
+                      ? 'Pending Review'
+                      : 'Not added · Tap to add'
+                  : licenseVerified
+                    ? 'CO License · Verified'
+                    : 'Not added · Tap to verify'}
+              </Text>
+            </View>
+            <ChevronRightIcon size={16} color={COLORS.secondaryText} />
+          </Pressable>
 
+          {/* Contractor-only: divider + insurance row */}
+          {isContractor && (
+            <>
               {/* Divider */}
-              <View style={{ height: 1, backgroundColor: COLORS.cardBorder }} />
+              <View style={{ height: 1, backgroundColor: COLORS.border }} />
 
-              {/* Insurance row — status-aware display */}
-              {/* @demo insuranceStatus drives icon color + label + CTA */}
-              {/* @backend rpc_get_my_profile → insurance_status, insurance_expiry */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <ShieldIcon
-                    color={
-                      insuranceStatus === 'approved'
-                        ? COLORS.successGreen
-                        : insuranceStatus === 'pending_review'
-                          ? COLORS.counterAmber
-                          : COLORS.lightText
-                    }
-                  />
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
-                      {insuranceStatus === 'approved'
-                        ? 'Insured'
-                        : insuranceStatus === 'pending_review'
-                          ? 'Insurance — Pending Review'
-                          : 'No insurance added'}
-                    </Text>
-                    {insuranceStatus === 'approved' && (
-                      <Text
-                        onPress={() => navigation.navigate('InsuranceUpload')}
-                        style={{ fontSize: 12, color: COLORS.primary, marginTop: 2 }}
-                      >
-                        Update →
-                      </Text>
-                    )}
-                  </View>
+              {/* Insurance row — tappable → InsuranceUploadScreen */}
+              {/* @demo insuranceStatus drives icon color + status text */}
+              <Pressable
+                onPress={() => navigation.navigate('InsuranceUpload')}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  gap: 12,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <ShieldIcon
+                  size={20}
+                  color={
+                    insuranceStatus === 'approved'
+                      ? COLORS.successGreen
+                      : insuranceStatus === 'pending_review'
+                        ? COLORS.warningAmber
+                        : insuranceStatus === 'expired'
+                          ? COLORS.warningAmber
+                          : COLORS.secondaryText
+                  }
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '500', color: COLORS.darkText }}>
+                    Insurance
+                  </Text>
+                  <Text style={{ fontSize: 13, color: COLORS.secondaryText, marginTop: 2 }}>
+                    {insuranceStatus === 'approved'
+                      ? `Insured · Exp ${insuranceExpiry}`
+                      : insuranceStatus === 'pending_review'
+                        ? 'Pending Review'
+                        : insuranceStatus === 'expired'
+                          ? 'Expired · Tap to renew'
+                          : 'Not added · Tap to upload'}
+                  </Text>
                 </View>
-                {insuranceStatus === 'none' && (
-                  <DisplayTag
-                    variant="ghost"
-                    label="+ Add Proof"
-                    onPress={() => navigation.navigate('InsuranceUpload')}
-                  />
-                )}
-              </View>
-            </>
-          ) : (
-            <>
-              {/* License row */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                  <ShieldIcon color={licenseVerified ? COLORS.successGreen : COLORS.lightText} />
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
-                      {licenseNumber
-                        ? `${licenseState} License #${licenseNumber}`
-                        : 'No license added'}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: COLORS.secondaryText }}>
-                      {licenseVerified ? 'Verified' : 'Not yet verified'}
-                    </Text>
-                  </View>
-                </View>
-                {!licenseNumber ? (
-                  <DisplayTag
-                    variant="ghost"
-                    label="+ Add License"
-                    onPress={() => navigation.navigate('Verification')}
-                  />
-                ) : !licenseVerified ? (
-                  <DisplayTag
-                    variant="ghost"
-                    label="Verify"
-                    onPress={() => navigation.navigate('Verification')}
-                  />
-                ) : null}
-              </View>
-
+                <ChevronRightIcon size={16} color={COLORS.secondaryText} />
+              </Pressable>
             </>
           )}
         </View>

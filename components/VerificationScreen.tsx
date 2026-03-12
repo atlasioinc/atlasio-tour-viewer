@@ -74,7 +74,7 @@ const CheckCircleIcon: React.FC = () => (
 
 const CloseIcon: React.FC = () => (
   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path d="M18 6L6 18M6 6l12 12" stroke={COLORS.darkText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M18 6L6 18M6 6l12 12" stroke={COLORS.secondaryText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -200,22 +200,33 @@ const VerificationScreen: React.FC = () => {
   const licenseStatus = licenseVerified ? 'complete' : hasLicenseNumber ? 'pending' : 'incomplete';
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.screenBg, paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
+      {/* Header — 3-element centered pattern */}
       <View style={{
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 16, paddingVertical: 12,
-        borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.background,
+        flexDirection: 'row', alignItems: 'center',
+        height: 48,
+        paddingHorizontal: 16,
+        borderBottomWidth: 0.68, borderBottomColor: COLORS.border, backgroundColor: COLORS.background,
       }}>
-        <Text style={{ fontSize: 17, fontWeight: '600', color: COLORS.darkText }}>Verification</Text>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
+        <View style={{ width: 44 }} />
+        <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: COLORS.primary, textAlign: 'center' }}>
+          Verification
+        </Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => ({
+            width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
           <CloseIcon />
         </Pressable>
       </View>
 
       <ScrollView
+        style={{ backgroundColor: COLORS.screenBg }}
         contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 16 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} />}
       >
