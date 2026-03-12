@@ -251,8 +251,9 @@ const InsuranceUploadScreen: React.FC = () => {
           expiryMonth: month,
           expiryYear: year,
         });
-        if (!result.success) {
-          setSubmitError(result.message);
+        // Guard: RPC returned failure payload (success: false, message: string)
+        if (!result || !result.success) {
+          setSubmitError(result?.message ?? 'Upload failed. Please try again.');
           return;
         }
       } else {
@@ -277,8 +278,9 @@ const InsuranceUploadScreen: React.FC = () => {
   // ─────────────────────────────────────────────
 
   const handleBackToProfile = () => {
-    // @backend navigate back to ProfileTab or VerificationScreen
-    navigation.navigate('ProfileMain');
+    // Dismiss fullScreenModal — navigate to parent stack, not a named route
+    // @backend this is correct for production — no change needed
+    navigation.getParent()?.goBack();
   };
 
   // ── Success State ──

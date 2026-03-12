@@ -2093,10 +2093,12 @@ export const useUploadInsuranceDocument = () => {
         if (rpcError) throw rpcError;
         return result as { success: boolean; message: string };
       } catch (err) {
-        console.warn('[useUploadInsuranceDocument] Supabase failed, using mock fallback', err);
-        // @demo mock fallback — simulate success
-        await new Promise((r) => setTimeout(r, 800));
-        return { success: true, message: 'Insurance document submitted for review' };
+        // Re-throw so InsuranceUploadScreen.handleSubmit can surface the error
+        // via setSubmitError — do NOT swallow with a mock success here
+        // @demo if you need mock fallback behavior, use LIVE_INSURANCE_HOOKS: false
+        //       which bypasses this hook entirely via the flag in the screen
+        console.warn('[useUploadInsuranceDocument] RPC or upload failed', err);
+        throw err;
       }
     },
     onSuccess: () => {

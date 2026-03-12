@@ -42,6 +42,6 @@ export const FEATURE_FLAGS = {
   LIVE_CONTRACTOR_HOOKS:    false,  // true = contractor hooks call live RPCs
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
   LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
-  DEV_BYPASS_AUTH:          true,   // @demo — set false for device testing with real auth
+  DEV_BYPASS_AUTH:          true,   // @demo — set true for demo mode, false for device testing with real auth
   DEV_SHOW_PASSWORD_LOGIN:  false,  // @demo — set true for device testing, ALWAYS false before demos/commits
 } as const;

@@ -729,6 +729,56 @@ Files modified: 3 (ProfileStack.tsx, ProfileTab.tsx, InsuranceUploadScreen.tsx n
 tsc: 0 errors
 
 ---
+Session 48 — Dev Auth, Circular Import Fix, Live Verification Confirmed
+
+Branch: frontend/session-25-onboarding-redesign
+Commit: 0544994
+
+Part 1: Feature Flags (+2 flags, total: 7)
+- DEV_BYPASS_AUTH: true (demo default) — controls auth bypass in App.tsx
+- DEV_SHOW_PASSWORD_LOGIN: false (demo default) — shows password sign-in on LoginScreen
+
+Flag management centralized: App.tsx DEV_BYPASS_AUTH now reads from FEATURE_FLAGS inside component body (was module-scope `__DEV__ && true`). Hot reload picks up flag changes immediately.
+
+Part 2: Circular Import Fix
+- Root cause: ProfileTab → BottomTabNavigator → ProfileStack → ProfileTab (cycle)
+- Fix: Extracted DemoRoleContext, DemoRole type, useDemoRole hook to lib/demoRoleContext.ts
+- BottomTabNavigator.tsx: removed local definitions, imports from lib/demoRoleContext
+- ProfileTab.tsx: import updated from ./BottomTabNavigator to ../lib/demoRoleContext
+
+Part 3: LoginScreen — Dev Password Sign-In
+- Added handlePasswordSignIn using supabase.auth.signInWithPassword
+- Password TextInput + amber outlined CTA button + disclaimer text
+- All gated behind FEATURE_FLAGS.DEV_SHOW_PASSWORD_LOGIN (nothing renders when false)
+- @demo and @backend markers on all new code
+
+Part 4: App.tsx — Cold Start Auth Fix
+- Problem: onAuthStateChange does not fire on cold start when no session exists
+- Fix: Async IIFE in auth useEffect, calls supabase.auth.getSession() on mount
+- If no session → sets authState = 'unauthenticated' immediately (shows LoginScreen)
+
+Part 5: SettingsScreen — Log Out Wired
+- handleLogOut now calls await supabase.auth.signOut()
+- App.tsx onAuthStateChange handles routing back to LoginScreen automatically
+
+Part 6: Live Verification Confirmed on Device
+- Flipped flags for testing: DEV_BYPASS_AUTH=false, DEV_SHOW_PASSWORD_LOGIN=true, LIVE_VERIFICATION_HOOKS=true
+- Signed in via password (tony@atlasioapp.com)
+- Submitted license verification → confirmed license_status=pending in Supabase profiles table
+- All flags reset to demo defaults before commit
+
+Files modified: 7
+- lib/featureFlags.ts (2 new flags)
+- lib/demoRoleContext.ts (NEW — extracted from BottomTabNavigator)
+- components/BottomTabNavigator.tsx (removed local DemoRole defs)
+- components/ProfileTab.tsx (import path update)
+- components/LoginScreen.tsx (password sign-in, flag-gated)
+- components/SettingsScreen.tsx (signOut wired)
+- App.tsx (FEATURE_FLAGS import, component-scoped DEV_BYPASS_AUTH, async IIFE auth)
+
+RPCs: 27 | Hooks: 51 | Flags: 7 | tsc: 0
+
+---
 Recommended Next Session Priorities
 
 1. Deploy rpc_complete_onboarding to Supabase, flip LIVE_ONBOARDING flag, test end-to-end
