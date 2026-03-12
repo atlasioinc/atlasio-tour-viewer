@@ -27,6 +27,13 @@
 //                                   Supabase credentials bucket + rpc_upload_insurance_document
 //                             false: mock toggle + setTimeout success (safe for demos)
 //                             @backend: gates useUploadInsuranceDocument mutation
+//
+//   DEV_BYPASS_AUTH           — true: skips auth check, uses mock user (demo mode)
+//                               false: requires real Supabase auth session
+//
+//   DEV_SHOW_PASSWORD_LOGIN   — true: shows email+password sign-in on LoginScreen (dev only)
+//                               false: magic link only (production default)
+//                               ⚠️  Always set false before demos or commits
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
@@ -35,4 +42,6 @@ export const FEATURE_FLAGS = {
   LIVE_CONTRACTOR_HOOKS:    false,  // true = contractor hooks call live RPCs
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
   LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
+  DEV_BYPASS_AUTH:          true,   // @demo — set false for device testing with real auth
+  DEV_SHOW_PASSWORD_LOGIN:  false,  // @demo — set true for device testing, ALWAYS false before demos/commits
 } as const;

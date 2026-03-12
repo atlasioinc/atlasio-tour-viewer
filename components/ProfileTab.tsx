@@ -42,7 +42,7 @@ import { useMyProfile, useProfileVouches } from '../hooks/useData';
 import { VerificationBanner, VerificationBadge } from './shared';
 import { DisplayTag } from './DisplayTag';
 import PortfolioGallery from './PortfolioGallery';
-import { useDemoRole } from './BottomTabNavigator';
+import { useDemoRole } from '../lib/demoRoleContext';
 
 // ─────────────────────────────────────────────
 // SVG ICONS

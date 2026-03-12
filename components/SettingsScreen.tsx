@@ -13,7 +13,7 @@
 //
 // TODO (Production):
 //   - Wire notification toggles to Supabase user_preferences table
-//   - Wire Log Out to supabase.auth.signOut() + nav reset to auth
+//   - Log Out wired to supabase.auth.signOut() (S48) — App.tsx handles routing
 //   - Wire Delete Account to Supabase RPC with cascade + auth delete
 //   - Wire Change Password to Supabase auth.updateUser()
 //   - Wire Help/Support/Terms/Privacy to WebView or deep links
@@ -35,6 +35,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
+import { supabase } from '../lib/supabase';
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -224,11 +225,10 @@ const SettingsScreen: React.FC = () => {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: () => {
-            // TODO: Wire to supabase.auth.signOut() + navigation.reset to auth screen
-            console.log('──── LOG OUT ────');
-            console.log('User logged out');
-            console.log('─────────────────');
+          onPress: async () => {
+            // @backend: supabase.auth.signOut
+            // App.tsx onAuthStateChange handles routing to LoginScreen automatically
+            await supabase.auth.signOut();
           },
         },
       ],

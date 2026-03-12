@@ -53,6 +53,7 @@ import * as Linking from 'expo-linking';
 import { queryClient } from './lib/queryClient';
 import { supabase } from './lib/supabase';
 import { COLORS } from './lib/tokens';
+import { FEATURE_FLAGS } from './lib/featureFlags';
 import LoginScreen from './components/LoginScreen';
 import OnboardingScreen1 from './components/OnboardingScreen1';
 // OnboardingScreen2 retired — role selection moved to OnboardingRoleSelect
@@ -67,14 +68,6 @@ import OnboardingComplete from './components/OnboardingComplete';
 import BottomTabNavigator from './components/BottomTabNavigator';
 
 import type { Session } from '@supabase/supabase-js';
-
-// ─────────────────────────────────────────────────────────────
-// @demo TEMP: Dev bypass for device testing
-// Set to false before any investor demo or production build
-// DEV_BYPASS_AUTH = false is the production-ready state
-// Supabase auth service issue tracked — revert when resolved
-// ─────────────────────────────────────────────────────────────
-const DEV_BYPASS_AUTH = __DEV__ && true; // @demo TEMP
 
 // ─────────────────────────────────────────────
 // TYPES — OnboardingFormData accumulates through route params.
@@ -119,6 +112,9 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 type AuthState = 'loading' | 'unauthenticated' | 'onboarding' | 'authenticated';
 
 export default function App() {
+  // @demo — controlled via lib/featureFlags.ts (centralized flag management)
+  const DEV_BYPASS_AUTH = FEATURE_FLAGS.DEV_BYPASS_AUTH;
+
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [userRole, setUserRole] = useState<string>('Agent');
 
@@ -127,49 +123,62 @@ export default function App() {
   // @backend: supabase.auth.onAuthStateChange + profiles table query
   // ─────────────────────────────────────────────
   useEffect(() => {
-    // Check profile to determine if onboarding is complete
-    const checkProfile = async (userId: string) => {
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, display_role')
-          .eq('id', userId)
-          .single();
+    (async () => {
+      // Check profile to determine if onboarding is complete
+      const checkProfile = async (userId: string) => {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, display_role')
+            .eq('id', userId)
+            .single();
 
-        if (profile && profile.display_role) {
-          // User has completed onboarding (display_role is set during onboarding)
-          setUserRole(profile.role);
-          setAuthState('authenticated');
-        } else {
+          if (profile && profile.display_role) {
+            // User has completed onboarding (display_role is set during onboarding)
+            setUserRole(profile.role);
+            setAuthState('authenticated');
+          } else {
+            setAuthState('onboarding');
+          }
+        } catch {
+          // Profile doesn't exist yet → needs onboarding
           setAuthState('onboarding');
         }
-      } catch {
-        // Profile doesn't exist yet → needs onboarding
-        setAuthState('onboarding');
+      };
+
+      // ── Initial session check ──
+      // supabase.auth.onAuthStateChange does not fire on cold start when there
+      // is no existing session — only on subsequent auth events (SIGNED_IN, SIGNED_OUT etc).
+      // Without this check, authState stays stuck in 'loading' forever on first launch
+      // when DEV_BYPASS_AUTH = false and no session exists.
+      // @backend: supabase.auth.getSession
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      if (!initialSession) {
+        setAuthState('unauthenticated');
       }
-    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: string, session: Session | null) => {
-        if (!session) {
-          setAuthState('unauthenticated');
-          return;
-        }
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event: string, session: Session | null) => {
+          if (!session) {
+            setAuthState('unauthenticated');
+            return;
+          }
 
-        if (event === 'SIGNED_OUT') {
-          setAuthState('unauthenticated');
-          queryClient.clear();
-          return;
-        }
+          if (event === 'SIGNED_OUT') {
+            setAuthState('unauthenticated');
+            queryClient.clear();
+            return;
+          }
 
-        // SIGNED_IN, INITIAL_SESSION, TOKEN_REFRESHED
-        checkProfile(session.user.id);
-      },
-    );
+          // SIGNED_IN, INITIAL_SESSION, TOKEN_REFRESHED
+          checkProfile(session.user.id);
+        },
+      );
 
-    return () => {
-      subscription.unsubscribe();
-    };
+      return () => {
+        subscription.unsubscribe();
+      };
+    })();
   }, []);
 
   // ─────────────────────────────────────────────

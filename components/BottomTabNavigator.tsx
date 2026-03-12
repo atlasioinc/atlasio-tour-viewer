@@ -33,7 +33,8 @@
 // @backend: useRealtimeNotifications keeps notification cache fresh
 // ═══════════════════════════════════════════════════════════════
 
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import { DemoRoleContext, useDemoRole, type DemoRole } from '../lib/demoRoleContext';
 import { View, Text, Platform, Pressable, Animated, Vibration } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
@@ -70,20 +71,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 //   const role = profile.role; // 'agent' | 'contractor'
 // ─────────────────────────────────────────────
 
-type DemoRole = 'agent' | 'contractor';
-
-interface DemoRoleContextType {
-  demoRole: DemoRole;
-  toggleRole: () => void;
-}
-
-const DemoRoleContext = createContext<DemoRoleContextType>({
-  demoRole: 'agent',
-  toggleRole: () => {},
-});
-
-/** @demo Hook to read current demo role in any child screen */
-export const useDemoRole = () => useContext(DemoRoleContext);
+// DemoRole, DemoRoleContext, useDemoRole extracted to lib/demoRoleContext.ts
+// to break circular import: ProfileTab → BottomTabNavigator → ProfileStack → ProfileTab
 
 // ─────────────────────────────────────────────
 // @demo CONTRACTOR STACKS

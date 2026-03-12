@@ -21,6 +21,9 @@
 // ─────────────────────────────────────────────────
 //
 // @backend: supabase.auth.signInWithOtp({ email, emailRedirectTo })
+//
+// @demo DEV_SHOW_PASSWORD_LOGIN — password sign-in block (dev testing only)
+//        Remove entire block before production launch
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -33,16 +36,37 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SPACING } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+
+  const handlePasswordSignIn = async () => {
+    // @demo — dev testing only. Remove DEV_SHOW_PASSWORD_LOGIN block before launch.
+    // @backend: supabase.auth.signInWithPassword
+    if (!email.trim() || !password.trim()) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
+      if (error) Alert.alert('Sign In Failed', error.message);
+    } catch {
+      Alert.alert('Error', 'Sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSendMagicLink = async () => {
     const trimmed = email.trim().toLowerCase();
@@ -114,6 +138,20 @@ export default function LoginScreen() {
               editable={!loading}
             />
 
+            {FEATURE_FLAGS.DEV_SHOW_PASSWORD_LOGIN && (
+              <TextInput
+                style={styles.input}
+                placeholder="Password (dev only)"
+                placeholderTextColor={COLORS.lightText}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+              />
+            )}
+
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
@@ -127,6 +165,23 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>Send Magic Link</Text>
               )}
             </TouchableOpacity>
+
+            {FEATURE_FLAGS.DEV_SHOW_PASSWORD_LOGIN && (
+              <>
+                <TouchableOpacity
+                  style={[styles.devPasswordButton, loading && styles.buttonDisabled]}
+                  onPress={handlePasswordSignIn}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={COLORS.counterAmber} />
+                  ) : (
+                    <Text style={styles.devPasswordButtonText}>Sign In with Password (Dev)</Text>
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.devDisclaimer}>Dev testing only — not for production</Text>
+              </>
+            )}
           </View>
         )}
       </KeyboardAvoidingView>
@@ -221,5 +276,22 @@ const styles = StyleSheet.create({
   retryText: {
     ...TYPOGRAPHY.bodyMBold,
     color: COLORS.accentBlue,
+  },
+  devPasswordButton: {
+    height: DIMENSIONS.buttonModalHeight,
+    borderWidth: 1.5,
+    borderColor: COLORS.counterAmber,
+    borderRadius: DIMENSIONS.buttonRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devPasswordButtonText: {
+    ...TYPOGRAPHY.bodyLMedium,
+    color: COLORS.counterAmber,
+  },
+  devDisclaimer: {
+    fontSize: 11,
+    color: COLORS.secondaryText,
+    textAlign: 'center' as const,
   },
 });
