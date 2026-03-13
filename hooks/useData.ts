@@ -1659,7 +1659,8 @@ export const LIVE_CONTRACTOR_HOOKS = true;
 
 /**
  * Fetch contractor's view of a single job.
- * @backend rpc_get_job_details — returns full job object with agent profile and my_bid
+ * @backend rpc_get_job_details(p_job_id) — name confirmed March 12 2026
+ * Note: was previously called rpc_get_contractor_job_details — name mismatch fixed S50
  * @demo replaced mock return null with live Supabase RPC call
  */
 // STATUS: wired (with mock fallback)

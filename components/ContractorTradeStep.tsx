@@ -1,7 +1,7 @@
 // ContractorTradeStep.tsx
 // ═══════════════════════════════════════════════════════════════
-// Contractor Onboarding Step 4 of 6 — Trade Selection (472 lines)
-// Chip grid with ALL 22 trades from schema.sql trades_enum
+// Contractor Onboarding Step 4 of 6 — Trade Selection
+// Chip grid with 25 visible trades from schema.sql trades_enum (S50)
 //
 // Two-phase selection:
 //   1. First tap → primary trade (filled blue chip)
@@ -9,7 +9,7 @@
 //   Tapping primary again deselects it; helper text updates dynamically
 //
 // TRADES constant uses schema display names exactly (not snake_case):
-//   'Electrical', 'Plumbing', 'Roofing', ... 'Other' (22 total)
+//   'General Contractor', 'Electrical', ... 'Concrete / Masonry', 'Other' (25 total)
 //
 // Flow: ContractorProfileBasics → HERE → ContractorDetailsStep
 // "Next" disabled until primary trade selected
@@ -124,14 +124,22 @@ const GradientIconBox: React.FC<GradientIconBoxProps> = ({
 
 // ─────────────────────────────────────────────
 // TRADES LIST
+// @demo trades list — matches trades_enum as of March 12, 2026 (S50)
+// Note: 'Carpentry / Handyman' is intentionally excluded — legacy DB value, never show in UI
+// Database has 26 values; UI shows 25 (legacy value hidden)
 // ─────────────────────────────────────────────
 
 const TRADES = [
-  'Electrical', 'Plumbing', 'Roofing', 'HVAC', 'Carpentry / Handyman', 'Painting',
-  'Flooring', 'Windows & Doors', 'Foundation / Structural', 'Drywall / Sheetrock',
-  'Pest Control / Termite', 'Mold Remediation', 'Sewer / Septic', 'Pool & Spa',
-  'Chimney / Fireplace', 'Garage Door', 'Appliances', 'Landscaping / Drainage',
-  'Locksmith / Re-key', 'Cleaning / Junk Removal', 'Driveway / Paving', 'Other',
+  'General Contractor',
+  'Electrical', 'Plumbing', 'Roofing', 'HVAC',
+  'Carpentry', 'Handyman',
+  'Painting', 'Flooring', 'Windows & Doors',
+  'Foundation / Structural', 'Drywall / Sheetrock', 'Pest Control / Termite',
+  'Mold Remediation', 'Sewer / Septic', 'Pool & Spa',
+  'Chimney / Fireplace', 'Garage Door', 'Appliances',
+  'Landscaping / Drainage', 'Locksmith / Re-key', 'Cleaning / Junk Removal',
+  'Driveway / Paving', 'Concrete / Masonry',
+  'Other',
 ] as const;
 
 // ─────────────────────────────────────────────
