@@ -73,6 +73,7 @@ export interface SquadProCandidate {
   rating: number;
   vouches: number;
   avatarColor: string;
+  avatar_url?: string;      // profile photo URL from Supabase storage — may be undefined
 }
 
 // ─────────────────────────────────────────────

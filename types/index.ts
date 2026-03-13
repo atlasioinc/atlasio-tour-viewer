@@ -665,3 +665,40 @@ export type InboxStackParamList = {
   CreateDealChat: undefined;
   DealChatScreen: { conversationId: string };
 };
+
+// ─────────────────────────────────────────────
+// SQUAD SHARE (Send to Client — S51)
+// @backend: send-squad-email Edge Function (Resend), send-squad-sms Edge Function (Twilio + Storage)
+// @demo: LIVE_SQUAD_SHARE feature flag gates live calls
+// ─────────────────────────────────────────────
+
+export interface SquadShareEmailParams {
+  squadMembers: SquadShareMember[];
+  agentName: string;
+  agentCompany: string;
+  recipientEmail: string;
+  personalMessage?: string;
+}
+
+export interface SquadShareSmsParams {
+  squadMembers: SquadShareMember[];
+  agentName: string;
+  agentCompany: string;
+  recipientPhone: string;
+  personalMessage?: string;
+}
+
+/** Subset of SquadProCandidate sent to Edge Functions — client-facing only, no social proof signals */
+export interface SquadShareMember {
+  name: string;
+  company: string;
+  role: string;
+  avatar_url?: string;      // profile photo URL from Supabase storage
+  avatar_color?: string;    // hex color string e.g. '#3B82F6' — used as initials circle background
+}
+
+export interface SquadShareResult {
+  success: boolean;
+  pdfUrl?: string;   // SMS path only — public Supabase Storage URL
+  error?: string;
+}

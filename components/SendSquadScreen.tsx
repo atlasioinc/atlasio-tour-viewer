@@ -1,18 +1,48 @@
 // SendSquadScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Send Squad to Client — Full Screen Flow (987 lines)
+// Send Squad to Client — Email + SMS Delivery Flow (S51)
 // Agent reviews their closing squad, can swap members,
-// add a personal intro message, and share via native share sheet.
+// write a personal message, and send via Email or Text.
 // Entry: "Send to Client" CTA on HomeTabAgent squad section
-// Stack: HomeStack → SendSquadScreen
+// Stack: HomeStack → SendSquadScreen (fullScreenModal, slide_from_bottom)
 //
-// @demo  Mock squad members, native Share API used
-// @backend TODO: useSquadMembers() + share tracking
+// Agent only — contractors and partners never access SendSquadScreen
+//
+// @demo  Mock squad members, LIVE_SQUAD_SHARE: false → 1500ms mock delay
+// @backend send-squad-email Edge Function (Resend — HTML email)
+// @backend send-squad-sms Edge Function (PDF gen → Storage → Twilio SMS)
 //
 // Fix: Uses useSafeAreaInsets() instead of SafeAreaView edges
 // because fullScreenModal presentation on iOS doesn't reliably
 // respect SafeAreaView insets on Dynamic Island devices.
 // ═══════════════════════════════════════════════════════════════
+
+/**
+ * SendSquadScreen
+ *
+ * WHAT: Delivery screen for sharing an agent's Closing Squad with a client.
+ * WHO: Agents only. Accessed from HomeTabAgent squad section header "Send to Client" button.
+ * WHERE: Presented as fullScreenModal (slide_from_bottom) from HomeStack.
+ *
+ * STATE FLOW:
+ * idle → [user selects medium + enters recipient] → ready → [tap Send] →
+ * sending → success | error
+ *
+ * MEDIUM PATHS:
+ * Email → useSquadShare.sendViaEmail() → Edge Function → Resend API → client inbox
+ * Text  → useSquadShare.sendViaSms() → Edge Function → PDF generation →
+ *         Supabase Storage upload → Twilio SMS → client phone
+ *
+ * DEMO MODE (LIVE_SQUAD_SHARE: false):
+ * Both paths → 1500ms setTimeout → { success: true }
+ * Medium selector, form validation, and success/error states all work normally.
+ * No actual emails or texts are sent.
+ *
+ * PRODUCTION WIRE:
+ * @backend: send-squad-email (Resend — HTML email with squad cards)
+ * @backend: send-squad-sms (PDF gen → Storage → Twilio SMS with link)
+ * @demo: Replace mock delay with real supabase.functions.invoke() calls
+ */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
@@ -22,104 +52,85 @@ import {
   ScrollView,
   TextInput,
   StatusBar,
-  Share,
-  Alert,
   Platform,
   KeyboardAvoidingView,
   Modal,
   Animated,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
+import { useSquadShare } from '../hooks/useData';
 import SquadSlotPicker from './SquadSlotPicker';
 import type { SquadProCandidate } from './SquadSlotPicker';
+import type { SquadShareMember } from '../types';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// ─────────────────────────────────────────────
-// SVG ICONS
-// ─────────────────────────────────────────────
+// ─── SECTION: Types & Constants ──────────────────────────────────────────────
 
-const BackChevronIcon: React.FC = () => (
+type SendMedium = 'email' | 'sms';
+type SendState = 'idle' | 'sending' | 'success' | 'error';
+
+const MAX_MESSAGE_LENGTH = 300;
+
+interface SquadSlot {
+  id: string;
+  label: string;
+  role: string;
+  isAddNew?: boolean;
+}
+
+interface SendSquadScreenProps {
+  navigation: any;
+  route: {
+    params: {
+      squadMembers: Record<string, SquadProCandidate>;
+      defaultSlots: SquadSlot[];
+      additionalSlots: SquadSlot[];
+    };
+  };
+}
+
+// ─── Validation helpers ──────────────────────────────────────────────────────
+
+const isValidEmail = (email: string): boolean =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+const isValidPhone = (phone: string): boolean => {
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 10;
+};
+
+const formatPhoneE164 = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '');
+  return digits.startsWith('1') ? `+${digits}` : `+1${digits}`;
+};
+
+// ─── SVG Icons ───────────────────────────────────────────────────────────────
+
+const CloseXIcon: React.FC = () => (
   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M15 18L9 12L15 6"
-      stroke={COLORS.lightText}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <Path d="M6 6L18 18" stroke={COLORS.darkText} strokeWidth={2} strokeLinecap="round" />
+    <Path d="M18 6L6 18" stroke={COLORS.darkText} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
 
 const SwapIcon: React.FC = () => (
   <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
-    <Path
-      d="M13.5 2.25L16.5 5.25L13.5 8.25"
-      stroke={COLORS.primary}
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M1.5 5.25H16.5"
-      stroke={COLORS.primary}
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M4.5 15.75L1.5 12.75L4.5 9.75"
-      stroke={COLORS.primary}
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M16.5 12.75H1.5"
-      stroke={COLORS.primary}
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
-const SendIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-    <Path
-      d="M14.67 1.33L7.33 8.67"
-      stroke="#FFFFFF"
-      strokeWidth={1.33}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M14.67 1.33L10 14.67L7.33 8.67L1.33 6L14.67 1.33Z"
-      stroke="#FFFFFF"
-      strokeWidth={1.33}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <Path d="M13.5 2.25L16.5 5.25L13.5 8.25" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M1.5 5.25H16.5" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M4.5 15.75L1.5 12.75L4.5 9.75" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M16.5 12.75H1.5" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
 const AddRoleIcon: React.FC = () => (
   <Svg width={32} height={32} viewBox="0 0 32 32" fill="none">
-    <Path
-      d="M16 10V22"
-      stroke={COLORS.bodyText}
-      strokeWidth={1.67}
-      strokeLinecap="round"
-    />
-    <Path
-      d="M10 16H22"
-      stroke={COLORS.bodyText}
-      strokeWidth={1.67}
-      strokeLinecap="round"
-    />
+    <Path d="M16 10V22" stroke={COLORS.bodyText} strokeWidth={1.67} strokeLinecap="round" />
+    <Path d="M10 16H22" stroke={COLORS.bodyText} strokeWidth={1.67} strokeLinecap="round" />
   </Svg>
 );
 
@@ -132,19 +143,32 @@ const CloseIcon: React.FC = () => (
 
 const ChevronRightIcon: React.FC = () => (
   <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-    <Path
-      d="M6 4L10 8L6 12"
-      stroke={COLORS.lightText}
-      strokeWidth={1.33}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <Path d="M6 4L10 8L6 12" stroke={COLORS.lightText} strokeWidth={1.33} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER (matches existing pattern)
-// ─────────────────────────────────────────────
+const EmailIcon: React.FC<{ color?: string }> = ({ color = COLORS.primary }) => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M22 6L12 13L2 6" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const PhoneIcon: React.FC<{ color?: string }> = ({ color = COLORS.primary }) => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path d="M17 2H7C5.9 2 5 2.9 5 4V20C5 21.1 5.9 22 7 22H17C18.1 22 19 21.1 19 20V4C19 2.9 18.1 2 17 2Z" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M12 18H12.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+  </Svg>
+);
+
+const CheckCircleIcon: React.FC = () => (
+  <Svg width={64} height={64} viewBox="0 0 64 64" fill="none">
+    <Path d="M32 58C46.3594 58 58 46.3594 58 32C58 17.6406 46.3594 6 32 6C17.6406 6 6 17.6406 6 32C6 46.3594 17.6406 58 32 58Z" fill={COLORS.successGreen} />
+    <Path d="M22 32L28 38L42 24" stroke="#FFFFFF" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+// ─── Avatar Placeholder ──────────────────────────────────────────────────────
 
 const AvatarPlaceholder: React.FC<{
   name: string;
@@ -176,9 +200,7 @@ const AvatarPlaceholder: React.FC<{
   );
 };
 
-// ─────────────────────────────────────────────
-// SQUAD MEMBER CARD
-// ─────────────────────────────────────────────
+// ─── Squad Member Card ───────────────────────────────────────────────────────
 
 interface SquadMemberCardProps {
   member: SquadProCandidate;
@@ -254,7 +276,7 @@ const SquadMemberCard: React.FC<SquadMemberCardProps> = ({
       <Text
         style={{
           textAlign: 'center',
-          color: '#101828',
+          color: COLORS.headingText,
           fontSize: 14,
           fontWeight: '400',
           lineHeight: 17.5,
@@ -267,9 +289,7 @@ const SquadMemberCard: React.FC<SquadMemberCardProps> = ({
   </View>
 );
 
-// ─────────────────────────────────────────────
-// EMPTY SLOT CARD
-// ─────────────────────────────────────────────
+// ─── Empty Slot Card ─────────────────────────────────────────────────────────
 
 interface EmptySlotCardProps {
   roleLabel: string;
@@ -321,7 +341,7 @@ const EmptySlotCard: React.FC<EmptySlotCardProps> = ({ roleLabel, onPress }) => 
       style={{
         textAlign: 'center',
         color: COLORS.secondaryText,
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: '400',
         lineHeight: 17.5,
       }}
@@ -331,9 +351,7 @@ const EmptySlotCard: React.FC<EmptySlotCardProps> = ({ roleLabel, onPress }) => 
   </Pressable>
 );
 
-// ─────────────────────────────────────────────
-// ADD ROLE CARD (dashed border)
-// ─────────────────────────────────────────────
+// ─── Add Role Card (dashed border) ───────────────────────────────────────────
 
 const AddRoleCard: React.FC<{ onPress: () => void }> = ({ onPress }) => (
   <Pressable
@@ -368,9 +386,7 @@ const AddRoleCard: React.FC<{ onPress: () => void }> = ({ onPress }) => (
   </Pressable>
 );
 
-// ─────────────────────────────────────────────
-// ROLE LABEL MAPPING
-// ─────────────────────────────────────────────
+// ─── Role Label Mapping ──────────────────────────────────────────────────────
 
 const ROLE_SHORT_LABELS: Record<string, string> = {
   'Mortgage Pro': 'Lender',
@@ -383,9 +399,7 @@ const ROLE_SHORT_LABELS: Record<string, string> = {
   Attorney: 'Attorney',
 };
 
-// ─────────────────────────────────────────────
-// ADDITIONAL ROLES (matches HomeTabAgent)
-// ─────────────────────────────────────────────
+// ─── Additional Roles (matches HomeTabAgent) ─────────────────────────────────
 
 const ADDITIONAL_ROLES = [
   { id: 'appraiser', label: 'Appraiser', role: 'Appraiser' },
@@ -393,28 +407,6 @@ const ADDITIONAL_ROLES = [
   { id: 'warranty', label: 'Warranty', role: 'Warranty' },
   { id: 'attorney', label: 'Attorney', role: 'Attorney' },
 ];
-
-// ─────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────
-
-interface SquadSlot {
-  id: string;
-  label: string;
-  role: string;
-  isAddNew?: boolean;
-}
-
-interface SendSquadScreenProps {
-  navigation: any;
-  route: {
-    params: {
-      squadMembers: Record<string, SquadProCandidate>;
-      defaultSlots: SquadSlot[];
-      additionalSlots: SquadSlot[];
-    };
-  };
-}
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -426,7 +418,9 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
 
-  // Initialize state from navigation params
+  // ─── SECTION: State & Hooks ─────────────────────────────────────────────────
+
+  // Squad state (from nav params)
   const [squadMembers, setSquadMembers] = useState<Record<string, SquadProCandidate>>(
     route.params.squadMembers
   );
@@ -435,16 +429,24 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
   );
   const defaultSlots = route.params.defaultSlots;
 
-  const [introMessage, setIntroMessage] = useState('');
+  // Delivery form state
+  const [medium, setMedium] = useState<SendMedium | null>(null);
+  const [recipient, setRecipient] = useState('');
+  const [personalMessage, setPersonalMessage] = useState('');
+  const [sendState, setSendState] = useState<SendState>('idle');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  // ── SquadSlotPicker state ──
+  // Hook
+  const { sendViaEmail, sendViaSms, isLoading, error: hookError, reset: resetHook } = useSquadShare();
+
+  // SquadSlotPicker state
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerRole, setPickerRole] = useState('');
   const [pickerSlotId, setPickerSlotId] = useState('');
   const [pickerCurrentProId, setPickerCurrentProId] = useState<string | undefined>();
   const [pickerIsAdditional, setPickerIsAdditional] = useState(false);
 
-  // ── Add Another Role modal state + animation ──
+  // Add Another Role modal state + animation
   const [rolePickerVisible, setRolePickerVisible] = useState(false);
   const [roleModalMounted, setRoleModalMounted] = useState(false);
   const roleBackdropAnim = useRef(new Animated.Value(0)).current;
@@ -510,7 +512,11 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
     (r) => !additionalSlots.some((s) => s.id === r.id)
   );
 
-  // ── Swap handler ──
+  const filledCount = filledSlots.length;
+
+  // ─── SECTION: Handlers ──────────────────────────────────────────────────────
+
+  // Swap handler
   const handleSwap = useCallback(
     (slot: SquadSlot) => {
       const currentPro = squadMembers[slot.id];
@@ -525,7 +531,7 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
     [squadMembers, additionalSlots]
   );
 
-  // ── Empty slot handler ──
+  // Empty slot handler
   const handleEmptySlotPress = useCallback(
     (slot: SquadSlot) => {
       setPickerRole(slot.role);
@@ -537,7 +543,7 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
     []
   );
 
-  // ── Picker callbacks ──
+  // Picker callbacks
   const handlePickerSelect = useCallback(
     (pro: SquadProCandidate) => {
       setSquadMembers((prev) => ({ ...prev, [pickerSlotId]: pro }));
@@ -562,7 +568,7 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
     setPickerVisible(false);
   }, []);
 
-  // ── Add Another Role handler (matches HomeTabAgent) ──
+  // Add Another Role handler (matches HomeTabAgent)
   const handleAddRole = (role: { id: string; label: string; role: string }) => {
     const newSlot: SquadSlot = {
       id: role.id,
@@ -576,41 +582,307 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
     setRolePickerVisible(false);
   };
 
-  // ── Send to Client via native Share ──
-  const handleSendToClient = async () => {
-    const memberLines = filledSlots.map((slot) => {
-      const member = squadMembers[slot.id];
-      const label = ROLE_SHORT_LABELS[slot.role] || slot.role;
-      return `${label}: ${member.name} — ${member.company} (★ ${member.rating}, ${member.vouches} vouches)`;
-    });
-
-    const message = [
-      '🏠 My Recommended Squad',
-      '',
-      ...memberLines,
-      '',
-      introMessage ? `Note: ${introMessage}` : '',
-      '',
-      'Sent via Atlasio — the trusted pro network for real estate.',
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    try {
-      await Share.share(
-        Platform.OS === 'ios'
-          ? { message }
-          : { message, title: 'My Recommended Squad' }
-      );
-    } catch (error: any) {
-      if (error?.message !== 'User did not share') {
-        Alert.alert('Error', 'Unable to share. Please try again.');
-      }
-    }
+  // Medium selection — clears recipient + validation when switching
+  const handleMediumSelect = (selected: SendMedium) => {
+    setMedium(selected);
+    setRecipient('');
+    setValidationError(null);
+    setSendState('idle');
+    resetHook();
   };
 
-  const filledCount = filledSlots.length;
-  const canSend = filledCount > 0;
+  // Build squad members payload — only filled slots
+  const getFilledSquadMembers = (): SquadShareMember[] =>
+    filledSlots.map((slot) => {
+      const member = squadMembers[slot.id];
+      return {
+        name: member.name,
+        company: member.company,
+        role: ROLE_SHORT_LABELS[slot.role] || slot.role,
+        avatar_url: member.avatar_url,         // pass through — may be undefined
+        avatar_color: member.avatarColor,       // camelCase in app → snake_case in payload
+      };
+    });
+
+  // Send handler — validates then calls hook
+  const handleSend = async () => {
+    if (!medium || !recipient.trim()) return;
+
+    // Validate recipient
+    if (medium === 'email' && !isValidEmail(recipient.trim())) {
+      setValidationError('Please enter a valid email address');
+      return;
+    }
+    if (medium === 'sms' && !isValidPhone(recipient.trim())) {
+      setValidationError('Please enter a valid US phone number');
+      return;
+    }
+
+    setValidationError(null);
+    setSendState('sending');
+
+    // @demo hardcoded — replace with real agent profile data from useMyProfile()
+    // @backend rpc_get_my_profile — params: none (uses auth.uid())
+    const agentName = 'Sarah Chen';
+    const agentCompany = 'Keller Williams Denver';
+    const members = getFilledSquadMembers();
+
+    let result;
+    if (medium === 'email') {
+      result = await sendViaEmail({
+        squadMembers: members,
+        agentName,
+        agentCompany,
+        recipientEmail: recipient.trim(),
+        personalMessage: personalMessage.trim() || undefined,
+      });
+    } else {
+      result = await sendViaSms({
+        squadMembers: members,
+        agentName,
+        agentCompany,
+        recipientPhone: formatPhoneE164(recipient.trim()),
+        personalMessage: personalMessage.trim() || undefined,
+      });
+    }
+
+    setSendState(result.success ? 'success' : 'error');
+  };
+
+  // Try again after error
+  const handleTryAgain = () => {
+    setSendState('idle');
+    resetHook();
+  };
+
+  // Dismiss modal
+  const handleDismiss = () => {
+    navigation.goBack();
+  };
+
+  // CTA disabled logic
+  const canSend = filledCount > 0 && medium !== null && recipient.trim().length > 0 && sendState !== 'sending';
+
+  // CTA label
+  const ctaLabel = medium === 'email' ? 'Send via Email' : medium === 'sms' ? 'Send via Text' : 'Send to Client';
+
+  // ─── SECTION: Render Helpers ────────────────────────────────────────────────
+
+  // Medium selector cards
+  const renderMediumSelector = () => (
+    <View style={{ paddingHorizontal: 16, gap: 8 }}>
+      <Text
+        style={{
+          fontSize: 12,
+          fontWeight: '600',
+          color: COLORS.secondaryText,
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+          marginBottom: 4,
+        }}
+      >
+        Send via
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {/* Email card */}
+        <Pressable
+          onPress={() => handleMediumSelect('email')}
+          style={({ pressed }) => ({
+            flex: 1,
+            padding: 14,
+            borderRadius: 12,
+            borderWidth: medium === 'email' ? 1.5 : 1,
+            borderColor: medium === 'email' ? COLORS.primary : COLORS.border,
+            backgroundColor: medium === 'email' ? COLORS.infoBg : COLORS.background,
+            opacity: pressed ? 0.8 : 1,
+            gap: 4,
+          })}
+        >
+          <EmailIcon color={medium === 'email' ? COLORS.primary : COLORS.bodyText} />
+          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, marginTop: 4 }}>
+            Email
+          </Text>
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
+            Arrives in inbox
+          </Text>
+        </Pressable>
+
+        {/* Text card */}
+        <Pressable
+          onPress={() => handleMediumSelect('sms')}
+          style={({ pressed }) => ({
+            flex: 1,
+            padding: 14,
+            borderRadius: 12,
+            borderWidth: medium === 'sms' ? 1.5 : 1,
+            borderColor: medium === 'sms' ? COLORS.primary : COLORS.border,
+            backgroundColor: medium === 'sms' ? COLORS.infoBg : COLORS.background,
+            opacity: pressed ? 0.8 : 1,
+            gap: 4,
+          })}
+        >
+          <PhoneIcon color={medium === 'sms' ? COLORS.primary : COLORS.bodyText} />
+          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, marginTop: 4 }}>
+            Text Message
+          </Text>
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
+            SMS with PDF link
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  // Recipient input
+  const renderRecipientInput = () => {
+    if (!medium) return null;
+
+    const isEmail = medium === 'email';
+    return (
+      <View style={{ paddingHorizontal: 16, gap: 8 }}>
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '500',
+            color: COLORS.darkText,
+          }}
+        >
+          {isEmail ? "Client's email address" : "Client's phone number"}
+        </Text>
+        <View
+          style={{
+            paddingHorizontal: 12,
+            backgroundColor: '#F3F3F5',
+            borderRadius: 8,
+            borderWidth: 1.35,
+            borderColor: validationError ? COLORS.errorRed : 'transparent',
+            height: 48,
+            justifyContent: 'center',
+          }}
+        >
+          <TextInput
+            value={recipient}
+            onChangeText={(text) => {
+              setRecipient(text);
+              if (validationError) setValidationError(null);
+            }}
+            placeholder={isEmail ? 'client@email.com' : '(303) 555-0100'}
+            placeholderTextColor={COLORS.lightText}
+            keyboardType={isEmail ? 'email-address' : 'phone-pad'}
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={{
+              fontSize: 14,
+              fontWeight: '400',
+              color: COLORS.darkText,
+              padding: 0,
+            }}
+          />
+        </View>
+        {validationError && (
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.errorRed }}>
+            {validationError}
+          </Text>
+        )}
+      </View>
+    );
+  };
+
+  // Personal message textarea
+  const renderPersonalMessage = () => (
+    <View style={{ paddingHorizontal: 16, gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+          Personal message
+        </Text>
+        <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
+          (optional)
+        </Text>
+      </View>
+      <View
+        style={{
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          backgroundColor: '#F3F3F5',
+          borderRadius: 8,
+          borderWidth: 1.35,
+          borderColor: 'transparent',
+          minHeight: 80,
+        }}
+      >
+        <TextInput
+          value={personalMessage}
+          onChangeText={(text) => {
+            if (text.length <= MAX_MESSAGE_LENGTH) setPersonalMessage(text);
+          }}
+          placeholder="Hi Sarah! Here's your trusted team for your upcoming closing..."
+          placeholderTextColor={COLORS.lightText}
+          multiline
+          textAlignVertical="top"
+          style={{
+            fontSize: 14,
+            fontWeight: '400',
+            color: COLORS.darkText,
+            lineHeight: 24,
+            minHeight: 60,
+            padding: 0,
+          }}
+        />
+      </View>
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: '400',
+          color: COLORS.secondaryText,
+          textAlign: 'right',
+        }}
+      >
+        {personalMessage.length}/{MAX_MESSAGE_LENGTH}
+      </Text>
+    </View>
+  );
+
+  // Success state — replaces ScrollView content
+  const renderSuccessState = () => {
+    const mediumLabel = medium === 'email' ? 'email' : 'text';
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingTop: 48 }}>
+        <CheckCircleIcon />
+        <Text style={{ fontSize: 22, fontWeight: '700', color: COLORS.darkText, marginTop: 16, textAlign: 'center' }}>
+          Sent!
+        </Text>
+        <Text style={{ fontSize: 15, fontWeight: '400', color: COLORS.bodyText, marginTop: 8, textAlign: 'center', lineHeight: 22 }}>
+          Your squad has been sent to {recipient} via {mediumLabel}.
+        </Text>
+        {medium === 'sms' && (
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 4, textAlign: 'center' }}>
+            PDF link expires in 30 days
+          </Text>
+        )}
+        <Pressable
+          onPress={handleDismiss}
+          style={({ pressed }) => ({
+            marginTop: 32,
+            height: 48,
+            paddingHorizontal: 48,
+            backgroundColor: COLORS.background,
+            borderRadius: 8,
+            borderWidth: 1.35,
+            borderColor: COLORS.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+            Done
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
+
+  // ─── SECTION: Main Render ───────────────────────────────────────────────────
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -622,6 +894,7 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
         keyboardVerticalOffset={0}
       >
         {/* ═══ HEADER ═══ */}
+        {/* fullScreenModal header: [44px spacer][Title flex:1 center][44px X button] */}
         <View
           style={{
             paddingTop: 8 + insets.top,
@@ -632,185 +905,176 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
             borderBottomColor: COLORS.border,
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 12,
             backgroundColor: COLORS.background,
           }}
         >
-          <Pressable
-            onPress={() => navigation.goBack()}
-            hitSlop={12}
-            style={({ pressed }) => ({
-              width: 24,
-              height: 24,
-              opacity: pressed ? 0.5 : 1,
-            })}
-          >
-            <BackChevronIcon />
-          </Pressable>
+          {/* 44px spacer (left) */}
+          <View style={{ width: 44, height: 44 }} />
+
+          {/* Title — centered */}
           <Text
             style={{
               flex: 1,
-              color: '#101828',
+              color: COLORS.headingText,
               fontSize: 18,
               fontWeight: '500',
               lineHeight: 36,
               letterSpacing: 0.07,
+              textAlign: 'center',
             }}
           >
-            Send Squad to Client
+            Send to Client
           </Text>
+
+          {/* X dismiss button (right) — 44x44 touch target */}
+          <Pressable
+            onPress={handleDismiss}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.5 : 1,
+            })}
+          >
+            <CloseXIcon />
+          </Pressable>
         </View>
 
-        {/* ═══ SCROLLABLE CONTENT ═══ */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingTop: 24, paddingBottom: 40 }}
-          style={{ flex: 1 }}
-        >
-          {/* ── Section: Your Squad ── */}
-          <View style={{ paddingHorizontal: 16, gap: 16 }}>
-            <Text
-              style={{
-                color: '#101828',
-                fontSize: 16,
-                fontWeight: '500',
-                lineHeight: 24,
-              }}
+        {/* ═══ CONTENT ═══ */}
+        {sendState === 'success' ? (
+          renderSuccessState()
+        ) : (
+          <>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingTop: 24, paddingBottom: 100, gap: 24 }}
+              style={{ flex: 1, backgroundColor: COLORS.screenBg }}
             >
-              Your Squad
-            </Text>
+              {/* ── Section: Your Squad ── */}
+              <View style={{ paddingHorizontal: 16, gap: 16 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: COLORS.secondaryText,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Your Squad
+                </Text>
 
-            {/* Squad grid — 2-column layout */}
+                {/* Squad grid — 2-column layout */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: 12,
+                  }}
+                >
+                  {/* Filled slots — show member card with swap button */}
+                  {filledSlots.map((slot) => {
+                    const member = squadMembers[slot.id];
+                    if (!member) return null;
+                    return (
+                      <SquadMemberCard
+                        key={slot.id}
+                        member={member}
+                        roleLabel={ROLE_SHORT_LABELS[slot.role] || slot.role}
+                        onSwap={() => handleSwap(slot)}
+                      />
+                    );
+                  })}
+
+                  {/* Empty additional slots — tap to pick a pro or remove the role */}
+                  {emptyAdditionalSlots.map((slot) => (
+                    <EmptySlotCard
+                      key={slot.id}
+                      roleLabel={ROLE_SHORT_LABELS[slot.role] || slot.role}
+                      onPress={() => handleEmptySlotPress(slot)}
+                    />
+                  ))}
+
+                  {/* Add Role card — opens the Add Another Role modal */}
+                  <AddRoleCard onPress={() => setRolePickerVisible(true)} />
+                </View>
+              </View>
+
+              {/* ── Section: Medium Selector ── */}
+              {renderMediumSelector()}
+
+              {/* ── Section: Recipient Input (conditional on medium) ── */}
+              {renderRecipientInput()}
+
+              {/* ── Section: Personal Message ── */}
+              {renderPersonalMessage()}
+            </ScrollView>
+
+            {/* ═══ STICKY CTA BAR ═══ */}
             <View
               style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                gap: 12,
+                backgroundColor: COLORS.background,
+                borderTopWidth: 1.35,
+                borderTopColor: COLORS.border,
+                shadowColor: '#000000',
+                shadowOffset: { width: 0, height: -4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 15,
+                elevation: 10,
               }}
             >
-              {/* Filled slots — show member card with swap button */}
-              {filledSlots.map((slot) => {
-                const member = squadMembers[slot.id];
-                if (!member) return null;
-                return (
-                  <SquadMemberCard
-                    key={slot.id}
-                    member={member}
-                    roleLabel={ROLE_SHORT_LABELS[slot.role] || slot.role}
-                    onSwap={() => handleSwap(slot)}
-                  />
-                );
-              })}
-
-              {/* Empty additional slots — tap to pick a pro or remove the role */}
-              {emptyAdditionalSlots.map((slot) => (
-                <EmptySlotCard
-                  key={slot.id}
-                  roleLabel={ROLE_SHORT_LABELS[slot.role] || slot.role}
-                  onPress={() => handleEmptySlotPress(slot)}
-                />
-              ))}
-
-              {/* Add Role card — opens the Add Another Role modal */}
-              <AddRoleCard onPress={() => setRolePickerVisible(true)} />
-            </View>
-          </View>
-        </ScrollView>
-
-        {/* ═══ BOTTOM ACTION BAR ═══ */}
-        <View
-          style={{
-            backgroundColor: COLORS.background,
-            borderTopWidth: 1.35,
-            borderTopColor: COLORS.border,
-            shadowColor: '#000000',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.1,
-            shadowRadius: 15,
-            elevation: 10,
-          }}
-        >
-          <View
-            style={{
-              paddingTop: 24,
-              paddingHorizontal: 16,
-              paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 24) : 24,
-              gap: 16,
-            }}
-          >
-            {/* Introduction Message */}
-            <View style={{ gap: 8 }}>
-              <Text
-                style={{
-                  color: '#0A0A0A',
-                  fontSize: 16,
-                  fontWeight: '500',
-                  lineHeight: 14,
-                }}
-              >
-                Introduction Message
-              </Text>
               <View
                 style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  backgroundColor: '#F3F3F5',
-                  borderRadius: 8,
-                  borderWidth: 1.35,
-                  borderColor: 'transparent',
-                  minHeight: 66,
+                  paddingTop: 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 24) : 24,
+                  gap: 8,
                 }}
               >
-                <TextInput
-                  value={introMessage}
-                  onChangeText={setIntroMessage}
-                  placeholder="Add a personal message..."
-                  placeholderTextColor="#717182"
-                  multiline
-                  textAlignVertical="top"
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '400',
-                    color: COLORS.darkText,
-                    lineHeight: 24,
-                    minHeight: 50,
-                    padding: 0,
-                  }}
-                />
+                {/* Error message — shown above CTA */}
+                {(sendState === 'error' || hookError) && (
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.errorRed, textAlign: 'center' }}>
+                    {hookError || 'Something went wrong. Please try again.'}
+                  </Text>
+                )}
+
+                {/* Send Button */}
+                <Pressable
+                  onPress={sendState === 'error' ? handleTryAgain : handleSend}
+                  disabled={sendState === 'error' ? false : !canSend}
+                  style={({ pressed }) => ({
+                    height: 48,
+                    backgroundColor: (sendState === 'error' || canSend) ? COLORS.primary : COLORS.disabledBg,
+                    borderRadius: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    opacity: sendState === 'sending' ? 0.7 : pressed && (sendState === 'error' || canSend) ? 0.85 : (!canSend && sendState !== 'error') ? 0.4 : 1,
+                  })}
+                >
+                  {sendState === 'sending' ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text
+                      style={{
+                        textAlign: 'center',
+                        color: '#FFFFFF',
+                        fontSize: 14,
+                        fontWeight: '500',
+                        lineHeight: 20,
+                      }}
+                    >
+                      {sendState === 'error' ? 'Try Again' : ctaLabel}
+                    </Text>
+                  )}
+                </Pressable>
               </View>
             </View>
-
-            {/* Send Button */}
-            <Pressable
-              onPress={handleSendToClient}
-              disabled={!canSend}
-              style={({ pressed }) => ({
-                height: 48,
-                backgroundColor: canSend ? COLORS.primary : '#A0AEC0',
-                borderRadius: 8,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                opacity: pressed && canSend ? 0.85 : 1,
-              })}
-            >
-              <SendIcon />
-              <Text
-                style={{
-                  textAlign: 'center',
-                  color: '#FFFFFF',
-                  fontSize: 14,
-                  fontWeight: '500',
-                  lineHeight: 20,
-                }}
-              >
-                Send to Client
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+          </>
+        )}
       </KeyboardAvoidingView>
 
       {/* ── SquadSlotPicker Modal ── */}

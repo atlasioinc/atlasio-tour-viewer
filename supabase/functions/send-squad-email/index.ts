@@ -28,6 +28,8 @@ interface SquadMember {
   name: string;
   company: string;
   role: string;
+  avatar_url?: string;      // profile photo URL from Supabase storage
+  avatar_color?: string;    // hex color string e.g. '#3B82F6' — used as initials circle background
 }
 
 interface EmailParams {
@@ -36,6 +38,16 @@ interface EmailParams {
   agentCompany: string;
   recipientEmail: string;
   personalMessage?: string;
+}
+
+// ─── Helper: Extract initials from a name ─────────────────────────────────────
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
 }
 
 // ─── Helper: Escape HTML special characters ───────────────────────────────────
@@ -90,11 +102,19 @@ function generateEmailHtml(params: {
 
   // ── Squad Member Cards ────────────────────────────────────────────────────
   const squadCardsHtml = squadMembers
-    .map(
-      (member) => `
+    .map((member) => {
+      // Avatar: circular photo if avatar_url exists, otherwise initials circle
+      const avatarHtml = member.avatar_url
+        ? `<div style="width:56px; height:56px; border-radius:50%; overflow:hidden; border:2px solid #FFFFFF; display:inline-block;"><img src="${escapeHtml(member.avatar_url)}" alt="${escapeHtml(member.name)}" width="56" height="56" style="width:56px; height:56px; display:block; object-fit:cover;" /></div>`
+        : `<div style="width:56px; height:56px; border-radius:50%; overflow:hidden; border:2px solid #FFFFFF; background-color:${escapeHtml(member.avatar_color || '#3B82F6')}; display:inline-block;"><table cellpadding="0" cellspacing="0" border="0" width="56" height="56" style="width:56px; height:56px;"><tr><td width="56" height="56" align="center" valign="middle" style="width:56px; height:56px; font-size:18px; font-weight:600; color:#FFFFFF; font-family:Arial,sans-serif; text-align:center; vertical-align:middle;">${escapeHtml(getInitials(member.name))}</td></tr></table></div>`;
+
+      return `
         <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; margin-bottom: 10px;">
           <tr>
-            <td style="padding: 16px 20px;">
+            <td valign="middle" style="padding: 16px 0 16px 20px; width: 56px;">
+              ${avatarHtml}
+            </td>
+            <td valign="middle" style="padding: 16px 20px 16px 12px;">
               <!--[if mso]><table cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
               <span style="display: inline-block; background-color: #EFF6FF; border-radius: 100px; padding: 3px 10px; font-size: 11px; font-weight: 600; color: #003DC3; text-transform: uppercase; letter-spacing: 0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">
                 ${escapeHtml(member.role)}
@@ -108,8 +128,8 @@ function generateEmailHtml(params: {
               </p>
             </td>
           </tr>
-        </table>`,
-    )
+        </table>`;
+    })
     .join('\n');
 
   // ── Full Email HTML ───────────────────────────────────────────────────────
@@ -264,7 +284,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Atlasio <noreply@atlasioapp.com>',
+        from: 'Atlasio <noreply@updates.atlasioapp.com>',
         to: recipientEmail,
         subject: `${agentName} has assembled your closing team`,
         html,
