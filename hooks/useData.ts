@@ -49,6 +49,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '../lib/supabase';
+import * as FileSystem from 'expo-file-system/legacy';
 import { MOCK_REPAIR_JOBS } from '../components/RepairJobsData';
 import type {
   Profile,
@@ -2060,14 +2061,21 @@ export const useUploadInsuranceDocument = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
-        // Step 2: Read file as blob and upload to credentials bucket
-        const response = await fetch(data.fileUri);
-        const fileBlob = await response.blob();
+        // Step 2: Read file using expo-file-system (fetch() doesn't support file:// URIs on iOS)
+        // @backend expo-file-system reads local file → base64 → Uint8Array for Supabase upload
+        const base64 = await FileSystem.readAsStringAsync(data.fileUri, {
+          encoding: 'base64',
+        });
+        const binaryString = atob(base64);
+        const fileBytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          fileBytes[i] = binaryString.charCodeAt(i);
+        }
         const filePath = `${user.id}/coi-${Date.now()}.pdf`;
 
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('credentials')
-          .upload(filePath, fileBlob, {
+          .upload(filePath, fileBytes, {
             contentType: data.mimeType,
             upsert: true,
           });
