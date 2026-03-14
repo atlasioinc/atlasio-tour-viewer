@@ -1,7 +1,13 @@
 -- schema.sql
 -- ═══════════════════════════════════════════════════════════════
 -- Atlasio — Production-Ready Supabase Schema
--- Last updated: Feb 28, 2026 (Phase 1 Backend Build)
+-- Last updated: March 12, 2026 (S49 Audit — reconciled with live Supabase)
+-- Original base: Feb 28, 2026 (Phase 1 Backend Build)
+--
+-- ⚠️  AUDIT NOTE: This file was reconciled against live Supabase on March 12,
+--     2026. Sections 8 and 9 (below) contain everything deployed post-base via
+--     SQL Editor. If re-deploying from scratch, run ALL sections in order.
+--     Do NOT skip Sections 8 or 9.
 --
 -- Deploy: Supabase Dashboard → SQL Editor → New Query → paste & run
 -- OR: supabase db push (via CLI)
@@ -16,10 +22,12 @@
 --   1. ENUMS
 --   2. TABLES (all 18, RLS enabled, NO policies yet)
 --   3. DEFERRED FOREIGN KEYS
---   4. RLS POLICIES (all 50, safe — every table exists)
---   5. INDEXES (36)
---   6. TRIGGERS (9)
---   7. RPCs (15 functions)
+--   4. RLS POLICIES (all 50+, safe — every table exists)
+--   5. INDEXES (37)
+--   6. TRIGGERS (10 — includes S49 verification trigger)
+--   7. RPCs — Base (17 functions in original schema)
+--   8. PROFILES MIGRATIONS (columns added post-base: Phase 6 + S47)
+--   9. POST-BASE RPCs (15 functions deployed S22–S49 via SQL Editor)
 --
 -- Architecture:
 --   - Unified jobs table (repair, photography, staging) with job_type enum
@@ -33,16 +41,27 @@
 --
 -- Revenue model:
 --   - Graduated fee on accepted bids (contractor, photographer, stager)
---   - Free tier: 0% (first 3 jobs)
---   - Early Adopter: 5% (months 4–9)
---   - Standard: 10% (month 10+)
---   - $15 minimum when fee applies
+--   - fee_tier_enum: free (0%) → early_adopter (5%) → standard (10%)
+--   - $15 minimum when fee > 0
+--
+-- Live RPC inventory (32 total as of March 12, 2026):
+--   See Section 9 for post-base RPCs. Full list in Notion Implementation Guide.
+--
+-- ALL RPCs NOW LIVE (deployed March 12, 2026 - S49/S50 audit session):
+--   - rpc_create_thread, rpc_complete_onboarding, rpc_send_connection_request
+--   - rpc_submit_vouch, rpc_invite_contractors -- all confirmed live
+--   Total: 33 RPCs live
+--
+-- ⚠️  KNOWN NAME MISMATCH:
+--   - Live RPC: rpc_get_job_details
+--   - Hook calls: rpc_get_contractor_job_details
+--   - Fix: update useContractorJobDetails in hooks/useData.ts to match live name
 --
 -- Related docs:
 --   - types/index.ts — TypeScript interfaces (1:1 mapping)
 --   - hooks/useData.ts — TanStack Query hooks
---   - Backend Integration Guide — flow-by-flow wiring
---   - Supabase Implementation Guide — RPCs, edge functions, Realtime
+--   - Notion: Supabase Implementation Guide (verified inventory)
+--   - Notion: Backend Deployment Tracker (session history)
 -- ═══════════════════════════════════════════════════════════════
 
 
@@ -85,12 +104,18 @@ CREATE TYPE message_type AS ENUM ('text', 'image', 'document', 'system');
 
 CREATE TYPE trades_enum AS ENUM (
   'Electrical', 'Plumbing', 'Roofing', 'HVAC',
-  'Carpentry / Handyman', 'Painting', 'Flooring', 'Windows & Doors',
+  'Carpentry / Handyman',              -- ⚠️ Legacy value — kept for backward compat. Use 'Carpentry' or 'Handyman' for new records. Hide in UI chip grid.
+  'Painting', 'Flooring', 'Windows & Doors',
   'Foundation / Structural', 'Drywall / Sheetrock', 'Pest Control / Termite',
   'Mold Remediation', 'Sewer / Septic', 'Pool & Spa',
   'Chimney / Fireplace', 'Garage Door', 'Appliances',
   'Landscaping / Drainage', 'Locksmith / Re-key', 'Cleaning / Junk Removal',
-  'Driveway / Paving', 'Other'
+  'Driveway / Paving', 'Other',
+  -- Added March 12, 2026 (S49 audit):
+  'General Contractor',                -- High-frequency catch-all for multi-trade scope jobs
+  'Carpentry',                         -- Split from 'Carpentry / Handyman'
+  'Handyman',                          -- Split from 'Carpentry / Handyman'
+  'Concrete / Masonry'
 );
 
 CREATE TYPE notification_type_enum AS ENUM (
@@ -1446,8 +1471,12 @@ CREATE POLICY "credentials_owner_delete"
 
 
 -- ═════════════════════════════════════════════════════════════
--- PHASE 6: TRUST & VERIFICATION (Session 16)
+-- SECTION 8: PROFILES MIGRATIONS
+-- Columns added post-base via ALTER TABLE. All verified live March 12, 2026.
+-- Run these after the base schema if deploying fresh.
 -- ═════════════════════════════════════════════════════════════
+
+-- ── Phase 6: Trust & Verification (Session 16) ───────────────
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS license_number text;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS license_state text DEFAULT 'CO';
@@ -1458,10 +1487,289 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone_verified_at timestamptz;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS insurance_uploaded boolean DEFAULT false;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS verification_level text DEFAULT 'none'
   CHECK (verification_level IN ('none', 'basic', 'verified', 'fully_verified'));
+-- ⚠️  verification_level is managed by trigger update_verification_level (Section 6).
+--     Do NOT use GENERATED ALWAYS AS — it caused 42P17 recursive trigger errors (S49).
 
 CREATE INDEX IF NOT EXISTS idx_profiles_verification
   ON profiles(verification_level) WHERE verification_level != 'none';
 
+-- ── S16–S47: Additional profile fields ───────────────────────
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS headline text
+  CHECK (char_length(headline) <= 35);
+
+-- ── S47: Insurance & License status tracking ─────────────────
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS license_status text DEFAULT 'unverified'
+  CHECK (license_status IN ('unverified', 'pending', 'verified'));
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS insurance_doc_url text;
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS insurance_status text DEFAULT 'none'
+  CHECK (insurance_status IN ('none', 'pending_review', 'approved', 'expired'));
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS insurance_expiry_date date;
+-- Stored as first-of-month (YYYY-MM-01) for easy expiry comparisons
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS insurance_expiry text;
+-- Display field only — format MM/YYYY. Derived from insurance_expiry_date.
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_licensed_trade boolean DEFAULT false;
+-- true = contractor's trade legally requires a license (Electrical, Plumbing, etc.)
+
+
+-- ═════════════════════════════════════════════════════════════
+-- SECTION 9: POST-BASE RPCs
+-- Deployed S22–S49 via SQL Editor. NOT in original schema base.
+-- All verified live March 12, 2026 EXCEPT where marked ❌.
+-- ═════════════════════════════════════════════════════════════
+
+-- ── rpc_complete_onboarding (S26) ────────────────────────────
+-- ✅ Live. Deployed March 12, 2026 (S49 audit).
+-- Sets name, display_role, company, location, trade, trades on onboarding completion.
+-- display_role NULL = needs onboarding. Set value = onboarding complete.
+-- Called by useCompleteOnboarding hook. Controlled by LIVE_ONBOARDING feature flag.
+CREATE OR REPLACE FUNCTION rpc_complete_onboarding(
+  p_display_role     TEXT,
+  p_full_name        TEXT,
+  p_company_name     TEXT    DEFAULT NULL,
+  p_location         TEXT    DEFAULT 'Denver, CO',
+  p_primary_trade    TEXT    DEFAULT NULL,
+  p_secondary_trades TEXT[]  DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+BEGIN
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+  END IF;
+  IF p_full_name IS NULL OR trim(p_full_name) = '' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Name is required');
+  END IF;
+  IF p_display_role IS NULL OR trim(p_display_role) = '' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Role is required');
+  END IF;
+  IF p_display_role = 'Contractor'
+    AND (p_primary_trade IS NULL OR trim(p_primary_trade) = '') THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Contractors must select a primary trade');
+  END IF;
+  UPDATE profiles SET
+    name         = trim(p_full_name),
+    display_role = trim(p_display_role),
+    company      = COALESCE(NULLIF(trim(p_company_name), ''), ''),
+    location     = COALESCE(NULLIF(trim(p_location), ''), 'Denver, CO'),
+    trade        = p_primary_trade,
+    trades       = COALESCE(p_secondary_trades, '{}'),
+    updated_at   = NOW()
+  WHERE id = v_user_id;
+  RETURN jsonb_build_object('success', true, 'role', p_display_role);
+END;
+$$;
+
+-- ── rpc_accept_invitation (S29) ──────────────────────────────
+-- ✅ Live. Contractor accepts a job invitation → status = 'accepted'.
+
+-- ── rpc_decline_invitation (S29) ─────────────────────────────
+-- ✅ Live. Contractor declines a job invitation → status = 'declined'.
+
+-- ── rpc_delete_account (S29) ─────────────────────────────────
+-- ✅ Live. Hard delete of auth.users row (cascades to profiles).
+
+-- ── rpc_get_contractor_earnings (S29) ────────────────────────
+-- ✅ Live. Returns earnings summary for contractor dashboard.
+
+-- ── rpc_get_job_details (S29) ────────────────────────────────
+-- ✅ Live.
+-- ⚠️  NAME MISMATCH: hooks/useData.ts useContractorJobDetails calls
+--     rpc_get_contractor_job_details — update hook to match live name.
+-- Returns full job + bid details for contractor job details screen.
+
+-- ── rpc_get_market_pulse (S29) ───────────────────────────────
+-- ✅ Live. Returns market stats for contractor home dashboard.
+
+-- ── rpc_get_matching_jobs (S29) ──────────────────────────────
+-- ✅ Live. Returns open jobs matching contractor's trades.
+
+-- ── rpc_respond_to_counter (S29) ─────────────────────────────
+-- ✅ Live. Contractor accepts or re-submits a countered bid.
+
+-- ── rpc_send_connection_request (S29) ────────────────────────
+-- ✅ Live. Deployed March 12, 2026 (S49 audit).
+-- Inserts connection row with status = 'pending'. Called by useRequestConnection.
+CREATE OR REPLACE FUNCTION rpc_send_connection_request(
+  p_recipient_id UUID,
+  p_note         TEXT DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_caller_id UUID := auth.uid();
+BEGIN
+  IF v_caller_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+  END IF;
+  IF v_caller_id = p_recipient_id THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Cannot connect with yourself');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM profiles WHERE id = p_recipient_id AND is_banned = false AND deactivated_at IS NULL
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'message', 'User not found');
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM connections
+    WHERE (requester_id = v_caller_id AND responder_id = p_recipient_id)
+       OR (requester_id = p_recipient_id AND responder_id = v_caller_id)
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Connection already exists');
+  END IF;
+  INSERT INTO connections (requester_id, responder_id, note) VALUES (v_caller_id, p_recipient_id, p_note);
+  RETURN jsonb_build_object('success', true);
+END;
+$$;
+
+-- ── rpc_submit_vouch (S29) ───────────────────────────────────
+-- ✅ Live. Deployed March 12, 2026 (S49 audit).
+-- Inserts vouch row. increment_vouch_count trigger fires automatically on INSERT.
+CREATE OR REPLACE FUNCTION rpc_submit_vouch(
+  p_recipient_id UUID,
+  p_quote        TEXT,
+  p_tag          TEXT,
+  p_tags         TEXT[] DEFAULT '{}'
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_caller_id     UUID := auth.uid();
+  v_author_name   TEXT;
+  v_author_role   TEXT;
+  v_recip_name    TEXT;
+  v_recip_company TEXT;
+  v_recip_role    TEXT;
+BEGIN
+  IF v_caller_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+  END IF;
+  IF v_caller_id = p_recipient_id THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Cannot vouch for yourself');
+  END IF;
+  IF p_quote IS NULL OR trim(p_quote) = '' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Vouch quote is required');
+  END IF;
+  IF p_tag IS NULL OR trim(p_tag) = '' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Vouch tag is required');
+  END IF;
+  IF EXISTS (SELECT 1 FROM vouches WHERE author_id = v_caller_id AND recipient_id = p_recipient_id) THEN
+    RETURN jsonb_build_object('success', false, 'message', 'You have already vouched for this person');
+  END IF;
+  SELECT name, display_role INTO v_author_name, v_author_role FROM profiles WHERE id = v_caller_id;
+  SELECT name, company, display_role INTO v_recip_name, v_recip_company, v_recip_role FROM profiles WHERE id = p_recipient_id;
+  INSERT INTO vouches (author_id, recipient_id, author_name, recipient_name, recipient_company, recipient_role, quote, tag, tags)
+  VALUES (v_caller_id, p_recipient_id, v_author_name, v_recip_name, v_recip_company, v_recip_role, trim(p_quote), trim(p_tag), p_tags);
+  RETURN jsonb_build_object('success', true);
+END;
+$$;
+
+-- ── rpc_invite_contractors (S29) ─────────────────────────────
+-- ✅ Live. Deployed March 12, 2026 (S49 audit).
+-- Inserts job_invitations rows + appends to jobs.invited_contractors array.
+-- Called by useInviteContractors. Caller must own the job.
+CREATE OR REPLACE FUNCTION rpc_invite_contractors(
+  p_job_id         UUID,
+  p_contractor_ids UUID[]
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_caller_id UUID := auth.uid();
+  v_job_owner UUID;
+  v_cid       UUID;
+  v_invited   INT := 0;
+BEGIN
+  IF v_caller_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+  END IF;
+  SELECT agent_id INTO v_job_owner FROM jobs WHERE id = p_job_id;
+  IF v_job_owner IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Job not found');
+  END IF;
+  IF v_job_owner <> v_caller_id THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Not authorized');
+  END IF;
+  FOREACH v_cid IN ARRAY p_contractor_ids LOOP
+    INSERT INTO job_invitations (job_id, contractor_id, invited_by)
+    VALUES (p_job_id, v_cid, v_caller_id)
+    ON CONFLICT (job_id, contractor_id) DO NOTHING;
+    IF FOUND THEN v_invited := v_invited + 1; END IF;
+  END LOOP;
+  PERFORM append_invited_contractors(p_job_id, p_contractor_ids);
+  RETURN jsonb_build_object('success', true, 'invited', v_invited);
+END;
+$$;
+
+-- ── rpc_submit_license_verification (S47) ────────────────────
+-- ✅ Live. Definition verified March 12, 2026.
+CREATE OR REPLACE FUNCTION public.rpc_submit_license_verification(
+  p_license_number text,
+  p_license_state  text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+BEGIN
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+  END IF;
+  IF p_license_number IS NULL OR trim(p_license_number) = '' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'License number is required');
+  END IF;
+  IF p_license_state IS NULL OR length(trim(p_license_state)) != 2 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Valid 2-character state code required');
+  END IF;
+  IF EXISTS (SELECT 1 FROM profiles WHERE id = v_user_id AND license_status = 'verified') THEN
+    RETURN jsonb_build_object('success', false, 'message', 'License already verified');
+  END IF;
+  UPDATE profiles SET
+    license_number = trim(p_license_number),
+    license_state  = upper(trim(p_license_state)),
+    license_status = 'pending',
+    updated_at     = NOW()
+  WHERE id = v_user_id;
+  RETURN jsonb_build_object('success', true, 'message', 'License submitted for verification');
+END;
+$$;
+
+-- ── rpc_upload_insurance_document (S47/S49) ──────────────────
+-- ✅ Live. Called by useUploadInsuranceDocument.
+-- ⚠️  credentials bucket INSERT currently blocked by 42P17 StorageApiError.
+--     LIVE_INSURANCE_HOOKS: false until resolved. See Notion Known Blocker doc.
+-- Stores insurance_doc_url + insurance_expiry + insurance_status = 'pending_review'.
+-- Full definition: retrieve from Supabase Dashboard → Database → Functions.
+
+-- ── update_verification_level trigger function (S49) ─────────
+-- ✅ Live. Computes profiles.verification_level on INSERT/UPDATE.
+-- Level logic:
+--   fully_verified = license_verified AND phone_verified AND insurance_uploaded
+--   verified       = license_verified AND phone_verified
+--   basic          = license_verified OR phone_verified
+--   none           = none of the above
+-- ⚠️  Do NOT revert to GENERATED ALWAYS AS — caused 42P17 recursive errors.
+CREATE OR REPLACE FUNCTION update_verification_level()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.verification_level :=
+    CASE
+      WHEN NEW.license_verified = true AND NEW.phone_verified = true AND NEW.insurance_uploaded = true
+        THEN 'fully_verified'
+      WHEN NEW.license_verified = true AND NEW.phone_verified = true
+        THEN 'verified'
+      WHEN NEW.license_verified = true OR NEW.phone_verified = true
+        THEN 'basic'
+      ELSE 'none'
+    END;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_verification_level
+  BEFORE INSERT OR UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION update_verification_level();
+
+
 -- ═════════════════════════════════════════════════════════════
 -- DONE
+-- Last verified against live Supabase: March 12, 2026 (S49 Audit)
 -- ═════════════════════════════════════════════════════════════

@@ -779,6 +779,20 @@ Files modified: 7
 RPCs: 27 | Hooks: 51 | Flags: 7 | tsc: 0
 
 ---
+Session 25 Update — Squad Email Sender Domain Fix
+
+Branch: frontend/session-25-onboarding-redesign
+
+Part 1: Resend `from` Address Update
+- Updated `supabase/functions/send-squad-email/index.ts` line 267
+- Changed from: `Atlasio <noreply@atlasioapp.com>` → `Atlasio <noreply@updates.atlasioapp.com>`
+- Redeployed via `npx supabase functions deploy send-squad-email --project-ref fqeighzlnreghzmailgx`
+- Reason: subdomain sender aligns with DNS/DKIM setup for deliverability
+
+Files modified: 1
+- supabase/functions/send-squad-email/index.ts (from address update)
+
+---
 Recommended Next Session Priorities
 
 1. Deploy rpc_complete_onboarding to Supabase, flip LIVE_ONBOARDING flag, test end-to-end

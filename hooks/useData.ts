@@ -23,7 +23,7 @@
 //   @backend: Supabase tables + RPCs referenced throughout
 // ─────────────────────────────────────────────
 //
-// HOOK CATALOG (55 hooks, 13 sections):
+// HOOK CATALOG (56 hooks, 14 sections):
 //   QUERY KEYS           — centralized cache keys for invalidation
 //   PROFILE (5)          — useMyProfile, useProfile, useUpdateProfile,
 //                          useConnectionStatus, useProfileVouches
@@ -45,8 +45,10 @@
 //   CONTRACTOR DASHBOARD (3) — useMatchingJobs, useContractorEarnings, useMarketPulse
 //   ONBOARDING (1)       — useCompleteOnboarding
 //   ACCOUNT (1)          — useDeleteAccount
+//   SQUAD SHARE (1)      — useSquadShare (sendViaEmail + sendViaSms)
 // ═══════════════════════════════════════════════════════════════
 
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '../lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -71,7 +73,11 @@ import type {
   SquadMember,
   UserRole,
   ContractorJobDetail,
+  SquadShareEmailParams,
+  SquadShareSmsParams,
+  SquadShareResult,
 } from '../types';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 
 // ═══════════════════════════════════════════════════════════════
 // QUERY KEYS — centralized for cache invalidation
@@ -2039,14 +2045,14 @@ export const useSubmitLicenseVerification = () => {
 // ─────────────────────────────────────────────────────────────
 // HOOK #51 — useUploadInsuranceDocument
 // Called by: InsuranceUploadScreen.tsx → handleSubmit
-// Flow: upload PDF to credentials bucket → call rpc_upload_insurance_document
-// @backend: supabase.storage credentials bucket (created S15, RLS: owner only)
-//           rpc_upload_insurance_document
-//   params: { document_url: string, expiry_month: number, expiry_year: number }
+// Flow: read file → base64 → invoke upload-insurance-document Edge Function
+//       (Edge Function uploads to credentials bucket server-side, bypassing 42P17 RLS bug)
+// @backend: Edge Function upload-insurance-document → credentials bucket + rpc_upload_insurance_document
+//   params: { fileBase64, mimeType, expiryMonth, expiryYear, userId }
 //   returns: { success: boolean, message: string }
 // Invalidates: ['profile'] query on success
 // ─────────────────────────────────────────────────────────────
-// STATUS: wired (with mock fallback)
+// STATUS: wired (Edge Function bypass for 42P17 storage bug)
 export const useUploadInsuranceDocument = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -2057,61 +2063,122 @@ export const useUploadInsuranceDocument = () => {
       expiryMonth: number;
       expiryYear: number;
     }) => {
-      try {
-        // Step 1: Get current user ID for bucket path
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+      // Step 1: Read file as base64 using expo-file-system/legacy
+      // @backend expo-file-system reads local file → base64 for Edge Function
+      const fileBase64 = await FileSystem.readAsStringAsync(data.fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
-        // Step 2: Read file using expo-file-system (fetch() doesn't support file:// URIs on iOS)
-        // @backend expo-file-system reads local file → base64 → Uint8Array for Supabase upload
-        const base64 = await FileSystem.readAsStringAsync(data.fileUri, {
-          encoding: 'base64',
-        });
-        const binaryString = atob(base64);
-        const fileBytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          fileBytes[i] = binaryString.charCodeAt(i);
-        }
-        const filePath = `${user.id}/coi-${Date.now()}.pdf`;
+      // Step 2: Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('credentials')
-          .upload(filePath, fileBytes, {
-            contentType: data.mimeType,
-            upsert: true,
-          });
+      // Step 3: Invoke Edge Function (server-side upload bypasses 42P17 RLS bug)
+      // @backend Edge Function upload-insurance-document
+      //   params: { fileBase64, mimeType, expiryMonth, expiryYear, userId }
+      const { data: result, error } = await supabase.functions.invoke(
+        'upload-insurance-document',
+        {
+          body: {
+            fileBase64,
+            fileName: data.fileName,
+            mimeType: data.mimeType,
+            expiryMonth: data.expiryMonth,
+            expiryYear: data.expiryYear,
+            userId: user.id,
+          },
+        },
+      );
 
-        if (uploadError) throw uploadError;
+      if (error) throw error;
+      if (!result?.success) throw new Error(result?.message ?? 'Upload failed');
 
-        // Step 3: Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('credentials')
-          .getPublicUrl(uploadData.path);
-
-        // Step 4: Call RPC with storage URL + expiry date
-        // @backend rpc_upload_insurance_document
-        //   params: { p_document_url, p_expiry_month, p_expiry_year }
-        const { data: result, error: rpcError } = await supabase.rpc(
-          'rpc_upload_insurance_document',
-          {
-            p_document_url:  publicUrl,
-            p_expiry_month:  data.expiryMonth,
-            p_expiry_year:   data.expiryYear,
-          }
-        );
-        if (rpcError) throw rpcError;
-        return result as { success: boolean; message: string };
-      } catch (err) {
-        // Re-throw so InsuranceUploadScreen.handleSubmit can surface the error
-        // via setSubmitError — do NOT swallow with a mock success here
-        // @demo if you need mock fallback behavior, use LIVE_INSURANCE_HOOKS: false
-        //       which bypasses this hook entirely via the flag in the screen
-        console.warn('[useUploadInsuranceDocument] RPC or upload failed', err);
-        throw err;
-      }
+      return { success: true, message: result.message } as { success: boolean; message: string };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SQUAD SHARE (hook #56 — Send to Client, S51)
+// @backend: send-squad-email Edge Function (Resend — HTML email with squad cards)
+// @backend: send-squad-sms Edge Function (PDF gen → Storage → Twilio SMS with link)
+// @demo: LIVE_SQUAD_SHARE: false → 1500ms setTimeout returns { success: true }
+// ═══════════════════════════════════════════════════════════════
+
+// @demo hardcoded — replace with real Edge Function calls when LIVE_SQUAD_SHARE flipped to true
+const mockSquadShareDelay = (): Promise<SquadShareResult> =>
+  new Promise((resolve) => setTimeout(() => resolve({ success: true }), 1500));
+
+// STATUS: mock (Edge Functions not deployed yet)
+export const useSquadShare = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = useCallback(() => {
+    setIsLoading(false);
+    setError(null);
+  }, []);
+
+  // @backend: send-squad-email Edge Function. Params: squadMembers[], agentName, agentCompany, recipientEmail, personalMessage?
+  // @demo: Replace with supabase.functions.invoke('send-squad-email', { body: params }) when LIVE_SQUAD_SHARE flipped to true
+  const sendViaEmail = useCallback(async (params: SquadShareEmailParams): Promise<SquadShareResult> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (FEATURE_FLAGS.LIVE_SQUAD_SHARE) {
+        const { data, error: fnError } = await supabase.functions.invoke('send-squad-email', {
+          body: {
+            squadMembers: params.squadMembers,
+            agentName: params.agentName,
+            agentCompany: params.agentCompany,
+            recipientEmail: params.recipientEmail,
+            personalMessage: params.personalMessage || null,
+          },
+        });
+        if (fnError) throw fnError;
+        return (data as SquadShareResult) ?? { success: true };
+      }
+      return await mockSquadShareDelay();
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to send email. Please try again.';
+      setError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // @backend: send-squad-sms Edge Function. Params: squadMembers[], agentName, agentCompany, recipientPhone, personalMessage?
+  // @demo: Replace with supabase.functions.invoke('send-squad-sms', { body: params }) when LIVE_SQUAD_SHARE flipped to true
+  const sendViaSms = useCallback(async (params: SquadShareSmsParams): Promise<SquadShareResult> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (FEATURE_FLAGS.LIVE_SQUAD_SHARE) {
+        const { data, error: fnError } = await supabase.functions.invoke('send-squad-sms', {
+          body: {
+            squadMembers: params.squadMembers,
+            agentName: params.agentName,
+            agentCompany: params.agentCompany,
+            recipientPhone: params.recipientPhone,
+            personalMessage: params.personalMessage || null,
+          },
+        });
+        if (fnError) throw fnError;
+        return (data as SquadShareResult) ?? { success: true };
+      }
+      return await mockSquadShareDelay();
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to send text. Please try again.';
+      setError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { sendViaEmail, sendViaSms, isLoading, error, reset };
 };

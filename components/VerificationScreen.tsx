@@ -94,19 +94,6 @@ const ShieldIcon: React.FC<{ color: string }> = ({ color }) => (
   </Svg>
 );
 
-const FileIcon: React.FC<{ color: string }> = ({ color }) => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
-      stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
-    />
-    <Path
-      d="M14 2v6h6M16 13H8M16 17H8M10 9H8"
-      stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
-    />
-  </Svg>
-);
-
 const CheckCircleIcon: React.FC = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke={COLORS.successGreen} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -308,14 +295,6 @@ const VerificationScreen: React.FC = () => {
       setLicenseSaving(false);
     }
   }, [licenseNumber, licenseState, submitLicense]);
-
-  // ─────────────────────────────────────────────
-  // INSURANCE NAVIGATION
-  // ─────────────────────────────────────────────
-
-  const handleInsuranceUpload = useCallback(() => {
-    navigation.navigate('InsuranceUpload');
-  }, [navigation]);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
@@ -521,23 +500,7 @@ const VerificationScreen: React.FC = () => {
           )}
         </SectionCard>
 
-        {/* ──────────────────────────────────────
-            Insurance Upload (non-agent roles)
-            ────────────────────────────────────── */}
-        {role !== 'agent' && (
-          <SectionCard
-            icon={<FileIcon color={insuranceUploaded ? COLORS.successGreen : COLORS.primary} />}
-            title="Insurance Documentation"
-            description={
-              insuranceUploaded
-                ? 'Insurance document uploaded'
-                : 'Upload proof of insurance to complete verification'
-            }
-            status={insuranceUploaded ? 'complete' : 'incomplete'}
-            ctaLabel="Upload Insurance"
-            onPress={handleInsuranceUpload}
-          />
-        )}
+        {/* Insurance upload flow lives in InsuranceUploadScreen (via ProfileTab) */}
       </ScrollView>
 
       {/* ──────────────────────────────────────

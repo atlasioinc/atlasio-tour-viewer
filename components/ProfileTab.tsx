@@ -32,6 +32,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -234,6 +235,7 @@ const ProfileTab: React.FC = () => {
   const insuranceUploaded = mockSource?.insurance_uploaded ?? liveProfile?.insurance_uploaded ?? false;
   const insuranceStatus = (mockSource as any)?.insurance_status ?? (liveProfile as any)?.insurance_status ?? 'none';
   const insuranceExpiry = (mockSource as any)?.insurance_expiry ?? (liveProfile as any)?.insurance_expiry ?? '';
+  const insuranceDocName = (liveProfile as any)?.insurance_doc_name ?? 'Certificate of Insurance';
   const licenseNumber = mockSource?.license_number ?? liveProfile?.license_number ?? '';
   const licenseState = mockSource?.license_state ?? liveProfile?.license_state ?? '';
 
@@ -551,7 +553,22 @@ const ProfileTab: React.FC = () => {
               {/* Insurance row — tappable → InsuranceUploadScreen */}
               {/* @demo insuranceStatus drives icon color + status text */}
               <Pressable
-                onPress={() => navigation.navigate('InsuranceUpload')}
+                onPress={() => {
+                  if (insuranceStatus === 'none' || insuranceStatus === 'expired') {
+                    navigation.push('InsuranceUpload', { status: 'none' });
+                  } else if (insuranceStatus === 'pending_review') {
+                    navigation.push('InsuranceUpload', {
+                      status: 'pending_review',
+                      documentName: insuranceDocName,
+                    });
+                  } else if (insuranceStatus === 'approved') {
+                    Alert.alert(
+                      'Insurance Verified',
+                      `Your certificate of insurance is active and expires ${insuranceExpiry}.`,
+                      [{ text: 'OK' }]
+                    );
+                  }
+                }}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',

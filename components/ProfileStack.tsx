@@ -33,7 +33,7 @@ export type ProfileStackParamList = {
   Settings: undefined;
   Verification: undefined;
   PhoneVerification: undefined;
-  InsuranceUpload: undefined; // @demo — ready for production
+  InsuranceUpload: { status?: string; documentName?: string } | undefined; // @demo — ready for production
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();

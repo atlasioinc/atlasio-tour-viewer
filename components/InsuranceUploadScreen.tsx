@@ -34,7 +34,8 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { ProfileStackParamList } from './ProfileStack';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
@@ -119,6 +120,26 @@ const LargeShieldIcon: React.FC = () => (
   </Svg>
 );
 
+const PendingIcon: React.FC = () => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Path d="M12 2a10 10 0 100 20 10 10 0 000-20z" stroke={COLORS.counterAmber} strokeWidth={2} />
+    <Path d="M12 6v6l4 2" stroke={COLORS.counterAmber} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const FileIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+      stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+    />
+    <Path
+      d="M14 2v6h6M16 13H8M16 17H8M10 9H8"
+      stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+    />
+  </Svg>
+);
+
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
@@ -143,8 +164,12 @@ const formatFileSize = (bytes: number): string => {
 
 const InsuranceUploadScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<ProfileStackParamList, 'InsuranceUpload'>>();
   const insets = useSafeAreaInsets();
   const uploadMutation = useUploadInsuranceDocument();
+
+  // If opened from ProfileTab with pending_review status, show submitted state
+  const openedAsPending = route.params?.status === 'pending_review';
 
   // ── State ──
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
@@ -278,12 +303,12 @@ const InsuranceUploadScreen: React.FC = () => {
   // ─────────────────────────────────────────────
 
   const handleBackToProfile = () => {
-    // Dismiss fullScreenModal — navigate to parent stack, not a named route
-    // @backend this is correct for production — no change needed
-    navigation.getParent()?.goBack();
+    // InsuranceUpload is a fullScreenModal — goBack() dismisses the modal
+    navigation.goBack();
   };
 
-  // ── Success State ──
+  // ── Confirmation State (just submitted) ──
+  // Smooth transition from upload form → success confirmation
   if (submitted) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
@@ -335,12 +360,108 @@ const InsuranceUploadScreen: React.FC = () => {
               lineHeight: 22,
             }}
           >
-            We'll review your insurance certificate and notify you within 24-48 hours.
+            We'll review your insurance certificate and notify you within 24–48 hours.
           </Text>
+          {selectedFile && (
+            <Text style={{ fontSize: 14, color: COLORS.secondaryText, textAlign: 'center' }}>
+              {selectedFile.name}
+            </Text>
+          )}
           <View style={{ width: '100%', marginTop: 16 }}>
             <PrimaryButton label="Back to Profile" onPress={handleBackToProfile} />
           </View>
         </View>
+      </View>
+    );
+  }
+
+  const documentName = route.params?.documentName ?? 'Certificate of Insurance';
+
+  // ── Pending Review State (opened from ProfileTab) ──
+  // Matches the License Verification pending pattern from VerificationScreen:
+  // card with amber icon bg, clock badge, read-only row with "Pending Review" pill
+  if (openedAsPending) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
+        <StatusBar barStyle="dark-content" />
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 16,
+          borderBottomWidth: 0.68, borderBottomColor: COLORS.border, backgroundColor: COLORS.background,
+        }}>
+          <View style={{ width: 44 }} />
+          <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: COLORS.primary, textAlign: 'center' }}>
+            Insurance Upload
+          </Text>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => ({
+              width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <CloseIcon />
+          </Pressable>
+        </View>
+        <ScrollView
+          style={{ backgroundColor: COLORS.screenBg }}
+          contentContainerStyle={{ padding: 16, gap: 16 }}
+        >
+          {/* Insurance Documentation card — pending state */}
+          <View style={{
+            backgroundColor: COLORS.background, borderRadius: 14,
+            borderWidth: 0.68, borderColor: COLORS.cardBorder, padding: 16, gap: 12,
+          }}>
+            {/* Header row: amber icon + title with clock + description */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{
+                width: 44, height: 44, borderRadius: 12,
+                backgroundColor: '#FFF8E1',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <FileIcon color={COLORS.counterAmber} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}>
+                    Insurance Documentation
+                  </Text>
+                  <PendingIcon />
+                </View>
+                <Text style={{ fontSize: 14, color: COLORS.bodyText, marginTop: 2 }}>
+                  Certificate of Insurance — Pending verification
+                </Text>
+              </View>
+            </View>
+
+            {/* Read-only detail row with document name + "Pending Review" pill */}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+              backgroundColor: COLORS.filterBg, borderRadius: 10, padding: 12,
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+                  {documentName}
+                </Text>
+                <Text style={{ fontSize: 14, color: COLORS.secondaryText, marginTop: 2 }}>
+                  Under review (24–48 hrs)
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: COLORS.warningBg, borderRadius: 9999,
+                paddingHorizontal: 10, paddingVertical: 4,
+              }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.warningAmber }}>
+                  Pending Review
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Back to Profile CTA */}
+          <View style={{ marginTop: 8 }}>
+            <PrimaryButton label="Back to Profile" onPress={handleBackToProfile} />
+          </View>
+        </ScrollView>
       </View>
     );
   }
