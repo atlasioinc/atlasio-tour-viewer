@@ -27,6 +27,11 @@ import type { Job, BidWithProfile } from '../types';
 import type { ProProfileData } from './ProProfile';
 import type { SquadProCandidate } from './SquadSlotPicker';
 import JobCompletionScreen from './JobCompletionScreen';
+import ClientLifestyleScreen from './ClientLifestyleScreen';
+import NeighborhoodMatchScreen from './NeighborhoodMatchScreen';
+import CategoryMapScreen from './CategoryMapScreen';
+import AddressComparisonScreen from './AddressComparisonScreen';
+import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis } from '../types/neighborhood';
 
 // ─────────────────────────────────────────────
 // TYPE DEFINITIONS
@@ -68,6 +73,27 @@ export type HomeStackParamList = {
     additionalSlots: SquadSlot[];
   };
   JobCompletion: { jobId: string; userRole: 'agent' | 'contractor' };
+  ClientLifestyleScreen: undefined;
+  NeighborhoodMatchScreen: {
+    priorities: LifestylePriority[];
+    clientLabel: string;
+    address: string;
+  };
+  CategoryMapScreen: {
+    category: LifestyleCategory;
+    label: string;
+    emoji: string;
+    pois: POIResult[];
+    addressLat: number;
+    addressLng: number;
+    address: string;
+  };
+  AddressComparisonScreen: {
+    priorities: LifestylePriority[];
+    clientLabel: string;
+    firstAddress: string;
+    firstAnalysis: NeighborhoodAnalysis;
+  };
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -128,7 +154,35 @@ const HomeStack: React.FC = () => (
       }}
     />
     <Stack.Screen name="JobCompletion" component={JobCompletionScreen}
-      options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} 
+      options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
+    <Stack.Screen
+      name="ClientLifestyleScreen"
+      component={ClientLifestyleScreen}
+      options={{ presentation: 'fullScreenModal', headerShown: false }}
+    />
+    <Stack.Screen
+      name="NeighborhoodMatchScreen"
+      component={NeighborhoodMatchScreen}
+      options={{
+        presentation: 'fullScreenModal',
+        animation: 'slide_from_bottom',
+        headerShown: false,
+      }}
+    />
+    <Stack.Screen
+      name="AddressComparisonScreen"
+      component={AddressComparisonScreen}
+      options={{
+        presentation: 'fullScreenModal',
+        animation: 'slide_from_bottom',
+        headerShown: false,
+      }}
+    />
+    <Stack.Screen
+      name="CategoryMapScreen"
+      component={CategoryMapScreen}
+      options={{ presentation: 'fullScreenModal', headerShown: false }}
     />
   </Stack.Navigator>
 );

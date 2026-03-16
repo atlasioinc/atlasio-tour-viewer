@@ -488,47 +488,50 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
           }}
         />
 
-        {/* @demo Agent-only tabs: Find + Network */}
-        {demoRole === 'agent' && (
-          <Tab.Screen
-            name="Find"
-            component={FindStack}
-            options={{
-              tabBarIcon: ({ color }) => <FindIcon color={color} />,
-            }}
-          />
-        )}
-        {demoRole === 'agent' && (
-          <Tab.Screen
-            name="Network"
-            component={NetworkStack}
-            options={{
-              tabBarIcon: ({ color }) => <NetworkIcon color={color} />,
-            }}
-          />
-        )}
-        {/* @demo Contractor-only tab: Jobs */}
-        {demoRole === 'contractor' && (
-          <Tab.Screen
-            name="Jobs"
-            component={ContractorJobsStackScreen}
-            options={{
-              tabBarIcon: ({ color }) => <JobsIcon color={color} />,
-            }}
-          />
-        )}
+        {/* Find — agent only */}
+        <Tab.Screen
+          name="Find"
+          component={FindStack}
+          options={{
+            tabBarIcon: ({ color }) => <FindIcon color={color} />,
+            tabBarButton: demoRole !== 'agent' ? () => null : undefined,
+            tabBarItemStyle: demoRole !== 'agent' ? { display: 'none' } : undefined,
+          }}
+        />
+
+        {/* Network — agent only */}
+        <Tab.Screen
+          name="Network"
+          component={NetworkStack}
+          options={{
+            tabBarIcon: ({ color }) => <NetworkIcon color={color} />,
+            tabBarButton: demoRole !== 'agent' ? () => null : undefined,
+            tabBarItemStyle: demoRole !== 'agent' ? { display: 'none' } : undefined,
+          }}
+        />
+
+        {/* Jobs — contractor only */}
+        <Tab.Screen
+          name="Jobs"
+          component={ContractorJobsStackScreen}
+          options={{
+            tabBarIcon: ({ color }) => <JobsIcon color={color} />,
+            tabBarButton: demoRole !== 'contractor' ? () => null : undefined,
+            tabBarItemStyle: demoRole !== 'contractor' ? { display: 'none' } : undefined,
+          }}
+        />
+
+        {/* Inbox — both roles, long-press toggles role */}
         <Tab.Screen
           name="Inbox"
           component={InboxComponent}
           options={{
-            // @demo Role badge overlaid on Inbox icon
             tabBarIcon: ({ color }) => (
               <View>
                 <InboxIcon color={color} />
                 <RoleBadge role={demoRole} />
               </View>
             ),
-            // @demo Custom tab button with 1s long-press to toggle
             tabBarButton: (props) => (
               <LongPressTabButton
                 onPress={props.onPress as () => void}
@@ -542,23 +545,16 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
             ),
           }}
         />
-        {/* Profile tab — both roles */}
-        {demoRole === 'agent' && (
-          <Tab.Screen name="Profile" component={ProfileStack}
-            options={{
-              tabBarIcon: ({ color }) => <ProfileIcon color={color} />,
-            }}
-          />
-        )}
-        {/* Contractor profile — uses same ProfileStack (7-zone layout handles both roles) */}
-        {/* @backend: production removes @demo conditional; role from auth context */}
-        {demoRole === 'contractor' && (
-          <Tab.Screen name="Profile" component={ProfileStack}
-            options={{
-              tabBarIcon: ({ color }) => <ProfileIcon color={color} />,
-            }}
-          />
-        )}
+
+        {/* Profile — both roles, same ProfileStack (7-zone layout handles role branching internally) */}
+        {/* @backend: production removes @demo demoRole entirely — role sourced from profiles.role via auth */}
+        <Tab.Screen
+          name="Profile"
+          component={ProfileStack}
+          options={{
+            tabBarIcon: ({ color }) => <ProfileIcon color={color} />,
+          }}
+        />
       </Tab.Navigator>
     </DemoRoleContext.Provider>
   );

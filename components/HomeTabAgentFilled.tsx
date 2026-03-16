@@ -554,6 +554,70 @@ const AvatarPlaceholder: React.FC<{
   );
 };
 
+// ─────────────────────────────────────────────
+// NEIGHBORHOOD INTELLIGENCE ICONS + CARD
+// ─────────────────────────────────────────────
+
+const SparklesIcon = ({ size = 20, color = COLORS.primary }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill={color} />
+    <Path d="M19 15L19.8 17.2L22 18L19.8 18.8L19 21L18.2 18.8L16 18L18.2 17.2L19 15Z" fill={color} />
+    <Path d="M5 3L5.5 4.5L7 5L5.5 5.5L5 7L4.5 5.5L3 5L4.5 4.5L5 3Z" fill={color} />
+  </Svg>
+);
+
+const ChevronRightIcon = ({ size = 16, color = COLORS.lightText }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+    <Path d="M6 3L11 8L6 13" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+// ── ClientToolCard ────────────────────────────────────────────────────────────
+// Reusable card for the Client Tools section.
+// Each tool is one <ClientToolCard> entry — add future tools the same way.
+// ─────────────────────────────────────────────────────────────────────────────
+interface ClientToolCardProps {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}
+
+const ClientToolCard = ({ icon, title, subtitle, onPress }: ClientToolCardProps) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => ({
+      marginHorizontal: 16,
+      backgroundColor: COLORS.background,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      opacity: pressed ? 0.7 : 1,
+    })}
+  >
+    <View style={{
+      width: 40, height: 40, borderRadius: 10,
+      backgroundColor: COLORS.tagBg,
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      {icon}
+    </View>
+    <View style={{ flex: 1 }}>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, marginBottom: 2 }}>
+        {title}
+      </Text>
+      <Text style={{ fontSize: 13, color: COLORS.secondaryText, lineHeight: 18 }}>
+        {subtitle}
+      </Text>
+    </View>
+    <ChevronRightIcon size={16} color={COLORS.lightText} />
+  </Pressable>
+);
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -1077,6 +1141,31 @@ const HomeTabAgentFilled: React.FC = () => {
           </View>
         </View>
 
+        {/* ── CLIENT TOOLS SECTION ─────────────────────────────────────────────────
+            Entry point for agent intelligence tools.
+            v1: Neighborhood Match only.
+            Future tools (post-seed): add as additional <ClientToolCard> entries below.
+            Each card navigates into HomeStack via fullScreenModal.
+            ──────────────────────────────────────────────────────────── */}
+
+        {/* Section header */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8 }}>
+          <Text style={{
+            fontSize: 18, fontWeight: '600',
+            color: COLORS.darkText,
+            lineHeight: 24,
+          }}>
+            Client Tools
+          </Text>
+        </View>
+
+        {/* Tool cards — add future tools here as additional <ClientToolCard> entries */}
+        <ClientToolCard
+          icon={<SparklesIcon size={20} color={COLORS.primary} />}
+          title="Neighborhood Match"
+          subtitle="Match areas to your client's lifestyle"
+          onPress={() => navigation.navigate('ClientLifestyleScreen')}
+        />
 
         {/* ── QUICK ACTION CARDS — Horizontal Scroll ── */}
         <View
