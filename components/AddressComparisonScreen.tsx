@@ -468,7 +468,8 @@ const AddressComparisonScreen: React.FC = () => {
               <View style={{
                 flexDirection: 'row', alignItems: 'center', gap: 8,
                 backgroundColor: COLORS.feeBg, borderRadius: 10,
-                borderWidth: 1, borderColor: '#BBF7D0', // @tokens: no exact token — closest is COLORS.cardGreenBorder '#B9F8CF'
+                // @tokens: COLORS.winnerCardBorder added to lib/tokens.ts S59
+                borderWidth: 1, borderColor: COLORS.winnerCardBorder,
                 paddingHorizontal: 14, paddingVertical: 12,
               }}>
                 <PinIcon size={16} color={COLORS.winnerBannerBorder} />
@@ -587,7 +588,8 @@ const AddressComparisonScreen: React.FC = () => {
               disabled={!canCompare}
               style={{
                 height: 52, borderRadius: 12,
-                backgroundColor: canCompare ? COLORS.primary : '#C7D2FE', // @tokens: no exact token — brand tint disabled state
+                // @tokens: COLORS.disabledPrimaryTint added to lib/tokens.ts S59
+                backgroundColor: canCompare ? COLORS.primary : COLORS.disabledPrimaryTint,
                 alignItems: 'center', justifyContent: 'center',
               }}
             >

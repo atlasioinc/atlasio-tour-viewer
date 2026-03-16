@@ -137,6 +137,9 @@ export const COLORS = {
   scoreGreen: '#059669',         // composite score >= 85 (emerald-600, unifies AddressComparison + NeighborhoodMatch)
   scoreAmber: '#D97706',         // composite score >= 70 and < 85
   scoreRed: '#DC2626',           // composite score < 70
+  // @tokens S59: added to resolve annotated inline hex in AddressComparisonScreen
+  winnerCardBorder: '#BBF7D0',   // winner card confirmed-address border (green-200)
+  disabledPrimaryTint: '#C7D2FE', // disabled CTA background tint (indigo-200)
 } as const;
 
 // ─────────────────────────────────────────────
