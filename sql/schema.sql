@@ -1,7 +1,7 @@
 -- schema.sql
 -- ═══════════════════════════════════════════════════════════════
 -- Atlasio — Production-Ready Supabase Schema
--- Last updated: March 12, 2026 (S49 Audit — reconciled with live Supabase)
+-- Last updated: March 16, 2026 (S60 — neighborhood cache tables + RPCs)
 -- Original base: Feb 28, 2026 (Phase 1 Backend Build)
 --
 -- ⚠️  AUDIT NOTE: This file was reconciled against live Supabase on March 12,
@@ -12,11 +12,12 @@
 -- Deploy: Supabase Dashboard → SQL Editor → New Query → paste & run
 -- OR: supabase db push (via CLI)
 --
--- Tables (18):
+-- Tables (20):
 --   profiles, performance_stats, connections, jobs, bids,
 --   reviews, vouches, vouch_likes, threads, thread_members,
 --   messages, notifications, squads, squad_members,
---   reports, push_tokens, blocked_users, job_invitations
+--   reports, push_tokens, blocked_users, job_invitations,
+--   neighborhood_analyses, address_comparisons
 --
 -- Structure:
 --   1. ENUMS
@@ -28,6 +29,7 @@
 --   7. RPCs — Base (17 functions in original schema)
 --   8. PROFILES MIGRATIONS (columns added post-base: Phase 6 + S47)
 --   9. POST-BASE RPCs (15 functions deployed S22–S49 via SQL Editor)
+--  10. NEIGHBORHOOD INTELLIGENCE TABLES + RPCs (S59–S60)
 --
 -- Architecture:
 --   - Unified jobs table (repair, photography, staging) with job_type enum
@@ -1770,6 +1772,150 @@ CREATE TRIGGER trigger_update_verification_level
 
 
 -- ═════════════════════════════════════════════════════════════
+-- 10. NEIGHBORHOOD INTELLIGENCE TABLES + RPCs (S59–S60)
+-- ═════════════════════════════════════════════════════════════
+
+-- S59: neighborhood_analyses — cached single-address analysis results
+CREATE TABLE IF NOT EXISTS neighborhood_analyses (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id         UUID NOT NULL REFERENCES profiles(id),
+  client_label     TEXT NOT NULL,
+  address          TEXT NOT NULL,
+  lat              NUMERIC NOT NULL,
+  lng              NUMERIC NOT NULL,
+  composite_score  INTEGER NOT NULL,
+  score_descriptor TEXT NOT NULL,
+  category_scores  JSONB NOT NULL,
+  pois             JSONB NOT NULL,
+  priorities       JSONB NOT NULL,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- S59: address_comparisons — cached multi-address comparison results
+CREATE TABLE IF NOT EXISTS address_comparisons (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id     UUID NOT NULL REFERENCES profiles(id),
+  client_label TEXT NOT NULL,
+  priorities   JSONB NOT NULL,
+  entries      JSONB NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- S60: Save a single-address neighborhood analysis (cache write)
+CREATE OR REPLACE FUNCTION rpc_save_neighborhood_analysis(
+  p_client_label     TEXT,
+  p_address          TEXT,
+  p_lat              NUMERIC,
+  p_lng              NUMERIC,
+  p_composite_score  INTEGER,
+  p_score_descriptor TEXT,
+  p_category_scores  JSONB,
+  p_pois             JSONB,
+  p_priorities       JSONB
+) RETURNS JSONB AS $$
+DECLARE
+  v_agent_id UUID := auth.uid();
+  v_id UUID;
+BEGIN
+  IF v_agent_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+  END IF;
+  INSERT INTO neighborhood_analyses (
+    agent_id, client_label, address, lat, lng,
+    composite_score, score_descriptor, category_scores, pois, priorities
+  ) VALUES (
+    v_agent_id, p_client_label, p_address, p_lat, p_lng,
+    p_composite_score, p_score_descriptor, p_category_scores, p_pois, p_priorities
+  ) RETURNING id INTO v_id;
+  RETURN jsonb_build_object('success', true, 'id', v_id);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- S60: Lookup cached analysis by address + priorities hash (cache read)
+CREATE OR REPLACE FUNCTION rpc_get_cached_analysis(
+  p_address          TEXT,
+  p_priorities_hash  TEXT,
+  p_max_age_days     INTEGER DEFAULT 7
+) RETURNS JSONB AS $$
+DECLARE
+  v_agent_id UUID := auth.uid();
+  v_result   JSONB;
+BEGIN
+  IF v_agent_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+  SELECT jsonb_build_object(
+    'composite_score',  composite_score,
+    'score_descriptor', score_descriptor,
+    'category_scores',  category_scores,
+    'pois',             pois,
+    'cached_at',        created_at
+  )
+  INTO v_result
+  FROM neighborhood_analyses
+  WHERE agent_id    = v_agent_id
+    AND address     = p_address
+    AND priorities->>'hash' = p_priorities_hash
+    AND created_at  > NOW() - (p_max_age_days || ' days')::INTERVAL
+  ORDER BY created_at DESC
+  LIMIT 1;
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- S60: Lookup cached comparison by addresses + priorities hash (cache read)
+CREATE OR REPLACE FUNCTION rpc_get_cached_comparison(
+  p_addresses        TEXT[],
+  p_priorities_hash  TEXT,
+  p_max_age_days     INTEGER DEFAULT 7
+) RETURNS JSONB AS $$
+DECLARE
+  v_agent_id UUID := auth.uid();
+  v_result   JSONB;
+BEGIN
+  IF v_agent_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+  SELECT entries
+  INTO v_result
+  FROM address_comparisons
+  WHERE agent_id = v_agent_id
+    AND priorities->>'hash' = p_priorities_hash
+    AND created_at > NOW() - (p_max_age_days || ' days')::INTERVAL
+    AND (
+      SELECT COUNT(*)
+      FROM jsonb_array_elements(entries) e
+      WHERE e->>'address' = ANY(p_addresses)
+    ) = array_length(p_addresses, 1)
+  ORDER BY created_at DESC
+  LIMIT 1;
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- S60: Save multi-address comparison (cache write)
+CREATE OR REPLACE FUNCTION rpc_save_address_comparison(
+  p_client_label  TEXT,
+  p_priorities    JSONB,
+  p_entries       JSONB
+) RETURNS JSONB AS $$
+DECLARE
+  v_agent_id UUID := auth.uid();
+  v_id UUID;
+BEGIN
+  IF v_agent_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+  END IF;
+  INSERT INTO address_comparisons (
+    agent_id, client_label, priorities, entries
+  ) VALUES (
+    v_agent_id, p_client_label, p_priorities, p_entries
+  ) RETURNING id INTO v_id;
+  RETURN jsonb_build_object('success', true, 'id', v_id);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ═════════════════════════════════════════════════════════════
 -- DONE
--- Last verified against live Supabase: March 12, 2026 (S49 Audit)
+-- Last verified against live Supabase: March 16, 2026 (S60)
 -- ═════════════════════════════════════════════════════════════

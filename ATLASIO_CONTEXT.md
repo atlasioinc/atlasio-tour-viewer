@@ -31,12 +31,13 @@
 
 ---
 
-## Current Metrics (updated S56 — March 16, 2026)
-- **RPCs:** 33
+## Current Metrics (updated S60 — March 16, 2026)
+- **RPCs:** 37
 - **Hooks:** 58
 - **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`)
 - **Edge Functions:** 10
 - **Storage Buckets:** 6
+- **COLORS tokens:** 116 (was 114, +2 Neighborhood Intelligence tokens S59)
 - **tsc:** 0 errors
 
 When adding new RPCs, hooks, or Edge Functions — increment the count in this file and in the session commit message.
@@ -199,18 +200,21 @@ Client Lifestyle Fit Engine — agents input a client's lifestyle preferences an
 ### Files
 | File | Purpose |
 |------|---------|
+| `app.config.js` | Extends app.json with env var injection (API keys via `extra` block, S57) |
+| `lib/config.ts` | Centralized API key access — `GOOGLE_MAPS_API_KEY`, `AIRNOW_API_KEY` (S57) |
 | `types/neighborhood.ts` | Types scoped to this feature (not in types/index.ts) |
-| `lib/neighborhoodScoring.ts` | Weighted composite score computation + `CATEGORY_META` |
-| `hooks/useNeighborhoodAnalysis.ts` | Data hook with mock fallback (`LIVE_NEIGHBORHOOD_HOOKS = false`) |
-| `components/ClientLifestyleScreen.tsx` | Tile selection + address autocomplete (fullScreenModal) |
+| `lib/neighborhoodScoring.ts` | Weighted composite score computation + `CATEGORY_META` + `hashPriorities` cache key (S60) |
+| `hooks/useNeighborhoodAnalysis.ts` | Data hook with mock fallback + live pipeline + cache lookup/save (S57, S60) |
+| `components/ClientLifestyleScreen.tsx` | Tile selection + address autocomplete — mock + live paths (fullScreenModal) |
 | `components/NeighborhoodMatchScreen.tsx` | Animated score ring + priority bars + nearby POIs (fullScreenModal) |
-| `components/AddressComparisonScreen.tsx` | Two-phase comparison screen — address inputs → ranked results (fullScreenModal, S56) |
+| `components/AddressComparisonScreen.tsx` | Two-phase comparison — address inputs → ranked results, mock + live paths (fullScreenModal, S56–S57) |
 | `components/CategoryMapScreen.tsx` | Full-screen map with address + POI pins (fullScreenModal) |
 
 ### Feature Flag
 ```typescript
 // In hooks/useNeighborhoodAnalysis.ts (NOT in lib/featureFlags.ts)
-const LIVE_NEIGHBORHOOD_HOOKS = false; // false = mock data, true = live APIs (S50)
+// Exported — screens import it for conditional autocomplete rendering (S57)
+export const LIVE_NEIGHBORHOOD_HOOKS = false; // false = mock data, true = live APIs
 ```
 
 ### Navigation Flow
@@ -222,21 +226,24 @@ Both `HomeTabAgent.tsx` and `HomeTabAgentFilled.tsx` have a "Client Tools" secti
 ### 9 Lifestyle Categories
 `coffee`, `yoga`, `parks`, `walkability`, `gym`, `grocery`, `transit`, `bike`, `air_quality`
 
-### Backend APIs (scheduled S50)
-- Walk Score API — walkability, transit, bike scores
-- Google Places Nearby (New) — POI search per category (800m radius)
-- Google Places Autocomplete (New) — address input
-- EPA AirNow — air quality index → score mapping
-- All mock data in `hooks/useNeighborhoodAnalysis.ts` with `@demo` markers
+### Backend APIs (wired S57)
+- Walk Score API — **deferred** (walkability derived as proxy from POI density, replaceable with zero arch changes)
+- Google Places Nearby (New) — POI search per category (800m radius) — **wired S57**
+- Google Places Autocomplete (New) — address input — **wired S57**
+- Google Places Details — geocode placeId → lat/lng — **wired S57**
+- EPA AirNow — air quality index → score mapping — **wired S57**
+- API keys injected via `app.config.js` → `Constants.expoConfig.extra` → `lib/config.ts`
+- All mock data preserved in `hooks/useNeighborhoodAnalysis.ts` with `@demo` markers
 
 ### Dependencies
 - `react-native-maps` — added S48 for CategoryMapScreen
 - `expo-haptics` — tile long-press feedback
+- `expo-constants` — API key injection via `app.config.js` extra block (S57)
 
 ---
 
 ## Supabase Schema Reference
-- 18 tables, 15 enums, 50+ RLS policies, 37 indexes, 9 triggers, 33 RPCs
+- 20 tables, 15 enums, 50+ RLS policies, 37 indexes, 9 triggers, 37 RPCs
 - Revenue: graduated fees (0% first 3 jobs → 5% months 4–9 → 10% standard)
 - `sql/schema.sql` is the reference — always cross-check before writing queries
 - **Never use `GENERATED ALWAYS AS` on the `profiles` table** — causes 42P17 infinite recursion (learned S46, confirmed S49). Use a BEFORE INSERT OR UPDATE trigger instead.
@@ -358,7 +365,7 @@ After ANY correction from the user → update `tasks/lessons.md` with:
 - `COLORS.backgroundInfo = '#EFF6FF'` (added S38)
 - `COLORS.warningAmber = '#D97706'` (added S43)
 - `COLORS.counterAmber = '#D97706'` (same value, different semantic)
-- `RANK_BADGE_COLORS = ['#F59E0B', '#9CA3AF', '#B45309']` (local constants in AddressComparisonScreen.tsx — @tokens: add rankGold/rankSilver/rankBronze to tokens.ts in cleanup session)
+- Neighborhood Intelligence tokens (S58–S59, 11 total): `rankGold`, `rankSilver`, `rankBronze`, `winnerBannerBg`, `winnerBannerBorder`, `winnerBannerText`, `scoreGreen`, `scoreAmber`, `scoreRed`, `winnerCardBorder`, `disabledPrimaryTint`
 - All hex values must trace back to a named token — no inline hex
 
 ---
@@ -454,3 +461,45 @@ Located in `components/shared/index.ts` (barrel export):
 - **Hooks +1:** `useAddressComparison` (STATUS: mock)
 - **Screens +1:** `AddressComparisonScreen`
 - **Key decisions:** 2-col score grid with neutral pills (not per-category bars), winner card elevation (blue border + 4px left accent bar), static score bars in comparison cards (no animation — conflicts with card render order), mock score offsets tuned for green/amber demo contrast
+
+### S57 — Neighborhood Intelligence: Live API Wiring (March 16, 2026)
+- **Created:** `app.config.js` — Expo config extending app.json, injects API keys from process.env via extra block
+- **Created:** `lib/config.ts` — Centralised API key access via Constants.expoConfig.extra
+- **Modified:** `lib/neighborhoodScoring.ts` — Added `googlePlacesTypes: string[]` to CATEGORY_META (9 categories)
+- **Modified:** `hooks/useNeighborhoodAnalysis.ts` — Full live pipeline: `runLiveAnalysis`, `fetchPlacesForCategory`, `fetchAirQuality`, `haversineDistanceMi`, `aqiToScore`. Both hooks +loadingMessage. `LIVE_NEIGHBORHOOD_HOOKS` exported.
+- **Modified:** `components/HomeStack.tsx` — lat?/lng? added to NeighborhoodMatchScreen params; firstAddress?/firstLat?/firstLng? to AddressComparisonScreen; firstAnalysis made optional
+- **Modified:** `components/NeighborhoodMatchScreen.tsx` — lat/lng from params → analyze(), loadingMessage below spinner, firstLat/firstLng in comparison nav
+- **Modified:** `components/ClientLifestyleScreen.tsx` — Live autocomplete debounced 400ms (≥3 chars), geocodePlaceId, lat/lng to navigate, canAnalyze guard
+- **Modified:** `components/AddressComparisonScreen.tsx` — Per-slot autocomplete + geocoding, AddressInput[], firstAddress pre-population
+- **Bug fixed:** Google Places (New) API uses `radius` not `radiusInMeters` in circle object
+- **Live tested:** Denver address confirmed — autocomplete ✅ AirNow ✅ POIs ✅ scores meaningful ✅
+- **Hooks:** 58 (unchanged — existing hooks updated) | **Feature Flags:** 8 + 1 local | **tsc:** 0
+- **S58 next objectives:** Edit priorities link, 9 new COLORS tokens, loading message display polish, search radius display on results screen
+
+### S58 — Neighborhood Intelligence: UX Completeness (March 16, 2026)
+- **Modified:** `lib/tokens.ts` — Added 9 Neighborhood Intelligence tokens: rankGold, rankSilver, rankBronze, winnerBannerBg, winnerBannerBorder, winnerBannerText, scoreGreen (#059669), scoreAmber, scoreRed
+- **Modified:** `components/AddressComparisonScreen.tsx` — Replaced all inline hex with named tokens (RANK_BADGE_COLORS, getScoreColor, winner banner, rank badge text, CTA text). Added "← Edit priorities" link in Phase 2 results. Added "Within 0.5 miles" radius label per comparison card.
+- **Modified:** `components/NeighborhoodMatchScreen.tsx` — Replaced all inline hex with named tokens (getScoreColor, bar track, Must Have star). Added "Within 0.5 miles" radius label below address badges.
+- **Modified:** `components/HomeStack.tsx` — ClientLifestyleScreen params updated: `{ initialPriorities?: LifestylePriority[] } | undefined`
+- **Modified:** `components/ClientLifestyleScreen.tsx` — Added useRoute + initialPriorities param. Tiles pre-populate on mount (lazy init) and on re-navigation (useEffect). State flow comment updated.
+- **Inline hex remaining:** 0 in NeighborhoodMatchScreen; 3 annotated in AddressComparisonScreen (shadow #000, #BBF7D0 no-token, #C7D2FE no-token)
+- **Key decisions:** scoreGreen unified to emerald-600 (#059669) across both screens; navigation.navigate (not getParent) correct for same-stack fullScreenModals; useEffect added alongside useState lazy init for re-navigation param updates
+- **Hooks:** 58 (unchanged) | **COLORS tokens:** 114 (+9) | **tsc:** 0
+- **S59 next objectives:** Device testing prep, ATLASIO_CONTEXT update
+
+### S59 — Token Cleanup (March 16, 2026)
+- **Modified:** `lib/tokens.ts` — Added 2 tokens to Neighborhood Intelligence section: `winnerCardBorder` (#BBF7D0), `disabledPrimaryTint` (#C7D2FE)
+- **Modified:** `components/AddressComparisonScreen.tsx` — Replaced last 2 annotated inline hex values with named tokens
+- **Fixed:** `LIVE_NEIGHBORHOOD_HOOKS` reset from stale `true` back to `false` demo default
+- **Inline hex remaining:** 0 unannotated across all Neighborhood Intelligence screens (shadowColor '#000' intentional — SHADOWS preset)
+- **Hooks:** 58 (unchanged) | **COLORS tokens:** 116 (+2) | **Neighborhood Intelligence tokens:** 11 total | **tsc:** 0
+- **S60 next objectives:** Device testing, Walk Score API integration
+
+### S60 — Neighborhood Intelligence: Cache Lookup (March 16, 2026)
+- **Modified:** `lib/neighborhoodScoring.ts` — Added `hashPriorities()` utility for deterministic cache keys (sorted alphabetical, order-independent)
+- **Modified:** `hooks/useNeighborhoodAnalysis.ts` — Cache check before live API pipeline in both `useNeighborhoodAnalysis` and `useAddressComparison`. `saveToCacheSilently()` fire-and-forget after cache miss. Supabase client imported.
+- **Modified:** `sql/schema.sql` — Added `neighborhood_analyses` + `address_comparisons` tables (S59 backend, recorded S60). Added 4 RPCs.
+- **New RPCs (4):** `rpc_save_neighborhood_analysis`, `rpc_get_cached_analysis`, `rpc_get_cached_comparison`, `rpc_save_address_comparison`
+- **Cache TTL:** 7 days, matched by address + `hashPriorities()` hash + agent_id
+- **RPCs:** 37 (+4) | **Tables:** 20 (+2) | **Hooks:** 58 (unchanged — cache wired into existing hooks) | **tsc:** 0
+- **S61 next objectives:** Device testing (cache HIT/MISS console logs), Walk Score API integration

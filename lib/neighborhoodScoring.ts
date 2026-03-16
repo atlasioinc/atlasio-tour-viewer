@@ -22,6 +22,16 @@ export const CATEGORY_META: Record<LifestyleCategory, { label: string; emoji: st
   air_quality: { label: 'Air Quality',    emoji: '🌿', googlePlacesTypes: [] },           // AirNow API — not Places
 };
 
+// @backend S60: deterministic hash for LifestylePriority[] cache key
+// Sorted by category (alphabetical) before joining — order-independent
+// Example output: 'coffee:must_have|gym:nice_to_have|parks:must_have'
+export function hashPriorities(priorities: LifestylePriority[]): string {
+  return [...priorities]
+    .sort((a, b) => a.category.localeCompare(b.category))
+    .map(p => `${p.category}:${p.priority}`)
+    .join('|');
+}
+
 function getDescriptor(score: number): NeighborhoodAnalysis['scoreDescriptor'] {
   if (score >= 75) return 'Excellent Match';
   if (score >= 50) return 'Good Match';

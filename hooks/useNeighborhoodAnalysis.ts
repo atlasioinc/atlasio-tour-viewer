@@ -13,8 +13,9 @@
 
 import { useState } from 'react';
 import type { LifestylePriority, LifestyleCategory, NeighborhoodAnalysis, POIResult, AddressComparison, ComparisonEntry } from '../types/neighborhood';
-import { computeAnalysis, CATEGORY_META } from '../lib/neighborhoodScoring';
+import { computeAnalysis, CATEGORY_META, hashPriorities } from '../lib/neighborhoodScoring';
 import { GOOGLE_MAPS_API_KEY, AIRNOW_API_KEY } from '../lib/config';
+import { supabase } from '../lib/supabase';
 
 // @demo: false = mock data for investor demos. Flip true only for live testing, reset before commit.
 export const LIVE_NEIGHBORHOOD_HOOKS = false;
@@ -223,6 +224,35 @@ async function runLiveAnalysis(
   return computeAnalysis(rawScores, allPois, priorities, clientLabel, address, lat, lng);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// @backend S60: fire-and-forget cache save
+// Never awaited — failure never blocks UI or affects analysis result
+// ─────────────────────────────────────────────────────────────────────────────
+function saveToCacheSilently(
+  address: string,
+  lat: number,
+  lng: number,
+  analysis: NeighborhoodAnalysis,
+  priorities: LifestylePriority[],
+  prioritiesHash: string,
+  clientLabel: string = '',
+): void {
+  supabase.rpc('rpc_save_neighborhood_analysis', {
+    p_client_label:     clientLabel,
+    p_address:          address,
+    p_lat:              lat,
+    p_lng:              lng,
+    p_composite_score:  analysis.compositeScore,
+    p_score_descriptor: analysis.scoreDescriptor,
+    p_category_scores:  analysis.categoryScores,
+    p_pois:             analysis.pois,
+    p_priorities:       { hash: prioritiesHash, data: priorities },
+  }).then(({ error }) => {
+    if (error) console.warn('[Cache save failed] useNeighborhoodAnalysis:', error.message);
+    else console.log('[Cache saved] useNeighborhoodAnalysis:', address);
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════
 // useNeighborhoodAnalysis
 // ═══════════════════════════════════════════════════════════════
@@ -254,11 +284,40 @@ export function useNeighborhoodAnalysis() {
           setIsLoading(false);
           return;
         }
-        const result = await runLiveAnalysis(
-          priorities, clientLabel, address, lat, lng,
-          (msg) => setLoadingMessage(msg),
-        );
-        setAnalysis(result);
+
+        // @backend S60: cache lookup — check before live API pipeline
+        const prioritiesHash = hashPriorities(priorities);
+        const { data: cachedResult, error: cacheError } = await supabase
+          .rpc('rpc_get_cached_analysis', {
+            p_address: address,
+            p_priorities_hash: prioritiesHash,
+            p_max_age_days: 7,
+          });
+
+        if (cachedResult && !cacheError) {
+          // @backend S60: cache hit — return saved analysis, skip all API calls
+          console.log('[Cache HIT] useNeighborhoodAnalysis:', address);
+          setAnalysis({
+            clientLabel,
+            address,
+            lat,
+            lng,
+            compositeScore: cachedResult.composite_score,
+            scoreDescriptor: cachedResult.score_descriptor,
+            categoryScores: cachedResult.category_scores,
+            pois: cachedResult.pois,
+            analyzedAt: cachedResult.cached_at,
+          });
+        } else {
+          // @backend S60: cache miss — run full pipeline, then auto-save
+          console.log('[Cache MISS] useNeighborhoodAnalysis:', address);
+          const result = await runLiveAnalysis(
+            priorities, clientLabel, address, lat, lng,
+            (msg) => setLoadingMessage(msg),
+          );
+          setAnalysis(result);
+          saveToCacheSilently(address, lat, lng, result, priorities, prioritiesHash, clientLabel);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
@@ -365,34 +424,69 @@ export function useAddressComparison() {
         // @backend S57: live path — run full pipeline per address in parallel
         const liveAddresses = addresses as AddressInput[];
 
-        const entries: ComparisonEntry[] = await Promise.all(
-          liveAddresses.map(async (addr) => {
-            try {
-              setLoadingMessage(`Analyzing ${addr.address.split(',')[0]}...`);
-              const analysis = await runLiveAnalysis(
-                priorities, clientLabel, addr.address, addr.lat, addr.lng,
-              );
-              return { address: addr.address, lat: addr.lat, lng: addr.lng, analysis };
-            } catch (err) {
-              // Per-address failure falls back gracefully — never kills the comparison
-              console.warn(`[useAddressComparison] Failed for ${addr.address}:`, err);
-              const fallbackAnalysis = computeAnalysis(
-                {}, [], priorities, clientLabel, addr.address, addr.lat, addr.lng,
-              );
-              return { address: addr.address, lat: addr.lat, lng: addr.lng, analysis: fallbackAnalysis };
-            }
-          })
-        );
+        // @backend S60: cache lookup — check before running parallel analysis
+        const sortedAddresses = [...liveAddresses].map(a => a.address).sort();
+        const prioritiesHash = hashPriorities(priorities);
 
-        // Sort highest score first
-        entries.sort((a, b) => b.analysis.compositeScore - a.analysis.compositeScore);
+        const { data: cachedComparison, error: cacheError } = await supabase
+          .rpc('rpc_get_cached_comparison', {
+            p_addresses: sortedAddresses,
+            p_priorities_hash: prioritiesHash,
+            p_max_age_days: 7,
+          });
 
-        setComparison({
-          clientLabel,
-          priorities,
-          entries,
-          createdAt: new Date().toISOString(),
-        });
+        if (cachedComparison && !cacheError) {
+          // @backend S60: cache hit — return saved comparison, skip all API calls
+          console.log('[Cache HIT] useAddressComparison');
+          setComparison({
+            clientLabel,
+            priorities,
+            entries: cachedComparison,
+            createdAt: new Date().toISOString(),
+          });
+        } else {
+          // @backend S60: cache miss — run full pipeline, then auto-save
+          console.log('[Cache MISS] useAddressComparison');
+
+          const entries: ComparisonEntry[] = await Promise.all(
+            liveAddresses.map(async (addr) => {
+              try {
+                setLoadingMessage(`Analyzing ${addr.address.split(',')[0]}...`);
+                const analysis = await runLiveAnalysis(
+                  priorities, clientLabel, addr.address, addr.lat, addr.lng,
+                );
+                return { address: addr.address, lat: addr.lat, lng: addr.lng, analysis };
+              } catch (err) {
+                // Per-address failure falls back gracefully — never kills the comparison
+                console.warn(`[useAddressComparison] Failed for ${addr.address}:`, err);
+                const fallbackAnalysis = computeAnalysis(
+                  {}, [], priorities, clientLabel, addr.address, addr.lat, addr.lng,
+                );
+                return { address: addr.address, lat: addr.lat, lng: addr.lng, analysis: fallbackAnalysis };
+              }
+            })
+          );
+
+          // Sort highest score first
+          entries.sort((a, b) => b.analysis.compositeScore - a.analysis.compositeScore);
+
+          setComparison({
+            clientLabel,
+            priorities,
+            entries,
+            createdAt: new Date().toISOString(),
+          });
+
+          // @backend S60: fire-and-forget cache save for comparison
+          supabase.rpc('rpc_save_address_comparison', {
+            p_client_label: clientLabel,
+            p_priorities: { hash: prioritiesHash, data: priorities },
+            p_entries: entries,
+          }).then(({ error: saveErr }) => {
+            if (saveErr) console.warn('[Cache save failed] useAddressComparison:', saveErr.message);
+            else console.log('[Cache saved] useAddressComparison');
+          });
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Comparison failed');
