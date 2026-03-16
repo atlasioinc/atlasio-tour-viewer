@@ -75,16 +75,16 @@ const CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 const NeighborhoodMatchScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<RouteProp<HomeStackParamList, 'NeighborhoodMatchScreen'>>();
-  const { priorities, clientLabel, address } = route.params;
+  const { priorities, clientLabel, address, lat, lng } = route.params;
 
-  const { analyze, analysis, isLoading } = useNeighborhoodAnalysis();
+  const { analyze, analysis, isLoading, loadingMessage } = useNeighborhoodAnalysis();
 
   const scoreAnim = useRef(new Animated.Value(0)).current;
   const barAnims = useRef<Animated.Value[]>([]).current;
 
   // ── Trigger analysis on mount ──
   useEffect(() => {
-    analyze(priorities, clientLabel, address);
+    analyze(priorities, clientLabel, address, lat, lng);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -168,6 +168,18 @@ const NeighborhoodMatchScreen: React.FC = () => {
           <Text style={{ fontSize: 14, color: COLORS.secondaryText, marginTop: 12 }}>
             Analyzing match…
           </Text>
+          {/* @demo: loadingMessage is null in mock path — only spinner shown */}
+          {/* @backend: shows per-step progress text during live analysis */}
+          {loadingMessage && (
+            <Text style={{
+              fontSize: 14,
+              color: COLORS.secondaryText,
+              marginTop: 8,
+              textAlign: 'center',
+            }}>
+              {loadingMessage}
+            </Text>
+          )}
         </View>
       )}
 
@@ -305,6 +317,8 @@ const NeighborhoodMatchScreen: React.FC = () => {
                   clientLabel,
                   firstAddress: address,
                   firstAnalysis: analysis,
+                  firstLat: lat,       // @backend: geocoded in live path, undefined in mock
+                  firstLng: lng,       // @backend: geocoded in live path, undefined in mock
                 })}
                 style={({ pressed }) => ({
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

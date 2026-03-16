@@ -3,10 +3,11 @@
 // WHO:   Agent only
 // WHERE: HomeStack → fullScreenModal from HomeTabAgent 'Client Tools' card
 // WHAT:  Client name input + lifestyle tile selection + address autocomplete
-// NEXT:  navigation.navigate('NeighborhoodMatchScreen', { priorities, clientLabel, address })
+// NEXT:  navigation.navigate('NeighborhoodMatchScreen', { priorities, clientLabel, address, lat, lng })
 //
 // @demo  All address suggestions are hardcoded (1700 Lincoln St, Denver CO 80203)
 // @backend Google Places Autocomplete (New) API — POST places.googleapis.com/v1/places:autocomplete
+//          Google Places Details — GET places.googleapis.com/v1/places/{placeId}?fields=location,formattedAddress
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef } from 'react';
@@ -29,19 +30,26 @@ import type { HomeStackParamList } from './HomeStack';
 import type { LifestyleCategory, PriorityLevel } from '../types/neighborhood';
 import { CATEGORY_META } from '../lib/neighborhoodScoring';
 import { COLORS } from '../lib/tokens';
+import { GOOGLE_MAPS_API_KEY } from '../lib/config';
+import { LIVE_NEIGHBORHOOD_HOOKS } from '../hooks/useNeighborhoodAnalysis';
 
 // ── State flow ────────────────────────────────────────────────────────────────
-// clientLabel:     string — client name field value (travels to results screen)
-// selectedTiles:   Map<LifestyleCategory, PriorityLevel>
-//                    Tap unselected → add as 'nice_to_have'. Visual change in place.
-//                    Tap selected → remove from Map. Visual change in place.
-//                    Long-press nice_to_have → upgrade to 'must_have'. Haptic + scale pulse.
-//                    Long-press must_have → downgrade to 'nice_to_have'. Haptic.
-//                    Long-press unselected → add as 'must_have'. Haptic + scale pulse.
-// addressText:     string — raw typed text in address field
-// addressDisplay:  string — confirmed address from autocomplete selection
-// showAutocomplete:boolean — shows mock suggestion dropdown
-// canAnalyze:      selectedTiles.size >= 1 && addressDisplay.length > 0
+// clientLabel:        string — client name field value (travels to results screen)
+// selectedTiles:      Map<LifestyleCategory, PriorityLevel>
+//                       Tap unselected → add as 'nice_to_have'. Visual change in place.
+//                       Tap selected → remove from Map. Visual change in place.
+//                       Long-press nice_to_have → upgrade to 'must_have'. Haptic + scale pulse.
+//                       Long-press must_have → downgrade to 'nice_to_have'. Haptic.
+//                       Long-press unselected → add as 'must_have'. Haptic + scale pulse.
+// addressText:        string — raw typed text in address field
+// addressDisplay:     string — confirmed address from autocomplete selection
+// showAutocomplete:   boolean — shows suggestion dropdown
+// geocodedLat/Lng:    number | null — geocoded coordinates (live path only)
+// suggestions:        Array<{ placeId, description }> — live autocomplete results
+// isFetchingSuggestions: boolean — loading state for live autocomplete
+// addressError:       string | null — geocoding failure message
+// canAnalyze:         selectedTiles.size >= 1 && addressDisplay.length > 0
+//                     (live path also requires geocodedLat/Lng !== null)
 //
 // All tiles render in a single flat flexWrap row in fixed order (ALL_CATEGORIES).
 // Selection changes visual state in place — no tile movement or layout shift.
@@ -157,7 +165,28 @@ const ClientLifestyleScreen: React.FC = () => {
   const [addressDisplay, setAddressDisplay] = useState('');
   const [showAutocomplete, setShowAutocomplete] = useState(false);
 
-  const canAnalyze = selectedTiles.size >= 1 && addressDisplay.length > 0;
+  // Geocoded coordinates — populated on autocomplete selection (live path only)
+  // @demo: null — mock path uses DEMO_LAT/LNG hardcoded in the hook
+  // @backend: passed to analyze() to skip geocoding inside the hook
+  const [geocodedLat, setGeocodedLat] = useState<number | null>(null);
+  const [geocodedLng, setGeocodedLng] = useState<number | null>(null);
+
+  // Live path autocomplete suggestions from Google Places API
+  // @demo: not used — mock path renders hardcoded suggestion
+  const [suggestions, setSuggestions] = useState<
+    Array<{ placeId: string; description: string }>
+  >([]);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
+
+  // Debounce timer ref for autocomplete
+  const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Live path requires geocoded coordinates before enabling the CTA
+  const canAnalyze =
+    selectedTiles.size >= 1 &&
+    addressDisplay.length > 0 &&
+    (LIVE_NEIGHBORHOOD_HOOKS ? (geocodedLat !== null && geocodedLng !== null) : true);
 
   // ── Tile handlers ──
 
@@ -194,6 +223,115 @@ const ClientLifestyleScreen: React.FC = () => {
     return priority === 'must_have' ? 'must_have' : 'selected';
   };
 
+  // ── Autocomplete functions (live path) ──
+
+  // @backend S57: Google Places Autocomplete (New)
+  // POST https://places.googleapis.com/v1/places:autocomplete
+  // Called with 400ms debounce after 3+ chars typed
+  const fetchAutocompleteSuggestions = async (input: string) => {
+    setIsFetchingSuggestions(true);
+    try {
+      const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+        },
+        body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
+      });
+      const data = await response.json();
+      const mapped = (data.suggestions ?? []).map((s: any) => ({
+        placeId: s.placePrediction?.placeId ?? '',
+        description: s.placePrediction?.text?.text ?? '',
+      })).filter((s: { placeId: string; description: string }) => s.placeId && s.description);
+      setSuggestions(mapped);
+    } catch {
+      console.warn('[ClientLifestyleScreen] Autocomplete failed');
+      setSuggestions([]);
+    } finally {
+      setIsFetchingSuggestions(false);
+    }
+  };
+
+  // @backend S57: Google Places Details — geocodes selected placeId to lat/lng
+  // GET https://places.googleapis.com/v1/places/{placeId}?fields=location,formattedAddress
+  const geocodePlaceId = async (placeId: string) => {
+    try {
+      const response = await fetch(
+        `https://places.googleapis.com/v1/places/${placeId}?fields=location,formattedAddress`,
+        { headers: { 'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY } }
+      );
+      const data = await response.json();
+      return {
+        formattedAddress: data.formattedAddress as string,
+        lat: data.location?.latitude as number,
+        lng: data.location?.longitude as number,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  // ── Address input handlers ──
+
+  const handleAddressTextChange = (text: string) => {
+    setAddressText(text);
+    setAddressDisplay('');
+    setGeocodedLat(null);
+    setGeocodedLng(null);
+    setAddressError(null);
+
+    // Clear previous debounce
+    if (autocompleteTimerRef.current) clearTimeout(autocompleteTimerRef.current);
+
+    // Trigger threshold: 3 chars (both mock and live paths)
+    if (text.length < 3) {
+      setSuggestions([]);
+      setShowAutocomplete(false);
+      return;
+    }
+
+    setShowAutocomplete(true);
+
+    if (LIVE_NEIGHBORHOOD_HOOKS) {
+      // Debounced live fetch
+      autocompleteTimerRef.current = setTimeout(() => {
+        fetchAutocompleteSuggestions(text);
+      }, 400);
+    }
+    // @demo: mock path — showAutocomplete = true is enough, hardcoded suggestion renders below
+  };
+
+  // @demo: mock path selection — single hardcoded suggestion
+  const handleMockSuggestionSelect = () => {
+    const addr = '1700 Lincoln St, Denver CO 80203';
+    setAddressDisplay(addr);
+    setAddressText(addr);
+    setShowAutocomplete(false);
+    Keyboard.dismiss();
+  };
+
+  // @backend S57: geocode selected place and store coordinates
+  const handleLiveSuggestionSelect = async (placeId: string, description: string) => {
+    setAddressText(description);
+    setSuggestions([]);
+    setShowAutocomplete(false);
+    Keyboard.dismiss();
+
+    const result = await geocodePlaceId(placeId);
+    if (result) {
+      setAddressDisplay(result.formattedAddress || description);
+      setGeocodedLat(result.lat);
+      setGeocodedLng(result.lng);
+      setAddressError(null);
+    } else {
+      setAddressDisplay('');
+      setGeocodedLat(null);
+      setGeocodedLng(null);
+      setAddressError('Could not resolve this address. Please try another.');
+    }
+  };
+
   const handleAnalyze = () => {
     const priorities = Array.from(selectedTiles.entries())
       .map(([category, priority]) => ({ category, priority }));
@@ -201,6 +339,8 @@ const ClientLifestyleScreen: React.FC = () => {
       priorities,
       clientLabel: clientLabel || 'My Client',
       address: addressDisplay,
+      lat: geocodedLat ?? undefined,   // @backend: geocoded in live path, undefined in mock
+      lng: geocodedLng ?? undefined,   // @backend: geocoded in live path, undefined in mock
     });
   };
 
@@ -305,11 +445,7 @@ const ClientLifestyleScreen: React.FC = () => {
                   placeholder="Enter a property address"
                   placeholderTextColor={COLORS.lightText}
                   value={addressText}
-                  onChangeText={(text) => {
-                    setAddressText(text);
-                    setShowAutocomplete(text.length >= 2);
-                    setAddressDisplay('');
-                  }}
+                  onChangeText={handleAddressTextChange}
                   onFocus={() => {
                     setTimeout(() => {
                       scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -320,8 +456,8 @@ const ClientLifestyleScreen: React.FC = () => {
                 />
               </View>
 
-              {/* @demo: hardcoded suggestion. @backend: Google Places Autocomplete (New) API */}
-              {showAutocomplete && addressText.length >= 2 && (
+              {/* Autocomplete dropdown — mock or live path */}
+              {showAutocomplete && addressText.length >= 3 && (
                 <View style={{
                   position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
                   backgroundColor: COLORS.background,
@@ -329,22 +465,46 @@ const ClientLifestyleScreen: React.FC = () => {
                   shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
                 }}>
-                  <Pressable
-                    onPress={() => {
-                      const addr = '1700 Lincoln St, Denver CO 80203';
-                      setAddressDisplay(addr);
-                      setAddressText(addr);
-                      setShowAutocomplete(false);
-                      Keyboard.dismiss();
-                    }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
-                  >
-                    <PinIcon size={16} color={COLORS.bodyText} />
-                    <Text style={{ fontSize: 14, color: COLORS.darkText }}>1700 Lincoln St, Denver CO 80203</Text>
-                  </Pressable>
+                  {LIVE_NEIGHBORHOOD_HOOKS ? (
+                    // Live path — dynamic suggestions from Google Places Autocomplete
+                    isFetchingSuggestions && suggestions.length === 0 ? (
+                      <View style={{ padding: 12, paddingHorizontal: 14 }}>
+                        <Text style={{ fontSize: 14, color: COLORS.lightText }}>
+                          Searching...
+                        </Text>
+                      </View>
+                    ) : (
+                      suggestions.map((s) => (
+                        <Pressable
+                          key={s.placeId}
+                          onPress={() => handleLiveSuggestionSelect(s.placeId, s.description)}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
+                        >
+                          <PinIcon size={16} color={COLORS.bodyText} />
+                          <Text style={{ fontSize: 14, color: COLORS.darkText }}>{s.description}</Text>
+                        </Pressable>
+                      ))
+                    )
+                  ) : (
+                    // @demo: Mock path — single hardcoded suggestion
+                    <Pressable
+                      onPress={handleMockSuggestionSelect}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
+                    >
+                      <PinIcon size={16} color={COLORS.bodyText} />
+                      <Text style={{ fontSize: 14, color: COLORS.darkText }}>1700 Lincoln St, Denver CO 80203</Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
             </View>
+
+            {/* Address error display */}
+            {addressError && (
+              <Text style={{ fontSize: 13, color: COLORS.errorRed, marginTop: 6, paddingHorizontal: 2 }}>
+                {addressError}
+              </Text>
+            )}
           </View>
       </ScrollView>
 

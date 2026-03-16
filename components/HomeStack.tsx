@@ -78,6 +78,8 @@ export type HomeStackParamList = {
     priorities: LifestylePriority[];
     clientLabel: string;
     address: string;
+    lat?: number;         // geocoded in live path, absent in mock path
+    lng?: number;         // geocoded in live path, absent in mock path
   };
   CategoryMapScreen: {
     category: LifestyleCategory;
@@ -92,7 +94,9 @@ export type HomeStackParamList = {
     priorities: LifestylePriority[];
     clientLabel: string;
     firstAddress: string;
-    firstAnalysis: NeighborhoodAnalysis;
+    firstAnalysis?: NeighborhoodAnalysis;   // optional — not needed in live path
+    firstLat?: number;                      // geocoded — live path only
+    firstLng?: number;                      // geocoded — live path only
   };
 };
 

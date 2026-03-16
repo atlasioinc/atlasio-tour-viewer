@@ -8,16 +8,18 @@ import type { LifestylePriority, CategoryScore, NeighborhoodAnalysis, POIResult,
 
 const WEIGHTS: Record<string, number> = { must_have: 1.0, nice_to_have: 0.5 };
 
-export const CATEGORY_META: Record<LifestyleCategory, { label: string; emoji: string }> = {
-  walkability: { label: 'Walkability',    emoji: '🚶' },
-  transit:     { label: 'Transit',        emoji: '🚌' },
-  bike:        { label: 'Bike-Friendly',  emoji: '🚲' },
-  coffee:      { label: 'Coffee Shops',   emoji: '☕' },
-  yoga:        { label: 'Yoga & Pilates', emoji: '🧘' },
-  gym:         { label: 'Fitness & Gyms', emoji: '💪' },
-  parks:       { label: 'Parks & Nature', emoji: '🌳' },
-  grocery:     { label: 'Grocery',        emoji: '🛒' },
-  air_quality: { label: 'Air Quality',    emoji: '🌿' },
+// @backend S57: googlePlacesTypes maps each category to Google Places (New) includedTypes
+// Categories with empty arrays use non-Places APIs (AirNow) or derived proxies (walkability)
+export const CATEGORY_META: Record<LifestyleCategory, { label: string; emoji: string; googlePlacesTypes: string[] }> = {
+  walkability: { label: 'Walkability',    emoji: '🚶', googlePlacesTypes: [] },           // derived proxy — no API call
+  transit:     { label: 'Transit',        emoji: '🚌', googlePlacesTypes: ['transit_station', 'subway_station', 'bus_station'] },
+  bike:        { label: 'Bike-Friendly',  emoji: '🚲', googlePlacesTypes: ['bicycle_store'] },
+  coffee:      { label: 'Coffee Shops',   emoji: '☕', googlePlacesTypes: ['coffee_shop', 'cafe'] },
+  yoga:        { label: 'Yoga & Pilates', emoji: '🧘', googlePlacesTypes: ['yoga_studio'] },
+  gym:         { label: 'Fitness & Gyms', emoji: '💪', googlePlacesTypes: ['gym', 'fitness_center'] },
+  parks:       { label: 'Parks & Nature', emoji: '🌳', googlePlacesTypes: ['park', 'national_park'] },
+  grocery:     { label: 'Grocery',        emoji: '🛒', googlePlacesTypes: ['grocery_store', 'supermarket'] },
+  air_quality: { label: 'Air Quality',    emoji: '🌿', googlePlacesTypes: [] },           // AirNow API — not Places
 };
 
 function getDescriptor(score: number): NeighborhoodAnalysis['scoreDescriptor'] {

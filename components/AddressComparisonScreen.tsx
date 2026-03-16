@@ -4,13 +4,15 @@
 // WHERE: HomeStack → fullScreenModal from NeighborhoodMatchScreen
 // WHAT:  Agent enters 1–2 additional addresses to compare against the first.
 //        Shows ranked comparison with composite scores and category breakdowns.
-// RECEIVES: { priorities, clientLabel, firstAddress, firstAnalysis }
+// RECEIVES: { priorities, clientLabel, firstAddress, firstAnalysis?, firstLat?, firstLng? }
 //
 // @demo  All scores from useAddressComparison mock data (offset per address)
-// @backend Walk Score API + Google Places Nearby + AirNow per address (S57+)
+// @backend Walk Score API + Google Places Nearby + AirNow per address (S57)
+//          Google Places Autocomplete (New) — POST places.googleapis.com/v1/places:autocomplete
+//          Google Places Details — GET places.googleapis.com/v1/places/{placeId}?fields=location,formattedAddress
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,16 +28,21 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { HomeStackParamList } from './HomeStack';
-import { useAddressComparison } from '../hooks/useNeighborhoodAnalysis';
+import { useAddressComparison, LIVE_NEIGHBORHOOD_HOOKS } from '../hooks/useNeighborhoodAnalysis';
 import { COLORS } from '../lib/tokens';
+import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 
 // ── State flow ────────────────────────────────────────────────────────────────
-// addressInputs: string[] — up to 2 additional address text fields
-// addressDisplays: string[] — confirmed addresses from autocomplete
-// showAutocomplete: number | null — index of which field is showing suggestions
-// canCompare: addressDisplays.filter(Boolean).length >= 1 (need at least 1 more)
+// addressInputs:       string[] — up to 2 additional address text fields
+// addressDisplays:     string[] — confirmed addresses from autocomplete
+// showAutocomplete:    number | null — index of which field is showing suggestions
+// geocodedLocations:   Array<{ lat, lng } | null> — per-slot geocoded coordinates (live path)
+// suggestions:         Array<Array<{ placeId, description }>> — per-slot live autocomplete
+// isFetchingSuggestions: boolean[] — per-slot loading state
+// addressErrors:       Array<string | null> — per-slot geocoding errors
+// canCompare:          addressDisplays.filter(Boolean).length >= 1 (need at least 1 more)
 //
-// On mount: firstAddress + firstAnalysis are already available from route params.
+// On mount: firstAddress + firstLat/firstLng pre-populate slot 0 (live path).
 // On 'Compare' tap: useAddressComparison.compare([firstAddress, ...addressDisplays], ...)
 // After comparison: results rendered inline on this screen (no new screen needed)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,7 +115,7 @@ const AddressComparisonScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { priorities, clientLabel, firstAddress } = route.params;
+  const { priorities, clientLabel, firstAddress, firstLat, firstLng } = route.params;
   // firstAnalysis available in route.params for Phase 2: pre-populate winner without re-analysis
 
   // ── Input phase state ──
@@ -116,39 +123,199 @@ const AddressComparisonScreen: React.FC = () => {
   const [addressDisplays, setAddressDisplays] = useState<string[]>(['', '']);
   const [showAutocomplete, setShowAutocomplete] = useState<number | null>(null);
 
+  // ── Geocoded locations state (live path) ──
+  // Tracks geocoded coordinates per address slot (index 0, 1)
+  // @demo: not used — mock path uses DEMO_LAT/LNG with offsets inside the hook
+  // @backend S57: coordinates passed to compare() in live path
+  const [geocodedLocations, setGeocodedLocations] = useState<
+    Array<{ lat: number; lng: number } | null>
+  >([null, null]);
+
+  // Per-slot autocomplete suggestions (live path)
+  const [suggestions, setSuggestions] = useState<
+    Array<Array<{ placeId: string; description: string }>>
+  >([[], []]);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState<boolean[]>([false, false]);
+  const [addressErrors, setAddressErrors] = useState<Array<string | null>>([null, null]);
+  const autocompleteTimers = useRef<Array<ReturnType<typeof setTimeout> | null>>([null, null]);
+
   // ── Comparison hook ──
-  const { compare, comparison, isLoading, error, reset } = useAddressComparison();
+  const { compare, comparison, isLoading, loadingMessage, error, reset } = useAddressComparison();
 
   const canCompare = addressDisplays.filter(Boolean).length >= 1;
 
-  // ── Handlers ──
+  // ── Autocomplete functions (live path) ──
 
-  const handleAddressChange = (text: string, index: number) => {
-    const next = [...addressInputs];
-    next[index] = text;
-    setAddressInputs(next);
-    setShowAutocomplete(text.length >= 2 ? index : null);
-    // Clear confirmed address when editing
-    const nextDisplays = [...addressDisplays];
-    nextDisplays[index] = '';
-    setAddressDisplays(nextDisplays);
+  // @backend S57: Google Places Autocomplete (New)
+  // POST https://places.googleapis.com/v1/places:autocomplete
+  const fetchAutocompleteSuggestions = async (input: string, slotIndex: number) => {
+    setIsFetchingSuggestions(prev => { const next = [...prev]; next[slotIndex] = true; return next; });
+    try {
+      const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+        },
+        body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
+      });
+      const data = await response.json();
+      const mapped = (data.suggestions ?? []).map((s: any) => ({
+        placeId: s.placePrediction?.placeId ?? '',
+        description: s.placePrediction?.text?.text ?? '',
+      })).filter((s: { placeId: string; description: string }) => s.placeId && s.description);
+      setSuggestions(prev => { const next = [...prev]; next[slotIndex] = mapped; return next; });
+    } catch {
+      console.warn(`[AddressComparisonScreen] Autocomplete failed for slot ${slotIndex}`);
+      setSuggestions(prev => { const next = [...prev]; next[slotIndex] = []; return next; });
+    } finally {
+      setIsFetchingSuggestions(prev => { const next = [...prev]; next[slotIndex] = false; return next; });
+    }
   };
 
-  const handleSelectSuggestion = (index: number) => {
-    const addr = MOCK_SUGGESTIONS[index];
+  // @backend S57: Google Places Details — geocodes selected placeId to lat/lng
+  // GET https://places.googleapis.com/v1/places/{placeId}?fields=location,formattedAddress
+  const geocodePlaceId = async (placeId: string) => {
+    try {
+      const response = await fetch(
+        `https://places.googleapis.com/v1/places/${placeId}?fields=location,formattedAddress`,
+        { headers: { 'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY } }
+      );
+      const data = await response.json();
+      return {
+        formattedAddress: data.formattedAddress as string,
+        lat: data.location?.latitude as number,
+        lng: data.location?.longitude as number,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  // ── Per-slot handlers ──
+
+  const handleAddressTextChange = (slotIndex: number, text: string) => {
     const nextInputs = [...addressInputs];
-    nextInputs[index] = addr;
+    nextInputs[slotIndex] = text;
+    setAddressInputs(nextInputs);
+
+    // Clear confirmed address when editing
+    const nextDisplays = [...addressDisplays];
+    nextDisplays[slotIndex] = '';
+    setAddressDisplays(nextDisplays);
+
+    // Clear geocoded location
+    setGeocodedLocations(prev => { const next = [...prev]; next[slotIndex] = null; return next; });
+    setAddressErrors(prev => { const next = [...prev]; next[slotIndex] = null; return next; });
+
+    // Clear previous debounce
+    if (autocompleteTimers.current[slotIndex]) {
+      clearTimeout(autocompleteTimers.current[slotIndex]!);
+    }
+
+    // Trigger threshold: 3 chars
+    if (text.length < 3) {
+      setSuggestions(prev => { const next = [...prev]; next[slotIndex] = []; return next; });
+      setShowAutocomplete(null);
+      return;
+    }
+
+    setShowAutocomplete(slotIndex);
+
+    if (LIVE_NEIGHBORHOOD_HOOKS) {
+      autocompleteTimers.current[slotIndex] = setTimeout(() => {
+        fetchAutocompleteSuggestions(text, slotIndex);
+      }, 400);
+    }
+  };
+
+  // @demo: mock path — select hardcoded suggestion
+  const handleMockSuggestionSelect = (slotIndex: number) => {
+    const addr = MOCK_SUGGESTIONS[slotIndex];
+    const nextInputs = [...addressInputs];
+    nextInputs[slotIndex] = addr;
     setAddressInputs(nextInputs);
     const nextDisplays = [...addressDisplays];
-    nextDisplays[index] = addr;
+    nextDisplays[slotIndex] = addr;
     setAddressDisplays(nextDisplays);
     setShowAutocomplete(null);
     Keyboard.dismiss();
   };
 
+  // @backend S57: geocode selected place and store coordinates
+  const handleLiveSuggestionSelect = async (slotIndex: number, placeId: string, description: string) => {
+    const nextInputs = [...addressInputs];
+    nextInputs[slotIndex] = description;
+    setAddressInputs(nextInputs);
+    setSuggestions(prev => { const next = [...prev]; next[slotIndex] = []; return next; });
+    setShowAutocomplete(null);
+    Keyboard.dismiss();
+
+    const result = await geocodePlaceId(placeId);
+    if (result) {
+      const nextDisplays = [...addressDisplays];
+      nextDisplays[slotIndex] = result.formattedAddress || description;
+      setAddressDisplays(nextDisplays);
+      setGeocodedLocations(prev => {
+        const next = [...prev];
+        next[slotIndex] = { lat: result.lat, lng: result.lng };
+        return next;
+      });
+      setAddressErrors(prev => { const next = [...prev]; next[slotIndex] = null; return next; });
+    } else {
+      setGeocodedLocations(prev => { const next = [...prev]; next[slotIndex] = null; return next; });
+      setAddressErrors(prev => {
+        const next = [...prev];
+        next[slotIndex] = 'Could not resolve this address. Please try another.';
+        return next;
+      });
+    }
+  };
+
+  // ── Compare handler ──
+
   const handleCompare = () => {
-    const allAddresses = [firstAddress, ...addressDisplays.filter(Boolean)];
-    compare(allAddresses, priorities, clientLabel);
+    const confirmedAddresses = addressDisplays.filter(Boolean);
+    const allAddresses = [firstAddress, ...confirmedAddresses];
+
+    if (LIVE_NEIGHBORHOOD_HOOKS) {
+      // Validate all additional slots have geocoded coordinates
+      const confirmedIndices = addressDisplays
+        .map((d, i) => d ? i : -1)
+        .filter(i => i >= 0);
+      const missingGeocode = confirmedIndices.some(i => !geocodedLocations[i]);
+      if (missingGeocode) {
+        // Set error on the offending slot(s)
+        setAddressErrors(prev => {
+          const next = [...prev];
+          confirmedIndices.forEach(i => {
+            if (!geocodedLocations[i]) {
+              next[i] = 'Please select an address from the suggestions.';
+            }
+          });
+          return next;
+        });
+        return;
+      }
+
+      // Build AddressInput[] with first address + additional addresses
+      const liveAddresses = [
+        {
+          address: firstAddress,
+          lat: firstLat ?? 0,
+          lng: firstLng ?? 0,
+        },
+        ...confirmedIndices.map(i => ({
+          address: addressDisplays[i],
+          lat: geocodedLocations[i]!.lat,
+          lng: geocodedLocations[i]!.lng,
+        })),
+      ];
+      compare(liveAddresses, priorities, clientLabel);
+    } else {
+      // @demo: plain string[] — mock path handles coordinates internally
+      compare(allAddresses, priorities, clientLabel);
+    }
   };
 
   const handleStartOver = () => {
@@ -156,11 +323,62 @@ const AddressComparisonScreen: React.FC = () => {
     setAddressInputs(['', '']);
     setAddressDisplays(['', '']);
     setShowAutocomplete(null);
+    setGeocodedLocations([null, null]);
+    setSuggestions([[], []]);
+    setAddressErrors([null, null]);
   };
 
   // ── Phase check ──
   const showResults = comparison !== null && !isLoading;
   const showInput = !showResults && !isLoading;
+
+  // ── Render autocomplete dropdown for a slot ──
+  const renderAutocompleteDropdown = (slotIndex: number) => {
+    if (showAutocomplete !== slotIndex) return null;
+    const inputText = addressInputs[slotIndex];
+    if (!inputText || inputText.length < 3) return null;
+
+    return (
+      <View style={{
+        position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
+        backgroundColor: COLORS.background,
+        borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
+      }}>
+        {LIVE_NEIGHBORHOOD_HOOKS ? (
+          // Live path — dynamic suggestions
+          isFetchingSuggestions[slotIndex] && suggestions[slotIndex].length === 0 ? (
+            <View style={{ padding: 12, paddingHorizontal: 14 }}>
+              <Text style={{ fontSize: 14, color: COLORS.lightText }}>
+                Searching...
+              </Text>
+            </View>
+          ) : (
+            suggestions[slotIndex].map((s) => (
+              <Pressable
+                key={s.placeId}
+                onPress={() => handleLiveSuggestionSelect(slotIndex, s.placeId, s.description)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
+              >
+                <PinIcon size={16} color={COLORS.bodyText} />
+                <Text style={{ fontSize: 14, color: COLORS.darkText }}>{s.description}</Text>
+              </Pressable>
+            ))
+          )
+        ) : (
+          // @demo: Mock path — single hardcoded suggestion
+          <Pressable
+            onPress={() => handleMockSuggestionSelect(slotIndex)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
+          >
+            <PinIcon size={16} color={COLORS.bodyText} />
+            <Text style={{ fontSize: 14, color: COLORS.darkText }}>{MOCK_SUGGESTIONS[slotIndex]}</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -189,6 +407,14 @@ const AddressComparisonScreen: React.FC = () => {
           <Text style={{ fontSize: 14, color: COLORS.secondaryText, marginTop: 12 }}>
             Comparing addresses…
           </Text>
+          {/* @backend: shows per-address progress text during live comparison */}
+          {loadingMessage && (
+            <Text style={{
+              fontSize: 14, color: COLORS.secondaryText, marginTop: 8, textAlign: 'center',
+            }}>
+              {loadingMessage}
+            </Text>
+          )}
         </View>
       )}
 
@@ -272,7 +498,7 @@ const AddressComparisonScreen: React.FC = () => {
                     placeholder="Enter a property address"
                     placeholderTextColor={COLORS.lightText}
                     value={addressInputs[0]}
-                    onChangeText={(text) => handleAddressChange(text, 0)}
+                    onChangeText={(text) => handleAddressTextChange(0, text)}
                     onFocus={() => {
                       setTimeout(() => {
                         scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -284,25 +510,16 @@ const AddressComparisonScreen: React.FC = () => {
                   {addressDisplays[0] ? <CheckIcon /> : null}
                 </View>
 
-                {/* @demo: hardcoded suggestion. @backend: Google Places Autocomplete (New) API */}
-                {showAutocomplete === 0 && addressInputs[0].length >= 2 && (
-                  <View style={{
-                    position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
-                    backgroundColor: COLORS.background,
-                    borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
-                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
-                  }}>
-                    <Pressable
-                      onPress={() => handleSelectSuggestion(0)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
-                    >
-                      <PinIcon size={16} color={COLORS.bodyText} />
-                      <Text style={{ fontSize: 14, color: COLORS.darkText }}>{MOCK_SUGGESTIONS[0]}</Text>
-                    </Pressable>
-                  </View>
-                )}
+                {/* Autocomplete dropdown — slot 0 */}
+                {renderAutocompleteDropdown(0)}
               </View>
+
+              {/* Per-slot error */}
+              {addressErrors[0] && (
+                <Text style={{ fontSize: 13, color: COLORS.errorRed, marginTop: 6, paddingHorizontal: 2 }}>
+                  {addressErrors[0]}
+                </Text>
+              )}
             </View>
 
             {/* ── Address 3 input (shown only after Address 2 is confirmed) ── */}
@@ -325,7 +542,7 @@ const AddressComparisonScreen: React.FC = () => {
                       placeholder="Enter a property address"
                       placeholderTextColor={COLORS.lightText}
                       value={addressInputs[1]}
-                      onChangeText={(text) => handleAddressChange(text, 1)}
+                      onChangeText={(text) => handleAddressTextChange(1, text)}
                       onFocus={() => {
                         setTimeout(() => {
                           scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -337,25 +554,16 @@ const AddressComparisonScreen: React.FC = () => {
                     {addressDisplays[1] ? <CheckIcon /> : null}
                   </View>
 
-                  {/* @demo: hardcoded suggestion. @backend: Google Places Autocomplete (New) API */}
-                  {showAutocomplete === 1 && addressInputs[1].length >= 2 && (
-                    <View style={{
-                      position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
-                      backgroundColor: COLORS.background,
-                      borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
-                      shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
-                    }}>
-                      <Pressable
-                        onPress={() => handleSelectSuggestion(1)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
-                      >
-                        <PinIcon size={16} color={COLORS.bodyText} />
-                        <Text style={{ fontSize: 14, color: COLORS.darkText }}>{MOCK_SUGGESTIONS[1]}</Text>
-                      </Pressable>
-                    </View>
-                  )}
+                  {/* Autocomplete dropdown — slot 1 */}
+                  {renderAutocompleteDropdown(1)}
                 </View>
+
+                {/* Per-slot error */}
+                {addressErrors[1] && (
+                  <Text style={{ fontSize: 13, color: COLORS.errorRed, marginTop: 6, paddingHorizontal: 2 }}>
+                    {addressErrors[1]}
+                  </Text>
+                )}
               </View>
             )}
 
@@ -524,7 +732,7 @@ const AddressComparisonScreen: React.FC = () => {
                   {/* ── Map chips — one per category with POIs ── */}
                   {/* @demo: poiCount is mock — chips navigate to CategoryMapScreen with */}
                   {/*        this card's own lat/lng, NOT firstAddress coordinates       */}
-                  {/* @backend S57+: real poiCount from Places Nearby API response       */}
+                  {/* @backend S57: real poiCount from Places Nearby API response       */}
                   {(() => {
                     const mappable = entry.analysis.categoryScores.filter(
                       cat => (cat.poiCount ?? 0) > 0

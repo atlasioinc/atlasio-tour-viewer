@@ -2,22 +2,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Neighborhood Intelligence — Data hook
 // LIVE_NEIGHBORHOOD_HOOKS = false  →  mock data (demo safe, default)
-// LIVE_NEIGHBORHOOD_HOOKS = true   →  live APIs (implement in S50)
+// LIVE_NEIGHBORHOOD_HOOKS = true   →  live APIs (Google Places + AirNow)
 //
-// @backend APIs for S50:
-//   Walk Score:     GET https://api.walkscore.com/score?format=json&lat={}&lon={}&transit=1&bike=1&wsapikey={KEY}
-//   Places Autocomplete (New): POST https://places.googleapis.com/v1/places:autocomplete
-//   Places Nearby (New):       POST https://places.googleapis.com/v1/places:searchNearby (radius: 800m circle)
-//   EPA AirNow:     GET https://www.airnowapi.org/aq/observation/latLong/current/?format=json&latitude={}&longitude={}&distance=25&API_KEY={KEY}
-//   AQI→score map:  Good(0-50)=90-100, Moderate(51-100)=65-89, USG(101-150)=40-64, Unhealthy+=<40
+// @backend APIs (S57):
+//   Places Nearby (New):  POST https://places.googleapis.com/v1/places:searchNearby (radius: 800m circle)
+//   EPA AirNow:           GET https://www.airnowapi.org/aq/observation/latLong/current/?format=json&latitude={}&longitude={}&distance=25&API_KEY={KEY}
+//   Walk Score (deferred): proxy from POI density until S60+ real API integration
+//   AQI→score map:  Good(0-50)=95, Moderate(51-100)=80, USG(101-150)=60, Unhealthy(151-200)=35, Hazardous=15
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from 'react';
-import type { LifestylePriority, NeighborhoodAnalysis, POIResult, AddressComparison, ComparisonEntry } from '../types/neighborhood';
-import { computeAnalysis } from '../lib/neighborhoodScoring';
+import type { LifestylePriority, LifestyleCategory, NeighborhoodAnalysis, POIResult, AddressComparison, ComparisonEntry } from '../types/neighborhood';
+import { computeAnalysis, CATEGORY_META } from '../lib/neighborhoodScoring';
+import { GOOGLE_MAPS_API_KEY, AIRNOW_API_KEY } from '../lib/config';
 
-// @demo: false = mock data for investor demos. Never flip true before S50.
-const LIVE_NEIGHBORHOOD_HOOKS = false;
+// @demo: false = mock data for investor demos. Flip true only for live testing, reset before commit.
+export const LIVE_NEIGHBORHOOD_HOOKS = false;
 
 // @demo: 1700 Lincoln St, Denver CO 80203 — demo address coordinates
 const DEMO_LAT = 39.7404;
@@ -42,31 +42,234 @@ const MOCK_POIS: POIResult[] = [
   { name: 'Elevate Fitness',        distanceMi: 0.4, rating: 4.6, category: 'gym',     lat: 39.7405, lng: -104.9870 },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// haversineDistanceMi — great-circle distance between two lat/lng points in miles
+// Used to populate POIResult.distanceMi from Places Nearby lat/lng responses.
+// ─────────────────────────────────────────────────────────────────────────────
+function haversineDistanceMi(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3958.8; // Earth radius in miles
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Score lookup tables
+// ─────────────────────────────────────────────────────────────────────────────
+
+// @demo: Walk Score API deferred — POI density used as proxy per category
+// @backend S60+: replace POI_COUNT_SCORES with real Walk Score API for walkability/transit/bike
+const POI_COUNT_SCORES = [20, 35, 50, 62, 72, 80, 87, 92, 95, 98];
+
+// @demo: walkability proxy — derived from breadth of categories with POIs
+// @backend S60+: replace with real Walk Score API response
+const WALKABILITY_PROXY_SCORES = [20, 40, 55, 68, 78, 88, 93, 95];
+
+// AQI ranges → score (AirNow "Good/Moderate/USG/Unhealthy" scale)
+function aqiToScore(aqi: number): number {
+  if (aqi <= 50)  return 95;  // Good
+  if (aqi <= 100) return 80;  // Moderate
+  if (aqi <= 150) return 60;  // Unhealthy for Sensitive Groups
+  if (aqi <= 200) return 35;  // Unhealthy
+  return 15;                  // Very Unhealthy / Hazardous
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fetchPlacesForCategory — Google Places Nearby per category
+// @backend S57: POST https://places.googleapis.com/v1/places:searchNearby
+// Runs one request per type string, merges and deduplicates by displayName.
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchPlacesForCategory(
+  category: LifestyleCategory,
+  lat: number,
+  lng: number,
+): Promise<{ pois: POIResult[]; count: number }> {
+  const types = CATEGORY_META[category].googlePlacesTypes;
+  if (types.length === 0) return { pois: [], count: 0 };
+
+  const results = await Promise.all(
+    types.map(async (placeType) => {
+      try {
+        const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+            'X-Goog-FieldMask': 'places.displayName,places.location,places.rating',
+          },
+          body: JSON.stringify({
+            includedTypes: [placeType],
+            locationRestriction: {
+              circle: {
+                center: { latitude: lat, longitude: lng },
+                radius: 800,
+              },
+            },
+            maxResultCount: 10,
+          }),
+        });
+        const data = await response.json();
+        return (data.places ?? []) as Array<{
+          displayName: { text: string };
+          location: { latitude: number; longitude: number };
+          rating?: number;
+        }>;
+      } catch (e) {
+        console.warn(`[fetchPlacesForCategory] ${placeType} threw:`, e);
+        return [];
+      }
+    })
+  );
+
+  // Merge and deduplicate by name
+  const seen = new Set<string>();
+  const pois: POIResult[] = [];
+  for (const places of results) {
+    for (const place of places) {
+      const name = place.displayName?.text ?? '';
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      pois.push({
+        name,
+        distanceMi: haversineDistanceMi(lat, lng, place.location.latitude, place.location.longitude),
+        rating: place.rating,
+        category,
+        lat: place.location.latitude,
+        lng: place.location.longitude,
+      });
+    }
+  }
+
+  return { pois, count: pois.length };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fetchAirQuality — EPA AirNow current observation
+// @backend S57: GET https://www.airnowapi.org/aq/observation/latLong/current/
+// Returns aqiToScore(maxAqi) — falls back to 50 (neutral) on failure.
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchAirQuality(lat: number, lng: number): Promise<number> {
+  try {
+    const url = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${lat}&longitude=${lng}&distance=25&API_KEY=${AIRNOW_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) return 50;
+    const maxAqi = Math.max(...data.map((d: { AQI: number }) => d.AQI));
+    return aqiToScore(maxAqi);
+  } catch {
+    console.warn('[useNeighborhoodAnalysis] AirNow unavailable, using neutral score 50');
+    return 50;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// runLiveAnalysis — full pipeline for a single address
+// @backend S57: Places Nearby + AirNow + walkability proxy → computeAnalysis
+// ─────────────────────────────────────────────────────────────────────────────
+async function runLiveAnalysis(
+  priorities: LifestylePriority[],
+  clientLabel: string,
+  address: string,
+  lat: number,
+  lng: number,
+  onProgress?: (msg: string) => void,
+): Promise<NeighborhoodAnalysis> {
+  const rawScores: Record<string, number> = {};
+  const allPois: POIResult[] = [];
+  const categoryPoiCounts: Record<string, number> = {};
+
+  // Step 1 — Places Nearby per category (parallel)
+  const placesCategories = priorities
+    .map(p => p.category)
+    .filter(cat => CATEGORY_META[cat].googlePlacesTypes.length > 0);
+
+  if (placesCategories.length > 0) {
+    onProgress?.(`Checking ${CATEGORY_META[placesCategories[0]].label}...`);
+    const placesResults = await Promise.all(
+      placesCategories.map(cat => fetchPlacesForCategory(cat, lat, lng))
+    );
+    placesCategories.forEach((cat, i) => {
+      const { pois, count } = placesResults[i];
+      allPois.push(...pois);
+      categoryPoiCounts[cat] = count;
+      rawScores[cat] = POI_COUNT_SCORES[Math.min(count, 9)];
+    });
+  }
+
+  // Step 2 — AirNow (only if air_quality is in priorities)
+  const hasAirQuality = priorities.some(p => p.category === 'air_quality');
+  if (hasAirQuality) {
+    onProgress?.('Checking air quality...');
+    rawScores['air_quality'] = await fetchAirQuality(lat, lng);
+  }
+
+  // Step 3 — Walkability proxy (no API call)
+  // @demo: Walk Score API deferred — category breadth used as proxy
+  // @backend S60+: replace with Walk Score API call using lat/lng
+  const hasWalkability = priorities.some(p => p.category === 'walkability');
+  if (hasWalkability) {
+    onProgress?.('Calculating your score...');
+    const categoriesWithPOIs = Object.values(categoryPoiCounts).filter(c => c > 0).length;
+    rawScores['walkability'] = WALKABILITY_PROXY_SCORES[Math.min(categoriesWithPOIs, 7)];
+  }
+
+  // Step 4 — Assemble and compute
+  onProgress?.('Calculating your score...');
+  return computeAnalysis(rawScores, allPois, priorities, clientLabel, address, lat, lng);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// useNeighborhoodAnalysis
+// ═══════════════════════════════════════════════════════════════
+
 export function useNeighborhoodAnalysis() {
   const [isLoading, setIsLoading] = useState(false);
   const [analysis,  setAnalysis]  = useState<NeighborhoodAnalysis | null>(null);
   const [error,     setError]     = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
-  const analyze = async (priorities: LifestylePriority[], clientLabel: string, address: string) => {
+  const analyze = async (
+    priorities: LifestylePriority[],
+    clientLabel: string,
+    address: string,
+    lat?: number,      // required in live path — geocoded from autocomplete selection
+    lng?: number,      // required in live path — geocoded from autocomplete selection
+  ) => {
     setIsLoading(true);
     setError(null);
+    setLoadingMessage(null);
     try {
       if (!LIVE_NEIGHBORHOOD_HOOKS) {
         await new Promise(r => setTimeout(r, 1200)); // @demo: realistic delay
         setAnalysis(computeAnalysis(MOCK_SCORES, MOCK_POIS, priorities, clientLabel, address, DEMO_LAT, DEMO_LNG));
       } else {
-        // @backend S50: geocode → Walk Score → Places Nearby per category → AirNow → computeAnalysis
-        throw new Error('Live hooks not yet implemented — scheduled for S50');
+        // @backend S57: live pipeline — Places Nearby + AirNow + walkability proxy
+        if (lat === undefined || lng === undefined) {
+          setError('Address coordinates are required. Please select an address from the suggestions.');
+          setIsLoading(false);
+          return;
+        }
+        const result = await runLiveAnalysis(
+          priorities, clientLabel, address, lat, lng,
+          (msg) => setLoadingMessage(msg),
+        );
+        setAnalysis(result);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
       setIsLoading(false);
+      setLoadingMessage(null);
     }
   };
 
   const reset = () => { setAnalysis(null); setError(null); };
-  return { analyze, analysis, isLoading, error, reset };
+  return { analyze, analysis, isLoading, loadingMessage, error, reset };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,10 +278,17 @@ export function useNeighborhoodAnalysis() {
 // with small offsets per address to make comparison meaningful in demo mode.
 //
 // @demo: Each address gets slightly different scores to show comparison value.
-// @backend S56+: Geocode each address independently, then run full API pipeline
-//   per address (Walk Score + Places Nearby + AirNow). Same as useNeighborhoodAnalysis
-//   but called N times and results sorted by compositeScore desc.
+// @backend S57: Live path runs full pipeline per address (Places Nearby + AirNow).
+//   Each address geocoded via autocomplete selection — lat/lng passed as AddressInput.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// AddressInput — live path only. Mock path uses plain string[].
+// @backend S57: geocoded coordinates required for live Places + AirNow calls
+interface AddressInput {
+  address: string;
+  lat: number;
+  lng: number;
+}
 
 // @demo: offsets tuned for green/amber score contrast in demo
 // @demo: base scores kept in sync between useNeighborhoodAnalysis and useAddressComparison
@@ -99,24 +309,34 @@ export function useAddressComparison() {
   const [isLoading, setIsLoading] = useState(false);
   const [comparison, setComparison] = useState<AddressComparison | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   const compare = async (
-    addresses: string[],            // 2–3 address strings
+    addresses: string[] | AddressInput[],
     priorities: LifestylePriority[],
     clientLabel: string,
   ) => {
-    if (addresses.length < 2) {
+    // Type guard — live path sends AddressInput[], mock path sends string[]
+    const isLivePath = LIVE_NEIGHBORHOOD_HOOKS &&
+      addresses.length > 0 &&
+      typeof addresses[0] === 'object';
+
+    const addressCount = addresses.length;
+    if (addressCount < 2) {
       setError('At least 2 addresses required for comparison');
       return;
     }
     setIsLoading(true);
     setError(null);
+    setLoadingMessage(null);
 
     try {
-      if (!LIVE_NEIGHBORHOOD_HOOKS) {
+      if (!isLivePath) {
+        // @demo: mock path — plain string[] addresses
+        const stringAddresses = addresses as string[];
         await new Promise(r => setTimeout(r, 1400)); // @demo: realistic delay
 
-        const entries: ComparisonEntry[] = addresses.map((address, i) => {
+        const entries: ComparisonEntry[] = stringAddresses.map((address, i) => {
           // @demo: Apply score offsets to make each address distinct
           const offsetScores = Object.fromEntries(
             Object.entries(MOCK_SCORES).map(([k, v]) => [
@@ -142,22 +362,46 @@ export function useAddressComparison() {
           createdAt: new Date().toISOString(),
         });
       } else {
-        // @backend S56+: For each address:
-        //   1. Geocode via Google Places Autocomplete result (lat/lng already available from input)
-        //   2. Walk Score API call
-        //   3. Google Places Nearby per category in priorities
-        //   4. AirNow API call
-        //   5. computeAnalysis() with real data
-        //   Sort entries by compositeScore desc before setting state.
-        throw new Error('Live comparison not yet implemented — scheduled for S57+');
+        // @backend S57: live path — run full pipeline per address in parallel
+        const liveAddresses = addresses as AddressInput[];
+
+        const entries: ComparisonEntry[] = await Promise.all(
+          liveAddresses.map(async (addr) => {
+            try {
+              setLoadingMessage(`Analyzing ${addr.address.split(',')[0]}...`);
+              const analysis = await runLiveAnalysis(
+                priorities, clientLabel, addr.address, addr.lat, addr.lng,
+              );
+              return { address: addr.address, lat: addr.lat, lng: addr.lng, analysis };
+            } catch (err) {
+              // Per-address failure falls back gracefully — never kills the comparison
+              console.warn(`[useAddressComparison] Failed for ${addr.address}:`, err);
+              const fallbackAnalysis = computeAnalysis(
+                {}, [], priorities, clientLabel, addr.address, addr.lat, addr.lng,
+              );
+              return { address: addr.address, lat: addr.lat, lng: addr.lng, analysis: fallbackAnalysis };
+            }
+          })
+        );
+
+        // Sort highest score first
+        entries.sort((a, b) => b.analysis.compositeScore - a.analysis.compositeScore);
+
+        setComparison({
+          clientLabel,
+          priorities,
+          entries,
+          createdAt: new Date().toISOString(),
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Comparison failed');
     } finally {
       setIsLoading(false);
+      setLoadingMessage(null);
     }
   };
 
   const reset = () => { setComparison(null); setError(null); };
-  return { compare, comparison, isLoading, error, reset };
+  return { compare, comparison, isLoading, loadingMessage, error, reset };
 }
