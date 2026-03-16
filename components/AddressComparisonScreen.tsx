@@ -70,7 +70,7 @@ const PinIcon = ({ size = 16, color = COLORS.secondaryText }: { size?: number; c
   </Svg>
 );
 
-const CheckIcon = ({ size = 14, color = '#059669' }: { size?: number; color?: string }) => (
+const CheckIcon = ({ size = 14, color = COLORS.winnerBannerBorder }: { size?: number; color?: string }) => (
   <Svg width={size} height={size} viewBox="0 0 14 14" fill="none">
     <Path d="M2.5 7L5.5 10L11.5 4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
@@ -78,9 +78,9 @@ const CheckIcon = ({ size = 14, color = '#059669' }: { size?: number; color?: st
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rank identity system — badge + pill colors per card position
-// @tokens: add to tokens.ts in design system cleanup session
+// @tokens: rankGold, rankSilver, rankBronze added to lib/tokens.ts S58
 // ─────────────────────────────────────────────────────────────────────────────
-const RANK_BADGE_COLORS = ['#F59E0B', '#9CA3AF', '#B45309'] as const; // gold, silver, bronze
+const RANK_BADGE_COLORS = [COLORS.rankGold, COLORS.rankSilver, COLORS.rankBronze] as const;
 
 // Score pill — neutral style, same for all cards
 // Score meaning is communicated by the composite score color, not the pill
@@ -93,9 +93,9 @@ const SCORE_PILL_STYLE = {
 // Composite score color thresholds — same logic as NeighborhoodMatchScreen
 // @demo: scores are mock — thresholds apply to real scores too in production
 function getScoreColor(score: number): string {
-  if (score >= 85) return '#16A34A';
-  if (score >= 70) return '#D97706';
-  return '#DC2626';
+  if (score >= 85) return COLORS.scoreGreen;
+  if (score >= 70) return COLORS.scoreAmber;
+  return COLORS.scoreRed;
 }
 
 // @demo: hardcoded mock suggestions per address slot
@@ -467,11 +467,11 @@ const AddressComparisonScreen: React.FC = () => {
               </Text>
               <View style={{
                 flexDirection: 'row', alignItems: 'center', gap: 8,
-                backgroundColor: '#F0FDF4', borderRadius: 10,
-                borderWidth: 1, borderColor: '#BBF7D0',
+                backgroundColor: COLORS.feeBg, borderRadius: 10,
+                borderWidth: 1, borderColor: '#BBF7D0', // @tokens: no exact token — closest is COLORS.cardGreenBorder '#B9F8CF'
                 paddingHorizontal: 14, paddingVertical: 12,
               }}>
-                <PinIcon size={16} color="#059669" />
+                <PinIcon size={16} color={COLORS.winnerBannerBorder} />
                 <Text style={{ flex: 1, fontSize: 15, color: COLORS.darkText }} numberOfLines={1}>
                   {firstAddress}
                 </Text>
@@ -587,11 +587,11 @@ const AddressComparisonScreen: React.FC = () => {
               disabled={!canCompare}
               style={{
                 height: 52, borderRadius: 12,
-                backgroundColor: canCompare ? COLORS.primary : '#C7D2FE',
+                backgroundColor: canCompare ? COLORS.primary : '#C7D2FE', // @tokens: no exact token — brand tint disabled state
                 alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF' }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background }}>
                 Compare Addresses
               </Text>
             </Pressable>
@@ -616,14 +616,38 @@ const AddressComparisonScreen: React.FC = () => {
             </Text>
           </View>
 
+          {/* ── Edit priorities link ── */}
+          {/* Navigates back to ClientLifestyleScreen with current priorities pre-filled */}
+          {/* @backend S58: initialPriorities param enables tile pre-selection on return */}
+          <Pressable
+            onPress={() => navigation.navigate('ClientLifestyleScreen', {
+              initialPriorities: priorities,
+            })}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingBottom: 12,
+              gap: 4,
+            }}
+          >
+            <Text style={{
+              fontSize: 14,
+              color: COLORS.primary,
+              fontWeight: '500',
+            }}>
+              ← Edit priorities
+            </Text>
+          </Pressable>
+
           {/* Winner callout (only if 2+ entries) */}
           {comparison.entries.length >= 2 && (
             <View style={{
               marginHorizontal: 16, marginBottom: 16, padding: 14,
-              backgroundColor: '#F0FDF4', borderRadius: 12,
-              borderWidth: 1, borderColor: '#059669',
+              backgroundColor: COLORS.winnerBannerBg, borderRadius: 12,
+              borderWidth: 1, borderColor: COLORS.winnerBannerBorder,
             }}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#065F46' }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.winnerBannerText }}>
                 {'✓'} Best match for {clientLabel}
               </Text>
             </View>
@@ -664,20 +688,30 @@ const AddressComparisonScreen: React.FC = () => {
                       alignItems: 'center', justifyContent: 'center',
                       flexShrink: 0,
                     }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#FFFFFF' }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.background }}>
                         #{index + 1}
                       </Text>
                     </View>
 
-                    {/* Address — shrinks, never wraps */}
-                    <Text
-                      numberOfLines={1}
-                      style={{ flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.darkText }}
-                    >
-                      {entry.address.length > 28
-                        ? entry.address.slice(0, 28) + '…'
-                        : entry.address}
-                    </Text>
+                    {/* Address + radius — shrinks, never wraps */}
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}
+                      >
+                        {entry.address.length > 28
+                          ? entry.address.slice(0, 28) + '…'
+                          : entry.address}
+                      </Text>
+                      {/* Search radius — shown per card so agent can confirm scope for each address */}
+                      <Text style={{
+                        fontSize: 14,
+                        color: COLORS.secondaryText,
+                        marginTop: 2,
+                      }}>
+                        Within 0.5 miles
+                      </Text>
+                    </View>
 
                     {/* Composite score — vertically centered with address, no descriptor */}
                     <Text style={{
@@ -776,11 +810,8 @@ const AddressComparisonScreen: React.FC = () => {
           })}
 
           {/* ── Start Over button ── */}
-          {/* @demo: 'Start Over' resets address inputs only — lifestyle priorities cannot
-              be changed from this screen. To change priorities, agent must close this
-              screen and ClientLifestyleScreen to return to the lifestyle selection step.
-              Phase 2 TODO: Add 'Edit priorities →' link in the Phase 2 results header
-              that navigates back to ClientLifestyleScreen with current priorities pre-filled. */}
+          {/* @demo: 'Start Over' resets address inputs only — lifestyle priorities can be
+              changed via the '← Edit priorities' link above (S58). */}
           <View style={{ paddingHorizontal: 16, marginTop: 8, marginBottom: 16 }}>
             <Pressable
               onPress={handleStartOver}

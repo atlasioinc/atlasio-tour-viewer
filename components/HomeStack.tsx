@@ -73,7 +73,9 @@ export type HomeStackParamList = {
     additionalSlots: SquadSlot[];
   };
   JobCompletion: { jobId: string; userRole: 'agent' | 'contractor' };
-  ClientLifestyleScreen: undefined;
+  ClientLifestyleScreen: {
+    initialPriorities?: LifestylePriority[];  // pre-fills tile selections when coming from Edit priorities
+  } | undefined;
   NeighborhoodMatchScreen: {
     priorities: LifestylePriority[];
     clientLabel: string;

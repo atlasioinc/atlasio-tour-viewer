@@ -126,6 +126,17 @@ export const COLORS = {
   disabledBg: '#E5E7EB',
   disabledText: '#99A1AF',
   systemBg: '#E5E7EB',        // system message bubbles in chat
+
+  // ── Neighborhood Intelligence ──
+  rankGold: '#F59E0B',           // rank #1 badge — gold
+  rankSilver: '#9CA3AF',         // rank #2 badge — silver
+  rankBronze: '#B45309',         // rank #3 badge — bronze
+  winnerBannerBg: '#F0FDF4',     // winner callout background
+  winnerBannerBorder: '#059669', // winner callout border
+  winnerBannerText: '#065F46',   // winner callout text
+  scoreGreen: '#059669',         // composite score >= 85 (emerald-600, unifies AddressComparison + NeighborhoodMatch)
+  scoreAmber: '#D97706',         // composite score >= 70 and < 85
+  scoreRed: '#DC2626',           // composite score < 70
 } as const;
 
 // ─────────────────────────────────────────────

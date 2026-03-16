@@ -10,7 +10,7 @@
 //          Google Places Details — GET places.googleapis.com/v1/places/{placeId}?fields=location,formattedAddress
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import type { LifestyleCategory, PriorityLevel } from '../types/neighborhood';
@@ -34,6 +35,10 @@ import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 import { LIVE_NEIGHBORHOOD_HOOKS } from '../hooks/useNeighborhoodAnalysis';
 
 // ── State flow ────────────────────────────────────────────────────────────────
+// route.params?.initialPriorities: LifestylePriority[] | undefined
+//   — S58: passed when navigating back from "← Edit priorities" in AddressComparisonScreen
+//   — undefined on first entry (tiles start blank)
+//   — when present, pre-populates selectedTiles on mount + re-navigation
 // clientLabel:        string — client name field value (travels to results screen)
 // selectedTiles:      Map<LifestyleCategory, PriorityLevel>
 //                       Tap unselected → add as 'nice_to_have'. Visual change in place.
@@ -156,11 +161,27 @@ const LifestyleTile = ({ category, state, onTap, onLongPress }: LifestyleTilePro
 
 const ClientLifestyleScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const route = useRoute<RouteProp<HomeStackParamList, 'ClientLifestyleScreen'>>();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // @backend S58: initialPriorities passed when navigating back from Edit priorities
+  // @demo: initialPriorities is undefined on first entry — tiles start blank
+  const initialPriorities = route.params?.initialPriorities;
+
   const [clientLabel, setClientLabel] = useState('');
-  const [selectedTiles, setSelectedTiles] = useState<Map<LifestyleCategory, PriorityLevel>>(new Map());
+  // Pre-populate tile selections if returning from Edit priorities flow
+  const [selectedTiles, setSelectedTiles] = useState<Map<LifestyleCategory, PriorityLevel>>(() => {
+    if (!initialPriorities || initialPriorities.length === 0) return new Map();
+    return new Map(initialPriorities.map(p => [p.category, p.priority]));
+  });
+
+  // Re-apply when navigating back — component is already mounted so useState init won't re-fire
+  useEffect(() => {
+    if (initialPriorities && initialPriorities.length > 0) {
+      setSelectedTiles(new Map(initialPriorities.map(p => [p.category, p.priority])));
+    }
+  }, [initialPriorities]);
   const [addressText, setAddressText] = useState('');
   const [addressDisplay, setAddressDisplay] = useState('');
   const [showAutocomplete, setShowAutocomplete] = useState(false);

@@ -60,9 +60,9 @@ const ChevronRightIcon = ({ size = 16, color = COLORS.primary }: { size?: number
 // ─────────────────────────────────────────────
 
 function getScoreColor(score: number): string {
-  if (score >= 75) return '#059669';
-  if (score >= 50) return '#D97706';
-  return '#DC2626';
+  if (score >= 75) return COLORS.scoreGreen;
+  if (score >= 50) return COLORS.scoreAmber;
+  return COLORS.scoreRed;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -206,6 +206,16 @@ const NeighborhoodMatchScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Search radius label — always shown, live and mock paths */}
+          <Text style={{
+            fontSize: 14,
+            color: COLORS.secondaryText,
+            marginTop: 4,
+            textAlign: 'center',
+          }}>
+            Within 0.5 miles
+          </Text>
+
           {/* ── Score ring ── */}
           <View style={{ alignItems: 'center', paddingVertical: 36 }}>
             <View style={{ width: 160, height: 160, alignItems: 'center', justifyContent: 'center' }}>
@@ -273,7 +283,7 @@ const NeighborhoodMatchScreen: React.FC = () => {
                 </View>
 
                 {/* Line 2 — full-width bar */}
-                <View style={{ height: 6, backgroundColor: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{ height: 6, backgroundColor: COLORS.chipBg, borderRadius: 3, overflow: 'hidden' }}>
                   <Animated.View style={{
                     height: 6,
                     backgroundColor: cat.priority === 'must_have' ? COLORS.primary : COLORS.accentBlue,
@@ -289,7 +299,7 @@ const NeighborhoodMatchScreen: React.FC = () => {
 
                 {/* Line 3 — ★ Must Have only (Nice to Have implied by absence) */}
                 {cat.priority === 'must_have' && (
-                  <Text style={{ fontSize: 12, color: '#D97706', marginTop: 4 }}>★ Must Have</Text>
+                  <Text style={{ fontSize: 12, color: COLORS.warningAmber, marginTop: 4 }}>★ Must Have</Text>
                 )}
               </View>
             ))}
