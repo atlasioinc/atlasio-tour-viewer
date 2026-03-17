@@ -115,8 +115,16 @@ const AddressComparisonScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { priorities, clientLabel, firstAddress, firstLat, firstLng } = route.params;
+  const { priorities, clientLabel, firstAddress, firstLat, firstLng, radiusMi } = route.params;
   // firstAnalysis available in route.params for Phase 2: pre-populate winner without re-analysis
+
+  // S61: resolve display label for 'other' category — use customLabel from priorities if set
+  const otherCustomLabel = priorities.find(p => p.category === 'other')?.customLabel;
+  const getCategoryLabel = (category: string, label: string) =>
+    category === 'other' && otherCustomLabel ? otherCustomLabel : label;
+
+  // S61: dynamic radius label
+  const radiusLabel = `Within ${radiusMi} ${radiusMi === 1 ? 'mile' : 'miles'}`;
 
   // ── Input phase state ──
   const [addressInputs, setAddressInputs] = useState<string[]>(['', '']);
@@ -311,10 +319,10 @@ const AddressComparisonScreen: React.FC = () => {
           lng: geocodedLocations[i]!.lng,
         })),
       ];
-      compare(liveAddresses, priorities, clientLabel);
+      compare(liveAddresses, priorities, clientLabel, radiusMi);
     } else {
       // @demo: plain string[] — mock path handles coordinates internally
-      compare(allAddresses, priorities, clientLabel);
+      compare(allAddresses, priorities, clientLabel, radiusMi);
     }
   };
 
@@ -711,7 +719,7 @@ const AddressComparisonScreen: React.FC = () => {
                         color: COLORS.secondaryText,
                         marginTop: 2,
                       }}>
-                        Within 0.5 miles
+                        {radiusLabel}
                       </Text>
                     </View>
 
@@ -746,7 +754,7 @@ const AddressComparisonScreen: React.FC = () => {
                             fontSize: 13, color: COLORS.secondaryText,
                             flexShrink: 1, marginRight: 6,
                           }}>
-                            {cat.label}
+                            {getCategoryLabel(cat.category, cat.label)}
                           </Text>
                           <View style={{
                             backgroundColor: SCORE_PILL_STYLE.bg,
@@ -783,7 +791,7 @@ const AddressComparisonScreen: React.FC = () => {
                               // CRITICAL: this card's lat/lng, not firstAddress
                               navigation.navigate('CategoryMapScreen', {
                                 category: cat.category,
-                                label: cat.label,
+                                label: getCategoryLabel(cat.category, cat.label),
                                 emoji: cat.emoji,
                                 pois: entry.analysis.pois.filter(p => p.category === cat.category),
                                 addressLat: entry.lat,
@@ -799,7 +807,7 @@ const AddressComparisonScreen: React.FC = () => {
                             })}
                           >
                             <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.primary }}>
-                              {cat.label} Map
+                              {getCategoryLabel(cat.category, cat.label)} Map
                             </Text>
                           </Pressable>
                         ))}

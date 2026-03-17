@@ -1,6 +1,6 @@
 // lib/neighborhoodScoring.ts
 // ─────────────────────────────────────────────────────────────────────────────
-// Neighborhood Intelligence — Weighted score computation
+// Neighborhood Intelligence — Weighted score computation (S61: 15 standard + 1 custom category)
 // @backend: rawScores populated by Walk Score API + Google Places Nearby + AirNow
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -20,6 +20,13 @@ export const CATEGORY_META: Record<LifestyleCategory, { label: string; emoji: st
   parks:       { label: 'Parks & Nature', emoji: '🌳', googlePlacesTypes: ['park', 'national_park'] },
   grocery:     { label: 'Grocery',        emoji: '🛒', googlePlacesTypes: ['grocery_store', 'supermarket'] },
   air_quality: { label: 'Air Quality',    emoji: '🌿', googlePlacesTypes: [] },           // AirNow API — not Places
+  // @backend S61: 5 new standard categories + 1 custom
+  dining:      { label: 'Dining',        emoji: '🍽️', googlePlacesTypes: ['restaurant'] },                           // #1 millennial neighborhood priority (NAR/NewHomeSource 2024)
+  schools:     { label: 'Schools',       emoji: '🏫', googlePlacesTypes: ['school'] },                               // drives resale value across all buyer types
+  healthcare:  { label: 'Healthcare',    emoji: '🏥', googlePlacesTypes: ['hospital', 'pharmacy', 'doctor'] },       // AARP 2024 top community factor
+  pet_friendly:{ label: 'Pet-Friendly',  emoji: '🐾', googlePlacesTypes: ['dog_park', 'veterinary_care', 'pet_store'] }, // 70% US pet ownership
+  nightlife:   { label: 'Nightlife',     emoji: '🎉', googlePlacesTypes: ['bar', 'night_club', 'movie_theater'] },   // younger buyers + "18-hour city" signal
+  other:       { label: 'Other',         emoji: '✏️', googlePlacesTypes: ['point_of_interest'] },                    // broad fallback — customLabel travels in LifestylePriority
 };
 
 // @backend S60: deterministic hash for LifestylePriority[] cache key
@@ -28,7 +35,12 @@ export const CATEGORY_META: Record<LifestyleCategory, { label: string; emoji: st
 export function hashPriorities(priorities: LifestylePriority[]): string {
   return [...priorities]
     .sort((a, b) => a.category.localeCompare(b.category))
-    .map(p => `${p.category}:${p.priority}`)
+    .map(p => {
+      const base = `${p.category}:${p.priority}`;
+      // @backend S61: include customLabel for 'other' — different labels = different cache entries
+      // Standard categories always have undefined customLabel — unaffected
+      return p.customLabel ? `${base}:${p.customLabel.toLowerCase().trim()}` : base;
+    })
     .join('|');
 }
 

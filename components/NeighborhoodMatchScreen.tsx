@@ -75,16 +75,24 @@ const CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 const NeighborhoodMatchScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<RouteProp<HomeStackParamList, 'NeighborhoodMatchScreen'>>();
-  const { priorities, clientLabel, address, lat, lng } = route.params;
+  const { priorities, clientLabel, address, lat, lng, radiusMi } = route.params;
 
   const { analyze, analysis, isLoading, loadingMessage } = useNeighborhoodAnalysis();
+
+  // S61: resolve display label for 'other' category — use customLabel from priorities if set
+  const otherCustomLabel = priorities.find(p => p.category === 'other')?.customLabel;
+  const getCategoryLabel = (category: string, label: string) =>
+    category === 'other' && otherCustomLabel ? otherCustomLabel : label;
+
+  // S61: dynamic radius label
+  const radiusLabel = `Within ${radiusMi} ${radiusMi === 1 ? 'mile' : 'miles'}`;
 
   const scoreAnim = useRef(new Animated.Value(0)).current;
   const barAnims = useRef<Animated.Value[]>([]).current;
 
   // ── Trigger analysis on mount ──
   useEffect(() => {
-    analyze(priorities, clientLabel, address, lat, lng);
+    analyze(priorities, clientLabel, address, lat, lng, radiusMi);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -213,7 +221,7 @@ const NeighborhoodMatchScreen: React.FC = () => {
             marginTop: 4,
             textAlign: 'center',
           }}>
-            Within 0.5 miles
+            {radiusLabel}
           </Text>
 
           {/* ── Score ring ── */}
@@ -275,7 +283,7 @@ const NeighborhoodMatchScreen: React.FC = () => {
                 {/* Line 1 — label + score */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
-                    {cat.emoji}  {cat.label}
+                    {cat.emoji}  {getCategoryLabel(cat.category, cat.label)}
                   </Text>
                   <Text style={{ minWidth: 28, textAlign: 'right', fontSize: 15, fontWeight: '700', color: COLORS.darkText }}>
                     {cat.score}
@@ -329,6 +337,7 @@ const NeighborhoodMatchScreen: React.FC = () => {
                   firstAnalysis: analysis,
                   firstLat: lat,       // @backend: geocoded in live path, undefined in mock
                   firstLng: lng,       // @backend: geocoded in live path, undefined in mock
+                  radiusMi,            // S61: forward search radius
                 })}
                 style={({ pressed }) => ({
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -369,14 +378,14 @@ const NeighborhoodMatchScreen: React.FC = () => {
                     alignItems: 'center', marginBottom: 8,
                   }}>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText }}>
-                      {cat.emoji} {cat.label}
+                      {cat.emoji} {getCategoryLabel(cat.category, cat.label)}
                     </Text>
                     <View style={{
                       backgroundColor: COLORS.tagBg, borderWidth: 1, borderColor: COLORS.border,
                       borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
                     }}>
                       <Text style={{ fontSize: 12, color: COLORS.bodyText }}>
-                        {cat.poiCount} within 0.5mi
+                        {cat.poiCount} within {radiusMi}mi
                       </Text>
                     </View>
                   </View>
@@ -386,7 +395,7 @@ const NeighborhoodMatchScreen: React.FC = () => {
                     onPress={() => {
                       navigation.navigate('CategoryMapScreen', {
                         category: cat.category,
-                        label: cat.label,
+                        label: getCategoryLabel(cat.category, cat.label),
                         emoji: cat.emoji,
                         pois: analysis.pois.filter(p => p.category === cat.category),
                         addressLat: analysis.lat,
@@ -400,7 +409,7 @@ const NeighborhoodMatchScreen: React.FC = () => {
                     }}
                   >
                     <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>
-                      📍 See {cat.label} on map
+                      📍 See {getCategoryLabel(cat.category, cat.label)} on map
                     </Text>
                     <ChevronRightIcon size={16} color={COLORS.primary} />
                   </Pressable>

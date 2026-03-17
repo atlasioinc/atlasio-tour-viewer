@@ -31,7 +31,7 @@ import ClientLifestyleScreen from './ClientLifestyleScreen';
 import NeighborhoodMatchScreen from './NeighborhoodMatchScreen';
 import CategoryMapScreen from './CategoryMapScreen';
 import AddressComparisonScreen from './AddressComparisonScreen';
-import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis } from '../types/neighborhood';
+import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis, RadiusMi } from '../types/neighborhood';
 
 // ─────────────────────────────────────────────
 // TYPE DEFINITIONS
@@ -82,6 +82,7 @@ export type HomeStackParamList = {
     address: string;
     lat?: number;         // geocoded in live path, absent in mock path
     lng?: number;         // geocoded in live path, absent in mock path
+    radiusMi: RadiusMi;   // S61: search radius (0.5 | 1 | 2)
   };
   CategoryMapScreen: {
     category: LifestyleCategory;
@@ -99,6 +100,7 @@ export type HomeStackParamList = {
     firstAnalysis?: NeighborhoodAnalysis;   // optional — not needed in live path
     firstLat?: number;                      // geocoded — live path only
     firstLng?: number;                      // geocoded — live path only
+    radiusMi: RadiusMi;                     // S61: search radius forwarded from NeighborhoodMatchScreen
   };
 };
 

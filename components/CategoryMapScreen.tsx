@@ -157,7 +157,7 @@ const CategoryMapScreen: React.FC = () => {
               {selectedPOI.name}
             </Text>
             <Text style={{ fontSize: 14, color: COLORS.secondaryText, marginBottom: 4 }}>
-              {selectedPOI.distanceMi} mi away
+              {selectedPOI.distanceMi.toFixed(1)} mi away
             </Text>
             {selectedPOI.rating != null && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

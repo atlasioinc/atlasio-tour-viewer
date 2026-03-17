@@ -7,13 +7,18 @@
 
 export type PriorityLevel = 'must_have' | 'nice_to_have';
 
+// S61: search radius options — affects Places API radius and cache key
+export type RadiusMi = 0.5 | 1 | 2;
+
 export type LifestyleCategory =
   | 'walkability' | 'transit' | 'bike'
-  | 'coffee' | 'yoga' | 'gym' | 'parks' | 'grocery' | 'air_quality';
+  | 'coffee' | 'yoga' | 'gym' | 'parks' | 'grocery' | 'air_quality'
+  | 'dining' | 'schools' | 'healthcare' | 'pet_friendly' | 'nightlife' | 'other';
 
 export interface LifestylePriority {
   category: LifestyleCategory;
   priority: PriorityLevel;
+  customLabel?: string;  // S61: only populated when category === 'other'
 }
 
 export interface CategoryScore {

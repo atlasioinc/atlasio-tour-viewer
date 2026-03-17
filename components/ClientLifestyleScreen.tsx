@@ -2,7 +2,7 @@
 // ═══════════════════════════════════════════════════════════════
 // WHO:   Agent only
 // WHERE: HomeStack → fullScreenModal from HomeTabAgent 'Client Tools' card
-// WHAT:  Client name input + lifestyle tile selection + address autocomplete
+// WHAT:  Client name input + 16 lifestyle tiles (15 standard + Other custom) + address autocomplete
 // NEXT:  navigation.navigate('NeighborhoodMatchScreen', { priorities, clientLabel, address, lat, lng })
 //
 // @demo  All address suggestions are hardcoded (1700 Lincoln St, Denver CO 80203)
@@ -18,6 +18,7 @@ import {
   TextInput,
   ScrollView,
   Animated,
+  Easing,
   Dimensions,
   Keyboard,
 } from 'react-native';
@@ -28,7 +29,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
-import type { LifestyleCategory, PriorityLevel } from '../types/neighborhood';
+import type { LifestyleCategory, PriorityLevel, RadiusMi } from '../types/neighborhood';
 import { CATEGORY_META } from '../lib/neighborhoodScoring';
 import { COLORS } from '../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../lib/config';
@@ -62,9 +63,15 @@ import { LIVE_NEIGHBORHOOD_HOOKS } from '../hooks/useNeighborhoodAnalysis';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// @frontend S61: flat selection cap — any mix of Must Have / Nice to Have
+const MAX_SELECTIONS = 6;
+
+// S61: 15 standard categories + 'other' pinned last = 16 tiles
 const ALL_CATEGORIES: LifestyleCategory[] = [
-  'coffee', 'yoga', 'parks', 'walkability',
-  'gym', 'grocery', 'transit', 'bike', 'air_quality',
+  'coffee', 'dining', 'parks', 'grocery',
+  'schools', 'gym', 'yoga', 'transit',
+  'bike', 'walkability', 'air_quality', 'healthcare',
+  'pet_friendly', 'nightlife', 'other',
 ];
 
 // ─────────────────────────────────────────────
@@ -99,11 +106,13 @@ interface LifestyleTileProps {
   state: 'unselected' | 'selected' | 'must_have';
   onTap: (cat: LifestyleCategory) => void;
   onLongPress: (cat: LifestyleCategory) => void;
+  customLabel?: string;  // S61: only used when category === 'other'
+  dimmed?: boolean;       // S61: true when unselected + at selection limit
 }
 
 const TILE_MIN_WIDTH = Math.floor((SCREEN_WIDTH - 32 - 20) / 3);
 
-const LifestyleTile = ({ category, state, onTap, onLongPress }: LifestyleTileProps) => {
+const LifestyleTile = ({ category, state, onTap, onLongPress, customLabel, dimmed }: LifestyleTileProps) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const meta = CATEGORY_META[category];
 
@@ -119,13 +128,16 @@ const LifestyleTile = ({ category, state, onTap, onLongPress }: LifestyleTilePro
     onLongPress(category);
   };
 
-  const bgColor = state === 'must_have' ? '#FEF3C7' : state === 'selected' ? COLORS.tagBg : '#F3F4F6';
-  const borderColor = state === 'must_have' ? '#D97706' : state === 'selected' ? COLORS.primary : '#E5E7EB';
+  const bgColor = state === 'must_have' ? COLORS.mustHaveTileBg : state === 'selected' ? COLORS.tagBg : COLORS.chipBg;
+  const borderColor = state === 'must_have' ? COLORS.warningAmber : state === 'selected' ? COLORS.primary : COLORS.border;
   const borderWidth = state === 'unselected' ? 1 : 1.5;
-  const textColor = state === 'must_have' ? '#92400E' : state === 'selected' ? COLORS.primary : COLORS.darkText;
+  const textColor = state === 'must_have' ? COLORS.warningText : state === 'selected' ? COLORS.primary : COLORS.darkText;
+
+  // S61: show customLabel for 'other' tile when set, otherwise show CATEGORY_META label
+  const displayLabel = category === 'other' && customLabel ? customLabel : meta.label;
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: dimmed ? 0.35 : 1 }}>
       <Pressable
         onPress={() => onTap(category)}
         onLongPress={handleLongPress}
@@ -143,12 +155,12 @@ const LifestyleTile = ({ category, state, onTap, onLongPress }: LifestyleTilePro
         {state === 'must_have' && (
           <Text style={{
             position: 'absolute', top: 6, right: 8,
-            fontSize: 11, color: '#D97706',
+            fontSize: 11, color: COLORS.warningAmber,
           }}>★</Text>
         )}
         <Text style={{ fontSize: 20 }}>
           {meta.emoji}{' '}
-          <Text style={{ fontSize: 14, fontWeight: '500', color: textColor }}>{meta.label}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: textColor }}>{displayLabel}</Text>
         </Text>
       </Pressable>
     </Animated.View>
@@ -170,16 +182,47 @@ const ClientLifestyleScreen: React.FC = () => {
   const initialPriorities = route.params?.initialPriorities;
 
   const [clientLabel, setClientLabel] = useState('');
+
+  // @frontend S61: radius selector — affects Places API search radius and cache key
+  const [radiusMi, setRadiusMi] = useState<RadiusMi>(1);
+  const RADIUS_OPTIONS: { value: RadiusMi; label: string }[] = [
+    { value: 0.5, label: '0.5 mi' },
+    { value: 1,   label: '1 mi' },
+    { value: 2,   label: '2 mi' },
+  ];
+
   // Pre-populate tile selections if returning from Edit priorities flow
   const [selectedTiles, setSelectedTiles] = useState<Map<LifestyleCategory, PriorityLevel>>(() => {
     if (!initialPriorities || initialPriorities.length === 0) return new Map();
     return new Map(initialPriorities.map(p => [p.category, p.priority]));
   });
 
+  // S61: custom label for 'other' tile — travels downstream via LifestylePriority.customLabel
+  const [otherCustomLabel, setOtherCustomLabel] = useState(() => {
+    const otherPriority = initialPriorities?.find(p => p.category === 'other');
+    return otherPriority?.customLabel ?? '';
+  });
+
+  // OTHER TILE STATE FLOW (S61)
+  // Tap 'Other' → selects (blue border) + TextInput animates in below grid
+  // Type custom label → stored in priorities state as customLabel
+  // Tile label updates to customLabel on blur/submit
+  // Deselect 'Other' → TextInput animates out + customLabel cleared
+  // customLabel travels with LifestylePriority downstream to NeighborhoodMatchScreen + AddressComparisonScreen
+  // Live pipeline: 'other' uses 'point_of_interest' Google Places type as broad fallback
+  const otherInputHeight = useRef(new Animated.Value(
+    initialPriorities?.some(p => p.category === 'other') ? 52 : 0
+  )).current;
+  const otherInputOpacity = useRef(new Animated.Value(
+    initialPriorities?.some(p => p.category === 'other') ? 1 : 0
+  )).current;
+
   // Re-apply when navigating back — component is already mounted so useState init won't re-fire
   useEffect(() => {
     if (initialPriorities && initialPriorities.length > 0) {
       setSelectedTiles(new Map(initialPriorities.map(p => [p.category, p.priority])));
+      const otherP = initialPriorities.find(p => p.category === 'other');
+      if (otherP?.customLabel) setOtherCustomLabel(otherP.customLabel);
     }
   }, [initialPriorities]);
   const [addressText, setAddressText] = useState('');
@@ -203,6 +246,10 @@ const ClientLifestyleScreen: React.FC = () => {
   // Debounce timer ref for autocomplete
   const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // S61: selection cap — derived state
+  const selectionCount = selectedTiles.size;
+  const isAtLimit = selectionCount >= MAX_SELECTIONS;
+
   // Live path requires geocoded coordinates before enabling the CTA
   const canAnalyze =
     selectedTiles.size >= 1 &&
@@ -215,9 +262,27 @@ const ClientLifestyleScreen: React.FC = () => {
     setSelectedTiles(prev => {
       const next = new Map(prev);
       if (next.has(cat)) {
+        // Deselecting — always allowed, no limit check
         next.delete(cat);
+        // S61: deselect Other → animate TextInput out + clear customLabel
+        if (cat === 'other') {
+          setOtherCustomLabel('');
+          Animated.parallel([
+            Animated.timing(otherInputHeight, { toValue: 0, duration: 200, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+            Animated.timing(otherInputOpacity, { toValue: 0, duration: 200, useNativeDriver: false }),
+          ]).start();
+        }
       } else {
+        // S61: selecting — block if at limit
+        if (next.size >= MAX_SELECTIONS) return prev;
         next.set(cat, 'nice_to_have');
+        // S61: select Other → animate TextInput in
+        if (cat === 'other') {
+          Animated.parallel([
+            Animated.timing(otherInputHeight, { toValue: 52, duration: 200, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+            Animated.timing(otherInputOpacity, { toValue: 1, duration: 200, useNativeDriver: false }),
+          ]).start();
+        }
       }
       return next;
     });
@@ -228,10 +293,14 @@ const ClientLifestyleScreen: React.FC = () => {
     setSelectedTiles(prev => {
       const next = new Map(prev);
       if (!next.has(cat)) {
+        // S61: long-press to add as must_have — block if at limit
+        if (next.size >= MAX_SELECTIONS) return prev;
         next.set(cat, 'must_have');
       } else if (next.get(cat) === 'nice_to_have') {
+        // Toggle to must_have — already selected, no count change
         next.set(cat, 'must_have');
       } else {
+        // Toggle to nice_to_have — already selected, no count change
         next.set(cat, 'nice_to_have');
       }
       return next;
@@ -355,13 +424,19 @@ const ClientLifestyleScreen: React.FC = () => {
 
   const handleAnalyze = () => {
     const priorities = Array.from(selectedTiles.entries())
-      .map(([category, priority]) => ({ category, priority }));
+      .map(([category, priority]) => ({
+        category,
+        priority,
+        // S61: attach customLabel only for 'other' — undefined for all standard categories
+        ...(category === 'other' && otherCustomLabel.trim() ? { customLabel: otherCustomLabel.trim() } : {}),
+      }));
     navigation.navigate('NeighborhoodMatchScreen', {
       priorities,
       clientLabel: clientLabel || 'My Client',
       address: addressDisplay,
       lat: geocodedLat ?? undefined,   // @backend: geocoded in live path, undefined in mock
       lng: geocodedLng ?? undefined,   // @backend: geocoded in live path, undefined in mock
+      radiusMi,                        // S61: search radius
     });
   };
 
@@ -427,8 +502,44 @@ const ClientLifestyleScreen: React.FC = () => {
             />
           </View>
 
+          {/* ── S61: Radius selector pills ── */}
+          <View style={{ paddingHorizontal: 16, marginTop: 20 }}>
+            <Text style={{
+              fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: 8,
+            }}>
+              Search radius
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {RADIUS_OPTIONS.map(opt => {
+                const isSelected = radiusMi === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => setRadiusMi(opt.value)}
+                    style={{
+                      paddingVertical: 7,
+                      paddingHorizontal: 16,
+                      borderRadius: 20,
+                      backgroundColor: isSelected ? COLORS.primary : COLORS.chipBg,
+                      borderWidth: isSelected ? 0 : 1,
+                      borderColor: COLORS.border,
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: 13,
+                      fontWeight: isSelected ? '600' : '500',
+                      color: isSelected ? COLORS.background : COLORS.secondaryText,
+                    }}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           {/* ── Lifestyle tiles — single flat grid ── */}
-          <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
+          <View style={{ paddingHorizontal: 16, marginTop: 20 }}>
             <Text style={{
               fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: 8,
             }}>
@@ -442,9 +553,52 @@ const ClientLifestyleScreen: React.FC = () => {
                   state={getTileState(cat)}
                   onTap={handleTileTap}
                   onLongPress={handleTileLongPress}
+                  customLabel={cat === 'other' ? otherCustomLabel : undefined}
+                  dimmed={getTileState(cat) === 'unselected' && isAtLimit}
                 />
               ))}
             </View>
+
+            {/* S61: Other tile — animated TextInput for custom category label */}
+            <Animated.View style={{
+              height: otherInputHeight,
+              opacity: otherInputOpacity,
+              overflow: 'hidden',
+              marginTop: 10,
+            }}>
+              <TextInput
+                placeholder="e.g. Dog Park, Farmer's Market…"
+                placeholderTextColor={COLORS.secondaryText}
+                value={otherCustomLabel}
+                onChangeText={setOtherCustomLabel}
+                autoFocus={selectedTiles.has('other') && otherCustomLabel === ''}
+                maxLength={40}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                style={{
+                  backgroundColor: COLORS.screenBg,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  fontSize: 15,
+                  color: COLORS.darkText,
+                }}
+              />
+            </Animated.View>
+
+            {/* S61: selection counter — shows "N of 6 selected" */}
+            <Text style={{
+              fontSize: 13,
+              color: isAtLimit ? COLORS.warningAmber : COLORS.secondaryText,
+              marginTop: 10,
+              textAlign: 'center',
+            }}>
+              {isAtLimit
+                ? `${selectionCount} of ${MAX_SELECTIONS} selected · limit reached`
+                : `${selectionCount} of ${MAX_SELECTIONS} selected`}
+            </Text>
           </View>
 
           {/* ── Address input ── */}

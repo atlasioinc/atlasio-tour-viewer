@@ -83,6 +83,7 @@ export const COLORS = {
   // ── Counter/Warning ──
   warningBg: '#FFFBEB',
   warningText: '#92400E',
+  mustHaveTileBg: '#FEF3C7',    // S61: amber-50 background for must_have lifestyle tiles
 
   // Budget card tokens (ContractorJobDetails — S33)
   inRangeGreen: '#008236',      // "In range" bid indicator — intentionally darker than successGreen (informational vs celebration state)

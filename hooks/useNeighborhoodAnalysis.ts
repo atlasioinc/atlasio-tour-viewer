@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from 'react';
-import type { LifestylePriority, LifestyleCategory, NeighborhoodAnalysis, POIResult, AddressComparison, ComparisonEntry } from '../types/neighborhood';
+import type { LifestylePriority, LifestyleCategory, NeighborhoodAnalysis, POIResult, AddressComparison, ComparisonEntry, RadiusMi } from '../types/neighborhood';
 import { computeAnalysis, CATEGORY_META, hashPriorities } from '../lib/neighborhoodScoring';
 import { GOOGLE_MAPS_API_KEY, AIRNOW_API_KEY } from '../lib/config';
 import { supabase } from '../lib/supabase';
@@ -28,6 +28,13 @@ const DEMO_LNG = -104.9880;
 const MOCK_SCORES: Record<string, number> = {
   walkability: 88, transit: 72, bike: 80,
   coffee: 91, yoga: 78, gym: 82, parks: 85, grocery: 79, air_quality: 74,
+  // @demo S61: mock scores for new categories
+  dining: 88,        // high — Denver has strong restaurant density
+  schools: 75,       // moderate — typical suburban mix
+  healthcare: 82,    // high — major hospitals + pharmacy chains
+  pet_friendly: 70,  // moderate — dog parks less dense than coffee
+  nightlife: 65,     // moderate — suburb signal, not downtown
+  other: 60,         // neutral — represents custom category
 };
 
 // @demo: Replace with real Google Places Nearby Search results when LIVE = true
@@ -89,6 +96,7 @@ async function fetchPlacesForCategory(
   category: LifestyleCategory,
   lat: number,
   lng: number,
+  radiusMeters: number = 1609,  // S61: default 1mi, converted from radiusMi upstream
 ): Promise<{ pois: POIResult[]; count: number }> {
   const types = CATEGORY_META[category].googlePlacesTypes;
   if (types.length === 0) return { pois: [], count: 0 };
@@ -108,7 +116,7 @@ async function fetchPlacesForCategory(
             locationRestriction: {
               circle: {
                 center: { latitude: lat, longitude: lng },
-                radius: 800,
+                radius: radiusMeters,  // S61: was hardcoded 800, now dynamic
               },
             },
             maxResultCount: 10,
@@ -178,8 +186,13 @@ async function runLiveAnalysis(
   address: string,
   lat: number,
   lng: number,
+  radiusMi: RadiusMi = 1,
   onProgress?: (msg: string) => void,
 ): Promise<NeighborhoodAnalysis> {
+  // @backend S61: convert miles to meters for Google Places Nearby API
+  // 0.5mi=805m, 1mi=1609m, 2mi=3219m
+  const radiusMeters = Math.round(radiusMi * 1609.344);
+
   const rawScores: Record<string, number> = {};
   const allPois: POIResult[] = [];
   const categoryPoiCounts: Record<string, number> = {};
@@ -192,7 +205,7 @@ async function runLiveAnalysis(
   if (placesCategories.length > 0) {
     onProgress?.(`Checking ${CATEGORY_META[placesCategories[0]].label}...`);
     const placesResults = await Promise.all(
-      placesCategories.map(cat => fetchPlacesForCategory(cat, lat, lng))
+      placesCategories.map(cat => fetchPlacesForCategory(cat, lat, lng, radiusMeters))
     );
     placesCategories.forEach((cat, i) => {
       const { pois, count } = placesResults[i];
@@ -236,6 +249,7 @@ function saveToCacheSilently(
   priorities: LifestylePriority[],
   prioritiesHash: string,
   clientLabel: string = '',
+  radiusMi: RadiusMi = 1,
 ): void {
   supabase.rpc('rpc_save_neighborhood_analysis', {
     p_client_label:     clientLabel,
@@ -247,6 +261,7 @@ function saveToCacheSilently(
     p_category_scores:  analysis.categoryScores,
     p_pois:             analysis.pois,
     p_priorities:       { hash: prioritiesHash, data: priorities },
+    p_radius_mi:        radiusMi,  // S61: radius-aware cache key
   }).then(({ error }) => {
     if (error) console.warn('[Cache save failed] useNeighborhoodAnalysis:', error.message);
     else console.log('[Cache saved] useNeighborhoodAnalysis:', address);
@@ -269,6 +284,7 @@ export function useNeighborhoodAnalysis() {
     address: string,
     lat?: number,      // required in live path — geocoded from autocomplete selection
     lng?: number,      // required in live path — geocoded from autocomplete selection
+    radiusMi: RadiusMi = 1,  // S61: search radius
   ) => {
     setIsLoading(true);
     setError(null);
@@ -291,6 +307,7 @@ export function useNeighborhoodAnalysis() {
           .rpc('rpc_get_cached_analysis', {
             p_address: address,
             p_priorities_hash: prioritiesHash,
+            p_radius_mi: radiusMi,  // S61: radius-aware cache key
             p_max_age_days: 7,
           });
 
@@ -312,11 +329,11 @@ export function useNeighborhoodAnalysis() {
           // @backend S60: cache miss — run full pipeline, then auto-save
           console.log('[Cache MISS] useNeighborhoodAnalysis:', address);
           const result = await runLiveAnalysis(
-            priorities, clientLabel, address, lat, lng,
+            priorities, clientLabel, address, lat, lng, radiusMi,
             (msg) => setLoadingMessage(msg),
           );
           setAnalysis(result);
-          saveToCacheSilently(address, lat, lng, result, priorities, prioritiesHash, clientLabel);
+          saveToCacheSilently(address, lat, lng, result, priorities, prioritiesHash, clientLabel, radiusMi);
         }
       }
     } catch (err) {
@@ -374,6 +391,7 @@ export function useAddressComparison() {
     addresses: string[] | AddressInput[],
     priorities: LifestylePriority[],
     clientLabel: string,
+    radiusMi: RadiusMi = 1,  // S61: search radius
   ) => {
     // Type guard — live path sends AddressInput[], mock path sends string[]
     const isLivePath = LIVE_NEIGHBORHOOD_HOOKS &&
@@ -432,6 +450,7 @@ export function useAddressComparison() {
           .rpc('rpc_get_cached_comparison', {
             p_addresses: sortedAddresses,
             p_priorities_hash: prioritiesHash,
+            p_radius_mi: radiusMi,  // S61: radius-aware cache key
             p_max_age_days: 7,
           });
 
@@ -453,7 +472,7 @@ export function useAddressComparison() {
               try {
                 setLoadingMessage(`Analyzing ${addr.address.split(',')[0]}...`);
                 const analysis = await runLiveAnalysis(
-                  priorities, clientLabel, addr.address, addr.lat, addr.lng,
+                  priorities, clientLabel, addr.address, addr.lat, addr.lng, radiusMi,
                 );
                 return { address: addr.address, lat: addr.lat, lng: addr.lng, analysis };
               } catch (err) {
