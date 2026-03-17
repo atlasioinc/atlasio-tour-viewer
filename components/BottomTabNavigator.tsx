@@ -63,6 +63,13 @@ import JobTrackerTab from './JobTrackerTab';
 import JobCompletionScreen from './JobCompletionScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+// @demo — Import partner screens for role toggle (S62)
+// @backend PARTNER_TRACK_ENABLED gates entire partner tab branch
+// @demo false by default — flip true only when partner onboarding is live
+import { PARTNER_TRACK_ENABLED } from '../lib/config';
+import HomeTabPartner from '../features/partners/components/HomeTabPartner';
+import PartnerDealsScreen from '../features/partners/components/PartnerDealsScreen';
+
 // ─────────────────────────────────────────────
 // @demo ROLE TOGGLE CONTEXT
 // Shares current demo role across all tabs.
@@ -325,28 +332,34 @@ const ProfileIcon: React.FC<{ color: string }> = ({ color }) => (
 // Production: Remove entirely.
 // ─────────────────────────────────────────────
 
-const RoleBadge: React.FC<{ role: DemoRole }> = ({ role }) => (
-  <View
-    style={{
-      position: 'absolute',
-      top: -4,
-      right: -10,
-      minWidth: 16,
-      height: 16,
-      borderRadius: 9999,
-      backgroundColor: role === 'agent' ? COLORS.primary : '#16A34A',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 3,
-      borderWidth: 1.5,
-      borderColor: COLORS.background,
-    }}
-  >
-    <Text style={{ fontSize: 9, fontWeight: '700', color: '#FFFFFF' }}>
-      {role === 'agent' ? 'A' : 'C'}
-    </Text>
-  </View>
-);
+const RoleBadge: React.FC<{ role: DemoRole }> = ({ role }) => {
+  // @demo — badge color: blue=Agent, green=Contractor, amber=Partner (S62)
+  const badgeColor = role === 'agent' ? COLORS.primary : role === 'contractor' ? '#16A34A' : COLORS.warningAmber;
+  const badgeLabel = role === 'agent' ? 'A' : role === 'contractor' ? 'C' : 'P';
+
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        top: -4,
+        right: -10,
+        minWidth: 16,
+        height: 16,
+        borderRadius: 9999,
+        backgroundColor: badgeColor,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 3,
+        borderWidth: 1.5,
+        borderColor: COLORS.background,
+      }}
+    >
+      <Text style={{ fontSize: 9, fontWeight: '700', color: '#FFFFFF' }}>
+        {badgeLabel}
+      </Text>
+    </View>
+  );
+};
 
 // ─────────────────────────────────────────────
 // @demo LONG-PRESS TAB BUTTON
@@ -433,13 +446,22 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
   //   const role = useAuthProfile().role; // 'agent' | 'contractor'
   const [demoRole, setDemoRole] = useState<DemoRole>('agent');
 
+  // @demo Role cycle: agent → contractor (→ partner only when PARTNER_TRACK_ENABLED)
+  // When PARTNER_TRACK_ENABLED is false (default), partner is completely invisible
   const toggleRole = useCallback(() => {
-    setDemoRole((prev) => (prev === 'agent' ? 'contractor' : 'agent'));
+    setDemoRole((prev) => {
+      if (prev === 'agent') return 'contractor';
+      if (prev === 'contractor' && PARTNER_TRACK_ENABLED) return 'partner';
+      return 'agent';
+    });
   }, []);
 
   // ── @demo Choose screen stacks based on demo role ──
   // Production: Route to correct stack based on auth role
-  const HomeComponent = demoRole === 'agent' ? HomeStack : ContractorHomeStackScreen;
+  // Partner role (S62): uses HomeTabPartner for Home, PartnerDealsScreen for Deals (replaces Find)
+  const HomeComponent = demoRole === 'partner' ? HomeTabPartner
+    : demoRole === 'agent' ? HomeStack
+    : ContractorHomeStackScreen;
   const InboxComponent = demoRole === 'agent' ? InboxStack : ContractorInboxStackScreen;
 
   return (
@@ -488,18 +510,18 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
           }}
         />
 
-        {/* Find — agent only */}
+        {/* Find — agent only; Deals — partner only (replaces Find tab, S62) */}
         <Tab.Screen
-          name="Find"
-          component={FindStack}
+          name={demoRole === 'partner' ? 'Deals' : 'Find'}
+          component={demoRole === 'partner' ? PartnerDealsScreen : FindStack}
           options={{
-            tabBarIcon: ({ color }) => <FindIcon color={color} />,
-            tabBarButton: demoRole !== 'agent' ? () => null : undefined,
-            tabBarItemStyle: demoRole !== 'agent' ? { display: 'none' } : undefined,
+            tabBarIcon: ({ color }) => demoRole === 'partner' ? <JobsIcon color={color} /> : <FindIcon color={color} />,
+            tabBarButton: (demoRole !== 'agent' && demoRole !== 'partner') ? () => null : undefined,
+            tabBarItemStyle: (demoRole !== 'agent' && demoRole !== 'partner') ? { display: 'none' } : undefined,
           }}
         />
 
-        {/* Network — agent only */}
+        {/* Network — agent only (hidden for contractor and partner) */}
         <Tab.Screen
           name="Network"
           component={NetworkStack}

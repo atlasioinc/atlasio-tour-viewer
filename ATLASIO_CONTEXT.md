@@ -31,13 +31,13 @@
 
 ---
 
-## Current Metrics (updated S61 — March 16, 2026)
-- **RPCs:** 37 (3 updated S61: `rpc_get_cached_analysis`, `rpc_get_cached_comparison`, `rpc_save_neighborhood_analysis` — all accept `p_radius_mi`)
-- **Hooks:** 58
-- **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`)
+## Current Metrics (updated S62 — March 17, 2026)
+- **RPCs:** 37 (unchanged — 7 partner RPCs stubbed with @backend markers, not yet deployed)
+- **Hooks:** 64 (+6 partner hooks: usePartnerActiveDeals, usePartnerNeedsAttention, usePartnerStats, usePartnerConnectionRequests, useToggleAcceptingClients, useUpdateMilestoneStatus, usePostDealAlert, useDismissDealAlert)
+- **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` in lib/config.ts
 - **Edge Functions:** 10
 - **Storage Buckets:** 6
-- **COLORS tokens:** 117 (was 116, +1 `mustHaveTileBg` S61)
+- **COLORS tokens:** 120 (was 117, +3 S62: `dangerText`, `dangerBg`, `dangerBorder`)
 - **Lifestyle Categories:** 16 (was 9, +5 standard + 1 custom S61)
 - **tsc:** 0 errors
 
@@ -526,3 +526,18 @@ Located in `components/shared/index.ts` (barrel export):
 - **Cache E2E test:** DEFERRED (device test not run this session)
 - **RPCs:** 37 (3 updated, none new) | **Tables:** 20 (1 column added) | **Hooks:** 58 (unchanged) | **COLORS tokens:** 117 (+1) | **tsc:** 0
 - **S62 next objectives:** Cache E2E device test (radius cache key verification), Walk Score API integration
+
+### S62 — Partner Track: Home Tab + Deal Board (March 17, 2026)
+- **Created:** `features/partners/types/partner.types.ts` — All partner-specific TypeScript interfaces (DealMilestone, DealAlert, PartnerActiveDeal, PartnerStats, MilestoneConfig, AlertTypeConfig, PartnerConnectionRequest)
+- **Created:** `features/partners/lib/dealMilestones.ts` — Milestone set configs and alert type configs keyed by partner role, isMilestoneStale() helper, getRateLockDaysRemaining() helper, RATE_LOCK_DANGER_THRESHOLD_DAYS constant
+- **Created:** `features/partners/hooks/usePartnerData.ts` — 8 TanStack Query hooks (4 queries + 4 mutations) with mock Denver data. All @backend RPCs stubbed: rpc_get_partner_active_deals, rpc_get_partner_stats, rpc_get_connection_requests, rpc_toggle_accepting_clients, rpc_update_milestone_status, rpc_post_deal_alert, rpc_dismiss_deal_alert
+- **Created:** `features/partners/components/ActiveDealCard.tsx` — Reusable deal card with milestone progress, alert banners (danger/warning escalation), inline alert composer, milestone tap cycling
+- **Created:** `features/partners/components/HomeTabPartner.tsx` — Partner home tab with 6 sections: Availability card, Connection Requests (horizontal scroll), Needs Attention deal board, Visibility Stats (3-tile), Recent Vouches, Share Profile CTA
+- **Created:** `features/partners/components/PartnerDealsScreen.tsx` — Full deal pipeline with 3 filter chips (All/Needs Attention/Closing Soon), grouped sections (Closing within 14 days / Active), empty states per filter
+- **Modified:** `lib/tokens.ts` — Added 3 tokens: `dangerText` (#DC2626), `dangerBg` (#FEF2F2), `dangerBorder` (#FECACA)
+- **Modified:** `lib/config.ts` — Added `PARTNER_TRACK_ENABLED: false` feature flag
+- **Modified:** `lib/demoRoleContext.ts` — Added `'partner'` to DemoRole union type
+- **Modified:** `components/BottomTabNavigator.tsx` — Partner role branch: HomeTabPartner for Home tab, PartnerDealsScreen replaces Find tab as "Deals", role badge supports 'P' (amber), demo toggle cycles agent→contractor→partner only when PARTNER_TRACK_ENABLED===true
+- **Key decisions:** Partner feature fully isolated in `features/partners/` folder. Types isolated from `types/index.ts`. Demo role toggle only includes partner when flag is true — invisible by default. ActiveDealCard extracted as shared component between both screens. Rate lock escalation threshold: 5 days. All RPCs stubbed with @backend markers for future backend session.
+- **Hooks:** 64 (+6 new, +2 dismiss/connection) | **COLORS tokens:** 120 (+3) | **tsc:** 0
+- **S63 next objectives:** Agent Deal Board visibility (agent sees partner milestone progress), `rpc_get_deal_board_for_agent`, `useRealtimeDealMilestones`, status dots on HomeTabAgent squad section

@@ -16,7 +16,8 @@
 import { createContext, useContext } from 'react';
 
 // @demo — role type for demo switcher toggle
-export type DemoRole = 'agent' | 'contractor';
+// 'partner' only available when PARTNER_TRACK_ENABLED === true (S62)
+export type DemoRole = 'agent' | 'contractor' | 'partner';
 
 export interface DemoRoleContextType {
   demoRole: DemoRole;

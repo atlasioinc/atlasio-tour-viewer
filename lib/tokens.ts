@@ -141,6 +141,11 @@ export const COLORS = {
   // @tokens S59: added to resolve annotated inline hex in AddressComparisonScreen
   winnerCardBorder: '#BBF7D0',   // winner card confirmed-address border (green-200)
   disabledPrimaryTint: '#C7D2FE', // disabled CTA background tint (indigo-200)
+
+  // ── Partner Track (S62) ──
+  dangerText: '#DC2626',         // Rate lock danger state — added S62
+  dangerBg: '#FEF2F2',          // Rate lock urgent banner background — added S62
+  dangerBorder: '#FECACA',      // Rate lock urgent banner border — added S62
 } as const;
 
 // ─────────────────────────────────────────────
