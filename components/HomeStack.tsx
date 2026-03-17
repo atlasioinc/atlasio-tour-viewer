@@ -31,6 +31,7 @@ import ClientLifestyleScreen from './ClientLifestyleScreen';
 import NeighborhoodMatchScreen from './NeighborhoodMatchScreen';
 import CategoryMapScreen from './CategoryMapScreen';
 import AddressComparisonScreen from './AddressComparisonScreen';
+import AgentDealDetailScreen from './AgentDealDetailScreen';
 import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis, RadiusMi } from '../types/neighborhood';
 
 // ─────────────────────────────────────────────
@@ -92,6 +93,9 @@ export type HomeStackParamList = {
     addressLat: number;
     addressLng: number;
     address: string;
+  };
+  AgentDealDetail: {
+    jobId: string;
   };
   AddressComparisonScreen: {
     priorities: LifestylePriority[];
@@ -186,6 +190,11 @@ const HomeStack: React.FC = () => (
         animation: 'slide_from_bottom',
         headerShown: false,
       }}
+    />
+    <Stack.Screen
+      name="AgentDealDetail"
+      component={AgentDealDetailScreen}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="CategoryMapScreen"

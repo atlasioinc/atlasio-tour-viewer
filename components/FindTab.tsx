@@ -51,6 +51,7 @@ import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useFindPros, useRecommendedPros, useTrendingPros } from '../hooks/useData';
 import { adaptProfileToProCard } from '../lib/typeAdapters';
 import { VerificationBadge } from './shared/VerificationBadge';
+import { DisplayTag } from './DisplayTag';
 import type { VerificationLevel } from '../types';
 
 
@@ -211,6 +212,9 @@ interface ProCard {
   rating: number; vouches: number; tags: string[]; headline: string | null;
   avatarColor: string; closingDays?: number; distanceMi?: number;
   verification_level?: VerificationLevel;
+  /** @backend profiles.accepting_clients BOOLEAN — read from partner profile data
+   *  @demo use mock profile data with accepting_clients field */
+  accepting_clients?: boolean;
 }
 
 const ALL_PROS: ProCard[] = [
@@ -286,6 +290,14 @@ const ProCardComponent: React.FC<{
               {pro.trade ?? pro.role}
             </Text>
           </View>
+          {/* @backend profiles.accepting_clients BOOLEAN — read from partner profile data
+              @demo use mock profile data with accepting_clients field
+              Only show badge when explicitly false (not when true or undefined) */}
+          {pro.accepting_clients === false && (
+            <View style={{ marginTop: 4 }}>
+              <DisplayTag label="At Capacity" variant="ghost" fontSize={12} />
+            </View>
+          )}
         </View>
       </View>
       <View style={{ alignItems: 'flex-end', gap: 2 }}>

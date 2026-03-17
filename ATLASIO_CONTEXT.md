@@ -31,15 +31,38 @@
 
 ---
 
-## Current Metrics (updated S62 — March 17, 2026)
-- **RPCs:** 37 (unchanged — 7 partner RPCs stubbed with @backend markers, not yet deployed)
-- **Hooks:** 64 (+6 partner hooks: usePartnerActiveDeals, usePartnerNeedsAttention, usePartnerStats, usePartnerConnectionRequests, useToggleAcceptingClients, useUpdateMilestoneStatus, usePostDealAlert, useDismissDealAlert)
+## Current Metrics (updated S63 — March 17, 2026)
+- **RPCs:** 41
+- **Hooks:** 67 (+3 S63: useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard)
 - **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` in lib/config.ts
 - **Edge Functions:** 10
 - **Storage Buckets:** 6
-- **COLORS tokens:** 120 (was 117, +3 S62: `dangerText`, `dangerBg`, `dangerBorder`)
-- **Lifestyle Categories:** 16 (was 9, +5 standard + 1 custom S61)
+- **Screens:** +1 (AgentDealDetailScreen)
+- **COLORS tokens:** 120
+- **Lifestyle Categories:** 16
 - **tsc:** 0 errors
+
+---
+
+## S62b — Partner Track RPCs (March 17, 2026)
+
+**8 RPCs deployed to Supabase (all SECURITY DEFINER, smoke tested):**
+- `rpc_get_partner_active_deals` — partner home tab + deals list data
+- `rpc_update_milestone_status` — partner advances a milestone (ownership validated)
+- `rpc_seed_deal_milestones` — seeds standard milestones on deal assignment (idempotent, live tested)
+- `rpc_post_deal_alert` — partner posts urgent alert to agent (140-char limit enforced server-side)
+- `rpc_dismiss_deal_alert` — agent or partner dismisses an alert (soft delete, both callers allowed)
+- `rpc_get_partner_stats` — partner stats summary (vouches_received live; profile_views + search_appearances stubbed — ⚠️ flagged for product review before partner launch)
+- `rpc_toggle_accepting_clients` — partner availability toggle (COALESCE-safe for nullable column)
+- `rpc_get_deal_board_for_agent` — agent deal board full data per job (S63 data source)
+
+**Architecture note:** All 8 RPCs anchor to `job_id` as FK (temporary).
+Migrate to `transaction_id` in S64 when `transactions` table exists.
+
+**Live test:** `rpc_seed_deal_milestones` — 5 Title/Escrow milestones seeded correctly.
+Idempotency guard confirmed (second call returns `seeded: false`). Test data cleaned up.
+
+**Commit:** `feat: S62b partner RPCs deployed — 8 RPCs live`
 
 When adding new RPCs, hooks, or Edge Functions — increment the count in this file and in the session commit message.
 
@@ -55,6 +78,7 @@ LIVE_INSURANCE_HOOKS: false   // flip true only for live insurance testing
 DEV_BYPASS_AUTH: true         // true = loads agent demo user, bypasses login
 DEV_SHOW_PASSWORD_LOGIN: false // true = shows password input for device testing
 LIVE_SQUAD_SHARE: false
+PARTNER_TRACK_ENABLED: false  // added S62, default false until partner onboarding live
 ```
 
 **Flag workflow:**
@@ -541,3 +565,16 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** Partner feature fully isolated in `features/partners/` folder. Types isolated from `types/index.ts`. Demo role toggle only includes partner when flag is true — invisible by default. ActiveDealCard extracted as shared component between both screens. Rate lock escalation threshold: 5 days. All RPCs stubbed with @backend markers for future backend session.
 - **Hooks:** 64 (+6 new, +2 dismiss/connection) | **COLORS tokens:** 120 (+3) | **tsc:** 0
 - **S63 next objectives:** Agent Deal Board visibility (agent sees partner milestone progress), `rpc_get_deal_board_for_agent`, `useRealtimeDealMilestones`, status dots on HomeTabAgent squad section
+
+### S63 — Agent Deal Board (March 17, 2026)
+- **Merged:** `HomeTabAgent.tsx` + `HomeTabAgentFilled.tsx` → unified `HomeTabAgent.tsx` with conditional content zones (Active Deals, vouch feed tabs, demo toggle)
+- **Deleted:** `HomeTabAgentFilled.tsx` — fully merged into HomeTabAgent
+- **Created:** `components/AgentDealDetailScreen.tsx` — Read-only milestone board per deal. Per-partner sections: avatar + status dot, alert banners (danger/warn), progress bar, milestone list with stale indicators. Realtime-ready.
+- **Modified:** `hooks/useData.ts` — +3 hooks: `useAgentActiveDeals` (mock, 2 deals with partners/alerts), `useAgentDismissDealAlert` (optimistic mutation), `useRealtimeDealBoard` (Supabase Realtime channels for deal_milestones + deal_alerts, cleanup on unmount)
+- **Modified:** `features/partners/types/partner.types.ts` — +2 interfaces: `AgentDealPartner`, `AgentActiveDeal` (agent-side multi-partner deal composite)
+- **Modified:** `components/HomeStack.tsx` — Registered `AgentDealDetail` route with `{ jobId: string }` params
+- **Modified:** `components/FindTab.tsx` — Added `accepting_clients` field to ProCard interface + "At Capacity" ghost badge via DisplayTag when `accepting_clients === false`
+- **Modified:** `lib/featureFlags.ts` — Reset all flags to demo defaults
+- **Key decisions:** Active Deals section renders conditionally (hidden when no deals). Status dot priority: red (alerts) > amber (stale) > green (on track) > gray (no milestones). Milestone rows are View not Pressable (read-only). All hooks use job_id as anchor (migrate to transaction_id in S64). Vouch feed inlined from HomeTabAgentFilled (replaces VouchFeedSection import).
+- **Hooks:** 67 (+3) | **Screens:** +1 (AgentDealDetailScreen) | **tsc:** 0
+- **S64 next objectives:** transactions table, rpc_create_transaction, Deal Creation sheet, transaction_id migration for deal_milestones + deal_alerts

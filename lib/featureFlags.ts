@@ -37,12 +37,12 @@
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA:            false,   // @demo — set false when Supabase is populated
+  USE_MOCK_DATA:            true,   // @demo — true = demo mode, false = live Supabase
   LIVE_ONBOARDING:          false,  // true = call rpc_complete_onboarding
-  LIVE_CONTRACTOR_HOOKS:    false,  // true = contractor hooks call live RPCs
-  LIVE_VERIFICATION_HOOKS:  true,  // true = VerificationScreen calls live RPC (S47)
-  LIVE_INSURANCE_HOOKS:     true,  // true = InsuranceUploadScreen uses real picker + storage (S47)
-  DEV_BYPASS_AUTH:          false,   // @demo — set true for demo mode, false for device testing with real auth
-  DEV_SHOW_PASSWORD_LOGIN:  true,  // @demo — set true for device testing, ALWAYS false before demos/commits
-  LIVE_SQUAD_SHARE:         true,  // @demo — false for investor demos. Flip to true when Edge Functions deployed (S51)
+  LIVE_CONTRACTOR_HOOKS:    true,   // true = contractor hooks call live RPCs (permanent since S36)
+  LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
+  LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
+  DEV_BYPASS_AUTH:          true,   // @demo — true = loads agent demo user, bypasses login
+  DEV_SHOW_PASSWORD_LOGIN:  false,  // @demo — true = shows password input for device testing
+  LIVE_SQUAD_SHARE:         false,  // @demo — false for investor demos
 } as const;

@@ -411,7 +411,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
 
         {/* ═════════════════════════════════════════════════════════ */}
         {/* SECTION 5 — Recent Vouches                              */}
-        {/* Reuses vouch feed pattern from HomeTabAgentFilled.tsx    */}
+        {/* Reuses vouch feed pattern from HomeTabAgent.tsx          */}
         {/* @backend existing vouch RPC                             */}
         {/* @demo Inline mock data — same structure as agent vouch  */}
         {/* ═════════════════════════════════════════════════════════ */}

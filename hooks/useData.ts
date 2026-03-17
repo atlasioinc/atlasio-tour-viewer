@@ -48,11 +48,12 @@
 //   SQUAD SHARE (1)      — useSquadShare (sendViaEmail + sendViaSms)
 // ═══════════════════════════════════════════════════════════════
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '../lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
 import { MOCK_REPAIR_JOBS } from '../components/RepairJobsData';
+import type { AgentActiveDeal } from '../features/partners/types/partner.types';
 import type {
   Profile,
   PerformanceStats,
@@ -2182,3 +2183,190 @@ export const useSquadShare = () => {
 
   return { sendViaEmail, sendViaSms, isLoading, error, reset };
 };
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT DEAL BOARD (S63)
+// ═══════════════════════════════════════════════════════════════
+
+// ─── Mock Data ────────────────────────────────────────────────
+// @demo — replace with rpc_get_deal_board_for_agent calls per active job in production
+// NOTE: will migrate to transaction_id in S64 when transactions table exists
+
+const _now = new Date();
+const _daysFromNow = (d: number) => new Date(_now.getTime() + d * 86400000).toISOString();
+const _daysAgo = (d: number) => new Date(_now.getTime() - d * 86400000).toISOString();
+
+const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
+  {
+    job_id: 'mock-job-001',
+    address: '2847 Maple Street, Denver, CO',
+    closing_date: '2026-04-15',
+    partners: [
+      {
+        partner_id: 'mock-partner-001',
+        partner_name: 'Sarah Chen',
+        partner_role: 'Title/Escrow',
+        partner_avatar_color: '#7BA3C9',
+        milestones: [
+          { id: 'ams-001', job_id: 'mock-job-001', partner_id: 'mock-partner-001', partner_role: 'Title/Escrow', milestone_key: 'title_search', milestone_label: 'Title search', status: 'complete', sort_order: 0, completed_at: _daysAgo(10), updated_at: _daysAgo(10), created_at: _daysAgo(20) },
+          { id: 'ams-002', job_id: 'mock-job-001', partner_id: 'mock-partner-001', partner_role: 'Title/Escrow', milestone_key: 'lien_search', milestone_label: 'Lien search', status: 'complete', sort_order: 1, completed_at: _daysAgo(8), updated_at: _daysAgo(8), created_at: _daysAgo(20) },
+          { id: 'ams-003', job_id: 'mock-job-001', partner_id: 'mock-partner-001', partner_role: 'Title/Escrow', milestone_key: 'title_commitment', milestone_label: 'Title commitment', status: 'complete', sort_order: 2, completed_at: _daysAgo(5), updated_at: _daysAgo(5), created_at: _daysAgo(20) },
+          { id: 'ams-004', job_id: 'mock-job-001', partner_id: 'mock-partner-001', partner_role: 'Title/Escrow', milestone_key: 'clear_to_close', milestone_label: 'Clear to close', status: 'pending', sort_order: 3, completed_at: null, updated_at: _daysAgo(20), created_at: _daysAgo(20) },
+          { id: 'ams-005', job_id: 'mock-job-001', partner_id: 'mock-partner-001', partner_role: 'Title/Escrow', milestone_key: 'closing_docs', milestone_label: 'Closing docs sent', status: 'pending', sort_order: 4, completed_at: null, updated_at: _daysAgo(20), created_at: _daysAgo(20) },
+        ],
+        alerts: [
+          {
+            id: 'mock-alert-001',
+            job_id: 'mock-job-001',
+            partner_id: 'mock-partner-001',
+            alert_type: 'rate_lock_expiry',
+            message: 'Rate lock expires in 3 days — confirm extension or float.',
+            expires_at: _daysFromNow(3),
+            dismissed_at: null,
+            created_at: _now.toISOString(),
+          },
+        ],
+      },
+      {
+        partner_id: 'mock-partner-002',
+        partner_name: 'James Rivera',
+        partner_role: 'Mortgage Pro',
+        partner_avatar_color: '#A3C9A8',
+        milestones: [
+          { id: 'ams-010', job_id: 'mock-job-001', partner_id: 'mock-partner-002', partner_role: 'Mortgage Pro', milestone_key: 'pre_approval', milestone_label: 'Pre-approval confirmed', status: 'complete', sort_order: 0, completed_at: _daysAgo(14), updated_at: _daysAgo(14), created_at: _daysAgo(21) },
+          { id: 'ams-011', job_id: 'mock-job-001', partner_id: 'mock-partner-002', partner_role: 'Mortgage Pro', milestone_key: 'app_submitted', milestone_label: 'Application submitted', status: 'complete', sort_order: 1, completed_at: _daysAgo(10), updated_at: _daysAgo(10), created_at: _daysAgo(21) },
+          { id: 'ams-012', job_id: 'mock-job-001', partner_id: 'mock-partner-002', partner_role: 'Mortgage Pro', milestone_key: 'appraisal_ordered', milestone_label: 'Appraisal ordered', status: 'in_progress', sort_order: 2, completed_at: null, updated_at: _daysAgo(6), created_at: _daysAgo(21) },
+          { id: 'ams-013', job_id: 'mock-job-001', partner_id: 'mock-partner-002', partner_role: 'Mortgage Pro', milestone_key: 'appraisal_complete', milestone_label: 'Appraisal complete', status: 'pending', sort_order: 3, completed_at: null, updated_at: _daysAgo(21), created_at: _daysAgo(21) },
+          { id: 'ams-014', job_id: 'mock-job-001', partner_id: 'mock-partner-002', partner_role: 'Mortgage Pro', milestone_key: 'underwriting', milestone_label: 'Underwriting submitted', status: 'pending', sort_order: 4, completed_at: null, updated_at: _daysAgo(21), created_at: _daysAgo(21) },
+          { id: 'ams-015', job_id: 'mock-job-001', partner_id: 'mock-partner-002', partner_role: 'Mortgage Pro', milestone_key: 'conditional_approval', milestone_label: 'Conditional approval', status: 'pending', sort_order: 5, completed_at: null, updated_at: _daysAgo(21), created_at: _daysAgo(21) },
+          { id: 'ams-016', job_id: 'mock-job-001', partner_id: 'mock-partner-002', partner_role: 'Mortgage Pro', milestone_key: 'clear_to_close', milestone_label: 'Clear to close', status: 'pending', sort_order: 6, completed_at: null, updated_at: _daysAgo(21), created_at: _daysAgo(21) },
+          { id: 'ams-017', job_id: 'mock-job-001', partner_id: 'mock-partner-002', partner_role: 'Mortgage Pro', milestone_key: 'loan_docs_sent', milestone_label: 'Loan docs sent', status: 'pending', sort_order: 7, completed_at: null, updated_at: _daysAgo(21), created_at: _daysAgo(21) },
+        ],
+        alerts: [],
+      },
+    ],
+  },
+  {
+    job_id: 'mock-job-002',
+    address: '1190 Corona Street, Denver, CO',
+    closing_date: '2026-05-01',
+    partners: [
+      {
+        partner_id: 'mock-partner-003',
+        partner_name: 'Priya Nair',
+        partner_role: 'Title/Escrow',
+        partner_avatar_color: '#C9A87B',
+        milestones: [
+          { id: 'ams-020', job_id: 'mock-job-002', partner_id: 'mock-partner-003', partner_role: 'Title/Escrow', milestone_key: 'title_search', milestone_label: 'Title search', status: 'complete', sort_order: 0, completed_at: _daysAgo(5), updated_at: _daysAgo(5), created_at: _daysAgo(10) },
+          { id: 'ams-021', job_id: 'mock-job-002', partner_id: 'mock-partner-003', partner_role: 'Title/Escrow', milestone_key: 'lien_search', milestone_label: 'Lien search', status: 'in_progress', sort_order: 1, completed_at: null, updated_at: _daysAgo(1), created_at: _daysAgo(10) },
+          { id: 'ams-022', job_id: 'mock-job-002', partner_id: 'mock-partner-003', partner_role: 'Title/Escrow', milestone_key: 'title_commitment', milestone_label: 'Title commitment', status: 'pending', sort_order: 2, completed_at: null, updated_at: _daysAgo(10), created_at: _daysAgo(10) },
+          { id: 'ams-023', job_id: 'mock-job-002', partner_id: 'mock-partner-003', partner_role: 'Title/Escrow', milestone_key: 'clear_to_close', milestone_label: 'Clear to close', status: 'pending', sort_order: 3, completed_at: null, updated_at: _daysAgo(10), created_at: _daysAgo(10) },
+          { id: 'ams-024', job_id: 'mock-job-002', partner_id: 'mock-partner-003', partner_role: 'Title/Escrow', milestone_key: 'closing_docs', milestone_label: 'Closing docs sent', status: 'pending', sort_order: 4, completed_at: null, updated_at: _daysAgo(10), created_at: _daysAgo(10) },
+        ],
+        alerts: [],
+      },
+    ],
+  },
+];
+
+// ─── useAgentActiveDeals ──────────────────────────────────────
+// STATUS: mock
+// @backend rpc_get_deal_board_for_agent — one call per active job
+// NOTE: will migrate to transaction_id in S64 when transactions table exists
+// Returns: AgentActiveDeal[] — deals with seeded milestones
+// Mock data: 2 deals (1 with rate_lock alert + 1 stale milestone, 1 clean)
+
+export function useAgentActiveDeals() {
+  return useQuery({
+    queryKey: ['agent_active_deals'],
+    queryFn: async (): Promise<AgentActiveDeal[]> => {
+      // @demo — return mock deals
+      // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }
+      return MOCK_AGENT_ACTIVE_DEALS;
+    },
+  });
+}
+
+// ─── useDismissDealAlert ──────────────────────────────────────
+// STATUS: mock
+// @backend rpc_dismiss_deal_alert(p_alert_id: string)
+// NOTE: will migrate to transaction_id in S64 when transactions table exists
+// Optimistic: removes alert from deal_board + agent_active_deals caches
+
+export function useAgentDismissDealAlert() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ alertId, jobId }: { alertId: string; jobId: string }) => {
+      // @backend rpc_dismiss_deal_alert(p_alert_id)
+      console.log(`[useAgentDismissDealAlert] @demo dismissing ${alertId}`);
+      return { alertId };
+    },
+    onMutate: async (variables) => {
+      await qc.cancelQueries({ queryKey: ['agent_active_deals'] });
+      const previous = qc.getQueryData<AgentActiveDeal[]>(['agent_active_deals']);
+
+      qc.setQueryData<AgentActiveDeal[]>(
+        ['agent_active_deals'],
+        (old) => old?.map(deal =>
+          deal.job_id === variables.jobId
+            ? {
+                ...deal,
+                partners: deal.partners.map(p => ({
+                  ...p,
+                  alerts: p.alerts.filter(a => a.id !== variables.alertId),
+                })),
+              }
+            : deal,
+        ),
+      );
+
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        qc.setQueryData(['agent_active_deals'], context.previous);
+      }
+    },
+    onSettled: (_data, _err, variables) => {
+      qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
+      qc.invalidateQueries({ queryKey: ['deal_board', variables.jobId] });
+    },
+  });
+}
+
+// ─── useRealtimeDealBoard ─────────────────────────────────────
+// Subscribes to Supabase Realtime for deal_milestones + deal_alerts
+// Invalidates TanStack Query cache on any INSERT/UPDATE
+// Cleanup on unmount to prevent memory leaks
+// NOTE: will migrate to transaction_id in S64 when transactions table exists
+
+export function useRealtimeDealBoard(jobId: string): void {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`deal_board_${jobId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deal_milestones', filter: `job_id=eq.${jobId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ['deal_board', jobId] });
+          qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deal_alerts', filter: `job_id=eq.${jobId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ['deal_board', jobId] });
+          qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [jobId, qc]);
+}

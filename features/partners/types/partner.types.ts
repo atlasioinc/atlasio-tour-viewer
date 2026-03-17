@@ -88,6 +88,33 @@ export interface AlertTypeConfig {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// AGENT DEAL BOARD (S63) — agent-side composite for multi-partner views
+// ─────────────────────────────────────────────────────────────────
+
+/** A single partner's milestones + alerts within a deal, as seen by the agent */
+export interface AgentDealPartner {
+  partner_id: string;
+  partner_name: string;
+  partner_role: PartnerRole;
+  partner_avatar_color: string;
+  milestones: DealMilestone[];
+  alerts: DealAlert[];
+}
+
+/**
+ * Agent-side deal board composite — one deal with multiple partners.
+ * Different from PartnerActiveDeal (single partner's view of their own deal).
+ * @backend rpc_get_deal_board_for_agent — returns one per active job
+ * NOTE: will migrate to transaction_id in S64 when transactions table exists
+ */
+export interface AgentActiveDeal {
+  job_id: string;
+  address: string;
+  closing_date: string | null;
+  partners: AgentDealPartner[];
+}
+
+// ─────────────────────────────────────────────────────────────────
 // CONNECTION REQUEST (partner-specific)
 // ─────────────────────────────────────────────────────────────────
 
