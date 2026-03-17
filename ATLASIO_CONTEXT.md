@@ -31,13 +31,14 @@
 
 ---
 
-## Current Metrics (updated S60 — March 16, 2026)
-- **RPCs:** 37
+## Current Metrics (updated S61 — March 16, 2026)
+- **RPCs:** 37 (3 updated S61: `rpc_get_cached_analysis`, `rpc_get_cached_comparison`, `rpc_save_neighborhood_analysis` — all accept `p_radius_mi`)
 - **Hooks:** 58
 - **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`)
 - **Edge Functions:** 10
 - **Storage Buckets:** 6
-- **COLORS tokens:** 116 (was 114, +2 Neighborhood Intelligence tokens S59)
+- **COLORS tokens:** 117 (was 116, +1 `mustHaveTileBg` S61)
+- **Lifestyle Categories:** 16 (was 9, +5 standard + 1 custom S61)
 - **tsc:** 0 errors
 
 When adding new RPCs, hooks, or Edge Functions — increment the count in this file and in the session commit message.
@@ -223,12 +224,20 @@ HomeTabAgent → "Client Tools" section → "Neighborhood Match" card → Client
 ### Entry Point
 Both `HomeTabAgent.tsx` and `HomeTabAgentFilled.tsx` have a "Client Tools" section with a `ClientToolCard` component between Closing Squad and Quick Actions sections.
 
-### 9 Lifestyle Categories
-`coffee`, `yoga`, `parks`, `walkability`, `gym`, `grocery`, `transit`, `bike`, `air_quality`
+### 16 Lifestyle Categories (S61: was 9)
+**Existing (9):** `coffee`, `yoga`, `parks`, `walkability`, `gym`, `grocery`, `transit`, `bike`, `air_quality`
+**New standard (5, S61):** `dining`, `schools`, `healthcare`, `pet_friendly`, `nightlife`
+**New custom (1, S61):** `other` — free-text `customLabel` via inline TextInput, uses `point_of_interest` Google Places type as broad fallback
+
+### Selection Cap (S61)
+`MAX_SELECTIONS = 6` — flat cap, any mix of Must Have / Nice to Have. Unselected tiles dim at limit (`opacity: 0.35`). Counter label below grid: "N of 6 selected" / amber "6 of 6 selected · limit reached".
+
+### Radius Selector (S61)
+`RadiusMi = 0.5 | 1 | 2` (default 1mi) — pill row above tile grid in `ClientLifestyleScreen`. Radius flows through all screens and hooks. Places API radius: `Math.round(radiusMi * 1609.344)` meters. Cache key includes `radius_mi` — different radius = different cache entry.
 
 ### Backend APIs (wired S57)
 - Walk Score API — **deferred** (walkability derived as proxy from POI density, replaceable with zero arch changes)
-- Google Places Nearby (New) — POI search per category (800m radius) — **wired S57**
+- Google Places Nearby (New) — POI search per category (dynamic radius from `radiusMi`, S61) — **wired S57**
 - Google Places Autocomplete (New) — address input — **wired S57**
 - Google Places Details — geocode placeId → lat/lng — **wired S57**
 - EPA AirNow — air quality index → score mapping — **wired S57**
@@ -365,7 +374,7 @@ After ANY correction from the user → update `tasks/lessons.md` with:
 - `COLORS.backgroundInfo = '#EFF6FF'` (added S38)
 - `COLORS.warningAmber = '#D97706'` (added S43)
 - `COLORS.counterAmber = '#D97706'` (same value, different semantic)
-- Neighborhood Intelligence tokens (S58–S59, 11 total): `rankGold`, `rankSilver`, `rankBronze`, `winnerBannerBg`, `winnerBannerBorder`, `winnerBannerText`, `scoreGreen`, `scoreAmber`, `scoreRed`, `winnerCardBorder`, `disabledPrimaryTint`
+- Neighborhood Intelligence tokens (S58–S61, 12 total): `rankGold`, `rankSilver`, `rankBronze`, `winnerBannerBg`, `winnerBannerBorder`, `winnerBannerText`, `scoreGreen`, `scoreAmber`, `scoreRed`, `winnerCardBorder`, `disabledPrimaryTint`, `mustHaveTileBg`
 - All hex values must trace back to a named token — no inline hex
 
 ---
@@ -502,4 +511,18 @@ Located in `components/shared/index.ts` (barrel export):
 - **New RPCs (4):** `rpc_save_neighborhood_analysis`, `rpc_get_cached_analysis`, `rpc_get_cached_comparison`, `rpc_save_address_comparison`
 - **Cache TTL:** 7 days, matched by address + `hashPriorities()` hash + agent_id
 - **RPCs:** 37 (+4) | **Tables:** 20 (+2) | **Hooks:** 58 (unchanged — cache wired into existing hooks) | **tsc:** 0
-- **S61 next objectives:** Device testing (cache HIT/MISS console logs), Walk Score API integration
+
+### S61 — Lifestyle Categories Expansion + Selection Cap + Radius Selector (March 16, 2026)
+- **Modified:** `types/neighborhood.ts` — `LifestyleCategory` union +6 (`dining`, `schools`, `healthcare`, `pet_friendly`, `nightlife`, `other`). `LifestylePriority` +`customLabel?: string` (only set when `category === 'other'`). Added `RadiusMi = 0.5 | 1 | 2` type.
+- **Modified:** `lib/neighborhoodScoring.ts` — 6 new `CATEGORY_META` entries with `googlePlacesTypes`. `hashPriorities()` updated to include `customLabel` in hash for `other` category (different labels = different cache entries).
+- **Modified:** `lib/tokens.ts` — Added `mustHaveTileBg: '#FEF3C7'` (replaced inline hex in tile component).
+- **Modified:** `hooks/useNeighborhoodAnalysis.ts` — Mock scores for 6 new categories. `radiusMi` param added to `analyze()`, `compare()`, `runLiveAnalysis()`, `fetchPlacesForCategory()`, `saveToCacheSilently()`. Places API radius now dynamic (`Math.round(radiusMi * 1609.344)` meters, was hardcoded 800). Cache RPCs updated: `p_radius_mi` in `rpc_get_cached_analysis`, `rpc_save_neighborhood_analysis`, `rpc_get_cached_comparison`.
+- **Modified:** `components/ClientLifestyleScreen.tsx` — 16-tile grid (15 standard + Other pinned last). `MAX_SELECTIONS=6` flat cap with dim+lock UX and counter label. Other tile: animated TextInput (expand/collapse on select/deselect), `customLabel` stored and passed downstream. Radius selector: 3 pill buttons (0.5/1/2 mi, default 1mi) above tile grid, `radiusMi` in navigation params. Inline hex cleanup: 3 values replaced with tokens (`mustHaveTileBg`, `warningText`, `chipBg`, `border`, `warningAmber`).
+- **Modified:** `components/NeighborhoodMatchScreen.tsx` — Accepts `radiusMi` from params. Dynamic radius label ("Within N mile(s)"). `getCategoryLabel()` resolves `customLabel` for Other in score bars, nearby section, and map navigation. Passes `radiusMi` to `AddressComparisonScreen`.
+- **Modified:** `components/AddressComparisonScreen.tsx` — Accepts `radiusMi` from params. Dynamic radius label per comparison card. `getCategoryLabel()` for Other in score grid and map chips. Passes `radiusMi` to `compare()`.
+- **Modified:** `components/HomeStack.tsx` — `radiusMi: RadiusMi` added to `NeighborhoodMatchScreen` and `AddressComparisonScreen` params. `RadiusMi` type imported.
+- **Modified:** `components/CategoryMapScreen.tsx` — `.toFixed(1)` on POI `distanceMi` display.
+- **SQL deployed (manually):** `neighborhood_analyses.radius_mi` column added (`NUMERIC(4,2) DEFAULT 1.0`). 3 RPCs updated: `rpc_get_cached_analysis` (+`p_radius_mi`), `rpc_get_cached_comparison` (+`p_radius_mi`), `rpc_save_neighborhood_analysis` (+`p_radius_mi`). `NOTIFY pgrst` complete.
+- **Cache E2E test:** DEFERRED (device test not run this session)
+- **RPCs:** 37 (3 updated, none new) | **Tables:** 20 (1 column added) | **Hooks:** 58 (unchanged) | **COLORS tokens:** 117 (+1) | **tsc:** 0
+- **S62 next objectives:** Cache E2E device test (radius cache key verification), Walk Score API integration
