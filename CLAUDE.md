@@ -35,7 +35,7 @@
 - **RPCs:** 33
 - **Hooks:** 57
 - **Feature Flags:** 9
-- **Edge Functions:** 10
+- **Edge Functions:** 11
 - **Storage Buckets:** 6
 - **Screens:** 3 new (ClientLifestyleScreen, NeighborhoodMatchScreen, CategoryMapScreen)
 - **tsc:** 0 errors
@@ -188,7 +188,7 @@ All bottom sheets use this exact spring pattern:
 - Secrets available in all Edge Functions: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (already set)
 - `expo-file-system/legacy` — correct import path for `readAsStringAsync` in Expo SDK 54 (NOT `expo-file-system`)
 
-### Edge Functions (10 deployed)
+### Edge Functions (11 deployed)
 1. `process-stripe-fee` — Stripe PaymentIntent with tiered fee
 2. `create-job-thread` — Auto-create job thread on bid INSERT
 3. `filter-phone-numbers` — Strip phone numbers from messages
@@ -199,6 +199,7 @@ All bottom sheets use this exact spring pattern:
 8. `send-squad-email` — Resend branded email with squad cards
 9. `send-squad-sms` — Twilio SMS with Storage-hosted HTML page
 10. `upload-insurance-document` — Server-side COI upload bypassing 42P17 RLS bug
+11. `send-closing-update` — Webhook-triggered SMS on closing phase advance
 
 ---
 

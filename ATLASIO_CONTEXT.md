@@ -192,7 +192,7 @@ All bottom sheets use this exact spring pattern:
 - Secrets available in all Edge Functions: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (already set in project)
 - `expo-file-system/legacy` — correct import path for `readAsStringAsync` in React Native (not `expo-file-system`)
 
-### Edge Functions (10 deployed)
+### Edge Functions (11 deployed)
 1. `process-stripe-fee` — Stripe PaymentIntent with tiered fee
 2. `create-job-thread` — Auto-create job thread on bid INSERT
 3. `filter-phone-numbers` — Strip phone numbers from messages
@@ -203,6 +203,7 @@ All bottom sheets use this exact spring pattern:
 8. `send-squad-email` — Resend branded email with squad cards
 9. `send-squad-sms` — Twilio SMS with Storage-hosted HTML page
 10. `upload-insurance-document` — Server-side COI upload bypassing 42P17 RLS bug
+11. `send-closing-update` — Webhook-triggered SMS on closing phase advance
 
 ---
 
@@ -611,3 +612,10 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** Toggle in SendSquadScreen is state-only — does not affect send payload yet (scope boundary enforced). Share button in AgentDealDetailScreen is idempotent (RPC returns existing token if already generated). Closing details section uses inline form (not modal) to reduce navigation friction. All 3 changes are demo-functional with `@demo` + `@backend` markers.
 - **Hooks:** 72 (+2: useGenerateClientToken, useUpdateClosingDetails) | **tsc:** 0
 - **S66 next objectives:** Next.js closing tracker web app (closing.atlasioapp.com), transactions table + rpc_create_transaction deployment, live wiring of useGenerateClientToken + useUpdateClosingDetails
+
+### S67 — send-closing-update Edge Function (March 18, 2026)
+- **Created:** `supabase/functions/send-closing-update/index.ts` — Database webhook-triggered Edge Function. Fires on `deal_milestones` INSERT/UPDATE. Detects closing phase advance using `CLOSING_PHASES` map (5 phases, 12 milestone keys). Queries `transactions` for `notify_phone` + `client_token`. Sends SMS via Twilio with closing page URL (`closing.atlasioapp.com/{token}`), phase name, and days-to-closing countdown. Early exits for: no transaction_id, no notify_phone, no client_token, no phase advance. All errors return 200 OK (webhook-safe).
+- **Updated:** `ATLASIO_CONTEXT.md` — Edge Functions 10 → 11.
+- **Edge Functions:** 11 (+1: send-closing-update) | **Hooks:** 72 (unchanged)
+- **Dashboard config required:** Database → Webhooks → `send-closing-update` on `deal_milestones` (INSERT, UPDATE) → Edge Function target
+- **S68 next objectives:** Next.js closing tracker web app, transactions table deployment, live wiring of closing hooks
