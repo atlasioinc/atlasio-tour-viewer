@@ -2388,6 +2388,91 @@ export function useCreateTransaction() {
 // Cleanup on unmount to prevent memory leaks
 // NOTE: will migrate to transaction_id in S64 when transactions table exists
 
+// ─── useGenerateClientToken ──────────────────────────────────
+// STATUS: mock
+// PURPOSE: Generates or retrieves the unique sharing URL for a deal.
+// Called when agent taps "Share" on AgentDealDetailScreen.
+// Idempotent — safe to call on every share tap (RPC returns existing token if set).
+//
+// @backend rpc_generate_client_token({ p_transaction_id: transactionId })
+// Returns: { success: boolean, client_token: string, url: string }
+// On success: invalidate ['agent_active_deals']
+//
+// @demo Returns mock URL — replace with live RPC call when DEAL_CREATION_ENABLED=true
+// NOTE: transaction_id param anchored to S64+ deal creation flow
+
+export function useGenerateClientToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ transactionId }: { transactionId: string }) => {
+      // @demo mock — remove this block and uncomment supabase call below
+      await new Promise(resolve => setTimeout(resolve, 600));
+      return {
+        success: true,
+        client_token: 'demo-token-001',
+        url: 'https://closing.atlasioapp.com/demo-token-001',
+      };
+      // @backend — uncomment when DEAL_CREATION_ENABLED=true:
+      // const { data, error } = await supabase.rpc('rpc_generate_client_token', {
+      //   p_transaction_id: transactionId,
+      // });
+      // if (error || !data?.success) throw new Error(data?.error ?? error?.message);
+      // return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });
+    },
+  });
+}
+
+// ─── useUpdateClosingDetails ─────────────────────────────────
+// STATUS: mock
+// PURPOSE: Agent populates closing day details visible on the client web page.
+// Called from the "Closing day details" section in AgentDealDetailScreen.
+//
+// @backend rpc_update_closing_details({
+//   p_transaction_id: transactionId,
+//   p_closing_details: { time, location, bring_list, wire_amount }
+// })
+// Returns: { success: boolean, closing_details: ClosingDetails }
+// On success: invalidate ['agent_active_deals']
+//
+// @demo Mock save with 800ms delay — replace with live RPC call
+// NOTE: p_closing_details shape must match closing_details JSONB column exactly
+
+export function useUpdateClosingDetails() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      transactionId,
+      closingDetails,
+    }: {
+      transactionId: string;
+      closingDetails: {
+        time: string;
+        location: string;
+        bring_list: string;
+        wire_amount: string;
+      };
+    }) => {
+      // @demo mock — remove this block and uncomment supabase call below
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return { success: true, closing_details: closingDetails };
+      // @backend — uncomment when DEAL_CREATION_ENABLED=true:
+      // const { data, error } = await supabase.rpc('rpc_update_closing_details', {
+      //   p_transaction_id: transactionId,
+      //   p_closing_details: closingDetails,
+      // });
+      // if (error || !data?.success) throw new Error(data?.error ?? error?.message);
+      // return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });
+    },
+  });
+}
+
+// ─── useRealtimeDealBoard ─────────────────────────────────────
 export function useRealtimeDealBoard(jobId: string): void {
   const qc = useQueryClient();
 
