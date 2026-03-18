@@ -2269,6 +2269,153 @@ const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
   },
 ];
 
+// ─── useAgentDeals ────────────────────────────────────────────
+// STATUS: mock
+// PURPOSE: Full pipeline of agent's active deals for AgentDealsScreen.
+// Superset of useAgentActiveDeals (which drives HomeTabAgent scroll).
+// Returns all deals with partner milestones + alerts for filter chip logic.
+//
+// @backend rpc_get_agent_deals() — no params (auth.uid() identifies agent)
+// Returns: AgentActiveDeal[] sorted by closing_date ASC (soonest first)
+// On success: no invalidation needed (query, not mutation)
+//
+// @demo 4 mock deals with varied statuses to demonstrate all filter states:
+//   - 1 deal closing within 14 days (triggers "Closing soon" chip)
+//   - 1 deal with rate_lock_expiry alert (triggers "Needs attention" chip)
+//   - 1 deal with stale milestone (triggers "Needs attention" chip)
+//   - 1 clean deal (on track, green)
+// NOTE: rpc_get_agent_deals does not yet exist — stub only.
+// Wire when DEAL_CREATION_ENABLED=true and RPC is deployed.
+
+// @demo hardcoded — replace with rpc_get_agent_deals response in production
+const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
+  {
+    // Deal 1: rate lock alert → red status → "Needs attention"
+    job_id: 'mock-deal-001',
+    address: '2847 Maple Street, Denver, CO',
+    closing_date: '2026-04-15',
+    partners: [
+      {
+        partner_id: 'mock-p-001',
+        partner_name: 'Sarah Chen',
+        partner_role: 'Title/Escrow',
+        partner_avatar_color: '#7BA3C9',
+        milestones: [
+          { id: 'md-001', job_id: 'mock-deal-001', partner_id: 'mock-p-001', partner_role: 'Title/Escrow', milestone_key: 'title_search', milestone_label: 'Title search', status: 'complete', sort_order: 0, completed_at: _daysAgo(10), updated_at: _daysAgo(10), created_at: _daysAgo(20) },
+          { id: 'md-002', job_id: 'mock-deal-001', partner_id: 'mock-p-001', partner_role: 'Title/Escrow', milestone_key: 'lien_search', milestone_label: 'Lien search', status: 'in_progress', sort_order: 1, completed_at: null, updated_at: _daysAgo(1), created_at: _daysAgo(20) },
+          { id: 'md-003', job_id: 'mock-deal-001', partner_id: 'mock-p-001', partner_role: 'Title/Escrow', milestone_key: 'title_commitment', milestone_label: 'Title commitment', status: 'pending', sort_order: 2, completed_at: null, updated_at: _daysAgo(20), created_at: _daysAgo(20) },
+        ],
+        alerts: [],
+      },
+      {
+        partner_id: 'mock-p-002',
+        partner_name: 'James Rivera',
+        partner_role: 'Mortgage Pro',
+        partner_avatar_color: '#A3C9A8',
+        milestones: [
+          { id: 'md-010', job_id: 'mock-deal-001', partner_id: 'mock-p-002', partner_role: 'Mortgage Pro', milestone_key: 'pre_approval', milestone_label: 'Pre-approval confirmed', status: 'complete', sort_order: 0, completed_at: _daysAgo(14), updated_at: _daysAgo(14), created_at: _daysAgo(21) },
+          { id: 'md-011', job_id: 'mock-deal-001', partner_id: 'mock-p-002', partner_role: 'Mortgage Pro', milestone_key: 'app_submitted', milestone_label: 'Application submitted', status: 'complete', sort_order: 1, completed_at: _daysAgo(10), updated_at: _daysAgo(10), created_at: _daysAgo(21) },
+          { id: 'md-012', job_id: 'mock-deal-001', partner_id: 'mock-p-002', partner_role: 'Mortgage Pro', milestone_key: 'appraisal_ordered', milestone_label: 'Appraisal ordered', status: 'in_progress', sort_order: 2, completed_at: null, updated_at: _daysAgo(6), created_at: _daysAgo(21) },
+        ],
+        alerts: [
+          { id: 'ma-001', job_id: 'mock-deal-001', partner_id: 'mock-p-002', alert_type: 'rate_lock_expiry', message: 'Rate lock expires in 4 days — confirm extension or float.', expires_at: _daysFromNow(4), dismissed_at: null, created_at: _now.toISOString() },
+        ],
+      },
+    ],
+  },
+  {
+    // Deal 2: closing within 14 days → "Closing soon" + green (on track)
+    job_id: 'mock-deal-002',
+    address: '1190 Corona Street, Denver, CO',
+    closing_date: '2026-03-28',
+    partners: [
+      {
+        partner_id: 'mock-p-003',
+        partner_name: 'Priya Nair',
+        partner_role: 'Title/Escrow',
+        partner_avatar_color: '#C9A87B',
+        milestones: [
+          { id: 'md-020', job_id: 'mock-deal-002', partner_id: 'mock-p-003', partner_role: 'Title/Escrow', milestone_key: 'title_search', milestone_label: 'Title search', status: 'complete', sort_order: 0, completed_at: _daysAgo(12), updated_at: _daysAgo(12), created_at: _daysAgo(20) },
+          { id: 'md-021', job_id: 'mock-deal-002', partner_id: 'mock-p-003', partner_role: 'Title/Escrow', milestone_key: 'lien_search', milestone_label: 'Lien search', status: 'complete', sort_order: 1, completed_at: _daysAgo(8), updated_at: _daysAgo(8), created_at: _daysAgo(20) },
+          { id: 'md-022', job_id: 'mock-deal-002', partner_id: 'mock-p-003', partner_role: 'Title/Escrow', milestone_key: 'clear_to_close', milestone_label: 'Clear to close', status: 'in_progress', sort_order: 3, completed_at: null, updated_at: _daysAgo(1), created_at: _daysAgo(20) },
+        ],
+        alerts: [],
+      },
+      {
+        partner_id: 'mock-p-004',
+        partner_name: 'Marcus Lee',
+        partner_role: 'Mortgage Pro',
+        partner_avatar_color: '#C97BA3',
+        milestones: [
+          { id: 'md-030', job_id: 'mock-deal-002', partner_id: 'mock-p-004', partner_role: 'Mortgage Pro', milestone_key: 'pre_approval', milestone_label: 'Pre-approval confirmed', status: 'complete', sort_order: 0, completed_at: _daysAgo(15), updated_at: _daysAgo(15), created_at: _daysAgo(21) },
+          { id: 'md-031', job_id: 'mock-deal-002', partner_id: 'mock-p-004', partner_role: 'Mortgage Pro', milestone_key: 'clear_to_close', milestone_label: 'Clear to close', status: 'complete', sort_order: 6, completed_at: _daysAgo(2), updated_at: _daysAgo(2), created_at: _daysAgo(21) },
+        ],
+        alerts: [],
+      },
+    ],
+  },
+  {
+    // Deal 3: stale milestone → amber status → "Needs attention"
+    job_id: 'mock-deal-003',
+    address: '4521 Tennyson Street, Denver, CO',
+    closing_date: '2026-06-10',
+    partners: [
+      {
+        partner_id: 'mock-p-005',
+        partner_name: 'Olivia Park',
+        partner_role: 'Title/Escrow',
+        partner_avatar_color: '#9B7BC9',
+        milestones: [
+          { id: 'md-040', job_id: 'mock-deal-003', partner_id: 'mock-p-005', partner_role: 'Title/Escrow', milestone_key: 'title_search', milestone_label: 'Title search', status: 'complete', sort_order: 0, completed_at: _daysAgo(10), updated_at: _daysAgo(10), created_at: _daysAgo(15) },
+          { id: 'md-041', job_id: 'mock-deal-003', partner_id: 'mock-p-005', partner_role: 'Title/Escrow', milestone_key: 'lien_search', milestone_label: 'Lien search', status: 'in_progress', sort_order: 1, completed_at: null, updated_at: _daysAgo(5), created_at: _daysAgo(15) },
+        ],
+        alerts: [],
+      },
+    ],
+  },
+  {
+    // Deal 4: all green — normal state
+    job_id: 'mock-deal-004',
+    address: '782 S Pearl Street, Denver, CO',
+    closing_date: '2026-07-22',
+    partners: [
+      {
+        partner_id: 'mock-p-006',
+        partner_name: 'Daniel Kim',
+        partner_role: 'Title/Escrow',
+        partner_avatar_color: '#C9C97B',
+        milestones: [
+          { id: 'md-050', job_id: 'mock-deal-003', partner_id: 'mock-p-006', partner_role: 'Title/Escrow', milestone_key: 'title_search', milestone_label: 'Title search', status: 'complete', sort_order: 0, completed_at: _daysAgo(3), updated_at: _daysAgo(3), created_at: _daysAgo(7) },
+          { id: 'md-051', job_id: 'mock-deal-003', partner_id: 'mock-p-006', partner_role: 'Title/Escrow', milestone_key: 'lien_search', milestone_label: 'Lien search', status: 'in_progress', sort_order: 1, completed_at: null, updated_at: _daysAgo(1), created_at: _daysAgo(7) },
+        ],
+        alerts: [],
+      },
+      {
+        partner_id: 'mock-p-007',
+        partner_name: 'Rachel Gomez',
+        partner_role: 'Mortgage Pro',
+        partner_avatar_color: '#7BC9B8',
+        milestones: [
+          { id: 'md-060', job_id: 'mock-deal-004', partner_id: 'mock-p-007', partner_role: 'Mortgage Pro', milestone_key: 'pre_approval', milestone_label: 'Pre-approval confirmed', status: 'complete', sort_order: 0, completed_at: _daysAgo(5), updated_at: _daysAgo(5), created_at: _daysAgo(10) },
+          { id: 'md-061', job_id: 'mock-deal-004', partner_id: 'mock-p-007', partner_role: 'Mortgage Pro', milestone_key: 'app_submitted', milestone_label: 'Application submitted', status: 'in_progress', sort_order: 1, completed_at: null, updated_at: _daysAgo(1), created_at: _daysAgo(10) },
+        ],
+        alerts: [],
+      },
+    ],
+  },
+];
+
+export function useAgentDeals() {
+  return useQuery({
+    queryKey: ['agent_deals'],
+    queryFn: async (): Promise<AgentActiveDeal[]> => {
+      // @demo — return mock deals sorted by closing_date ASC
+      // @backend rpc_get_agent_deals — params: none (auth.uid() identifies agent)
+      return MOCK_AGENT_DEALS;
+    },
+  });
+}
+
 // ─── useAgentActiveDeals ──────────────────────────────────────
 // STATUS: mock
 // @backend rpc_get_deal_board_for_agent — one call per active job

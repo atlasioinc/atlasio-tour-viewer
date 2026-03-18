@@ -4,7 +4,7 @@
 // Where: Central config — both screens read from here (single source of truth)
 // @demo All data here is config, not mock data — safe for production
 
-import type { MilestoneConfig, AlertTypeConfig, PartnerRole } from '../types/partner.types';
+import type { MilestoneConfig, AlertTypeConfig, PartnerRole, AgentDealPartner } from '../types/partner.types';
 
 // ─────────────────────────────────────────────────────────────────
 // MILESTONE SETS — keyed by profiles.role value
@@ -99,3 +99,23 @@ export function getRateLockDaysRemaining(expiresAt: string | null): number | nul
  * > 5 days: warning state (amber banner only, no header badge)
  */
 export const RATE_LOCK_DANGER_THRESHOLD_DAYS = 5;
+
+// ─────────────────────────────────────────────────────────────────
+// STATUS DOT — per-partner status for deal cards (extracted S66)
+// Priority: red (alert) > amber (stale) > green (on track) > gray (no milestones)
+// Used by: HomeTabAgent deal cards, AgentDealsScreen pipeline cards
+// ─────────────────────────────────────────────────────────────────
+
+export type SlotStatusDot = 'red' | 'amber' | 'green' | 'gray';
+
+export function getSlotStatusDot(
+  partner: AgentDealPartner,
+  role: PartnerRole,
+): SlotStatusDot {
+  if (!partner.milestones.length) return 'gray';
+  const hasAlert = partner.alerts.some(a => !a.dismissed_at);
+  if (hasAlert) return 'red';
+  const hasStale = partner.milestones.some(m => isMilestoneStale(m, role));
+  if (hasStale) return 'amber';
+  return 'green';
+}

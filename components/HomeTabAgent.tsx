@@ -52,7 +52,7 @@ import DealCreationSheet from '../features/partners/components/DealCreationSheet
 import { VerificationBanner } from './shared/VerificationBanner';
 import QuickActionsRow from './QuickActionsRow';
 import { useVerificationGate } from '../hooks/useVerificationGate';
-import { isMilestoneStale } from '../features/partners/lib/dealMilestones';
+import { isMilestoneStale, getSlotStatusDot } from '../features/partners/lib/dealMilestones';
 import type { AgentDealPartner, PartnerRole } from '../features/partners/types/partner.types';
 
 // ─────────────────────────────────────────────
@@ -258,22 +258,9 @@ const ThumbUpIcon: React.FC = () => (
 );
 
 // ─────────────────────────────────────────────
-// ACTIVE DEALS — Status Dot Calculation (S63)
+// ACTIVE DEALS — Status Dot Calculation (S63, extracted to dealMilestones.ts in S66)
 // ─────────────────────────────────────────────
-// Priority: red > amber > green > gray
-// Used on deal card avatar status dots (8px) and detail screen (12px)
-
-function getSlotStatusDot(
-  partner: AgentDealPartner,
-  role: PartnerRole,
-): 'red' | 'amber' | 'green' | 'gray' {
-  if (!partner.milestones.length) return 'gray';
-  const hasAlert = partner.alerts.some(a => !a.dismissed_at);
-  if (hasAlert) return 'red';
-  const hasStale = partner.milestones.some(m => isMilestoneStale(m, role));
-  if (hasStale) return 'amber';
-  return 'green';
-}
+// getSlotStatusDot imported from features/partners/lib/dealMilestones
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   red: COLORS.dangerText,
@@ -1195,10 +1182,11 @@ const HomeTabAgent: React.FC = () => {
               })}
             </ScrollView>
 
-            {/* View all deals link */}
-            {/* @demo no navigation (S66 AgentDealsScreen destination)
-                @backend destination: AgentDealsScreen (S66) */}
-            <Pressable style={({ pressed }) => ({ paddingHorizontal: 16, marginTop: 12, opacity: pressed ? 0.5 : 1 })}>
+            {/* View all deals link → AgentDealsScreen (wired S66) */}
+            <Pressable
+              onPress={() => navigation.push('AgentDealsScreen')}
+              style={({ pressed }) => ({ paddingHorizontal: 16, marginTop: 12, opacity: pressed ? 0.5 : 1 })}
+            >
               <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>
                 View all deals →
               </Text>
