@@ -2335,6 +2335,53 @@ export function useAgentDismissDealAlert() {
   });
 }
 
+// ─── useCreateTransaction ────────────────────────────────────────────────────
+// STATUS: mock
+// Creates a new transaction and sends partner invitations atomically.
+// @backend rpc_create_transaction({
+//   p_property_address: string,   // required
+//   p_closing_date: string | null,
+//   p_contract_price: number | null,
+//   p_buyer_name: string | null,
+//   p_mls_number: string | null,
+//   p_partner_assignments: { partner_id: string, partner_role: string }[]
+// })
+// NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
+// Invalidates: ['agent_active_deals'] on success
+// @demo mock: 1500ms delay → { success: true, transaction_id: 'mock-txn-001', address, partner_count }
+
+export function useCreateTransaction() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      propertyAddress,
+      closingDate,
+      contractPrice,
+      partnerAssignments,
+    }: {
+      propertyAddress: string;
+      closingDate: string | null;
+      contractPrice: number | null;
+      partnerAssignments: { partner_id: string; partner_role: string }[];
+    }) => {
+      // @demo — 1500ms delay to simulate network
+      // @backend rpc_create_transaction(p_property_address, p_closing_date, p_contract_price, p_buyer_name, p_mls_number, p_partner_assignments)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log(`[useCreateTransaction] @demo creating deal at ${propertyAddress}`);
+      return {
+        success: true,
+        transaction_id: `mock-txn-${Date.now()}`,
+        address: propertyAddress,
+        partner_count: partnerAssignments.length,
+      };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
+    },
+  });
+}
+
 // ─── useRealtimeDealBoard ─────────────────────────────────────
 // Subscribes to Supabase Realtime for deal_milestones + deal_alerts
 // Invalidates TanStack Query cache on any INSERT/UPDATE

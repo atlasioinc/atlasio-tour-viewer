@@ -46,7 +46,9 @@ import { MOCK_REPAIR_JOBS, ACTIVE_REPAIR_JOBS } from './RepairJobsData';
 import RepairCard from './RepairCard';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { useAgentJobs, useMyProfile, useAgentActiveDeals } from '../hooks/useData';
+import DealCreationSheet from '../features/partners/components/DealCreationSheet';
 import { VerificationBanner } from './shared/VerificationBanner';
 import QuickActionsRow from './QuickActionsRow';
 import { useVerificationGate } from '../hooks/useVerificationGate';
@@ -510,6 +512,7 @@ const HomeTabAgent: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('All');
+  const [dealSheetVisible, setDealSheetVisible] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
 
   // Verification banner + gate
@@ -1098,11 +1101,16 @@ const HomeTabAgent: React.FC = () => {
               <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText }}>
                 Active Deals
               </Text>
-              {/* @demo no action on tap
-                  @backend rpc_create_transaction — params: { p_agent_id, p_address, p_closing_date } — S64 */}
-              <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>New Deal +</Text>
-              </Pressable>
+              {/* @demo flip DEAL_CREATION_ENABLED: true to show CTA
+                  @backend rpc_create_transaction — entry point for deal creation */}
+              {DEAL_CREATION_ENABLED && (
+                <Pressable
+                  onPress={() => setDealSheetVisible(true)}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>New Deal +</Text>
+                </Pressable>
+              )}
             </View>
 
             {/* Deal cards — horizontal scroll */}
@@ -1636,6 +1644,13 @@ const HomeTabAgent: React.FC = () => {
           </Pressable>
         </Animated.View>
       </Modal>
+      {/* ── Deal Creation Sheet (S64b) — only rendered when flag is true ── */}
+      {DEAL_CREATION_ENABLED && (
+        <DealCreationSheet
+          visible={dealSheetVisible}
+          onClose={() => setDealSheetVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 };

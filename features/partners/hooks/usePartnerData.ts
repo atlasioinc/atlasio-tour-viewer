@@ -15,6 +15,9 @@ import type {
   MilestoneStatus,
   AlertType,
   PartnerConnectionRequest,
+  ConnectionRequestItem,
+  DealInvitationItem,
+  PartnerInvitationsResponse,
 } from '../types/partner.types';
 
 // ─────────────────────────────────────────────────────────────────
@@ -193,6 +196,65 @@ export function usePartnerConnectionRequests(partnerId: string) {
       return MOCK_CONNECTION_REQUESTS;
     },
     enabled: !!partnerId,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// INVITATION DATA (S64b — unified invitations feed)
+// @demo All mock data below — replace with rpc_get_partner_invitations() in production
+// ─────────────────────────────────────────────────────────────────
+
+// @demo hardcoded — replace with real data in production
+const MOCK_PARTNER_INVITATIONS: PartnerInvitationsResponse = {
+  connection_requests: [
+    {
+      item_type: 'connection_request' as const,
+      id: 'mock-conn-001',
+      requester_id: 'mock-agent-001',
+      requester_name: 'Rachel Williams',
+      requester_role: 'Real Estate Agent',
+      requester_company: 'Coldwell Banker',
+      requester_avatar_color: '#7BA3C9',
+      note: 'Would love to work together on future listings.',
+      created_at: new Date().toISOString(),
+    },
+  ],
+  deal_invitations: [
+    {
+      item_type: 'deal_invitation' as const,
+      id: 'mock-txn-partner-001',
+      transaction_id: 'mock-txn-001',
+      partner_role: 'title_escrow',
+      invited_at: new Date().toISOString(),
+      property_address: '2847 Maple Street, Denver, CO',
+      closing_date: '2026-04-15',
+      contract_price: 485000,
+      agent_id: 'mock-agent-001',
+      agent_name: 'Rachel Williams',
+      agent_company: 'Coldwell Banker',
+      agent_avatar_color: '#7BA3C9',
+    },
+  ],
+  total_count: 2,
+};
+
+/**
+ * Fetches all pending invitations for a partner — both connection requests and deal invitations.
+ * STATUS: mock
+ * @backend rpc_get_partner_invitations() — no params, uses auth.uid()
+ * Returns: PartnerInvitationsResponse { connection_requests, deal_invitations, total_count }
+ * NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
+ * Query key: ['partner_invitations']
+ */
+export function usePartnerInvitations() {
+  return useQuery({
+    queryKey: ['partner_invitations'],
+    queryFn: async (): Promise<PartnerInvitationsResponse> => {
+      // @demo — return mock invitations
+      // @backend rpc_get_partner_invitations() — uses auth.uid() internally
+      return MOCK_PARTNER_INVITATIONS;
+    },
+    enabled: PARTNER_TRACK_ENABLED || true, // always enabled in demo mode
   });
 }
 
@@ -398,6 +460,79 @@ export function useDismissDealAlert() {
     },
     onSettled: (_data, _err, variables) => {
       queryClient.invalidateQueries({ queryKey: ['partner_active_deals', variables.partnerId] });
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DEAL INVITATION MUTATIONS (S64b)
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Responds to a deal invitation — accept or decline.
+ * STATUS: mock
+ * @backend rpc_respond_to_deal_invitation({
+ *   p_transaction_partner_id: string,
+ *   p_response: 'accepted' | 'declined'
+ * })
+ * NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
+ * On accept: invalidates ['partner_invitations'] + ['partner_active_deals']
+ * On decline: invalidates ['partner_invitations'] only
+ * @demo mock: 800ms delay → { success: true, response: p_response, milestones_seeded: 5 | 8 | 0 }
+ */
+export function useRespondToDealInvitation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      transactionPartnerId,
+      response,
+    }: {
+      transactionPartnerId: string;
+      response: 'accepted' | 'declined';
+    }) => {
+      // @demo — 800ms delay to simulate network
+      // @backend rpc_respond_to_deal_invitation(p_transaction_partner_id, p_response)
+      await new Promise(resolve => setTimeout(resolve, 800));
+      console.log(`[useRespondToDealInvitation] @demo ${transactionPartnerId} → ${response}`);
+      return {
+        success: true,
+        response,
+        milestones_seeded: response === 'accepted' ? 5 : 0,
+      };
+    },
+    onMutate: async (variables) => {
+      // Optimistic: remove invitation card from cache
+      await queryClient.cancelQueries({ queryKey: ['partner_invitations'] });
+      const previous = queryClient.getQueryData<PartnerInvitationsResponse>(['partner_invitations']);
+
+      queryClient.setQueryData<PartnerInvitationsResponse>(
+        ['partner_invitations'],
+        (old) => {
+          if (!old) return old;
+          const filtered = old.deal_invitations.filter(
+            inv => inv.id !== variables.transactionPartnerId,
+          );
+          return {
+            ...old,
+            deal_invitations: filtered,
+            total_count: old.connection_requests.length + filtered.length,
+          };
+        },
+      );
+
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['partner_invitations'], context.previous);
+      }
+    },
+    onSettled: (_data, _err, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['partner_invitations'] });
+      if (variables.response === 'accepted') {
+        queryClient.invalidateQueries({ queryKey: ['partner_active_deals'] });
+      }
     },
   });
 }

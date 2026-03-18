@@ -69,6 +69,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PARTNER_TRACK_ENABLED } from '../lib/config';
 import HomeTabPartner from '../features/partners/components/HomeTabPartner';
 import PartnerDealsScreen from '../features/partners/components/PartnerDealsScreen';
+import { usePartnerInvitations } from '../features/partners/hooks/usePartnerData';
 
 // ─────────────────────────────────────────────
 // @demo ROLE TOGGLE CONTEXT
@@ -464,6 +465,12 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
     : ContractorHomeStackScreen;
   const InboxComponent = demoRole === 'agent' ? InboxStack : ContractorInboxStackScreen;
 
+  // ── Deals tab badge (S64b) — red dot when partner has pending invitations ──
+  // @backend usePartnerInvitations().data?.total_count
+  // @demo shows badge when mock total_count > 0 (currently 2)
+  const { data: partnerInvitations } = usePartnerInvitations();
+  const dealsBadgeCount = demoRole === 'partner' ? (partnerInvitations?.total_count ?? 0) : 0;
+
   return (
     // @demo Wrap in context provider so child screens can read role
     <DemoRoleContext.Provider value={{ demoRole, toggleRole }}>
@@ -511,6 +518,7 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
         />
 
         {/* Find — agent only; Deals — partner only (replaces Find tab, S62) */}
+        {/* S64b: Deals tab shows red dot badge when partner has pending invitations */}
         <Tab.Screen
           name={demoRole === 'partner' ? 'Deals' : 'Find'}
           component={demoRole === 'partner' ? PartnerDealsScreen : FindStack}
@@ -518,6 +526,18 @@ const BottomTabNavigator: React.FC<Props> = ({ route }) => {
             tabBarIcon: ({ color }) => demoRole === 'partner' ? <JobsIcon color={color} /> : <FindIcon color={color} />,
             tabBarButton: (demoRole !== 'agent' && demoRole !== 'partner') ? () => null : undefined,
             tabBarItemStyle: (demoRole !== 'agent' && demoRole !== 'partner') ? { display: 'none' } : undefined,
+            ...(demoRole === 'partner' && dealsBadgeCount > 0 ? {
+              tabBarBadge: dealsBadgeCount,
+              tabBarBadgeStyle: {
+                backgroundColor: '#EF4444',
+                color: '#FFFFFF',
+                fontSize: 10,
+                fontWeight: '600' as const,
+                minWidth: 18,
+                height: 18,
+                borderRadius: 9,
+              },
+            } : {}),
           }}
         />
 

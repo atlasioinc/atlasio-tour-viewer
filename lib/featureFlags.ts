@@ -45,4 +45,11 @@ export const FEATURE_FLAGS = {
   DEV_BYPASS_AUTH:          true,   // @demo — true = loads agent demo user, bypasses login
   DEV_SHOW_PASSWORD_LOGIN:  false,  // @demo — true = shows password input for device testing
   LIVE_SQUAD_SHARE:         false,  // @demo — false for investor demos
+
+  // DEAL_CREATION_ENABLED flag matrix:
+  // MVP launch (agent + contractor only):  PARTNER_TRACK_ENABLED: false, DEAL_CREATION_ENABLED: false
+  // Partner pilot (view only):             PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: false
+  // Full partner launch:                   PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: true
+  // Investor demo (show everything):       PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: true
+  DEAL_CREATION_ENABLED:    false,  // @demo — false until deal creation ready for partner pilot
 } as const;

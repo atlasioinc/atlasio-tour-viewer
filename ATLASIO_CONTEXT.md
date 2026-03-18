@@ -31,13 +31,13 @@
 
 ---
 
-## Current Metrics (updated S63 — March 17, 2026)
+## Current Metrics (updated S64b — March 17, 2026)
 - **RPCs:** 41
-- **Hooks:** 67 (+3 S63: useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard)
-- **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` in lib/config.ts
+- **Hooks:** 70 (+3 S64b: useCreateTransaction, usePartnerInvitations, useRespondToDealInvitation)
+- **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` + `DEAL_CREATION_ENABLED` in lib/config.ts
 - **Edge Functions:** 10
 - **Storage Buckets:** 6
-- **Screens:** +1 (AgentDealDetailScreen)
+- **Screens:** +1 S63 (AgentDealDetailScreen), +1 S64b (DealCreationSheet — bottom sheet modal)
 - **COLORS tokens:** 120
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
@@ -79,7 +79,16 @@ DEV_BYPASS_AUTH: true         // true = loads agent demo user, bypasses login
 DEV_SHOW_PASSWORD_LOGIN: false // true = shows password input for device testing
 LIVE_SQUAD_SHARE: false
 PARTNER_TRACK_ENABLED: false  // added S62, default false until partner onboarding live
+DEAL_CREATION_ENABLED: false  // added S64b, default false until deal creation ready for partner pilot
 ```
+
+**DEAL_CREATION_ENABLED flag matrix:**
+| Scenario | PARTNER_TRACK_ENABLED | DEAL_CREATION_ENABLED |
+|---|---|---|
+| MVP launch (agent + contractor only) | false | false |
+| Partner pilot (view only) | true | false |
+| Full partner launch | true | true |
+| Investor demo (show everything) | true | true |
 
 **Flag workflow:**
 - Flip flags to true for live testing
@@ -144,7 +153,8 @@ Role-conditional content lives WITHIN zones of a single layout tree. Never creat
 - `ContractorHomeStack`: Home → ContractorJobDetails → BidSubmission (modal) → JobCompletion (modal)
 - `ContractorJobsStack`: JobTrackerTab → ContractorJobDetails → BidSubmission
 - `HomeStack`: HomeMain → ClientLifestyleScreen (fullScreenModal) → NeighborhoodMatchScreen (fullScreenModal) → AddressComparisonScreen (fullScreenModal) → CategoryMapScreen (fullScreenModal)
-- `BottomTabNavigator`: All 6 tabs always mounted; role-gated via `tabBarButton: () => null` + `tabBarItemStyle: { display: 'none' }` (S55 — eliminates icon flash on role toggle). Agent sees 5, Contractor sees 3.
+- `BottomTabNavigator`: All 6 tabs always mounted; role-gated via `tabBarButton: () => null` + `tabBarItemStyle: { display: 'none' }` (S55 — eliminates icon flash on role toggle). Agent sees 5, Contractor sees 3. Partner Deals tab shows badge count from `usePartnerInvitations` (S64b).
+- `DealCreationSheet`: Bottom sheet modal rendered in HomeTabAgent, gated behind `DEAL_CREATION_ENABLED` flag. Not a navigation route — rendered inline via Modal + spring animation.
 
 ### Bottom Sheet Animation Pattern (use consistently)
 All bottom sheets use this exact spring pattern:
@@ -578,3 +588,17 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** Active Deals section renders conditionally (hidden when no deals). Status dot priority: red (alerts) > amber (stale) > green (on track) > gray (no milestones). Milestone rows are View not Pressable (read-only). All hooks use job_id as anchor (migrate to transaction_id in S64). Vouch feed inlined from HomeTabAgentFilled (replaces VouchFeedSection import).
 - **Hooks:** 67 (+3) | **Screens:** +1 (AgentDealDetailScreen) | **tsc:** 0
 - **S64 next objectives:** transactions table, rpc_create_transaction, Deal Creation sheet, transaction_id migration for deal_milestones + deal_alerts
+
+### S64b — Deal Creation + Partner Invitations (March 17, 2026)
+- **Created:** `features/partners/components/DealCreationSheet.tsx` — Bottom sheet modal with spring animation (damping: 24, stiffness: 220). 4 fields: property address (Google Places Autocomplete reused from ClientLifestyleScreen pattern), closing date (MM/DD/YYYY), partner multi-select (mock 3 partners grouped by role), contract price (numeric). "Create Deal" CTA with loading state. Gated behind `DEAL_CREATION_ENABLED` flag.
+- **Modified:** `lib/config.ts` — Added `DEAL_CREATION_ENABLED: false` feature flag with full comment documenting independence from `PARTNER_TRACK_ENABLED`
+- **Modified:** `lib/featureFlags.ts` — Added `DEAL_CREATION_ENABLED: false` with flag matrix comment (MVP launch / partner pilot / full launch / investor demo scenarios)
+- **Modified:** `features/partners/types/partner.types.ts` — Added 4 interfaces: `ConnectionRequestItem`, `DealInvitationItem`, `InvitationItem` (discriminated union), `PartnerInvitationsResponse`. All anchored to `transaction_id` (S64+).
+- **Modified:** `features/partners/hooks/usePartnerData.ts` — Added `usePartnerInvitations()` query (mock, returns unified connection requests + deal invitations with total_count). Added `useRespondToDealInvitation()` mutation (mock, 800ms delay, optimistic card removal, conditional invalidation: accept invalidates active_deals + invitations, decline invitations only). Added `MOCK_PARTNER_INVITATIONS` with 1 connection request + 1 deal invitation.
+- **Modified:** `hooks/useData.ts` — Added `useCreateTransaction()` mutation (mock, 1500ms delay, invalidates agent_active_deals on success). Full `@backend` stub: `rpc_create_transaction(p_property_address, p_closing_date, p_contract_price, p_buyer_name, p_mls_number, p_partner_assignments)`.
+- **Modified:** `features/partners/components/HomeTabPartner.tsx` — Renamed "Connection Requests" section → "Invitations". Unified feed renders two card types via `item_type` discriminated union: connection request cards (existing visual, no changes) and deal invitation cards (new — 4px left border `COLORS.primary`, property address, agent avatar row, role pill, closing date, Accept/Decline actions). Decline uses `Alert.alert` confirmation before mutation fires. Imported `usePartnerInvitations`, `useRespondToDealInvitation`, `Alert`.
+- **Modified:** `components/HomeTabAgent.tsx` — "New Deal +" CTA gated behind `DEAL_CREATION_ENABLED` (hidden when false). `DealCreationSheet` rendered conditionally inside component. Added `dealSheetVisible` state + `DEAL_CREATION_ENABLED` import from config.
+- **Modified:** `components/BottomTabNavigator.tsx` — Partner Deals tab shows badge count from `usePartnerInvitations().data?.total_count`. Red badge with white text (`#EF4444` bg). Only visible when `demoRole === 'partner'` and `total_count > 0`. Imported `usePartnerInvitations` from partner hooks.
+- **Key decisions:** `DEAL_CREATION_ENABLED` is independent from `PARTNER_TRACK_ENABLED` — separate capabilities with a clear flag matrix. All new deal data uses `transaction_id` as FK anchor (S64+), `job_id` preserved for backward compat only — every `@backend` marker includes this note. DealCreationSheet is a Modal (not a navigation route) — rendered inline in HomeTabAgent to match SquadSlotPicker pattern. Google Places Autocomplete reused verbatim from ClientLifestyleScreen (POST to `places.googleapis.com/v1/places:autocomplete`, 400ms debounce, 3+ char trigger).
+- **Hooks:** 70 (+3: useCreateTransaction, usePartnerInvitations, useRespondToDealInvitation) | **Feature Flags:** +1 (DEAL_CREATION_ENABLED) | **tsc:** 0
+- **S65 next objectives:** Next.js app at closing.atlasioapp.com, client token generation, live milestone progress, transactions table backend (rpc_create_transaction RPC deployment)

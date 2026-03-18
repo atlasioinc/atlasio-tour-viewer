@@ -24,6 +24,7 @@ import {
   Platform,
   Share,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
@@ -34,12 +35,14 @@ import {
   usePartnerActiveDeals,
   usePartnerStats,
   usePartnerConnectionRequests,
+  usePartnerInvitations,
   useToggleAcceptingClients,
   useUpdateMilestoneStatus,
   usePostDealAlert,
   useDismissDealAlert,
+  useRespondToDealInvitation,
 } from '../hooks/usePartnerData';
-import type { PartnerRole, MilestoneStatus, AlertType } from '../types/partner.types';
+import type { PartnerRole, MilestoneStatus, AlertType, InvitationItem } from '../types/partner.types';
 
 // ─────────────────────────────────────────────────────────────────
 // SVG ICONS
@@ -110,12 +113,22 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
   const { data: needsAttentionDeals, allDeals } = usePartnerNeedsAttention(DEMO_PARTNER_ID, partnerRole);
   const { data: stats } = usePartnerStats(DEMO_PARTNER_ID);
   const { data: connectionRequests } = usePartnerConnectionRequests(DEMO_PARTNER_ID);
+  const { data: invitations } = usePartnerInvitations();
   const toggleAccepting = useToggleAcceptingClients();
   const updateMilestone = useUpdateMilestoneStatus();
   const postAlert = usePostDealAlert();
   const dismissAlert = useDismissDealAlert();
+  const respondToDeal = useRespondToDealInvitation();
 
   const totalActiveDeals = allDeals?.length ?? 0;
+
+  // ── Unified invitations list (S64b) ──
+  // Merge connection requests + deal invitations into a single ordered list
+  const allInvitations: InvitationItem[] = [
+    ...(invitations?.connection_requests ?? []),
+    ...(invitations?.deal_invitations ?? []),
+  ];
+  const invitationCount = invitations?.total_count ?? 0;
 
   // ── Handlers ──
   const handleToggleAccepting = useCallback(() => {
@@ -151,6 +164,32 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
   const handleDismissAlert = useCallback((alertId: string) => {
     dismissAlert.mutate({ alertId, partnerId: DEMO_PARTNER_ID });
   }, [dismissAlert]);
+
+  // ── Deal invitation handlers (S64b) ──
+  const handleAcceptDeal = useCallback((transactionPartnerId: string) => {
+    // @backend rpc_respond_to_deal_invitation(p_transaction_partner_id, p_response: 'accepted')
+    // NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
+    respondToDeal.mutate({ transactionPartnerId, response: 'accepted' });
+  }, [respondToDeal]);
+
+  const handleDeclineDeal = useCallback((transactionPartnerId: string) => {
+    Alert.alert(
+      'Decline Deal',
+      'Are you sure you want to decline this deal invitation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: () => {
+            // @backend rpc_respond_to_deal_invitation(p_transaction_partner_id, p_response: 'declined')
+            // NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
+            respondToDeal.mutate({ transactionPartnerId, response: 'declined' });
+          },
+        },
+      ],
+    );
+  }, [respondToDeal]);
 
   const handleShareProfile = useCallback(async () => {
     // @demo deep link is placeholder until deep link routing is wired
@@ -219,11 +258,12 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
         </Pressable>
 
         {/* ═════════════════════════════════════════════════════════ */}
-        {/* SECTION 2 — Connection Requests                         */}
-        {/* Horizontal scroll of pending connection requests.       */}
-        {/* @backend rpc_get_connection_requests(p_partner_id)      */}
+        {/* SECTION 2 — Invitations (S64b: unified feed)            */}
+        {/* Two card types: connection_request + deal_invitation    */}
+        {/* @backend rpc_get_partner_invitations() — uses auth.uid()*/}
+        {/* NOTE: anchors to transaction_id (S64+)                 */}
         {/* ═════════════════════════════════════════════════════════ */}
-        {connectionRequests && connectionRequests.length > 0 && (
+        {allInvitations.length > 0 && (
           <View style={{ marginTop: SPACING['3xl'] }}>
             <View style={{
               flexDirection: 'row',
@@ -236,11 +276,11 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                 fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
                 textTransform: 'uppercase', letterSpacing: 0.5,
               }}>
-                Connection Requests
+                Invitations
               </Text>
               <Pressable style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.accentBlue }}>
-                  See all ({connectionRequests.length})
+                  See all ({invitationCount})
                 </Text>
               </Pressable>
             </View>
@@ -250,77 +290,166 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: SPACING.xl }}
             >
-              {connectionRequests.map(req => (
-                <View
-                  key={req.id}
-                  style={{
-                    width: 200,
-                    padding: SPACING.xl,
-                    borderRadius: DIMENSIONS.cardRadius,
-                    borderWidth: DIMENSIONS.cardBorderWidth,
-                    borderColor: COLORS.cardBorder,
-                    backgroundColor: COLORS.background,
-                    marginRight: SPACING.lg,
-                  }}
-                >
-                  {/* Mutual vouches badge */}
-                  {req.has_mutual_vouches && (
-                    <View style={{
-                      backgroundColor: COLORS.backgroundInfo,
-                      borderRadius: DIMENSIONS.pillRadius,
-                      paddingHorizontal: 8,
-                      paddingVertical: 2,
-                      alignSelf: 'flex-start',
-                      marginBottom: SPACING.md,
-                    }}>
-                      <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.accentBlue }}>Mutual vouches</Text>
+              {allInvitations.map(item => {
+                if (item.item_type === 'connection_request') {
+                  // ── Connection Request Card (existing visual, no changes) ──
+                  return (
+                    <View
+                      key={item.id}
+                      style={{
+                        width: 200,
+                        padding: SPACING.xl,
+                        borderRadius: DIMENSIONS.cardRadius,
+                        borderWidth: DIMENSIONS.cardBorderWidth,
+                        borderColor: COLORS.cardBorder,
+                        backgroundColor: COLORS.background,
+                        marginRight: SPACING.lg,
+                      }}
+                    >
+                      {/* Avatar initials */}
+                      <View style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: DIMENSIONS.pillRadius,
+                        backgroundColor: item.requester_avatar_color,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: SPACING.md,
+                      }}>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background }}>
+                          {item.requester_name.split(' ').map(n => n[0]).join('')}
+                        </Text>
+                      </View>
+
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}>{item.requester_name}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 2 }}>
+                        {item.requester_role} {'\u00B7'} {item.requester_company}
+                      </Text>
+
+                      {/* Accept / Ignore buttons */}
+                      <View style={{ flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.lg }}>
+                        <Pressable style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: COLORS.accentBlue,
+                          alignItems: 'center',
+                        }}>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>Accept</Text>
+                        </Pressable>
+                        <Pressable style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: COLORS.border,
+                          alignItems: 'center',
+                        }}>
+                          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.secondaryText }}>Ignore</Text>
+                        </Pressable>
+                      </View>
                     </View>
-                  )}
+                  );
+                }
 
-                  {/* Avatar initials */}
-                  <View style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: DIMENSIONS.pillRadius,
-                    backgroundColor: req.avatar_color,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: SPACING.md,
-                  }}>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background }}>
-                      {req.name.split(' ').map(n => n[0]).join('')}
+                // ── Deal Invitation Card (S64b — NEW) ──
+                // Visual distinction: 4px left border accent, COLORS.primary
+                const closingLabel = item.closing_date
+                  ? new Date(item.closing_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : null;
+                const roleLabel = item.partner_role === 'title_escrow' ? 'Title/Escrow'
+                  : item.partner_role === 'mortgage_pro' ? 'Mortgage Pro'
+                  : item.partner_role;
+
+                return (
+                  <View
+                    key={item.id}
+                    style={{
+                      width: 200,
+                      padding: SPACING.xl,
+                      borderRadius: DIMENSIONS.cardRadius,
+                      borderWidth: DIMENSIONS.cardBorderWidth,
+                      borderColor: COLORS.cardBorder,
+                      borderLeftWidth: 4,
+                      borderLeftColor: COLORS.primary,
+                      backgroundColor: COLORS.background,
+                      marginRight: SPACING.lg,
+                    }}
+                  >
+                    {/* Property address */}
+                    <Text
+                      style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}
+                      numberOfLines={1}
+                    >
+                      {item.property_address}
                     </Text>
-                  </View>
 
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}>{req.name}</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 2 }}>
-                    {req.role} {'\u00B7'} {req.company}
-                  </Text>
+                    {/* Agent row */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <View style={{
+                        width: 24, height: 24, borderRadius: 9999,
+                        backgroundColor: item.agent_avatar_color,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#FFFFFF' }}>
+                          {item.agent_name.charAt(0)}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
+                        {item.agent_name}
+                      </Text>
+                    </View>
 
-                  {/* Accept / Ignore buttons */}
-                  <View style={{ flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.lg }}>
-                    <Pressable style={{
-                      flex: 1,
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                      backgroundColor: COLORS.accentBlue,
-                      alignItems: 'center',
+                    {/* Role pill */}
+                    <View style={{
+                      alignSelf: 'flex-start', marginTop: 8,
+                      backgroundColor: COLORS.tagBg,
+                      borderRadius: DIMENSIONS.pillRadius,
+                      paddingHorizontal: 8, paddingVertical: 2,
                     }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>Accept</Text>
-                    </Pressable>
-                    <Pressable style={{
-                      flex: 1,
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: COLORS.border,
-                      alignItems: 'center',
-                    }}>
-                      <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.secondaryText }}>Ignore</Text>
-                    </Pressable>
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.bodyText }}>
+                        {roleLabel}
+                      </Text>
+                    </View>
+
+                    {/* Closing date */}
+                    {closingLabel && (
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 6 }}>
+                        Closing {closingLabel}
+                      </Text>
+                    )}
+
+                    {/* Accept / Decline buttons */}
+                    <View style={{ flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.lg }}>
+                      <Pressable
+                        onPress={() => handleAcceptDeal(item.id)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: COLORS.accentBlue,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>Accept</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeclineDeal(item.id)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: COLORS.border,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.secondaryText }}>Decline</Text>
+                      </Pressable>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
           </View>
         )}

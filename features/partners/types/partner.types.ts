@@ -128,3 +128,46 @@ export interface PartnerConnectionRequest {
   has_mutual_vouches: boolean;
   created_at: string;
 }
+
+// ─────────────────────────────────────────────────────────────────
+// INVITATION ITEMS (S64b — unified invitations feed)
+// ─────────────────────────────────────────────────────────────────
+
+/** Connection request card in unified invitations feed */
+export interface ConnectionRequestItem {
+  item_type: 'connection_request';
+  id: string;
+  requester_id: string;
+  requester_name: string;
+  requester_role: string;
+  requester_company: string;
+  requester_avatar_color: string;
+  note: string | null;
+  created_at: string;
+}
+
+/** Deal invitation card in unified invitations feed */
+export interface DealInvitationItem {
+  item_type: 'deal_invitation';
+  id: string;                      // transaction_partner_id
+  transaction_id: string;
+  partner_role: string;
+  invited_at: string;
+  property_address: string;
+  closing_date: string | null;
+  contract_price: number | null;
+  agent_id: string;
+  agent_name: string;
+  agent_company: string;
+  agent_avatar_color: string;
+}
+
+/** Discriminated union for rendering both card types in a single list */
+export type InvitationItem = ConnectionRequestItem | DealInvitationItem;
+
+/** Response shape from rpc_get_partner_invitations */
+export interface PartnerInvitationsResponse {
+  connection_requests: ConnectionRequestItem[];
+  deal_invitations: DealInvitationItem[];
+  total_count: number;
+}
