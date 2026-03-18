@@ -48,6 +48,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { useAgentJobs, useMyProfile, useAgentActiveDeals } from '../hooks/useData';
+import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
 import DealCreationSheet from '../features/partners/components/DealCreationSheet';
 import { VerificationBanner } from './shared/VerificationBanner';
 import QuickActionsRow from './QuickActionsRow';
@@ -245,18 +246,6 @@ const PostJobWrenchIcon: React.FC = () => (
   </Svg>
 );
 
-const ThumbUpIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-    <Path
-      d="M4.67 7.33L6.67 2C7.02 2 7.36 2.14 7.61 2.39C7.86 2.64 8 2.98 8 3.33V5.67H11.16C11.33 5.67 11.49 5.7 11.64 5.77C11.79 5.84 11.92 5.94 12.02 6.07C12.12 6.2 12.19 6.35 12.22 6.51C12.25 6.68 12.24 6.85 12.19 7.01L10.93 11.01C10.86 11.24 10.72 11.43 10.53 11.57C10.34 11.71 10.11 11.78 9.88 11.78H4.67M4.67 7.33V11.78M4.67 7.33H3C2.63 7.33 2.33 7.63 2.33 8V11.11C2.33 11.48 2.63 11.78 3 11.78H4.67"
-      stroke={COLORS.mutedText}
-      strokeWidth={1.33}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
 // ─────────────────────────────────────────────
 // ACTIVE DEALS — Status Dot Calculation (S63, extracted to dealMilestones.ts in S66)
 // ─────────────────────────────────────────────
@@ -345,86 +334,6 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 // ─────────────────────────────────────────────
-// @demo VOUCH FEED DATA — mock vouch cards
-// ~75% Contractor vouches, ~25% Partner vouches
-// Reflects MVP revenue driver: agent ↔ contractor activity
-// @backend TODO: useVouchFeed() — vouches + profiles join
-// ─────────────────────────────────────────────
-
-interface VouchCard {
-  id: string;
-  agentName: string;
-  proName: string;
-  company?: string;
-  timeAgo: string;
-  quote: string;
-  tag: string;
-  likes: number;
-  avatarColor: string;
-}
-
-// @demo hardcoded — replace with real data in production
-const VOUCH_FEED: VouchCard[] = [
-  { id: '1', agentName: 'Marcus W.', proName: 'Jake Thompson', company: '@ Summit Roofing', timeAgo: '1h ago', quote: '"Emergency roof repair before closing, done in 24 hours flat"', tag: 'Contractors', likes: 9, avatarColor: '#A8C4B8' },
-  { id: '2', agentName: 'Amanda R.', proName: 'Precision Plumbing Co.', timeAgo: '2h ago', quote: '"Re-piped the whole house in 2 days, passed inspection first try"', tag: 'Contractors', likes: 7, avatarColor: '#D4B8A8' },
-  { id: '3', agentName: 'Sarah J.', proName: 'Mike Rodriguez', company: '@ Rocket Mortgage', timeAgo: '3h ago', quote: '"Closed my cash offer in 12 days"', tag: 'Mortgage', likes: 5, avatarColor: '#E8D5B7' },
-  { id: '4', agentName: 'Stephanie K.', proName: 'Denver Electric Pros', timeAgo: '3h ago', quote: '"Full panel upgrade, cleanest work the inspector had ever seen"', tag: 'Contractors', likes: 6, avatarColor: '#B8A8D4' },
-  { id: '5', agentName: 'Chris P.', proName: "Amy's Repairs LLC", timeAgo: '4h ago', quote: '"Fixed foundation issues under budget and on time"', tag: 'Contractors', likes: 4, avatarColor: '#D4C5A8' },
-  { id: '6', agentName: 'Robert K.', proName: 'Lisa Martinez', company: '@ First National Title', timeAgo: '5h ago', quote: '"Fastest turnaround on a complex estate sale"', tag: 'Title', likes: 8, avatarColor: '#D4A8B5' },
-  { id: '7', agentName: 'Jason M.', proName: 'Carlos Mendez', company: '@ Mendez Electric LLC', timeAgo: '5h ago', quote: '"Rewired the entire kitchen, passed rough-in on the first call"', tag: 'Contractors', likes: 11, avatarColor: '#A8D4C5' },
-  { id: '8', agentName: 'Nicole T.', proName: 'Alpine HVAC Solutions', timeAgo: '6h ago', quote: '"New furnace installed same week, warranty included"', tag: 'Contractors', likes: 5, avatarColor: '#A8B5D4' },
-  { id: '9', agentName: 'Martin G.', proName: 'John Chen', company: '@ HomeGuard Inspections', timeAgo: '6h ago', quote: '"Found issues others missed, saved my client $15K"', tag: 'Inspectors', likes: 6, avatarColor: '#A8C5DA' },
-  { id: '10', agentName: 'Laura D.', proName: 'Front Range Floors', timeAgo: '8h ago', quote: '"Refinished hardwoods in 3 days, buyer was blown away at walkthrough"', tag: 'Contractors', likes: 8, avatarColor: '#C4B882' },
-  { id: '11', agentName: 'Kevin B.', proName: 'Fresh Coat Denver', timeAgo: '10h ago', quote: '"Painted entire interior in 2 days, not a single drip. Pro-level clean work"', tag: 'Contractors', likes: 5, avatarColor: '#D4A8A8' },
-  { id: '12', agentName: 'Jennifer W.', proName: 'Tom Anderson', company: '@ VA Loan Pros', timeAgo: '12h ago', quote: '"17 day close on VA loan, zero drama"', tag: 'Mortgage', likes: 5, avatarColor: '#B5D4A8' },
-  { id: '13', agentName: 'Tyler R.', proName: 'Walsh Landscaping', timeAgo: '1d ago', quote: '"Fixed grading and drainage before appraisal, saved the deal"', tag: 'Contractors', likes: 7, avatarColor: '#B5D4A8' },
-  { id: '14', agentName: 'Brandon H.', proName: 'Superior Inspections', timeAgo: '1d ago', quote: '"Same-day report, incredibly thorough"', tag: 'Inspectors', likes: 5, avatarColor: '#C5A8D4' },
-  { id: '15', agentName: 'Rachel F.', proName: 'Hernandez Drywall', timeAgo: '1d ago', quote: '"Matched 1960s texture perfectly, you can\'t even tell where the patch is"', tag: 'Contractors', likes: 10, avatarColor: '#A8C4D4' },
-  { id: '16', agentName: 'David L.', proName: 'Denver Pest Solutions', timeAgo: '2d ago', quote: '"Termite treatment done same week, clearance letter in hand for closing"', tag: 'Contractors', likes: 6, avatarColor: '#D4C5B5' },
-];
-
-// Tab filter options — Contractors first (MVP revenue driver)
-const FILTER_TABS = ['All', 'Contractors', 'Mortgage', 'Title', 'Inspectors'];
-
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER (colored circle with initials)
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{
-  name: string;
-  color: string;
-  size?: number;
-}> = ({ name, color, size = 48 }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text
-        style={{
-          fontSize: size * 0.35,
-          fontWeight: '600',
-          color: '#FFFFFF',
-        }}
-      >
-        {initials}
-      </Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
 // NEIGHBORHOOD INTELLIGENCE ICONS + CARD
 // ─────────────────────────────────────────────
 
@@ -498,7 +407,6 @@ const HomeTabAgent: React.FC = () => {
   const [isFilled, setIsFilled] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('All');
   const [dealSheetVisible, setDealSheetVisible] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
 
@@ -516,11 +424,6 @@ const HomeTabAgent: React.FC = () => {
   // NOTE: will migrate to transaction_id in S64 when transactions table exists
   const { data: activeDeals } = useAgentActiveDeals();
   const hasActiveDeals = (activeDeals?.length ?? 0) > 0;
-
-  // Vouch feed filter
-  const filteredVouches = activeTab === 'All'
-    ? VOUCH_FEED
-    : VOUCH_FEED.filter((v) => v.tag === activeTab);
 
   // ── Squad State ──
   const [squadMembers, setSquadMembers] = useState<{ [slotId: string]: SquadProCandidate }>({});
@@ -658,6 +561,11 @@ const HomeTabAgent: React.FC = () => {
       ([slotId, pro]) => `${slotId}: ${pro.name}`
     );
     console.log('Send to Client:', filled);
+  };
+
+  // ── Vouch Feed → ProProfile navigation ──
+  const handleVouchNavigate = (profile: VouchFeedProfile) => {
+    navigation.push('ProProfile', { profileId: profile.id });
   };
 
   return (
@@ -1362,95 +1270,11 @@ const HomeTabAgent: React.FC = () => {
         </View>
 
         {/* ── VOUCH FEED SECTION ──
-            @demo 16 mock vouch cards with tab filtering
-            @backend useVouchFeed() — vouches + profiles join */}
-        <View style={{ backgroundColor: COLORS.background, paddingTop: 32, paddingHorizontal: 16, gap: 24 }}>
-          <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.darkText, lineHeight: 24 }}>
-            What Agents Near You Are Vouching
-          </Text>
-
-          {/* Filter Tabs */}
-          <ScrollView
-            horizontal showsHorizontalScrollIndicator={false}
-            style={{ borderBottomWidth: 0.69, borderBottomColor: COLORS.border }}
-          >
-            {FILTER_TABS.map((tab) => (
-              <Pressable
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                style={{
-                  paddingHorizontal: 16, paddingVertical: 8,
-                  borderTopLeftRadius: 10, borderTopRightRadius: 10,
-                  backgroundColor: activeTab === tab ? COLORS.tagBg : 'transparent',
-                  borderBottomWidth: activeTab === tab ? 1.38 : 0,
-                  borderBottomColor: COLORS.accentBlue,
-                  marginRight: 8,
-                }}
-              >
-                <Text style={{
-                  fontSize: 16, fontWeight: '400',
-                  color: activeTab === tab ? COLORS.accentBlue : COLORS.bodyText,
-                  lineHeight: 24, textAlign: 'center',
-                }}>
-                  {tab}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          {/* Vouch Cards Feed */}
-          <View style={{ gap: 16 }}>
-            {filteredVouches.map((vouch) => (
-              <View
-                key={vouch.id}
-                style={{
-                  padding: 16, borderRadius: 10, borderWidth: 0.69, borderColor: COLORS.border,
-                  flexDirection: 'row', alignItems: 'flex-start', gap: 16,
-                }}
-              >
-                <AvatarPlaceholder name={vouch.agentName} color={vouch.avatarColor} />
-                <View style={{ flex: 1, gap: 8 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <View style={{ flex: 1, gap: 4, paddingRight: 8 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '400', lineHeight: 24 }}>
-                        <Text style={{ color: COLORS.bodyText }}>{`${vouch.agentName} just vouched `}</Text>
-                        <Text style={{ color: COLORS.primary }}>{vouch.proName}</Text>
-                      </Text>
-                      {vouch.company && (
-                        <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.bodyText, lineHeight: 24 }}>
-                          {vouch.company}
-                        </Text>
-                      )}
-                    </View>
-                    <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.lightText, lineHeight: 16, marginTop: 4 }}>
-                      {vouch.timeAgo}
-                    </Text>
-                  </View>
-                  <View style={{ padding: 8, backgroundColor: COLORS.quoteBg, borderRadius: 10 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '400', fontStyle: 'italic', color: COLORS.statText, lineHeight: 24 }}>
-                      {vouch.quote}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 9999 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.accentBlue, lineHeight: 16 }}>{vouch.tag}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <ThumbUpIcon />
-                      <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.mutedText, lineHeight: 16 }}>{vouch.likes}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {/* Load More */}
-          <Pressable style={({ pressed }) => ({ alignItems: 'center', paddingVertical: 16, paddingBottom: 32, opacity: pressed ? 0.5 : 1 })}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.primary, lineHeight: 24 }}>
-              Load more activity
-            </Text>
-          </Pressable>
+            @demo 20 mock vouch cards with filter tabs + 75% contractor bias
+            @backend useVouchFeed() — vouches + profiles join
+            Names are tappable → ProProfile navigation */}
+        <View style={{ paddingTop: 24 }}>
+          <VouchFeedSection onNavigateToProfile={handleVouchNavigate} />
         </View>
 
       </ScrollView>
