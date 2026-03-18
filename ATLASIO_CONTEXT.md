@@ -31,9 +31,9 @@
 
 ---
 
-## Current Metrics (updated S64b — March 17, 2026)
+## Current Metrics (updated S65 — March 18, 2026)
 - **RPCs:** 41
-- **Hooks:** 70 (+3 S64b: useCreateTransaction, usePartnerInvitations, useRespondToDealInvitation)
+- **Hooks:** 72 (+2 S65: useGenerateClientToken, useUpdateClosingDetails)
 - **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` + `DEAL_CREATION_ENABLED` in lib/config.ts
 - **Edge Functions:** 10
 - **Storage Buckets:** 6
@@ -602,3 +602,12 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** `DEAL_CREATION_ENABLED` is independent from `PARTNER_TRACK_ENABLED` — separate capabilities with a clear flag matrix. All new deal data uses `transaction_id` as FK anchor (S64+), `job_id` preserved for backward compat only — every `@backend` marker includes this note. DealCreationSheet is a Modal (not a navigation route) — rendered inline in HomeTabAgent to match SquadSlotPicker pattern. Google Places Autocomplete reused verbatim from ClientLifestyleScreen (POST to `places.googleapis.com/v1/places:autocomplete`, 400ms debounce, 3+ char trigger).
 - **Hooks:** 70 (+3: useCreateTransaction, usePartnerInvitations, useRespondToDealInvitation) | **Feature Flags:** +1 (DEAL_CREATION_ENABLED) | **tsc:** 0
 - **S65 next objectives:** Next.js app at closing.atlasioapp.com, client token generation, live milestone progress, transactions table backend (rpc_create_transaction RPC deployment)
+
+### S65 — Closing Tracker: Hooks + Agent UI + Send Toggle (March 18, 2026)
+- **Modified:** `hooks/useData.ts` — +2 hooks: `useGenerateClientToken` (mock mutation, 600ms delay, returns demo URL `closing.atlasioapp.com/demo-token-001`, invalidates `agent_active_deals`), `useUpdateClosingDetails` (mock mutation, 800ms delay, saves closing day details object `{ time, location, bring_list, wire_amount }`, invalidates `agent_active_deals`). Both anchored to `transaction_id` (S64+). Full `@backend` stubs: `rpc_generate_client_token(p_transaction_id)`, `rpc_update_closing_details(p_transaction_id, p_closing_details)`.
+- **Modified:** `components/AgentDealDetailScreen.tsx` — Added "Share" button in header (44×44 touch target, share icon SVG). Taps trigger `useGenerateClientToken` → copies URL to clipboard via `Clipboard.setStringAsync` → success toast (2s auto-dismiss). Added "Closing day details" collapsible section below milestone list: 4 fields (time, location, what to bring, wire amount) with TextInput + save button using `useUpdateClosingDetails`. Section gated behind `closingDetails` expand/collapse state. Added `expo-clipboard` dependency.
+- **Modified:** `components/SendSquadScreen.tsx` — Added `Switch` import from react-native. Added `includeClosingTracker` toggle state (`useState(false)`). Inserted toggle row between medium selector and recipient input sections (matches `gap: 24` rhythm). Toggle is visual-only in demo — URL append deferred to send wiring session when `LIVE_SQUAD_SHARE=true`.
+- **Modified:** `package.json` / `package-lock.json` — Added `expo-clipboard` dependency.
+- **Key decisions:** Toggle in SendSquadScreen is state-only — does not affect send payload yet (scope boundary enforced). Share button in AgentDealDetailScreen is idempotent (RPC returns existing token if already generated). Closing details section uses inline form (not modal) to reduce navigation friction. All 3 changes are demo-functional with `@demo` + `@backend` markers.
+- **Hooks:** 72 (+2: useGenerateClientToken, useUpdateClosingDetails) | **tsc:** 0
+- **S66 next objectives:** Next.js closing tracker web app (closing.atlasioapp.com), transactions table + rpc_create_transaction deployment, live wiring of useGenerateClientToken + useUpdateClosingDetails

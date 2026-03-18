@@ -58,6 +58,7 @@ import {
   Animated,
   Dimensions,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -428,6 +429,12 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
     route.params.additionalSlots
   );
   const defaultSlots = route.params.defaultSlots;
+
+  // Closing tracker toggle
+  // @demo Toggle state is functional — URL append is visual only in demo.
+  // Wire to send-squad-email and send-squad-sms Edge Functions when LIVE_SQUAD_SHARE=true.
+  // @backend Pass url to send-squad-email / send-squad-sms — add closing_url?: string param to both Edge Functions.
+  const [includeClosingTracker, setIncludeClosingTracker] = useState(false);
 
   // Delivery form state
   const [medium, setMedium] = useState<SendMedium | null>(null);
@@ -1004,6 +1011,24 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
 
               {/* ── Section: Medium Selector ── */}
               {renderMediumSelector()}
+
+              {/* ── Section: Closing Tracker Toggle ── */}
+              <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Switch
+                  value={includeClosingTracker}
+                  onValueChange={setIncludeClosingTracker}
+                  trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                  ios_backgroundColor={COLORS.border}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+                    Include closing tracker link
+                  </Text>
+                  <Text style={{ fontSize: 12, color: COLORS.secondaryText }}>
+                    Let your client track progress
+                  </Text>
+                </View>
+              </View>
 
               {/* ── Section: Recipient Input (conditional on medium) ── */}
               {renderRecipientInput()}
