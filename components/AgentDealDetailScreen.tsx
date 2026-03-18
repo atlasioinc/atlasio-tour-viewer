@@ -19,8 +19,8 @@
 // per partner: milestones + alerts → progress bar + milestone list + alert banners
 // dismiss alert → useAgentDismissDealAlert mutation (optimistic)
 
-import React from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, Pressable, TextInput, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -28,7 +28,8 @@ import type { RouteProp } from '@react-navigation/native';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
 import { COLORS, DIMENSIONS, SPACING } from '../lib/tokens';
-import { useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard } from '../hooks/useData';
+import { useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard, useUpdateClosingDetails, useGenerateClientToken } from '../hooks/useData';
+import { PrimaryButton } from './Button';
 import { isMilestoneStale, getRateLockDaysRemaining, RATE_LOCK_DANGER_THRESHOLD_DAYS } from '../features/partners/lib/dealMilestones';
 import type { AgentDealPartner, PartnerRole } from '../features/partners/types/partner.types';
 
@@ -111,6 +112,53 @@ const AgentDealDetailScreen: React.FC = () => {
   const deal = allDeals?.find(d => d.job_id === jobId);
   const dismissAlert = useAgentDismissDealAlert();
 
+  // ── Share button ──
+  // @demo Uses mock transaction_id — wire to real deal.transaction_id when DEAL_CREATION_ENABLED=true
+  // @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id)
+  const generateToken = useGenerateClientToken();
+
+  const handleShare = async () => {
+    try {
+      const result = await generateToken.mutateAsync({
+        transactionId: (deal as any).transaction_id ?? 'mock-transaction-001',
+      });
+      await Share.share({
+        url: result.url,
+        message: 'Track your closing progress: ' + result.url,
+      });
+    } catch {
+      // silently fail in demo — live error handling in production
+    }
+  };
+
+  // ── Closing day details ──
+  // @demo Uses mock transaction_id — wire to real deal.transaction_id when DEAL_CREATION_ENABLED=true
+  // @backend useUpdateClosingDetails — rpc_update_closing_details(p_transaction_id, p_closing_details)
+  const updateClosingDetails = useUpdateClosingDetails();
+  const [closingDetails, setClosingDetails] = useState<{ time: string; location: string; bring_list: string; wire_amount: string } | null>(null);
+  const [isEditingClosingDetails, setIsEditingClosingDetails] = useState(false);
+  const [closingForm, setClosingForm] = useState({
+    time: '',
+    location: '',
+    bring_list: 'Government-issued ID, cashier\'s check or wire confirmation',
+    wire_amount: '',
+  });
+
+  const handleSaveClosingDetails = () => {
+    // @demo Mock save — wire to real transaction_id when DEAL_CREATION_ENABLED=true
+    // @backend useUpdateClosingDetails — rpc_update_closing_details(p_transaction_id, p_closing_details)
+    const transactionId = 'mock-transaction-001';
+    updateClosingDetails.mutate(
+      { transactionId, closingDetails: closingForm },
+      {
+        onSuccess: () => {
+          setClosingDetails(closingForm);
+          setIsEditingClosingDetails(false);
+        },
+      },
+    );
+  };
+
   // ── Realtime subscription (refreshes cache on milestone/alert changes) ──
   useRealtimeDealBoard(jobId);
 
@@ -134,9 +182,20 @@ const AgentDealDetailScreen: React.FC = () => {
         titleSize={15}
         titleColor={COLORS.darkText}
         rightElement={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 6, height: 6, borderRadius: 9999, backgroundColor: COLORS.successGreen }} />
-            <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.successGreen }}>Live</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* @demo Uses mock transaction_id — wire to real deal.transaction_id when DEAL_CREATION_ENABLED=true */}
+            {/* @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id) */}
+            <Pressable
+              onPress={handleShare}
+              disabled={generateToken.isPending}
+              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: generateToken.isPending ? 0.5 : 1 }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Share</Text>
+            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 9999, backgroundColor: COLORS.successGreen }} />
+              <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.successGreen }}>Live</Text>
+            </View>
           </View>
         }
         onBack={() => navigation.goBack()}
@@ -311,6 +370,173 @@ const AgentDealDetailScreen: React.FC = () => {
             </React.Fragment>
           );
         })}
+
+        {/* ── Closing Day Details Section ── */}
+        <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 20, marginHorizontal: 16 }} />
+        <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+          {/* Section header */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
+            <Text style={{
+              fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Closing day details
+            </Text>
+            {closingDetails && !isEditingClosingDetails && (
+              <Pressable
+                onPress={() => {
+                  setClosingForm(closingDetails);
+                  setIsEditingClosingDetails(true);
+                }}
+                style={{ width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Edit</Text>
+              </Pressable>
+            )}
+            {isEditingClosingDetails && (
+              <Pressable
+                onPress={() => setIsEditingClosingDetails(false)}
+                style={{ width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Cancel</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* State A — Empty */}
+          {!closingDetails && !isEditingClosingDetails && (
+            <Pressable
+              onPress={() => setIsEditingClosingDetails(true)}
+              style={{ width: '100%', height: 44, justifyContent: 'center' }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>
+                Add details for your client
+              </Text>
+            </Pressable>
+          )}
+
+          {/* State B — Inline form */}
+          {isEditingClosingDetails && (
+            <View style={{ gap: SPACING.xl }}>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: SPACING.md }}>
+                  Date & time
+                </Text>
+                <TextInput
+                  value={closingForm.time}
+                  onChangeText={(text) => setClosingForm(prev => ({ ...prev, time: text }))}
+                  placeholder="April 15 at 10:00 AM"
+                  placeholderTextColor={COLORS.bodyText}
+                  style={{
+                    borderWidth: DIMENSIONS.cardBorderWidth,
+                    borderColor: COLORS.border,
+                    borderRadius: DIMENSIONS.inputRadius,
+                    padding: 10,
+                    paddingHorizontal: 12,
+                    fontSize: 14,
+                    color: COLORS.darkText,
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: SPACING.md }}>
+                  Location
+                </Text>
+                <TextInput
+                  value={closingForm.location}
+                  onChangeText={(text) => setClosingForm(prev => ({ ...prev, location: text }))}
+                  placeholder="Title company address"
+                  placeholderTextColor={COLORS.bodyText}
+                  style={{
+                    borderWidth: DIMENSIONS.cardBorderWidth,
+                    borderColor: COLORS.border,
+                    borderRadius: DIMENSIONS.inputRadius,
+                    padding: 10,
+                    paddingHorizontal: 12,
+                    fontSize: 14,
+                    color: COLORS.darkText,
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: SPACING.md }}>
+                  What to bring
+                </Text>
+                <TextInput
+                  value={closingForm.bring_list}
+                  onChangeText={(text) => setClosingForm(prev => ({ ...prev, bring_list: text }))}
+                  placeholder="Government-issued ID, cashier's check or wire confirmation"
+                  placeholderTextColor={COLORS.bodyText}
+                  style={{
+                    borderWidth: DIMENSIONS.cardBorderWidth,
+                    borderColor: COLORS.border,
+                    borderRadius: DIMENSIONS.inputRadius,
+                    padding: 10,
+                    paddingHorizontal: 12,
+                    fontSize: 14,
+                    color: COLORS.darkText,
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: SPACING.md }}>
+                  Wire amount
+                </Text>
+                <TextInput
+                  value={closingForm.wire_amount}
+                  onChangeText={(text) => setClosingForm(prev => ({ ...prev, wire_amount: text }))}
+                  placeholder="$0"
+                  placeholderTextColor={COLORS.bodyText}
+                  keyboardType="numeric"
+                  style={{
+                    borderWidth: DIMENSIONS.cardBorderWidth,
+                    borderColor: COLORS.border,
+                    borderRadius: DIMENSIONS.inputRadius,
+                    padding: 10,
+                    paddingHorizontal: 12,
+                    fontSize: 14,
+                    color: COLORS.darkText,
+                  }}
+                />
+              </View>
+
+              <PrimaryButton
+                label="Save details"
+                onPress={handleSaveClosingDetails}
+                loading={updateClosingDetails.isPending}
+                disabled={!closingForm.time.trim()}
+              />
+            </View>
+          )}
+
+          {/* State C — Populated (read-only) */}
+          {closingDetails && !isEditingClosingDetails && (
+            <View style={{ gap: SPACING.md }}>
+              <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>When</Text>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, flex: 1 }}>{closingDetails.time}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Where</Text>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, flex: 1 }}>{closingDetails.location}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Bring</Text>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, flex: 1 }}>{closingDetails.bring_list}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Wire</Text>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, flex: 1 }}>
+                  {closingDetails.wire_amount}
+                  <Text style={{ fontSize: 11, fontWeight: '400', color: COLORS.secondaryText }}> (confirm with your agent)</Text>
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
