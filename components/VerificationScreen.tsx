@@ -23,7 +23,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import {
-  View, Text, Pressable, ScrollView, StatusBar, TextInput,
+  View, Text, Pressable, ScrollView, StatusBar,
   Alert, ActivityIndicator, RefreshControl, Modal, FlatList,
   Animated, Easing, Dimensions,
 } from 'react-native';
@@ -34,6 +34,7 @@ import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMyProfile, useSubmitLicenseVerification } from '../hooks/useData';
+import FormField from './FormField';
 import type { ProfileStackParamList } from './ProfileStack';
 
 type NavProp = NativeStackNavigationProp<ProfileStackParamList>;
@@ -440,35 +441,28 @@ const VerificationScreen: React.FC = () => {
           {/* Editable form — only when incomplete */}
           {licenseStatus === 'incomplete' && (
             <View style={{ gap: 12 }}>
-              <View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, marginBottom: 6 }}>
-                  License Number
-                </Text>
-                <TextInput
-                  value={licenseNumber}
-                  onChangeText={setLicenseNumber}
-                  placeholder="e.g. FA100012345"
-                  placeholderTextColor={COLORS.lightText}
-                  style={{
-                    height: 44, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 10,
-                    paddingHorizontal: 12, fontSize: 15, color: COLORS.darkText,
-                    backgroundColor: COLORS.background,
-                  }}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                />
-              </View>
-              <View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, marginBottom: 6 }}>
+              <FormField
+                label="License Number"
+                value={licenseNumber}
+                onChangeText={setLicenseNumber}
+                placeholder="e.g. FA100012345"
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
                   State
                 </Text>
                 <Pressable
                   onPress={handleStatePickerOpen}
                   style={({ pressed }) => ({
-                    height: 44, borderWidth: 1, borderColor: COLORS.inputBorder, borderRadius: 10,
-                    paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center',
+                    paddingHorizontal: 14, paddingVertical: 12,
+                    borderWidth: 0.68,
+                    borderColor: licenseState ? COLORS.inputActiveBorder : COLORS.border,
+                    borderRadius: 10,
+                    flexDirection: 'row', alignItems: 'center',
                     justifyContent: 'space-between',
-                    backgroundColor: COLORS.background,
+                    backgroundColor: COLORS.inputBackground,
                     opacity: pressed ? 0.85 : 1,
                   })}
                 >

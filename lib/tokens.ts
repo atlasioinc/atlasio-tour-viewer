@@ -61,6 +61,8 @@ export const COLORS = {
   border: '#E5E7EB',          // headers, dividers, section borders — NEVER #000000
   cardBorder: '#F3F4F6',      // card outlines (lighter than border)
   inputBorder: '#D1D5DC',     // search inputs, text inputs, form fields
+  inputBackground: '#F9FAFB',  // subtle gray bg for all text input fields (S69)
+  inputActiveBorder: 'rgba(0, 61, 195, 0.25)' as const,  // blue tint border when field has value (S69)
 
   // ── Status & Feedback ──
   starColor: '#FFB900',       // star rating icons (Find, Network)

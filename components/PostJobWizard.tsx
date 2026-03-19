@@ -38,7 +38,6 @@ import {
   Pressable,
   ScrollView,
   StatusBar,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
   Switch,
@@ -52,6 +51,9 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import InfoBanner from './InfoBanner';
+import FormField from './FormField';
+import { COLORS } from '../lib/tokens';
+
 // Simple progress bar matching Figma header spec (4px track, no label)
 const WizardProgressBar: React.FC<{ currentStep: number; totalSteps: number }> = ({ currentStep, totalSteps }) => {
   const progress = currentStep / totalSteps;
@@ -61,7 +63,6 @@ const WizardProgressBar: React.FC<{ currentStep: number; totalSteps: number }> =
     </View>
   );
 };
-import { COLORS } from '../lib/tokens';
 
 // ─────────────────────────────────────────────
 // NAVIGATION TYPE
@@ -309,84 +310,44 @@ const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
       keyboardShouldPersistTaps="handled"
     >
       {/* ── Job Title * ── */}
-      <View style={{ gap: 8 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: '#364153', lineHeight: 20 }}>
-          Job Title <Text style={{ color: '#FB2C36' }}>*</Text>
-        </Text>
-        <View
-          style={{
-            height: 50, paddingHorizontal: 16,
-            backgroundColor: '#FFFFFF', borderRadius: 14,
-            borderWidth: 1.35,
-            borderColor: showErrors && form.jobTitle.trim().length === 0 ? '#FB2C36' : '#D1D5DC',
-            justifyContent: 'center', overflow: 'hidden',
-          }}
-        >
-          <TextInput
-            value={form.jobTitle}
-            onChangeText={(t) => setForm((p) => ({ ...p, jobTitle: t }))}
-            placeholder="e.g., Kitchen Reno, Roof Repair"
-            placeholderTextColor="rgba(10,10,10,0.5)"
-            style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#0A0A0A', textAlignVertical: 'center' }}
-          />
-        </View>
-        {showErrors && form.jobTitle.trim().length === 0 && (
-          <Text style={{ fontSize: 12, fontWeight: '400', color: '#FB2C36', lineHeight: 16 }}>
-            Job title is required
-          </Text>
-        )}
-      </View>
+      <FormField
+        label="Job Title"
+        value={form.jobTitle}
+        onChangeText={(t) => setForm((p) => ({ ...p, jobTitle: t }))}
+        placeholder="e.g., Kitchen Reno, Roof Repair"
+        required
+        error={showErrors && form.jobTitle.trim().length === 0 ? 'Job title is required' : undefined}
+      />
 
       {/* ── Property Address ── */}
-      <View style={{ gap: 8 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: '#364153', lineHeight: 20 }}>
-          Property Address <Text style={{ color: '#FB2C36' }}>*</Text>
-        </Text>
-        <View
-          style={{
-            height: 50, paddingHorizontal: 16,
-            backgroundColor: '#FFFFFF', borderRadius: 14,
-            borderWidth: 1.35,
-            borderColor: showErrors && form.propertyAddress.trim().length === 0 ? '#FB2C36' : '#D1D5DC',
-            justifyContent: 'center', overflow: 'hidden',
-          }}
-        >
-          <TextInput
-            value={form.propertyAddress}
-            onChangeText={(t) => setForm((p) => ({ ...p, propertyAddress: t }))}
-            placeholder="123 Main St, Denver, CO"
-            placeholderTextColor="rgba(10,10,10,0.5)"
-            style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#0A0A0A', textAlignVertical: 'center' }}
-          />
-        </View>
-        {showErrors && form.propertyAddress.trim().length === 0 && (
-          <Text style={{ fontSize: 12, fontWeight: '400', color: '#FB2C36', lineHeight: 16 }}>
-            Property address is required
-          </Text>
-        )}
-        <Text style={{ fontSize: 12, fontWeight: '400', color: '#999999', lineHeight: 16 }}>
-          Helps pros estimate travel time
-        </Text>
-      </View>
+      <FormField
+        label="Property Address"
+        value={form.propertyAddress}
+        onChangeText={(t) => setForm((p) => ({ ...p, propertyAddress: t }))}
+        placeholder="123 Main St, Denver, CO"
+        required
+        error={showErrors && form.propertyAddress.trim().length === 0 ? 'Property address is required' : undefined}
+        helperText="Helps pros estimate travel time"
+      />
 
       {/* ── Due Date ── */}
       <View style={{ gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <CalendarLabelIcon />
-          <Text style={{ fontSize: 14, fontWeight: '500', color: '#364153', lineHeight: 20 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
             Due Date
           </Text>
         </View>
         <Pressable
           onPress={() => setShowDatePicker(!showDatePicker)}
           style={{
-            height: 50, paddingHorizontal: 16,
-            backgroundColor: '#FFFFFF', borderRadius: 14,
-            borderWidth: 1.35, borderColor: '#D1D5DC',
-            justifyContent: 'center',
+            paddingHorizontal: 14, paddingVertical: 12,
+            backgroundColor: COLORS.inputBackground, borderRadius: 10,
+            borderWidth: 0.68,
+            borderColor: form.dueDate ? COLORS.inputActiveBorder : COLORS.border,
           }}
         >
-          <Text style={{ fontSize: 16, fontWeight: '400', color: form.dueDate ? '#0A0A0A' : 'rgba(10,10,10,0.5)' }}>
+          <Text style={{ fontSize: 15, fontWeight: '400', color: form.dueDate ? COLORS.darkText : COLORS.bodyText }}>
             {form.dueDate ? formatDate(form.dueDate) : 'Select date'}
           </Text>
         </Pressable>
@@ -421,34 +382,29 @@ const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
       <View style={{ gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <DollarLabelIcon />
-          <Text style={{ fontSize: 14, fontWeight: '500', color: '#364153', lineHeight: 20 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
             Budget Range
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {/* Min — Figma: paddingLeft 32, $ at left:16 absolute */}
-          <View style={{ flex: 1, height: 50, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1.35, borderColor: '#D1D5DC', justifyContent: 'center', overflow: 'hidden' }}>
-            <Text style={{ position: 'absolute', left: 16, fontSize: 16, fontWeight: '400', color: '#6A7282', lineHeight: 24 }}>$</Text>
-            <TextInput
+          <View style={{ flex: 1 }}>
+            <FormField
+              label=""
               value={form.budgetMin}
               onChangeText={(t) => setForm((p) => ({ ...p, budgetMin: t.replace(/[^0-9]/g, '') }))}
               placeholder="Min"
-              placeholderTextColor="rgba(10,10,10,0.5)"
-              style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#0A0A0A', paddingLeft: 32, paddingRight: 16, textAlignVertical: 'center' }}
+              prefix="$"
               keyboardType="numeric"
             />
           </View>
-          {/* Dash: 16/400/#99A1AF */}
-          <Text style={{ fontSize: 16, fontWeight: '400', color: '#99A1AF', lineHeight: 24, paddingHorizontal: 8 }}>–</Text>
-          {/* Max */}
-          <View style={{ flex: 1, height: 50, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1.35, borderColor: '#D1D5DC', justifyContent: 'center', overflow: 'hidden' }}>
-            <Text style={{ position: 'absolute', left: 16, fontSize: 16, fontWeight: '400', color: '#6A7282', lineHeight: 24 }}>$</Text>
-            <TextInput
+          <Text style={{ fontSize: 15, fontWeight: '400', color: COLORS.lightText, lineHeight: 20, paddingHorizontal: 8 }}>–</Text>
+          <View style={{ flex: 1 }}>
+            <FormField
+              label=""
               value={form.budgetMax}
               onChangeText={(t) => setForm((p) => ({ ...p, budgetMax: t.replace(/[^0-9]/g, '') }))}
               placeholder="Max"
-              placeholderTextColor="rgba(10,10,10,0.5)"
-              style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#0A0A0A', paddingLeft: 32, paddingRight: 16, textAlignVertical: 'center' }}
+              prefix="$"
               keyboardType="numeric"
             />
           </View>
@@ -515,38 +471,19 @@ const StepDetails: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
       keyboardShouldPersistTaps="handled"
     >
       {/* ── Description * ── */}
-      <View style={{ gap: 8 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: '#364153', lineHeight: 20 }}>
-          Description <Text style={{ color: '#FB2C36' }}>*</Text>
-        </Text>
-        <View
-          style={{
-            minHeight: 146, paddingHorizontal: 16, paddingVertical: 8,
-            backgroundColor: '#FFFFFF', borderRadius: 14,
-            borderWidth: 1.35,
-            borderColor: showErrors && form.description.trim().length === 0 ? '#FB2C36' : '#D1D5DC',
-            overflow: 'hidden',
-          }}
-        >
-          <TextInput
-            value={form.description}
-            onChangeText={(t) => setForm((p) => ({ ...p, description: t }))}
-            placeholder="Describe the repair or work needed in detail..."
-            placeholderTextColor="rgba(10,10,10,0.5)"
-            style={{ fontSize: 16, fontWeight: '400', color: '#0A0A0A', lineHeight: 24, textAlignVertical: 'top' }}
-            multiline
-          />
-        </View>
-        {showErrors && form.description.trim().length === 0 && (
-          <Text style={{ fontSize: 12, fontWeight: '400', color: '#FB2C36', lineHeight: 16 }}>
-            Description is required
-          </Text>
-        )}
-      </View>
+      <FormField
+        label="Description"
+        value={form.description}
+        onChangeText={(t) => setForm((p) => ({ ...p, description: t }))}
+        placeholder="Describe the repair or work needed in detail..."
+        required
+        multiline
+        error={showErrors && form.description.trim().length === 0 ? 'Description is required' : undefined}
+      />
 
       {/* ── Photos ── */}
       <View style={{ gap: 8 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: '#364153', lineHeight: 20 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
           Photos
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
@@ -562,7 +499,7 @@ const StepDetails: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
 
       {/* ── Trade(s) * ── */}
       <View style={{ gap: 12 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: '#364153', lineHeight: 20 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
           Trade(s) <Text style={{ color: '#FB2C36' }}>*</Text>
         </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -607,34 +544,15 @@ const StepDetails: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
       </View>
 
       {/* ── Bid Window ── */}
-      <View style={{ gap: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <ClockLabelIcon />
-          <Text style={{ fontSize: 14, fontWeight: '500', color: '#364153', lineHeight: 20 }}>
-            Bid Window (hours)
-          </Text>
-        </View>
-        <View
-          style={{
-            height: 50, paddingHorizontal: 16,
-            backgroundColor: '#FFFFFF', borderRadius: 14,
-            borderWidth: 1.35, borderColor: '#D1D5DC',
-            justifyContent: 'center', overflow: 'hidden',
-          }}
-        >
-          <TextInput
-            value={form.bidWindowHours}
-            onChangeText={(t) => setForm((p) => ({ ...p, bidWindowHours: t.replace(/[^0-9]/g, '') }))}
-            placeholder="48"
-            placeholderTextColor="rgba(10,10,10,0.5)"
-            style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#0A0A0A', textAlignVertical: 'center' }}
-            keyboardType="numeric"
-          />
-        </View>
-        <Text style={{ fontSize: 12, fontWeight: '400', color: '#999999', lineHeight: 16 }}>
-          How long pros have to submit bids (default: 48 hours)
-        </Text>
-      </View>
+      <FormField
+        label="Bid Window (hours)"
+        labelIcon={<ClockLabelIcon />}
+        value={form.bidWindowHours}
+        onChangeText={(t) => setForm((p) => ({ ...p, bidWindowHours: t.replace(/[^0-9]/g, '') }))}
+        placeholder="48"
+        keyboardType="numeric"
+        helperText="How long pros have to submit bids (default: 48 hours)"
+      />
 
       {/* ── Invite Toggle — Figma: r16, 1.35px #E5E7EB, p16 ── */}
       <View

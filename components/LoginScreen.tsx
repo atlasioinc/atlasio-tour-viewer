@@ -30,7 +30,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -42,6 +41,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SPACING } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
+import FormField from './FormField';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -121,38 +121,33 @@ export default function LoginScreen() {
           </View>
         ) : (
           <View style={styles.formContainer}>
-            <Text style={styles.inputLabel}>Email address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              placeholderTextColor={COLORS.lightText}
+            <FormField
+              label="Email address"
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
                 setError('');
               }}
+              placeholder="you@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              autoComplete="email"
               editable={!loading}
+              error={error || undefined}
             />
 
             {FEATURE_FLAGS.DEV_SHOW_PASSWORD_LOGIN && (
-              <TextInput
-                style={styles.input}
-                placeholder="Password (dev only)"
-                placeholderTextColor={COLORS.lightText}
+              <FormField
+                label="Password"
                 value={password}
                 onChangeText={setPassword}
+                placeholder="Password (dev only)"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!loading}
               />
             )}
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
@@ -220,23 +215,7 @@ const styles = StyleSheet.create({
   formContainer: {
     gap: SPACING.lg,
   },
-  inputLabel: {
-    ...TYPOGRAPHY.bodyMBold,
-    color: COLORS.darkText,
-  },
-  input: {
-    height: DIMENSIONS.formInputHeight,
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: DIMENSIONS.inputRadius,
-    paddingHorizontal: SPACING.xl,
-    ...TYPOGRAPHY.bodyL,
-    color: COLORS.darkText,
-  },
-  errorText: {
-    ...TYPOGRAPHY.bodyS,
-    color: COLORS.errorRed,
-  },
+  // inputLabel and input styles removed — now handled by FormField (S69)
   button: {
     height: DIMENSIONS.buttonModalHeight,
     backgroundColor: COLORS.primary,

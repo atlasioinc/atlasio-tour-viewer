@@ -20,7 +20,7 @@
 // dismiss alert → useAgentDismissDealAlert mutation (optimistic)
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, Share } from 'react-native';
+import { View, Text, ScrollView, Pressable, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -28,6 +28,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
 import { COLORS, DIMENSIONS, SPACING } from '../lib/tokens';
+import FormField from './FormField';
 import { useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard, useUpdateClosingDetails, useGenerateClientToken } from '../hooks/useData';
 import { PrimaryButton } from './Button';
 import { isMilestoneStale, getRateLockDaysRemaining, RATE_LOCK_DANGER_THRESHOLD_DAYS } from '../features/partners/lib/dealMilestones';
@@ -462,90 +463,35 @@ const AgentDealDetailScreen: React.FC = () => {
           {/* State B — Inline form */}
           {isEditingClosingDetails && (
             <View style={{ gap: SPACING.xl }}>
-              <View>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: SPACING.md }}>
-                  Date & time
-                </Text>
-                <TextInput
-                  value={closingForm.time}
-                  onChangeText={(text) => setClosingForm(prev => ({ ...prev, time: text }))}
-                  placeholder="April 15 at 10:00 AM"
-                  placeholderTextColor={COLORS.bodyText}
-                  style={{
-                    borderWidth: DIMENSIONS.cardBorderWidth,
-                    borderColor: COLORS.border,
-                    borderRadius: DIMENSIONS.inputRadius,
-                    padding: 10,
-                    paddingHorizontal: 12,
-                    fontSize: 14,
-                    color: COLORS.darkText,
-                  }}
-                />
-              </View>
+              {/* @backend rpc_update_closing_details({ p_transaction_id, p_time, p_location, p_bring_list, p_wire_amount }) */}
+              <FormField
+                label="Date & time"
+                value={closingForm.time}
+                onChangeText={(text) => setClosingForm(prev => ({ ...prev, time: text }))}
+                placeholder="April 15 at 10:00 AM"
+              />
 
-              <View>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: SPACING.md }}>
-                  Location
-                </Text>
-                <TextInput
-                  value={closingForm.location}
-                  onChangeText={(text) => setClosingForm(prev => ({ ...prev, location: text }))}
-                  placeholder="Title company address"
-                  placeholderTextColor={COLORS.bodyText}
-                  style={{
-                    borderWidth: DIMENSIONS.cardBorderWidth,
-                    borderColor: COLORS.border,
-                    borderRadius: DIMENSIONS.inputRadius,
-                    padding: 10,
-                    paddingHorizontal: 12,
-                    fontSize: 14,
-                    color: COLORS.darkText,
-                  }}
-                />
-              </View>
+              <FormField
+                label="Location"
+                value={closingForm.location}
+                onChangeText={(text) => setClosingForm(prev => ({ ...prev, location: text }))}
+                placeholder="Title company address"
+              />
 
-              <View>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: SPACING.md }}>
-                  What to bring
-                </Text>
-                <TextInput
-                  value={closingForm.bring_list}
-                  onChangeText={(text) => setClosingForm(prev => ({ ...prev, bring_list: text }))}
-                  placeholder="Government-issued ID, cashier's check or wire confirmation"
-                  placeholderTextColor={COLORS.bodyText}
-                  style={{
-                    borderWidth: DIMENSIONS.cardBorderWidth,
-                    borderColor: COLORS.border,
-                    borderRadius: DIMENSIONS.inputRadius,
-                    padding: 10,
-                    paddingHorizontal: 12,
-                    fontSize: 14,
-                    color: COLORS.darkText,
-                  }}
-                />
-              </View>
+              <FormField
+                label="What to bring"
+                value={closingForm.bring_list}
+                onChangeText={(text) => setClosingForm(prev => ({ ...prev, bring_list: text }))}
+                placeholder="Government-issued ID, cashier's check or wire confirmation"
+              />
 
-              <View>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20, marginBottom: SPACING.md }}>
-                  Wire amount
-                </Text>
-                <TextInput
-                  value={closingForm.wire_amount}
-                  onChangeText={(text) => setClosingForm(prev => ({ ...prev, wire_amount: text }))}
-                  placeholder="$0"
-                  placeholderTextColor={COLORS.bodyText}
-                  keyboardType="numeric"
-                  style={{
-                    borderWidth: DIMENSIONS.cardBorderWidth,
-                    borderColor: COLORS.border,
-                    borderRadius: DIMENSIONS.inputRadius,
-                    padding: 10,
-                    paddingHorizontal: 12,
-                    fontSize: 14,
-                    color: COLORS.darkText,
-                  }}
-                />
-              </View>
+              <FormField
+                label="Wire amount"
+                value={closingForm.wire_amount}
+                onChangeText={(text) => setClosingForm(prev => ({ ...prev, wire_amount: text }))}
+                placeholder="$0"
+                keyboardType="numeric"
+              />
 
               <PrimaryButton
                 label="Save details"

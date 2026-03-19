@@ -1,16 +1,10 @@
-// FormField.tsx
+// What: Reusable labeled text input — single source of truth for all label+input fields
+// Who: All roles (job posting, onboarding, edit flows, verification)
+// Where: Used app-wide — import from components/FormField.tsx
+// Design: Matches Photo/Staging job pattern (S69 standardisation)
+// Token deps: COLORS.inputBackground, COLORS.inputActiveBorder, COLORS.border,
+//             COLORS.darkText, COLORS.bodyText
 // ═══════════════════════════════════════════════════════════════
-// Shared Form Input — Single source of truth for text inputs (163 lines)
-//
-// Matches PostJobWizard pattern:
-//   - Height: 50px (single-line), auto-expand (multiline)
-//   - Border: 1.35px, borderRadius 14, #D1D5DC default / #FB2C36 error
-//   - Background: #FFFFFF
-//   - Label: 14/500/#364153, required asterisk in red
-//   - Placeholder: rgba(10,10,10,0.5)
-//   - Text: 16/400/#0A0A0A
-//   - Error text: 12/400/#FB2C36
-//   - Helper text: 12/400/#999999
 //
 // Usage:
 //   <FormField
@@ -22,11 +16,12 @@
 //     error={errors.jobTitle}
 //   />
 //
-// Screens using this pattern:
-//   PostJobWizard, EditRepairJob, PostPhotoJobScreen,
-//   PostStagingJobScreen, EditProfileScreen
+//   // With prefix (e.g. budget fields):
+//   <FormField label="Min" value={min} onChangeText={setMin} prefix="$" keyboardType="numeric" />
 //
-// TODO: Migrate PostJobWizard and other screens to use this component
+// Screens using this component:
+//   PostJobWizard, EditRepairJob, PostPhotoJobScreen, PostStagingJobScreen,
+//   EditProfileScreen, AgentDealDetailScreen, VerificationScreen, LoginScreen
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';
@@ -52,7 +47,7 @@ export interface FormFieldProps {
   error?: string;
   /** Helper text below the input (e.g., "Helps pros estimate travel time") */
   helperText?: string;
-  /** Enable multiline mode — auto-expands, min 146px height */
+  /** Enable multiline mode — auto-expands, min 80px height */
   multiline?: boolean;
   /** Max character count — shows counter in label row */
   maxLength?: number;
@@ -62,6 +57,14 @@ export interface FormFieldProps {
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   /** Optional icon component to render before label */
   labelIcon?: React.ReactNode;
+  /** Inline prefix rendered before the TextInput (e.g. "$") */
+  prefix?: string;
+  /** Auto-capitalize mode */
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  /** Disable auto-correct */
+  autoCorrect?: boolean;
+  /** Secure text entry (passwords) */
+  secureTextEntry?: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -81,6 +84,10 @@ const FormField: React.FC<FormFieldProps> = ({
   editable = true,
   keyboardType = 'default',
   labelIcon,
+  prefix,
+  autoCapitalize,
+  autoCorrect,
+  secureTextEntry,
 }) => {
   const hasError = !!error;
 
@@ -90,7 +97,7 @@ const FormField: React.FC<FormFieldProps> = ({
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {labelIcon}
-          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 20 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
             {label}
             {required && <Text style={{ color: '#FB2C36' }}> *</Text>}
           </Text>
@@ -112,34 +119,47 @@ const FormField: React.FC<FormFieldProps> = ({
       {/* Input container */}
       <View
         style={{
-          minHeight: multiline ? 146 : 50,
-          paddingHorizontal: 16,
-          paddingVertical: multiline ? 8 : 0,
-          backgroundColor: '#FFFFFF',
-          borderRadius: 14,
-          borderWidth: 1.35,
-          borderColor: hasError ? '#FB2C36' : COLORS.inputBorder,
-          justifyContent: multiline ? 'flex-start' : 'center',
-          overflow: 'hidden',
+          ...(multiline
+            ? { minHeight: 80, paddingVertical: 12 }
+            : { paddingVertical: 12 }),
+          paddingHorizontal: 14,
+          backgroundColor: COLORS.inputBackground,
+          borderRadius: 10,
+          borderWidth: 0.68,
+          borderColor: hasError
+            ? '#FB2C36'
+            : value.length > 0
+              ? COLORS.inputActiveBorder
+              : COLORS.border,
+          ...(prefix ? { flexDirection: 'row' as const, alignItems: 'center' as const } : {}),
         }}
       >
+        {prefix && (
+          <Text style={{ fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20, marginRight: 4 }}>
+            {prefix}
+          </Text>
+        )}
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="rgba(10, 10, 10, 0.5)"
+          placeholderTextColor={COLORS.bodyText}
           style={{
-            flex: multiline ? undefined : 1,
-            fontSize: 16,
+            flex: prefix ? 1 : undefined,
+            fontSize: 15,
             fontWeight: '400',
-            color: editable ? '#0A0A0A' : COLORS.secondaryText,
-            lineHeight: multiline ? 24 : undefined,
-            textAlignVertical: multiline ? 'top' : 'center',
+            color: editable ? COLORS.darkText : COLORS.secondaryText,
+            lineHeight: 20,
+            ...(multiline ? { textAlignVertical: 'top' as const } : {}),
+            ...(prefix ? { paddingVertical: 0 } : {}),
           }}
           multiline={multiline}
           maxLength={maxLength}
           editable={editable}
           keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
+          secureTextEntry={secureTextEntry}
         />
       </View>
 

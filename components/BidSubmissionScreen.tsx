@@ -213,6 +213,8 @@ const BidSubmissionScreen: React.FC = () => {
             <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
               Your Bid Amount
             </Text>
+            {/* @design custom — bid amount input intentionally differs from FormField pattern
+               Large prominent input suits the bid-entry UX context */}
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',

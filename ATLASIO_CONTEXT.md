@@ -629,4 +629,17 @@ Located in `components/shared/index.ts` (barrel export):
 - **Modified:** `components/AgentDealDetailScreen.tsx` — 3 fixes: (1) Closing details empty state replaced plain text link with info card (`backgroundInfo` left-border callout + "+ Add details" primary button). (2) Alert dismiss now optimistic — local `dismissedAlertIds` state hides banner immediately on "Got it" press, mutation fires in background. (3) Closing form pre-fills `time` field with formatted `deal.closing_date` when opening from empty state.
 - **Key decisions:** Shadow consistency across all card types via single `SHADOWS.card` token. No new tokens added. Alert dismiss uses local state (not query cache manipulation) for simplicity.
 - **tsc:** 0
-- **S69 next objectives:** Next.js closing tracker web app, transactions table deployment, live wiring of closing hooks
+- **S69 next objectives:** Input field consistency audit + FormField standardisation
+
+### S69 — Input Field Consistency Audit & Fix (March 19, 2026)
+- **Modified:** `lib/tokens.ts` — Added 2 tokens: `COLORS.inputBackground` (#F9FAFB), `COLORS.inputActiveBorder` (rgba(0,61,195,0.25))
+- **Modified:** `components/FormField.tsx` — Updated to Photo/Staging reference pattern: borderRadius 10, borderWidth 0.68, bg inputBackground, fontSize 15, active blue border on value, added `prefix`, `autoCapitalize`, `autoCorrect`, `secureTextEntry` props
+- **Modified:** `components/PostJobWizard.tsx` — Replaced 5 inline label+TextInput patterns with FormField (Job Title, Address, Description, Budget min/max, Bid Window). Fixed import ordering lint warning.
+- **Modified:** `components/EditRepairJob.tsx` — Replaced 4 inline label+TextInput patterns with FormField (Title, Budget min/max, Description). Due Date kept inline with suffix icon but styled to match.
+- **Modified:** `components/AgentDealDetailScreen.tsx` — Replaced 4 closing detail inline fields with FormField (Date/time, Location, Bring list, Wire amount)
+- **Modified:** `components/VerificationScreen.tsx` — Replaced License Number inline field with FormField. State picker styled to match.
+- **Modified:** `components/LoginScreen.tsx` — Replaced email + password inline fields with FormField. Removed unused StyleSheet styles.
+- **Modified:** `components/BidSubmissionScreen.tsx` — Added @design custom comment (intentionally excluded from FormField migration)
+- **Key decisions:** Photo/Staging pattern selected as gold standard (Option A). FormField.tsx is the single source of truth for all label+input fields. BidSubmissionScreen intentionally excluded (custom bid-entry UX). 2 new COLORS tokens added. 5 screens migrated.
+- **tsc:** 0
+- **S70 next objectives:** Next.js closing tracker web app, transactions table deployment, live wiring of closing hooks

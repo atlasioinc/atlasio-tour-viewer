@@ -37,6 +37,7 @@ import * as ImagePicker from 'expo-image-picker';
 import type { HomeStackParamList } from './HomeStack';
 import type { Job, BidWithProfile } from '../types';
 import { COLORS } from '../lib/tokens';
+import FormField from './FormField';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS (from Figma)
@@ -331,31 +332,12 @@ const EditRepairJob: React.FC = () => {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Job Title ── */}
-          <View style={{ gap: 8 }}>
-            {/* Label: 14px, 500, #364153 */}
-            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 20 }}>
-              Job Title
-            </Text>
-            <View
-              style={{
-                height: 49,
-                paddingHorizontal: 16,
-                backgroundColor: COLORS.background,
-                borderRadius: 14,
-                borderWidth: 0.68,
-                borderColor: COLORS.inputBorder,
-                justifyContent: 'center',
-              }}
-            >
-              <TextInput
-                value={jobTitle}
-                onChangeText={setJobTitle}
-                placeholder="Enter job title"
-                placeholderTextColor={COLORS.placeholderText}
-                style={{ fontSize: 16, fontWeight: '400', color: COLORS.bodyText }}
-              />
-            </View>
-          </View>
+          <FormField
+            label="Job Title"
+            value={jobTitle}
+            onChangeText={setJobTitle}
+            placeholder="Enter job title"
+          />
 
           {/* ── Trade(s) Picker ── */}
           <View style={{ gap: 12 }}>
@@ -395,7 +377,7 @@ const EditRepairJob: React.FC = () => {
 
           {/* ── Due Date ── */}
           <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 20 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
               Due Date
             </Text>
             {/* Show urgent pill if date is soon */}
@@ -408,12 +390,12 @@ const EditRepairJob: React.FC = () => {
             )}
             <View
               style={{
-                height: 49,
-                paddingHorizontal: 16,
-                backgroundColor: COLORS.background,
-                borderRadius: 14,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                backgroundColor: COLORS.inputBackground,
+                borderRadius: 10,
                 borderWidth: 0.68,
-                borderColor: COLORS.inputBorder,
+                borderColor: dueDate.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
                 flexDirection: 'row',
                 alignItems: 'center',
               }}
@@ -422,8 +404,8 @@ const EditRepairJob: React.FC = () => {
                 value={dueDate}
                 onChangeText={setDueDate}
                 placeholder="MM/DD/YYYY"
-                placeholderTextColor={COLORS.placeholderText}
-                style={{ flex: 1, fontSize: 16, fontWeight: '400', color: COLORS.bodyText }}
+                placeholderTextColor={COLORS.bodyText}
+                style={{ flex: 1, fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20 }}
                 keyboardType="numbers-and-punctuation"
               />
               <CalendarIcon />
@@ -432,62 +414,28 @@ const EditRepairJob: React.FC = () => {
 
           {/* ── Budget (Min – Max) ── */}
           <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 20 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
               Budget
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 0 }}>
-              {/* Min field */}
-              <View
-                style={{
-                  flex: 1,
-                  height: 49,
-                  paddingLeft: 16,
-                  paddingRight: 16,
-                  backgroundColor: COLORS.background,
-                  borderRadius: 14,
-                  borderWidth: 0.68,
-                  borderColor: COLORS.inputBorder,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                {/* $ prefix: 16px, 400, #4A5565 */}
-                <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.bodyText, lineHeight: 24, marginRight: 4 }}>$</Text>
-                <TextInput
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <FormField
+                  label=""
                   value={budgetMin}
                   onChangeText={setBudgetMin}
                   placeholder="800"
-                  placeholderTextColor={COLORS.placeholderText}
-                  style={{ flex: 1, fontSize: 16, fontWeight: '400', color: COLORS.bodyText }}
+                  prefix="$"
                   keyboardType="numeric"
                 />
               </View>
-
-              {/* Dash separator: #99A1AF */}
-              <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.lightText, lineHeight: 24, paddingHorizontal: 8 }}>–</Text>
-
-              {/* Max field */}
-              <View
-                style={{
-                  flex: 1,
-                  height: 49,
-                  paddingLeft: 16,
-                  paddingRight: 16,
-                  backgroundColor: COLORS.background,
-                  borderRadius: 14,
-                  borderWidth: 0.68,
-                  borderColor: COLORS.inputBorder,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.bodyText, lineHeight: 24, marginRight: 4 }}>$</Text>
-                <TextInput
+              <Text style={{ fontSize: 15, fontWeight: '400', color: COLORS.lightText, lineHeight: 20, paddingHorizontal: 8 }}>–</Text>
+              <View style={{ flex: 1 }}>
+                <FormField
+                  label=""
                   value={budgetMax}
                   onChangeText={setBudgetMax}
                   placeholder="1,500"
-                  placeholderTextColor={COLORS.placeholderText}
-                  style={{ flex: 1, fontSize: 16, fontWeight: '400', color: COLORS.bodyText }}
+                  prefix="$"
                   keyboardType="numeric"
                 />
               </View>
@@ -495,35 +443,17 @@ const EditRepairJob: React.FC = () => {
           </View>
 
           {/* ── Description ── */}
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 20 }}>
-              Description
-            </Text>
-            <View
-              style={{
-                minHeight: 217,
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-                backgroundColor: COLORS.background,
-                borderRadius: 14,
-                borderWidth: 0.68,
-                borderColor: COLORS.inputBorder,
-              }}
-            >
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Describe the work needed..."
-                placeholderTextColor={COLORS.placeholderText}
-                style={{ fontSize: 16, fontWeight: '400', color: COLORS.bodyText, lineHeight: 24, textAlignVertical: 'top' }}
-                multiline
-              />
-            </View>
-          </View>
+          <FormField
+            label="Description"
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Describe the work needed..."
+            multiline
+          />
 
           {/* ── Photos ── */}
           <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 20 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
               Photos
             </Text>
             {/* Horizontal scroll of photo thumbnails + add button */}
