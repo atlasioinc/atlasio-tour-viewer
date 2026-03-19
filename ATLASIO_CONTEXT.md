@@ -257,7 +257,7 @@ export const LIVE_NEIGHBORHOOD_HOOKS = false; // false = mock data, true = live 
 HomeTabAgent → "Client Tools" section → "Neighborhood Match" card → ClientLifestyleScreen (fullScreenModal) → NeighborhoodMatchScreen (fullScreenModal, slide_from_bottom) → "Compare Addresses" CTA → AddressComparisonScreen (fullScreenModal) → CategoryMapScreen (fullScreenModal)
 
 ### Entry Point
-Both `HomeTabAgent.tsx` and `HomeTabAgentFilled.tsx` have a "Client Tools" section with a `ClientToolCard` component between Closing Squad and Quick Actions sections.
+`HomeTabAgent.tsx` has a "Client Tools" section with a `ClientToolCard` component between Closing Squad and Quick Actions sections.
 
 ### 16 Lifestyle Categories (S61: was 9)
 **Existing (9):** `coffee`, `yoga`, `parks`, `walkability`, `gym`, `grocery`, `transit`, `bike`, `air_quality`
@@ -586,7 +586,7 @@ Located in `components/shared/index.ts` (barrel export):
 - **Modified:** `components/HomeStack.tsx` — Registered `AgentDealDetail` route with `{ jobId: string }` params
 - **Modified:** `components/FindTab.tsx` — Added `accepting_clients` field to ProCard interface + "At Capacity" ghost badge via DisplayTag when `accepting_clients === false`
 - **Modified:** `lib/featureFlags.ts` — Reset all flags to demo defaults
-- **Key decisions:** Active Deals section renders conditionally (hidden when no deals). Status dot priority: red (alerts) > amber (stale) > green (on track) > gray (no milestones). Milestone rows are View not Pressable (read-only). All hooks use job_id as anchor (migrate to transaction_id in S64). Vouch feed inlined from HomeTabAgentFilled (replaces VouchFeedSection import).
+- **Key decisions:** Active Deals section renders conditionally (hidden when no deals). Status dot priority: red (alerts) > amber (stale) > green (on track) > gray (no milestones). Milestone rows are View not Pressable (read-only). All hooks use job_id as anchor (migrate to transaction_id in S64). Vouch feed: VouchFeedSection component restored in S67 with ProProfile navigation (replaces S63 inline feed that lacked tap handlers).
 - **Hooks:** 67 (+3) | **Screens:** +1 (AgentDealDetailScreen) | **tsc:** 0
 - **S64 next objectives:** transactions table, rpc_create_transaction, Deal Creation sheet, transaction_id migration for deal_milestones + deal_alerts
 
@@ -618,4 +618,5 @@ Located in `components/shared/index.ts` (barrel export):
 - **Updated:** `ATLASIO_CONTEXT.md` — Edge Functions 10 → 11.
 - **Edge Functions:** 11 (+1: send-closing-update) | **Hooks:** 72 (unchanged)
 - **Dashboard config required:** Database → Webhooks → `send-closing-update` on `deal_milestones` (INSERT, UPDATE) → Edge Function target
+- **Bug fix:** Restored `VouchFeedSection` component in `HomeTabAgent.tsx` — S63 merge had kept old inline vouch feed without tap handlers. Now uses `VouchFeedSection` with `onNavigateToProfile` → `navigation.push('ProProfile', { profileId })`. Removed 187 lines of dead inline vouch code (VouchCard interface, VOUCH_FEED array, AvatarPlaceholder, ThumbUpIcon).
 - **S68 next objectives:** Next.js closing tracker web app, transactions table deployment, live wiring of closing hooks

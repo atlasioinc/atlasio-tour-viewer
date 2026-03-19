@@ -37,7 +37,7 @@ import {
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS } from '../lib/tokens';
+import { COLORS, SHADOWS } from '../lib/tokens';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // ─────────────────────────────────────────────
@@ -245,12 +245,7 @@ const QuickActionsRow: React.FC = () => {
               backgroundColor: COLORS.background,
               borderWidth: 0.68,
               borderColor: '#F3F4F6',
-              // Shadows — matches card standard
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 3,
-              elevation: 2,
+              ...SHADOWS.card,
               opacity: pressed ? 0.85 : 1,
             })}
           >

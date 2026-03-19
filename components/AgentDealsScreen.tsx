@@ -24,7 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
-import { COLORS, DIMENSIONS, TYPOGRAPHY } from '../lib/tokens';
+import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { useAgentDeals } from '../hooks/useData';
 import { getSlotStatusDot, isMilestoneStale } from '../features/partners/lib/dealMilestones';
 import type { AgentActiveDeal, AgentDealPartner } from '../features/partners/types/partner.types';
@@ -249,6 +249,7 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onPress }) => {
         borderColor: COLORS.cardBorder,
         backgroundColor: COLORS.background,
         marginBottom: 10,
+        ...SHADOWS.card,
         overflow: 'hidden',
         opacity: pressed ? 0.9 : 1,
       })}

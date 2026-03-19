@@ -44,7 +44,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { MOCK_REPAIR_JOBS, ACTIVE_REPAIR_JOBS } from './RepairJobsData';
 import RepairCard from './RepairCard';
-import { COLORS } from '../lib/tokens';
+import { COLORS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { useAgentJobs, useMyProfile, useAgentActiveDeals } from '../hooks/useData';
@@ -1031,6 +1031,7 @@ const HomeTabAgent: React.FC = () => {
                       width: 180,
                       borderRadius: 14, borderWidth: 0.68, borderColor: COLORS.cardBorder,
                       backgroundColor: COLORS.background, padding: 12,
+                      ...SHADOWS.card,
                       opacity: pressed ? 0.9 : 1,
                     })}
                   >

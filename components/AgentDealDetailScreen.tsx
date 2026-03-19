@@ -111,6 +111,7 @@ const AgentDealDetailScreen: React.FC = () => {
   const { data: allDeals } = useAgentActiveDeals();
   const deal = allDeals?.find(d => d.job_id === jobId);
   const dismissAlert = useAgentDismissDealAlert();
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>([]);
 
   // ── Share button ──
   // @demo Uses mock transaction_id — wire to real deal.transaction_id when DEAL_CREATION_ENABLED=true
@@ -143,6 +144,22 @@ const AgentDealDetailScreen: React.FC = () => {
     bring_list: 'Government-issued ID, cashier\'s check or wire confirmation',
     wire_amount: '',
   });
+
+  const handleOpenClosingForm = () => {
+    // Fix 4: Pre-fill time with closing_date if form time is empty
+    const formattedDate = deal?.closing_date
+      ? new Date(deal.closing_date).toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      : '';
+    setClosingForm(prev => ({
+      ...prev,
+      time: prev.time || formattedDate,
+    }));
+    setIsEditingClosingDetails(true);
+  };
 
   const handleSaveClosingDetails = () => {
     // @demo Mock save — wire to real transaction_id when DEAL_CREATION_ENABLED=true
@@ -260,7 +277,7 @@ const AgentDealDetailScreen: React.FC = () => {
                 </View>
 
                 {/* ── 2. Alert Banners (undismissed only) ── */}
-                {partner.alerts.filter(a => !a.dismissed_at).map(alert => {
+                {partner.alerts.filter(a => !a.dismissed_at && !dismissedAlertIds.includes(a.id)).map(alert => {
                   const isRateLock = alert.alert_type === 'rate_lock_expiry';
                   const rl = isRateLock ? getRateLockDaysRemaining(alert.expires_at) : null;
                   const isDanger = rl !== null && rl <= RATE_LOCK_DANGER_THRESHOLD_DAYS;
@@ -284,7 +301,10 @@ const AgentDealDetailScreen: React.FC = () => {
                         {alert.message}
                       </Text>
                       <Pressable
-                        onPress={() => dismissAlert.mutate({ alertId: alert.id, jobId: deal.job_id })}
+                        onPress={() => {
+                          setDismissedAlertIds(prev => [...prev, alert.id]);
+                          dismissAlert.mutate({ alertId: alert.id, jobId: deal.job_id });
+                        }}
                         style={{ height: 36, paddingHorizontal: 12, justifyContent: 'center' }}
                       >
                         <Text style={{ fontSize: 14, fontWeight: '500', color: textColor }}>Got it</Text>
@@ -404,15 +424,39 @@ const AgentDealDetailScreen: React.FC = () => {
           </View>
 
           {/* State A — Empty */}
+          {/* @demo Empty state — replace with populated state when closing_details is set */}
+          {/* @backend Visible until agent saves closing details via useUpdateClosingDetails */}
           {!closingDetails && !isEditingClosingDetails && (
-            <Pressable
-              onPress={() => setIsEditingClosingDetails(true)}
-              style={{ width: '100%', height: 44, justifyContent: 'center' }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>
-                Add details for your client
+            <View style={{
+              backgroundColor: COLORS.backgroundInfo,
+              borderLeftWidth: 3,
+              borderLeftColor: COLORS.primary,
+              borderRadius: 0,
+              borderTopRightRadius: 10,
+              borderBottomRightRadius: 10,
+              padding: 12,
+              paddingLeft: 14,
+            }}>
+              <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.primary, marginBottom: 3 }}>
+                Your client will see this
               </Text>
-            </Pressable>
+              <Text style={{ fontSize: 12, color: COLORS.primary, lineHeight: 17, marginBottom: 10 }}>
+                Add time, location, and what to bring. Shown on their Client Tracker page.
+              </Text>
+              <Pressable
+                onPress={handleOpenClosingForm}
+                style={({ pressed }) => ({
+                  backgroundColor: COLORS.primary,
+                  borderRadius: 8,
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  alignSelf: 'flex-start',
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.background }}>+ Add details</Text>
+              </Pressable>
+            </View>
           )}
 
           {/* State B — Inline form */}
