@@ -24,7 +24,7 @@
 //   EditProfileScreen, AgentDealDetailScreen, VerificationScreen, LoginScreen
 // ═══════════════════════════════════════════════════════════════
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { COLORS } from '../lib/tokens';
 
@@ -89,6 +89,7 @@ const FormField: React.FC<FormFieldProps> = ({
   autoCorrect,
   secureTextEntry,
 }) => {
+  const [isFocused, setIsFocused] = useState(false);
   const hasError = !!error;
 
   return (
@@ -128,7 +129,7 @@ const FormField: React.FC<FormFieldProps> = ({
           borderWidth: 0.68,
           borderColor: hasError
             ? '#FB2C36'
-            : value.length > 0
+            : (isFocused || value.length > 0)
               ? COLORS.inputActiveBorder
               : COLORS.border,
           ...(prefix ? { flexDirection: 'row' as const, alignItems: 'center' as const } : {}),
@@ -153,6 +154,8 @@ const FormField: React.FC<FormFieldProps> = ({
             ...(multiline ? { textAlignVertical: 'top' as const } : {}),
             ...(prefix ? { paddingVertical: 0 } : {}),
           }}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           multiline={multiline}
           maxLength={maxLength}
           editable={editable}
