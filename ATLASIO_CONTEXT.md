@@ -620,3 +620,13 @@ Located in `components/shared/index.ts` (barrel export):
 - **Dashboard config required:** Database → Webhooks → `send-closing-update` on `deal_milestones` (INSERT, UPDATE) → Edge Function target
 - **Bug fix:** Restored `VouchFeedSection` component in `HomeTabAgent.tsx` — S63 merge had kept old inline vouch feed without tap handlers. Now uses `VouchFeedSection` with `onNavigateToProfile` → `navigation.push('ProProfile', { profileId })`. Removed 187 lines of dead inline vouch code (VouchCard interface, VOUCH_FEED array, AvatarPlaceholder, ThumbUpIcon).
 - **S68 next objectives:** Next.js closing tracker web app, transactions table deployment, live wiring of closing hooks
+
+### S68 — Deal Screen Polish (March 18, 2026)
+- **Modified:** `lib/tokens.ts` — no changes (SHADOWS.card already existed with correct values)
+- **Modified:** `components/HomeTabAgent.tsx` — Applied `SHADOWS.card` to Active Deals horizontal scroll cards. Imported `SHADOWS` from tokens.
+- **Modified:** `components/AgentDealsScreen.tsx` — Applied `SHADOWS.card` to full-width DealCard. Imported `SHADOWS` from tokens.
+- **Modified:** `components/QuickActionsRow.tsx` — Replaced inline shadow (5 lines) with `...SHADOWS.card` token spread. Imported `SHADOWS` from tokens.
+- **Modified:** `components/AgentDealDetailScreen.tsx` — 3 fixes: (1) Closing details empty state replaced plain text link with info card (`backgroundInfo` left-border callout + "+ Add details" primary button). (2) Alert dismiss now optimistic — local `dismissedAlertIds` state hides banner immediately on "Got it" press, mutation fires in background. (3) Closing form pre-fills `time` field with formatted `deal.closing_date` when opening from empty state.
+- **Key decisions:** Shadow consistency across all card types via single `SHADOWS.card` token. No new tokens added. Alert dismiss uses local state (not query cache manipulation) for simplicity.
+- **tsc:** 0
+- **S69 next objectives:** Next.js closing tracker web app, transactions table deployment, live wiring of closing hooks
