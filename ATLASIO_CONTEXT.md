@@ -31,12 +31,12 @@
 
 ---
 
-## Current Metrics (updated S65 — March 18, 2026)
-- **RPCs:** 41
-- **Hooks:** 72 (+2 S65: useGenerateClientToken, useUpdateClosingDetails)
+## Current Metrics (updated S65 — March 19, 2026)
+- **RPCs:** 48
+- **Hooks:** 73 (+2 S65: useGenerateClientToken, useUpdateClosingDetails)
 - **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` + `DEAL_CREATION_ENABLED` in lib/config.ts
-- **Edge Functions:** 10
-- **Storage Buckets:** 6
+- **Edge Functions:** 11
+- **Storage Buckets:** 7
 - **Screens:** +1 S63 (AgentDealDetailScreen), +1 S64b (DealCreationSheet — bottom sheet modal)
 - **COLORS tokens:** 120
 - **Lifestyle Categories:** 16
