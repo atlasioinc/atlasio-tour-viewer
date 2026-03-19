@@ -28,7 +28,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
-import { COLORS, SPACING, DIMENSIONS } from '../../../lib/tokens';
+import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../../../lib/tokens';
 import ActiveDealCard from './ActiveDealCard';
 import {
   usePartnerNeedsAttention,
@@ -304,6 +304,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                         borderColor: COLORS.cardBorder,
                         backgroundColor: COLORS.background,
                         marginRight: SPACING.lg,
+                        ...SHADOWS.card,
                       }}
                     >
                       {/* Avatar initials */}
@@ -374,6 +375,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                       borderLeftColor: COLORS.primary,
                       backgroundColor: COLORS.background,
                       marginRight: SPACING.lg,
+                      ...SHADOWS.card,
                     }}
                   >
                     {/* Property address */}
@@ -391,7 +393,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                         backgroundColor: item.agent_avatar_color,
                         alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#FFFFFF' }}>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: COLORS.background }}>
                           {item.agent_name.charAt(0)}
                         </Text>
                       </View>

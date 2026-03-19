@@ -528,3 +528,69 @@ This is the handoff contract for future engineers.
 - Feature flags reset to demo defaults
 - Both role visual checks passed (switch userRole, verify render)
 - App.tsx returned to default userRole='Agent' after testing
+
+---
+
+## gstack — Virtual Engineering Team
+
+gstack is installed globally at ~/.claude/skills/gstack.
+Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__* tools.
+Bun is installed at ~/.bun/bin/bun (v1.3.11) — required for /browse and /qa.
+If skills aren't working: cd ~/.claude/skills/gstack && ./setup
+
+### Available Skills
+- /office-hours — Reframe any feature before writing code
+- /plan-ceo-review — Business + scope challenge on any feature idea
+- /plan-eng-review — Architecture, RPCs, edge cases, test matrix
+- /plan-design-review — Design system audit, 0–10 ratings, AI slop detection
+- /review — Staff engineer bug review (run BEFORE every commit, after tsc 0)
+- /investigate — Root-cause debugger. No fixes without investigation first
+- /design-review — Design audit + inline fixes with before/after screenshots
+- /qa — Real browser click-through testing (use before every investor demo)
+- /qa-only — Bug report only, no code changes
+- /ship — Replaces manual `git push origin main` (tests → push → PR)
+- /document-release — Auto-updates CLAUDE.md + docs after every session
+- /retro — Weekly commit/LOC stats across all Atlasio repos
+- /codex — OpenAI second opinion on any diff
+- /careful — Warns before destructive commands (DROP TABLE, rm -rf, force-push)
+- /guard — /careful + /freeze combined. Use for all Supabase SQL sessions
+- /freeze — Lock edits to one directory (use when debugging a single screen)
+- /unfreeze — Remove freeze boundary
+- /gstack-upgrade — Upgrade gstack to latest
+
+### Atlasio-Specific gstack Workflow Rules
+
+**Pre-commit gate (run in this order — all must pass):**
+1. `npx tsc --noEmit` — 0 errors required (existing hard gate)
+2. `npx expo lint` — clean required (existing hard gate)
+3. `/review` — staff engineer audit before any commit (NEW via gstack)
+
+**Session end protocol (run ALL steps):**
+1. Reset all feature flags to demo defaults in lib/featureFlags.ts
+2. `npx tsc --noEmit` — confirm 0 errors
+3. `/review` — final bug check
+4. `/ship` — replaces `git push origin main` (handles tests → push → PR)
+5. Log session in Notion (Build Log, Deployment Tracker, User Flows, Component Inventory, Live Build State)
+6. `/document-release` — auto-updates ATLASIO_CONTEXT.md + CLAUDE.md drift (NEW via gstack)
+7. Auto-generate next session context prompt as markdown to /mnt/user-data/outputs/
+
+**Pre-investor demo safety check:**
+- `/qa` — real browser click-through of full demo flow
+- Confirm all flags are at demo defaults (PARTNER_TRACK_ENABLED=true, DEAL_CREATION_ENABLED=true for investor demo)
+- Run on staging/Expo Go before every Matthew meeting
+
+**When to use which skill:**
+- Starting a new feature → /office-hours first, then /plan-ceo-review
+- Before any backend session → /plan-eng-review (architecture + RPC design)
+- After implementing screens → /plan-design-review (token compliance, spacing)
+- Before every commit → /review (catches what tsc misses)
+- Debugging a hard bug → /investigate (freeze to the affected module first)
+- Before investor demo → /qa (full click-through on real browser)
+- End of every session → /ship then /document-release
+- Weekly → /retro (check LOC + commit health across atlasio-demo + atlasio-closing)
+
+**Safety rules for Atlasio:**
+- Always use /guard for any Supabase SQL Editor session (prevents accidental DROP)
+- Always use /careful before any Edge Function deployment
+- /freeze to a single screen directory when debugging layout or token issues
+- Never run /ship if tsc has errors — fix first, then /ship

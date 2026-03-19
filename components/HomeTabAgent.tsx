@@ -390,7 +390,7 @@ const ClientToolCard = ({ icon, title, subtitle, onPress }: ClientToolCardProps)
       <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, marginBottom: 2 }}>
         {title}
       </Text>
-      <Text style={{ fontSize: 13, color: COLORS.secondaryText, lineHeight: 18 }}>
+      <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20 }}>
         {subtitle}
       </Text>
     </View>
@@ -1058,7 +1058,7 @@ const HomeTabAgent: React.FC = () => {
                               backgroundColor: partner.partner_avatar_color,
                               alignItems: 'center', justifyContent: 'center',
                             }}>
-                              <Text style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>
+                              <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.background }}>
                                 {partner.partner_name.charAt(0)}
                               </Text>
                             </View>

@@ -255,7 +255,7 @@ const AgentDealDetailScreen: React.FC = () => {
                     backgroundColor: partner.partner_avatar_color,
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>
                       {partner.partner_name.charAt(0)}
                     </Text>
                   </View>
@@ -438,10 +438,10 @@ const AgentDealDetailScreen: React.FC = () => {
               padding: 12,
               paddingLeft: 14,
             }}>
-              <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.primary, marginBottom: 3 }}>
+              <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.infoText, marginBottom: 3 }}>
                 Your client will see this
               </Text>
-              <Text style={{ fontSize: 12, color: COLORS.primary, lineHeight: 17, marginBottom: 10 }}>
+              <Text style={{ fontSize: 12, color: COLORS.infoText, lineHeight: 17, marginBottom: 10 }}>
                 Add time, location, and what to bring. Shown on their Client Tracker page.
               </Text>
               <Pressable

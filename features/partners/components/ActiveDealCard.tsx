@@ -21,7 +21,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { COLORS, DIMENSIONS, SPACING } from '../../../lib/tokens';
+import { COLORS, DIMENSIONS, SPACING, SHADOWS } from '../../../lib/tokens';
 import { getRateLockDaysRemaining, RATE_LOCK_DANGER_THRESHOLD_DAYS } from '../lib/dealMilestones';
 import { ALERT_TYPES_BY_ROLE } from '../lib/dealMilestones';
 import type { PartnerActiveDeal, PartnerRole, MilestoneStatus, AlertType, AlertTypeConfig } from '../types/partner.types';
@@ -162,6 +162,7 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
         backgroundColor: COLORS.background,
         marginBottom: SPACING.lg,
         overflow: 'hidden',
+        ...SHADOWS.card,
       }}
     >
       {/* ── Card Header ── */}

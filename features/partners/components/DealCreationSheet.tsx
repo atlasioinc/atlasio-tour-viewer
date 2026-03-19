@@ -36,7 +36,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '../../../lib/tokens';
+import { COLORS, SHADOWS } from '../../../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../../../lib/config';
 import { useCreateTransaction } from '../../../hooks/useData';
 
@@ -63,7 +63,7 @@ const CheckIcon: React.FC<{ checked: boolean }> = ({ checked }) => (
   }}>
     {checked && (
       <Svg width={14} height={14} viewBox="0 0 14 14" fill="none">
-        <Path d="M3 7L6 10L11 4" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        <Path d="M3 7L6 10L11 4" stroke={COLORS.background} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       </Svg>
     )}
   </View>
@@ -334,7 +334,7 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
           <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 4 }}>
             <View style={{
               width: 36, height: 4, borderRadius: 2,
-              backgroundColor: '#D1D5DC',
+              backgroundColor: COLORS.inputBorder,
             }} />
           </View>
 
@@ -386,9 +386,9 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
                   placeholder="Search address..."
                   placeholderTextColor={COLORS.bodyText}
                   style={{
-                    backgroundColor: '#F9FAFB',
+                    backgroundColor: COLORS.inputBackground,
                     borderWidth: 0.68,
-                    borderColor: addressText.length > 0 ? 'rgba(0, 61, 195, 0.25)' : '#E5E7EB',
+                    borderColor: addressText.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
                     borderRadius: 10,
                     paddingHorizontal: 14,
                     paddingVertical: 12,
@@ -402,8 +402,7 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
                     position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
                     backgroundColor: COLORS.background,
                     borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
-                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
+                    ...SHADOWS.card,
                   }}>
                     {suggestions.map((s) => (
                       <Pressable
@@ -435,9 +434,9 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
                 placeholderTextColor={COLORS.bodyText}
                 keyboardType="numbers-and-punctuation"
                 style={{
-                  backgroundColor: '#F9FAFB',
+                  backgroundColor: COLORS.inputBackground,
                   borderWidth: 0.68,
-                  borderColor: closingDate.length > 0 ? 'rgba(0, 61, 195, 0.25)' : '#E5E7EB',
+                  borderColor: closingDate.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
                   borderRadius: 10,
                   paddingHorizontal: 14,
                   paddingVertical: 12,
@@ -470,7 +469,7 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
                       backgroundColor: partner.avatar_color,
                       alignItems: 'center', justifyContent: 'center',
                     }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.background }}>
                         {partner.name.charAt(0)}
                       </Text>
                     </View>
@@ -480,7 +479,7 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
                       <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
                         {partner.name}
                       </Text>
-                      <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText }}>
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
                         {ROLE_LABELS[partner.role] ?? partner.role}
                       </Text>
                     </View>
@@ -510,9 +509,9 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
                 placeholderTextColor={COLORS.bodyText}
                 keyboardType="numeric"
                 style={{
-                  backgroundColor: '#F9FAFB',
+                  backgroundColor: COLORS.inputBackground,
                   borderWidth: 0.68,
-                  borderColor: contractPrice.length > 0 ? 'rgba(0, 61, 195, 0.25)' : '#E5E7EB',
+                  borderColor: contractPrice.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
                   borderRadius: 10,
                   paddingHorizontal: 14,
                   paddingVertical: 12,
@@ -535,15 +534,15 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
               disabled={!isFormValid || createTransaction.isPending}
               style={({ pressed }) => ({
                 height: 48, borderRadius: 10,
-                backgroundColor: isFormValid ? COLORS.primary : '#A0AEC0',
+                backgroundColor: isFormValid ? COLORS.primary : COLORS.disabledBg,
                 alignItems: 'center', justifyContent: 'center',
                 opacity: pressed ? 0.9 : 1,
               })}
             >
               {createTransaction.isPending ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={COLORS.background} />
               ) : (
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF', lineHeight: 20 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background, lineHeight: 20 }}>
                   Create Deal
                 </Text>
               )}
