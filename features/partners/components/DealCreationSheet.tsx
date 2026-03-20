@@ -1,9 +1,9 @@
 // DealCreationSheet.tsx
 // ═══════════════════════════════════════════════════════════════
-// Deal Creation — Bottom Sheet Modal
-// Who: Agent role — creates a new transaction and invites partners
-// Where: Rendered in HomeTabAgent, opened via "New Deal +" CTA
-// Gated behind DEAL_CREATION_ENABLED flag
+// What: New Deal creation form — agent creates a transaction and assigns partners
+// Who: Agent role only
+// Where: HomeStack → DealCreation (fullScreenModal, slide_from_bottom)
+// Gated behind DEAL_CREATION_ENABLED flag (in HomeTabAgent)
 //
 // 4 fields:
 //   1. Property address (Google Places Autocomplete)
@@ -12,8 +12,8 @@
 //   4. Contract price (optional, numeric)
 //
 // State flow:
-//   visible → animate in → fill fields → Create Deal → mutation →
-//   success → dismiss sheet → invalidate agent_active_deals
+//   navigate → fill fields → Create Deal → mutation →
+//   success → goBack → invalidate agent_active_deals
 //
 // @demo All partner data is hardcoded mock — replace with usePartnerConnections()
 // @backend rpc_create_transaction — entry point for deal creation
@@ -27,20 +27,17 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Modal,
-  Dimensions,
-  Animated,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SHADOWS } from '../../../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../../../lib/config';
 import { useCreateTransaction } from '../../../hooks/useData';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -48,8 +45,8 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const CloseIcon: React.FC = () => (
   <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Path d="M5 5L15 15" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" />
-    <Path d="M15 5L5 15" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" />
+    <Path d="M5 5L15 15" stroke={COLORS.secondaryText} strokeWidth={1.67} strokeLinecap="round" />
+    <Path d="M15 5L5 15" stroke={COLORS.secondaryText} strokeWidth={1.67} strokeLinecap="round" />
   </Svg>
 );
 
@@ -122,19 +119,9 @@ interface PlaceSuggestion {
 // COMPONENT
 // ─────────────────────────────────────────────
 
-interface DealCreationSheetProps {
-  visible: boolean;
-  onClose: () => void;
-}
-
-export default function DealCreationSheet({ visible, onClose }: DealCreationSheetProps) {
-  const insets = useSafeAreaInsets();
+export default function DealCreationSheet() {
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const createTransaction = useCreateTransaction();
-
-  // ── Animation state ──
-  const [modalMounted, setModalMounted] = useState(false);
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   // ── Form state ──
   const [addressText, setAddressText] = useState('');
@@ -149,41 +136,8 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Animation — open/close ──
-  useEffect(() => {
-    if (visible) {
-      setModalMounted(true);
-      Animated.parallel([
-        Animated.timing(backdropAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          damping: 24,
-          stiffness: 220,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else if (modalMounted) {
-      Animated.parallel([
-        Animated.timing(backdropAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: SCREEN_HEIGHT,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setModalMounted(false));
-    }
-  }, [visible]);
-
-  // ── Reset form on close ──
-  const handleClose = useCallback(() => {
+  // ── Dismiss — reset form and navigate back ──
+  const handleDismiss = useCallback(() => {
     setAddressText('');
     setSelectedAddress('');
     setClosingDate('');
@@ -191,8 +145,8 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
     setSelectedPartnerIds([]);
     setSuggestions([]);
     setShowAutocomplete(false);
-    onClose();
-  }, [onClose]);
+    navigation.goBack();
+  }, [navigation]);
 
   // ── Google Places Autocomplete (reused from ClientLifestyleScreen) ──
   const fetchAutocompleteSuggestions = async (input: string) => {
@@ -280,7 +234,7 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
       partnerAssignments,
     });
 
-    handleClose();
+    handleDismiss();
   };
 
   // ── Cleanup autocomplete timer ──
@@ -291,264 +245,222 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
   }, []);
 
   return (
-    <Modal
-      visible={modalMounted}
-      transparent
-      animationType="none"
-      onRequestClose={handleClose}
-    >
-      {/* Backdrop — fades in/out */}
-      <Animated.View
-        style={{
-          ...({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const),
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          opacity: backdropAnim,
-        }}
-      >
-        <Pressable onPress={handleClose} style={{ flex: 1 }} />
-      </Animated.View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
 
-      {/* Sheet — slides up from bottom */}
-      <Animated.View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: SCREEN_HEIGHT * 0.75,
-          transform: [{ translateY: slideAnim }],
-        }}
-      >
-        {/* Prevents tap-through */}
+      {/* ── Header — fullScreenModal standard ── */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 48,
+        paddingHorizontal: 8,
+        backgroundColor: COLORS.background,
+        borderBottomWidth: 0.68,
+        borderBottomColor: COLORS.border,
+      }}>
+        <View style={{ width: 44 }} />
+        <Text style={{
+          flex: 1, textAlign: 'center',
+          fontSize: 16, fontWeight: '600', color: COLORS.primary,
+        }}>
+          New Deal
+        </Text>
         <Pressable
-          onPress={() => {}}
-          style={{
-            flex: 1,
-            backgroundColor: COLORS.background,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            overflow: 'hidden',
-          }}
+          onPress={handleDismiss}
+          style={({ pressed }) => ({
+            width: 44, height: 44,
+            alignItems: 'center', justifyContent: 'center',
+            opacity: pressed ? 0.6 : 1,
+          })}
         >
-          {/* ── Handle Bar ── */}
-          <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 4 }}>
-            <View style={{
-              width: 36, height: 4, borderRadius: 2,
-              backgroundColor: COLORS.inputBorder,
-            }} />
-          </View>
-
-          {/* ── Header: Title + Close ── */}
-          <View style={{
-            flexDirection: 'row', alignItems: 'center',
-            paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12,
-          }}>
-            <View style={{ width: 44 }} />
-            <Text style={{
-              flex: 1, textAlign: 'center',
-              fontSize: 17, fontWeight: '600', color: COLORS.darkText,
-            }}>
-              New Deal
-            </Text>
-            <Pressable
-              onPress={handleClose}
-              style={{
-                width: 44, height: 44,
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <CloseIcon />
-            </Pressable>
-          </View>
-
-          {/* ── Form Content ── */}
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              {/* ── Field 1: Property Address ── */}
-              <Text style={{
-                fontSize: 14, fontWeight: '600', color: COLORS.darkText,
-                lineHeight: 20, marginBottom: 8,
-              }}>
-                Property Address
-              </Text>
-              <View style={{ position: 'relative', zIndex: 99 }}>
-                <TextInput
-                  value={addressText}
-                  onChangeText={handleAddressTextChange}
-                  placeholder="Search address..."
-                  placeholderTextColor={COLORS.bodyText}
-                  style={{
-                    backgroundColor: COLORS.inputBackground,
-                    borderWidth: 0.68,
-                    borderColor: addressText.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
-                    borderRadius: 10,
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
-                    fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20,
-                  }}
-                />
-
-                {/* Autocomplete dropdown */}
-                {showAutocomplete && suggestions.length > 0 && (
-                  <View style={{
-                    position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
-                    backgroundColor: COLORS.background,
-                    borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
-                    ...SHADOWS.card,
-                  }}>
-                    {suggestions.map((s) => (
-                      <Pressable
-                        key={s.placeId}
-                        onPress={() => handleSuggestionSelect(s.description)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
-                      >
-                        <PinIcon />
-                        <Text style={{ fontSize: 14, color: COLORS.darkText, flex: 1 }} numberOfLines={1}>
-                          {s.description}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {/* ── Field 2: Closing Date ── */}
-              <Text style={{
-                fontSize: 14, fontWeight: '600', color: COLORS.darkText,
-                lineHeight: 20, marginBottom: 8, marginTop: 20,
-              }}>
-                Closing Date
-              </Text>
-              <TextInput
-                value={closingDate}
-                onChangeText={setClosingDate}
-                placeholder="MM/DD/YYYY (optional)"
-                placeholderTextColor={COLORS.bodyText}
-                keyboardType="numbers-and-punctuation"
-                style={{
-                  backgroundColor: COLORS.inputBackground,
-                  borderWidth: 0.68,
-                  borderColor: closingDate.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
-                  borderRadius: 10,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20,
-                }}
-              />
-
-              {/* ── Field 3: Assign Partners ── */}
-              <Text style={{
-                fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
-                textTransform: 'uppercase', letterSpacing: 0.5,
-                marginTop: 24, marginBottom: 12,
-              }}>
-                Add to Deal
-              </Text>
-              {MOCK_CONNECTED_PARTNERS.map((partner) => {
-                const isSelected = selectedPartnerIds.includes(partner.id);
-                return (
-                  <Pressable
-                    key={partner.id}
-                    onPress={() => togglePartner(partner.id)}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row', alignItems: 'center',
-                      paddingVertical: 10, opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    {/* Avatar */}
-                    <View style={{
-                      width: 28, height: 28, borderRadius: 9999,
-                      backgroundColor: partner.avatar_color,
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.background }}>
-                        {partner.name.charAt(0)}
-                      </Text>
-                    </View>
-
-                    {/* Name + role */}
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
-                        {partner.name}
-                      </Text>
-                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
-                        {ROLE_LABELS[partner.role] ?? partner.role}
-                      </Text>
-                    </View>
-
-                    {/* Checkbox — 44×44 touch target */}
-                    <View style={{
-                      width: 44, height: 44,
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <CheckIcon checked={isSelected} />
-                    </View>
-                  </Pressable>
-                );
-              })}
-
-              {/* ── Field 4: Contract Price ── */}
-              <Text style={{
-                fontSize: 14, fontWeight: '600', color: COLORS.darkText,
-                lineHeight: 20, marginBottom: 8, marginTop: 20,
-              }}>
-                Contract Price
-              </Text>
-              <TextInput
-                value={contractPrice}
-                onChangeText={setContractPrice}
-                placeholder="$0 (optional)"
-                placeholderTextColor={COLORS.bodyText}
-                keyboardType="numeric"
-                style={{
-                  backgroundColor: COLORS.inputBackground,
-                  borderWidth: 0.68,
-                  borderColor: contractPrice.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
-                  borderRadius: 10,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20,
-                }}
-              />
-            </ScrollView>
-
-            {/* ── Sticky CTA — inside KeyboardAvoidingView, outside ScrollView ── */}
-            <View style={{
-              paddingHorizontal: 16, paddingVertical: 16,
-              paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 16) : 16,
-              backgroundColor: COLORS.background,
-              borderTopWidth: 0.69, borderTopColor: COLORS.border,
-            }}>
-            <Pressable
-              onPress={handleCreateDeal}
-              disabled={!isFormValid || createTransaction.isPending}
-              style={({ pressed }) => ({
-                height: 48, borderRadius: 10,
-                backgroundColor: isFormValid ? COLORS.primary : COLORS.disabledBg,
-                alignItems: 'center', justifyContent: 'center',
-                opacity: pressed ? 0.9 : 1,
-              })}
-            >
-              {createTransaction.isPending ? (
-                <ActivityIndicator color={COLORS.background} />
-              ) : (
-                <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background, lineHeight: 20 }}>
-                  Create Deal
-                </Text>
-              )}
-            </Pressable>
-            </View>
-          </KeyboardAvoidingView>
+          <CloseIcon />
         </Pressable>
-      </Animated.View>
-    </Modal>
+      </View>
+
+      {/* ── Form Content ── */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── Field 1: Property Address ── */}
+          <Text style={{
+            fontSize: 14, fontWeight: '600', color: COLORS.darkText,
+            lineHeight: 20, marginBottom: 8, marginTop: 20,
+          }}>
+            Property Address
+          </Text>
+          <View style={{ position: 'relative', zIndex: 99 }}>
+            <TextInput
+              value={addressText}
+              onChangeText={handleAddressTextChange}
+              placeholder="Search address..."
+              placeholderTextColor={COLORS.bodyText}
+              style={{
+                backgroundColor: COLORS.inputBackground,
+                borderWidth: 0.68,
+                borderColor: addressText.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
+                borderRadius: 10,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20,
+              }}
+            />
+
+            {/* Autocomplete dropdown */}
+            {showAutocomplete && suggestions.length > 0 && (
+              <View style={{
+                position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
+                backgroundColor: COLORS.background,
+                borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
+                ...SHADOWS.card,
+              }}>
+                {suggestions.map((s) => (
+                  <Pressable
+                    key={s.placeId}
+                    onPress={() => handleSuggestionSelect(s.description)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
+                  >
+                    <PinIcon />
+                    <Text style={{ fontSize: 14, color: COLORS.darkText, flex: 1 }} numberOfLines={1}>
+                      {s.description}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* ── Field 2: Closing Date ── */}
+          <Text style={{
+            fontSize: 14, fontWeight: '600', color: COLORS.darkText,
+            lineHeight: 20, marginBottom: 8, marginTop: 20,
+          }}>
+            Closing Date
+          </Text>
+          <TextInput
+            value={closingDate}
+            onChangeText={setClosingDate}
+            placeholder="MM/DD/YYYY (optional)"
+            placeholderTextColor={COLORS.bodyText}
+            keyboardType="numbers-and-punctuation"
+            style={{
+              backgroundColor: COLORS.inputBackground,
+              borderWidth: 0.68,
+              borderColor: closingDate.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20,
+            }}
+          />
+
+          {/* ── Field 3: Assign Partners ── */}
+          <Text style={{
+            fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
+            textTransform: 'uppercase', letterSpacing: 0.5,
+            marginTop: 24, marginBottom: 12,
+          }}>
+            Add to Deal
+          </Text>
+          {MOCK_CONNECTED_PARTNERS.map((partner) => {
+            const isSelected = selectedPartnerIds.includes(partner.id);
+            return (
+              <Pressable
+                key={partner.id}
+                onPress={() => togglePartner(partner.id)}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center',
+                  paddingVertical: 10, opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                {/* Avatar */}
+                <View style={{
+                  width: 28, height: 28, borderRadius: 9999,
+                  backgroundColor: partner.avatar_color,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.background }}>
+                    {partner.name.charAt(0)}
+                  </Text>
+                </View>
+
+                {/* Name + role */}
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
+                    {partner.name}
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
+                    {ROLE_LABELS[partner.role] ?? partner.role}
+                  </Text>
+                </View>
+
+                {/* Checkbox — 44×44 touch target */}
+                <View style={{
+                  width: 44, height: 44,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <CheckIcon checked={isSelected} />
+                </View>
+              </Pressable>
+            );
+          })}
+
+          {/* ── Field 4: Contract Price ── */}
+          <Text style={{
+            fontSize: 14, fontWeight: '600', color: COLORS.darkText,
+            lineHeight: 20, marginBottom: 8, marginTop: 20,
+          }}>
+            Contract Price
+          </Text>
+          <TextInput
+            value={contractPrice}
+            onChangeText={setContractPrice}
+            placeholder="$0 (optional)"
+            placeholderTextColor={COLORS.bodyText}
+            keyboardType="numeric"
+            style={{
+              backgroundColor: COLORS.inputBackground,
+              borderWidth: 0.68,
+              borderColor: contractPrice.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20,
+            }}
+          />
+        </ScrollView>
+
+        {/* ── Sticky CTA — inside KeyboardAvoidingView, outside ScrollView ── */}
+        <View style={{
+          paddingHorizontal: 16, paddingVertical: 16,
+          backgroundColor: COLORS.background,
+          borderTopWidth: 0.69, borderTopColor: COLORS.border,
+        }}>
+          <Pressable
+            onPress={handleCreateDeal}
+            disabled={!isFormValid || createTransaction.isPending}
+            style={({ pressed }) => ({
+              height: 48, borderRadius: 10,
+              backgroundColor: isFormValid ? COLORS.primary : COLORS.disabledBg,
+              alignItems: 'center', justifyContent: 'center',
+              opacity: pressed ? 0.9 : 1,
+            })}
+          >
+            {createTransaction.isPending ? (
+              <ActivityIndicator color={COLORS.background} />
+            ) : (
+              <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background, lineHeight: 20 }}>
+                Create Deal
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

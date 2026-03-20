@@ -46,7 +46,6 @@ import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { useAgentJobs, useMyProfile, useAgentActiveDeals } from '../hooks/useData';
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
-import DealCreationSheet from '../features/partners/components/DealCreationSheet';
 import { VerificationBanner } from './shared/VerificationBanner';
 import { CardButton } from './Button';
 import QuickActionsRow from './QuickActionsRow';
@@ -276,7 +275,6 @@ const HomeTabAgent: React.FC = () => {
   const [isFilled, setIsFilled] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
-  const [dealSheetVisible, setDealSheetVisible] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
 
   // Verification banner + gate
@@ -865,7 +863,7 @@ const HomeTabAgent: React.FC = () => {
                 <CardButton
                   variant="outlined"
                   label="New Deal"
-                  onPress={() => setDealSheetVisible(true)}
+                  onPress={() => navigation.push('DealCreation')}
                   leftIcon={<NewDealHouseIcon />}
                 />
               )}
@@ -1320,13 +1318,6 @@ const HomeTabAgent: React.FC = () => {
           </Pressable>
         </Animated.View>
       </Modal>
-      {/* ── Deal Creation Sheet (S64b) — only rendered when flag is true ── */}
-      {DEAL_CREATION_ENABLED && (
-        <DealCreationSheet
-          visible={dealSheetVisible}
-          onClose={() => setDealSheetVisible(false)}
-        />
-      )}
     </SafeAreaView>
   );
 };
