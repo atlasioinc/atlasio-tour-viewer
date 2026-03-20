@@ -8,19 +8,8 @@
 import React from 'react';
 import { View, Text, Pressable, LayoutAnimation } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { COLORS } from '../../lib/tokens';
 import type { VerificationLevel } from '../../types';
-
-// ─────────────────────────────────────────────
-// BANNER COLORS (amber palette — not in global tokens, banner-specific)
-// ─────────────────────────────────────────────
-
-const BANNER = {
-  bg: '#FFF8E1',
-  border: '#FFD54F',
-  icon: '#F57F17',
-  cta: '#F57F17',
-  text: '#5D4037',
-};
 
 // ─────────────────────────────────────────────
 // MESSAGING
@@ -51,7 +40,7 @@ const ShieldIcon: React.FC = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path
       d="M12 2L4 6v5c0 5.25 3.4 10.15 8 11.25C16.6 21.15 20 16.25 20 11V6l-8-4z"
-      stroke={BANNER.icon}
+      stroke={COLORS.warningAmber}
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -59,7 +48,7 @@ const ShieldIcon: React.FC = () => (
     />
     <Path
       d="M12 8v4M12 16h.01"
-      stroke={BANNER.icon}
+      stroke={COLORS.warningAmber}
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -75,7 +64,7 @@ const CloseIcon: React.FC = () => (
   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
     <Path
       d="M18 6L6 18M6 6l12 12"
-      stroke={BANNER.text}
+      stroke={COLORS.warningText}
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -100,14 +89,17 @@ export const VerificationBanner: React.FC<VerificationBannerProps> = ({
   onPress,
   onDismiss,
 }) => {
-  // Don't show for fully verified users
-  if (level === 'fully_verified') return null;
-  // Don't show "upload insurance" for agents who are already verified
-  if (level === 'verified' && role === 'agent') return null;
+  // Hooks must be called before any early return (rules-of-hooks)
+  const shouldHide =
+    level === 'fully_verified' || (level === 'verified' && role === 'agent');
 
   React.useEffect(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  }, []);
+    if (!shouldHide) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+  }, [shouldHide]);
+
+  if (shouldHide) return null;
 
   const bannerLevel = level as BannerLevel;
   const { message, cta } = MESSAGES[bannerLevel][role];
@@ -117,9 +109,9 @@ export const VerificationBanner: React.FC<VerificationBannerProps> = ({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: BANNER.bg,
+        backgroundColor: COLORS.warningBg,
         borderWidth: 1,
-        borderColor: BANNER.border,
+        borderColor: COLORS.counterAmber,
         borderRadius: 12,
         paddingVertical: 12,
         paddingHorizontal: 16,
@@ -131,22 +123,25 @@ export const VerificationBanner: React.FC<VerificationBannerProps> = ({
       <Text
         style={{
           flex: 1,
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: '400',
-          color: BANNER.text,
-          lineHeight: 18,
+          color: COLORS.warningText,
+          lineHeight: 20,
         }}
         numberOfLines={2}
       >
         {message}
       </Text>
 
-      <Pressable onPress={onPress} hitSlop={8}>
+      <Pressable
+        onPress={onPress}
+        style={{ height: 44, justifyContent: 'center', paddingHorizontal: 4 }}
+      >
         <Text
           style={{
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: '600',
-            color: BANNER.cta,
+            color: COLORS.warningAmber,
           }}
         >
           {cta}
@@ -154,7 +149,10 @@ export const VerificationBanner: React.FC<VerificationBannerProps> = ({
       </Pressable>
 
       {onDismiss && (
-        <Pressable onPress={onDismiss} hitSlop={8}>
+        <Pressable
+          onPress={onDismiss}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+        >
           <CloseIcon />
         </Pressable>
       )}

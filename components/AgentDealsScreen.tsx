@@ -27,7 +27,7 @@ import { ScreenHeader } from './ScreenHeader';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { useAgentDeals } from '../hooks/useData';
 import { getSlotStatusDot, isMilestoneStale } from '../features/partners/lib/dealMilestones';
-import type { AgentActiveDeal, AgentDealPartner } from '../features/partners/types/partner.types';
+import type { AgentActiveDeal } from '../features/partners/types/partner.types';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -136,7 +136,7 @@ const AgentDealsScreen: React.FC = () => {
         showBack
         onBack={() => navigation.goBack()}
         rightElement={
-          <Text style={{ fontSize: 13, color: COLORS.secondaryText }}>
+          <Text style={{ fontSize: 14, color: COLORS.secondaryText }}>
             {totalCount} deal{totalCount !== 1 ? 's' : ''}
           </Text>
         }
@@ -274,7 +274,7 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onPress }) => {
 
         {/* Closing date */}
         {closingLabel && (
-          <Text style={{ fontSize: 13, color: COLORS.secondaryText, marginTop: 4 }}>
+          <Text style={{ fontSize: 14, color: COLORS.secondaryText, marginTop: 4 }}>
             Closing {closingLabel}
           </Text>
         )}

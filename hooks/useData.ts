@@ -2483,7 +2483,7 @@ export function useAgentDismissDealAlert() {
 }
 
 // ─── useCreateTransaction ────────────────────────────────────────────────────
-// STATUS: mock
+// STATUS: wired (with mock fallback)
 // Creates a new transaction and sends partner invitations atomically.
 // @backend rpc_create_transaction({
 //   p_property_address: string,   // required
@@ -2512,16 +2512,29 @@ export function useCreateTransaction() {
       contractPrice: number | null;
       partnerAssignments: { partner_id: string; partner_role: string }[];
     }) => {
-      // @demo — 1500ms delay to simulate network
+      if (FEATURE_FLAGS.USE_MOCK_DATA) {
+        // @demo — 1500ms delay to simulate network
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.log(`[useCreateTransaction] @demo creating deal at ${propertyAddress}`);
+        return {
+          success: true,
+          transaction_id: `mock-txn-${Date.now()}`,
+          address: propertyAddress,
+          partner_count: partnerAssignments.length,
+        };
+      }
+
       // @backend rpc_create_transaction(p_property_address, p_closing_date, p_contract_price, p_buyer_name, p_mls_number, p_partner_assignments)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      console.log(`[useCreateTransaction] @demo creating deal at ${propertyAddress}`);
-      return {
-        success: true,
-        transaction_id: `mock-txn-${Date.now()}`,
-        address: propertyAddress,
-        partner_count: partnerAssignments.length,
-      };
+      const { data, error } = await supabase.rpc('rpc_create_transaction', {
+        p_property_address: propertyAddress,
+        p_closing_date: closingDate,
+        p_contract_price: contractPrice,
+        p_buyer_name: null,
+        p_mls_number: null,
+        p_partner_assignments: partnerAssignments,
+      });
+      if (error || !data?.success) throw new Error(data?.error ?? error?.message ?? 'Failed to create transaction');
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
@@ -2536,7 +2549,7 @@ export function useCreateTransaction() {
 // NOTE: will migrate to transaction_id in S64 when transactions table exists
 
 // ─── useGenerateClientToken ──────────────────────────────────
-// STATUS: mock
+// STATUS: wired (with mock fallback)
 // PURPOSE: Generates or retrieves the unique sharing URL for a deal.
 // Called when agent taps "Share" on AgentDealDetailScreen.
 // Idempotent — safe to call on every share tap (RPC returns existing token if set).
@@ -2551,20 +2564,24 @@ export function useCreateTransaction() {
 export function useGenerateClientToken() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ transactionId }: { transactionId: string }) => {
-      // @demo mock — remove this block and uncomment supabase call below
-      await new Promise(resolve => setTimeout(resolve, 600));
-      return {
-        success: true,
-        client_token: 'demo-token-001',
-        url: 'https://closing.atlasioapp.com/demo-token-001',
-      };
-      // @backend — uncomment when DEAL_CREATION_ENABLED=true:
-      // const { data, error } = await supabase.rpc('rpc_generate_client_token', {
-      //   p_transaction_id: transactionId,
-      // });
-      // if (error || !data?.success) throw new Error(data?.error ?? error?.message);
-      // return data;
+    mutationFn: async ({ transactionId, notifyPhone }: { transactionId: string; notifyPhone?: string | null }) => {
+      if (FEATURE_FLAGS.USE_MOCK_DATA) {
+        // @demo mock — 600ms delay to simulate network
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return {
+          success: true,
+          client_token: 'demo-token-001',
+          url: 'https://closing.atlasioapp.com/demo-token-001',
+        };
+      }
+
+      // @backend rpc_generate_client_token(p_transaction_id, p_notify_phone)
+      const { data, error } = await supabase.rpc('rpc_generate_client_token', {
+        p_transaction_id: transactionId,
+        p_notify_phone: notifyPhone ?? null,
+      });
+      if (error || !data?.success) throw new Error(data?.error ?? error?.message ?? 'Failed to generate token');
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });
@@ -2573,7 +2590,7 @@ export function useGenerateClientToken() {
 }
 
 // ─── useUpdateClosingDetails ─────────────────────────────────
-// STATUS: mock
+// STATUS: wired (with mock fallback)
 // PURPOSE: Agent populates closing day details visible on the client web page.
 // Called from the "Closing day details" section in AgentDealDetailScreen.
 //
@@ -2602,16 +2619,20 @@ export function useUpdateClosingDetails() {
         wire_amount: string;
       };
     }) => {
-      // @demo mock — remove this block and uncomment supabase call below
-      await new Promise(resolve => setTimeout(resolve, 800));
-      return { success: true, closing_details: closingDetails };
-      // @backend — uncomment when DEAL_CREATION_ENABLED=true:
-      // const { data, error } = await supabase.rpc('rpc_update_closing_details', {
-      //   p_transaction_id: transactionId,
-      //   p_closing_details: closingDetails,
-      // });
-      // if (error || !data?.success) throw new Error(data?.error ?? error?.message);
-      // return data;
+      if (FEATURE_FLAGS.USE_MOCK_DATA) {
+        // @demo mock — 800ms delay to simulate network
+        await new Promise(resolve => setTimeout(resolve, 800));
+        return { success: true, closing_details: closingDetails };
+      }
+
+      // @backend rpc_update_closing_details(p_transaction_id, p_closing_details)
+      // NOTE: RPC does jsonb MERGE not overwrite — safe to pass partial objects
+      const { data, error } = await supabase.rpc('rpc_update_closing_details', {
+        p_transaction_id: transactionId,
+        p_closing_details: closingDetails,
+      });
+      if (error || !data?.success) throw new Error(data?.error ?? error?.message ?? 'Failed to update closing details');
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });

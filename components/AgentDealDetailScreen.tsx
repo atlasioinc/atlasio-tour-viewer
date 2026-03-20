@@ -20,7 +20,7 @@
 // dismiss alert → useAgentDismissDealAlert mutation (optimistic)
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Share } from 'react-native';
+import { View, Text, ScrollView, Pressable, Share, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -116,20 +116,38 @@ const AgentDealDetailScreen: React.FC = () => {
 
   // ── Share button ──
   // @demo Uses mock transaction_id — wire to real deal.transaction_id when DEAL_CREATION_ENABLED=true
-  // @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id)
+  // @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id, p_notify_phone)
   const generateToken = useGenerateClientToken();
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
+  const [notifyPhone, setNotifyPhone] = useState('');
+  const [smsSent, setSmsSent] = useState(false);
 
   const handleShare = async () => {
     try {
       const result = await generateToken.mutateAsync({
         transactionId: (deal as any).transaction_id ?? 'mock-transaction-001',
       });
+      setGeneratedUrl(result.url);
       await Share.share({
         url: result.url,
         message: 'Track your closing progress: ' + result.url,
       });
     } catch {
       // silently fail in demo — live error handling in production
+    }
+  };
+
+  // @backend rpc_generate_client_token(p_transaction_id, p_notify_phone) — idempotent, re-calls with phone to trigger SMS
+  const handleSendSms = async () => {
+    if (!notifyPhone.trim()) return;
+    try {
+      await generateToken.mutateAsync({
+        transactionId: (deal as any).transaction_id ?? 'mock-transaction-001',
+        notifyPhone: notifyPhone.trim(),
+      });
+      setSmsSent(true);
+    } catch {
+      // silently fail in demo
     }
   };
 
@@ -265,7 +283,7 @@ const AgentDealDetailScreen: React.FC = () => {
                     <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}>
                       {partner.partner_name}
                     </Text>
-                    <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.secondaryText }}>
+                    <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
                       {partner.partner_role}
                     </Text>
                   </View>
@@ -306,7 +324,7 @@ const AgentDealDetailScreen: React.FC = () => {
                           setDismissedAlertIds(prev => [...prev, alert.id]);
                           dismissAlert.mutate({ alertId: alert.id, jobId: deal.job_id });
                         }}
-                        style={{ height: 36, paddingHorizontal: 12, justifyContent: 'center' }}
+                        style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
                       >
                         <Text style={{ fontSize: 14, fontWeight: '500', color: textColor }}>Got it</Text>
                       </Pressable>
@@ -438,10 +456,10 @@ const AgentDealDetailScreen: React.FC = () => {
               padding: 12,
               paddingLeft: 14,
             }}>
-              <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.infoText, marginBottom: 3 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.infoText, marginBottom: 3 }}>
                 Your client will see this
               </Text>
-              <Text style={{ fontSize: 12, color: COLORS.infoText, lineHeight: 17, marginBottom: 10 }}>
+              <Text style={{ fontSize: 14, color: COLORS.infoText, lineHeight: 20, marginBottom: 10 }}>
                 Add time, location, and what to bring. Shown on their Client Tracker page.
               </Text>
               <Pressable
@@ -455,7 +473,7 @@ const AgentDealDetailScreen: React.FC = () => {
                   opacity: pressed ? 0.8 : 1,
                 })}
               >
-                <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.background }}>+ Add details</Text>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.background }}>+ Add details</Text>
               </Pressable>
             </View>
           )}
@@ -506,27 +524,84 @@ const AgentDealDetailScreen: React.FC = () => {
           {closingDetails && !isEditingClosingDetails && (
             <View style={{ gap: SPACING.md }}>
               <View style={{ flexDirection: 'row', gap: SPACING.md }}>
-                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>When</Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>When</Text>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, flex: 1 }}>{closingDetails.time}</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: SPACING.md }}>
-                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Where</Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Where</Text>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, flex: 1 }}>{closingDetails.location}</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: SPACING.md }}>
-                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Bring</Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Bring</Text>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, flex: 1 }}>{closingDetails.bring_list}</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: SPACING.md }}>
-                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Wire</Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, minWidth: 64 }}>Wire</Text>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, flex: 1 }}>
                   {closingDetails.wire_amount}
-                  <Text style={{ fontSize: 11, fontWeight: '400', color: COLORS.secondaryText }}> (confirm with your agent)</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText }}> (confirm with your agent)</Text>
                 </Text>
               </View>
             </View>
           )}
         </View>
+
+        {/* ── Notify Client via SMS (optional) ── */}
+        {/* @backend rpc_generate_client_token(p_transaction_id, p_notify_phone) — re-calls with phone to trigger SMS */}
+        {/* Only visible after client token has been generated via Share button */}
+        {generatedUrl && (
+          <>
+            <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 20, marginHorizontal: 16 }} />
+            <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+              <Text style={{
+                fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
+                textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.lg,
+              }}>
+                Notify client via SMS (optional)
+              </Text>
+
+              {smsSent ? (
+                <View style={{
+                  backgroundColor: COLORS.feeBg,
+                  borderRadius: 10,
+                  padding: 12,
+                }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.feeText }}>
+                    SMS sent to {notifyPhone}
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ gap: SPACING.lg }}>
+                  <TextInput
+                    value={notifyPhone}
+                    onChangeText={setNotifyPhone}
+                    placeholder="(555) 123-4567"
+                    placeholderTextColor={COLORS.secondaryText}
+                    keyboardType="phone-pad"
+                    style={{
+                      height: DIMENSIONS.formInputHeight,
+                      borderWidth: DIMENSIONS.cardBorderWidth,
+                      borderColor: notifyPhone ? COLORS.inputActiveBorder : COLORS.border,
+                      borderRadius: DIMENSIONS.inputRadius,
+                      backgroundColor: COLORS.inputBackground,
+                      paddingHorizontal: 14,
+                      fontSize: 15,
+                      fontWeight: '400',
+                      color: COLORS.darkText,
+                    }}
+                  />
+                  {notifyPhone.trim().length > 0 && (
+                    <PrimaryButton
+                      label="Send SMS"
+                      onPress={handleSendSms}
+                      loading={generateToken.isPending}
+                    />
+                  )}
+                </View>
+              )}
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

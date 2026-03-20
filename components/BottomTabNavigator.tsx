@@ -34,16 +34,15 @@
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useCallback, useRef } from 'react';
-import { DemoRoleContext, useDemoRole, type DemoRole } from '../lib/demoRoleContext';
+import { DemoRoleContext, type DemoRole } from '../lib/demoRoleContext';
 import { View, Text, Platform, Pressable, Animated, Vibration } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import HomeStack from './HomeStack';
 import type { RouteProp } from '@react-navigation/native';
 import FindStack from './FindStack';
 import NetworkStack from './NetworkStack';
 import InboxStack from './InboxStack';
-import ProfileTab from './ProfileTab';
 import ProfileStack from './ProfileStack';
 import { COLORS } from '../lib/tokens';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
@@ -154,45 +153,6 @@ const ContractorInboxStackScreen: React.FC = () => (
     <ContractorInboxStackNav.Screen name="ChatScreen" component={ChatScreen} />
   </ContractorInboxStackNav.Navigator>
 );
-
-// ─────────────────────────────────────────────
-// PLACEHOLDER SCREENS
-// Replace these with real screens as you build them
-// ─────────────────────────────────────────────
-
-const PlaceholderScreen: React.FC<{ title: string }> = ({ title }) => (
-  <View
-    style={{
-      flex: 1,
-      backgroundColor: COLORS.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}
-  >
-    <Text
-      style={{
-        fontSize: 24,
-        fontWeight: '600',
-        color: COLORS.primary,
-      }}
-    >
-      {title}
-    </Text>
-    <Text
-      style={{
-        fontSize: 16,
-        color: COLORS.bodyText,
-        marginTop: 8,
-      }}
-    >
-      Coming soon
-    </Text>
-  </View>
-);
-
-const FindScreen: React.FC = () => <PlaceholderScreen title="Find" />;
-const NetworkScreen: React.FC = () => <PlaceholderScreen title="Network" />;
-const ProfileScreen: React.FC = () => <PlaceholderScreen title="Profile" />;
 
 // ─────────────────────────────────────────────
 // TAB ICONS
@@ -430,8 +390,7 @@ type Props = {
   route: RouteProp<RootStackParamList, 'MainApp'>;
 };
 
-const BottomTabNavigator: React.FC<Props> = ({ route }) => {
-  const { role } = route.params;
+const BottomTabNavigator: React.FC<Props> = () => {
 
   // ── Realtime: keep notification cache fresh app-wide ──
   const [rtUserId, setRtUserId] = React.useState<string | undefined>();
