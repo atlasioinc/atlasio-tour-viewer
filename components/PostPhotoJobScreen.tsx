@@ -398,7 +398,7 @@ const PostPhotoJobScreen: React.FC = () => {
               How it works
             </Text>
             <Text style={{ fontSize: 12, color: COLORS.bodyText, lineHeight: 17 }}>
-              Photographers in your area will bid on this job. You'll see their portfolio, ratings, and price — then accept, counter, or pass. A 3% platform fee is applied when you accept a bid.
+              Photographers in your area will bid on this job. You{"'"}ll see their portfolio, ratings, and price — then accept, counter, or pass. A 3% platform fee is applied when you accept a bid.
             </Text>
           </View>
         </ScrollView>

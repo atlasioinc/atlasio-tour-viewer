@@ -9,7 +9,7 @@
 //   and ProProfile fetches from supabase.from('profiles').eq('id', proId)
 // ═══════════════════════════════════════════════════════════════
 
-import type { ProProfileData, PerformanceStats as LocalPerformanceStats } from './ProProfile';
+import type { ProProfileData } from './ProProfile';
 import type { Profile, PerformanceStats as DbPerformanceStats } from '../types';
 
 // ─────────────────────────────────────────────

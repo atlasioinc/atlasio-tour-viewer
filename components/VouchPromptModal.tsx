@@ -31,7 +31,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -226,6 +226,7 @@ const VouchPromptModal: React.FC<VouchPromptModalProps> = ({
         setModalMounted(false);
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animated refs (backdropAnim, slideAnim) are stable
   }, [visible]);
 
   // ── Handlers ──
@@ -554,7 +555,7 @@ const VouchPromptModal: React.FC<VouchPromptModalProps> = ({
                       Submit anonymously
                     </Text>
                     <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.lightText, lineHeight: 16 }}>
-                      Your name won't be shown on this review
+                      Your name won{"'"}t be shown on this review
                     </Text>
                   </View>
                 </Pressable>

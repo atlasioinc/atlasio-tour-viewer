@@ -18,7 +18,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import Svg, { Path, Line } from 'react-native-svg';
+import Svg, { Line } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 
 // ─────────────────────────────────────────────

@@ -683,7 +683,7 @@ const StepReview: React.FC<{ form: PostJobFormData }> = ({ form }) => {
 
       {/* ── Info Banner ── */}
       <InfoBanner bold="What happens next:">
-        Your job will be visible to contractors matching the selected trades. You'll receive bids within {form.bidWindowHours || '48'} hours and can review, accept, or negotiate.
+        Your job will be visible to contractors matching the selected trades. You{"'"}ll receive bids within {form.bidWindowHours || '48'} hours and can review, accept, or negotiate.
       </InfoBanner>
     </ScrollView>
   );
@@ -716,6 +716,7 @@ const PostJobWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setIsSubmitting is used, value read pending
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newJobId, setNewJobId] = useState<string | null>(null);
 
@@ -952,7 +953,7 @@ const PostJobWizard: React.FC = () => {
                 Job Posted Successfully!
               </Text>
               <Text style={{ color: '#666666', fontSize: 16, fontWeight: '400', lineHeight: 24 }}>
-                "{form.jobTitle}" is now live
+                {'"'}{form.jobTitle}{'"'} is now live
               </Text>
               <Text style={{ color: '#666666', fontSize: 14, fontWeight: '400', lineHeight: 22.75, paddingHorizontal: 2 }}>
                 Contractors matching the selected trades will start bidding within {form.bidWindowHours || '48'} hours. You can review, accept, or negotiate from the job details screen.

@@ -216,7 +216,7 @@ interface VouchCardProps {
   onPressProfile: (profile: VouchFeedProfile) => void;
 }
 
-const VouchCard: React.FC<VouchCardProps> = React.memo(({ item, onPressProfile }) => {
+const VouchCard: React.FC<VouchCardProps> = React.memo(function VouchCard({ item, onPressProfile }) {
   const { voucher, recipient, comment, tags, created_at } = item;
   const timeAgo = getRelativeTime(created_at);
 
@@ -290,7 +290,7 @@ const EmptyState: React.FC = () => (
   <View style={styles.emptyContainer}>
     <Text style={styles.emptyTitle}>No vouches yet</Text>
     <Text style={styles.emptySubtitle}>
-      When pros in your network vouch for each other, you'll see it here.
+      When pros in your network vouch for each other, you{"'"}ll see it here.
     </Text>
   </View>
 );
@@ -319,7 +319,7 @@ const VouchFeedSection: React.FC<VouchFeedSectionProps> = ({
 
   // ── Data fetching ──────────────────────────────────────
   const { data: liveVouches } = useVouchFeed(activeFilter);
-  const allVouches = externalVouches || (FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_VOUCH_FEED : (liveVouches?.map(adaptVouchToFeedItem) ?? []));
+  const allVouches = useMemo(() => externalVouches || (FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_VOUCH_FEED : (liveVouches?.map(adaptVouchToFeedItem) ?? [])), [externalVouches, liveVouches]);
 
   // ── Apply filter + contractor bias ──────────────────────
   const filteredVouches = useMemo(() => {

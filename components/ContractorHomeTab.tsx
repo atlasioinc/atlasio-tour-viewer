@@ -45,10 +45,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, TYPOGRAPHY, SPACING, DIMENSIONS, SHADOWS } from '../lib/tokens';
+import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { DisplayTag } from './DisplayTag';
 
 // ─────────────────────────────────────────────
@@ -130,38 +130,6 @@ interface MarketPulseData {
 // SVG ICONS
 // ─────────────────────────────────────────────
 
-const LocationPinIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-    <Path
-      d="M8 1.33C5.42 1.33 3.33 3.42 3.33 6C3.33 9.5 8 14.67 8 14.67C8 14.67 12.67 9.5 12.67 6C12.67 3.42 10.58 1.33 8 1.33Z"
-      stroke={COLORS.bodyText}
-      strokeWidth={1.33}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Circle cx={8} cy={6} r={2} stroke={COLORS.bodyText} strokeWidth={1.33} />
-  </Svg>
-);
-
-const BellIcon: React.FC = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z"
-      stroke={COLORS.bodyText}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21"
-      stroke={COLORS.bodyText}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
 const CalendarIcon: React.FC<{ size?: number; color?: string }> = ({ size = 16, color = COLORS.secondaryText }) => (
   <Svg width={size} height={size} viewBox="0 0 14 14" fill="none">
     <Path
@@ -181,57 +149,6 @@ const StarIcon: React.FC<{ size?: number }> = ({ size = 12 }) => (
       fill={COLORS.starColor}
       stroke={COLORS.starColor}
       strokeWidth={1.17}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
-const BidIcon: React.FC = () => (
-  <Svg width={14} height={14} viewBox="0 0 14 14" fill="none">
-    <Path
-      d="M11.67 8.17C11.67 8.48 11.55 8.78 11.33 9L7.58 12.75C7.36 12.97 7.06 13.09 6.75 13.09C6.44 13.09 6.14 12.97 5.92 12.75L1.75 8.58V2.33H7.99L11.33 5.67C11.55 5.89 11.67 6.19 11.67 6.5V8.17Z"
-      stroke={COLORS.primary}
-      strokeWidth={1.17}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Circle cx={4.67} cy={5.25} r={0.58} fill={COLORS.primary} />
-  </Svg>
-);
-
-const CheckCircleIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M22 11.08V12a10 10 0 1 1-5.93-9.14"
-      stroke={COLORS.successGreen}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M22 4L12 14.01l-3-3"
-      stroke={COLORS.successGreen}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
-const DollarIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M12 1V23"
-      stroke={COLORS.primary}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6"
-      stroke={COLORS.primary}
-      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
     />
@@ -259,31 +176,6 @@ const TrendFlatIcon: React.FC = () => (
   </Svg>
 );
 
-const MapPinSmallIcon: React.FC = () => (
-  <Svg width={12} height={12} viewBox="0 0 16 16" fill="none">
-    <Path
-      d="M8 1.33C5.42 1.33 3.33 3.42 3.33 6C3.33 9.5 8 14.67 8 14.67C8 14.67 12.67 9.5 12.67 6C12.67 3.42 10.58 1.33 8 1.33Z"
-      stroke={COLORS.lightText}
-      strokeWidth={1.33}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Circle cx={8} cy={6} r={2} stroke={COLORS.lightText} strokeWidth={1.33} />
-  </Svg>
-);
-
-const ChatBubbleSmallIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-    <Path
-      d="M17.5 9.58C17.5 13.26 14.14 16.25 10 16.25C9.09 16.25 8.22 16.1 7.41 15.83L3.33 17.5L4.58 14.17C3.27 12.92 2.5 11.32 2.5 9.58C2.5 5.9 5.86 2.92 10 2.92C14.14 2.92 17.5 5.9 17.5 9.58Z"
-      stroke={COLORS.primary}
-      strokeWidth={1.67}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
 const LightningIcon: React.FC = () => (
   <Svg width={14} height={14} viewBox="0 0 14 14" fill="none">
     <Path
@@ -293,42 +185,6 @@ const LightningIcon: React.FC = () => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-  </Svg>
-);
-
-// Section header icons — 20px, brand-tinted background circle
-const SectionIcon: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <View style={{
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: COLORS.iconTintBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  }}>
-    {children}
-  </View>
-);
-
-const RepairIcon: React.FC = () => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-    <Path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke={COLORS.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-const InviteIcon: React.FC = () => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-    <Path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke={COLORS.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx={8.5} cy={7} r={4} stroke={COLORS.primary} strokeWidth={2} />
-    <Path d="M20 8V14" stroke={COLORS.primary} strokeWidth={2} strokeLinecap="round" />
-    <Path d="M23 11H17" stroke={COLORS.primary} strokeWidth={2} strokeLinecap="round" />
-  </Svg>
-);
-
-const BriefcaseIcon: React.FC = () => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-    <Path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke={COLORS.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M16 21V5C16 4.46957 15.7893 3.96086 15.4142 3.58579C15.0391 3.21071 14.5304 3 14 3H10C9.46957 3 8.96086 3.21071 8.58579 3.58579C8.21071 3.96086 8 4.46957 8 5V21" stroke={COLORS.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -359,54 +215,6 @@ const AvatarPlaceholder: React.FC<{
     >
       <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFFFFF' }}>
         {initials}
-      </Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
-// STATUS CHIP (reused pattern from RepairCard)
-// ─────────────────────────────────────────────
-
-interface StatusChipConfig {
-  label: string;
-  bgColor: string;
-  textColor: string;
-}
-
-const STATUS_CHIP_MAP: Record<string, StatusChipConfig> = {
-  awarded: {
-    label: 'Awarded',
-    bgColor: 'rgba(0, 61, 195, 0.08)',
-    textColor: COLORS.primary,
-  },
-  in_progress: {
-    label: 'In Progress',
-    bgColor: 'rgba(22, 163, 74, 0.10)',
-    textColor: COLORS.feeText,
-  },
-  pending_completion: {
-    label: 'Pending Review',
-    bgColor: 'rgba(234, 88, 12, 0.10)',
-    textColor: COLORS.counterAmber,
-  },
-};
-
-const JobStatusChip: React.FC<{ status: string }> = ({ status }) => {
-  const config = STATUS_CHIP_MAP[status];
-  if (!config) return null;
-  return (
-    <View
-      style={{
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        backgroundColor: config.bgColor,
-        borderRadius: 9999,
-        alignSelf: 'flex-start',
-      }}
-    >
-      <Text style={{ fontSize: 12, fontWeight: '500', color: config.textColor, lineHeight: 16 }}>
-        {config.label}
       </Text>
     </View>
   );
@@ -858,7 +666,7 @@ const JobInviteCard: React.FC<{
         borderLeftColor: COLORS.primary,
       }}>
         <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, fontStyle: 'italic' }} numberOfLines={1} ellipsizeMode="tail">
-          "{invite.note}"
+          {'"'}{invite.note}{'"'}
         </Text>
       </View>
     ) : null}
@@ -1307,6 +1115,7 @@ const ContractorHomeTab: React.FC = () => {
         }),
       ]).start(() => setInsightsSheetMounted(false));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animated refs are stable
   }, [showInsightsSheet]);
 
   // ── Data (conditional on demo toggle) ──
@@ -1770,7 +1579,7 @@ const ContractorHomeTab: React.FC = () => {
               color: COLORS.darkText,
               lineHeight: 22,
             }}>
-              You're winning 60% of bids — above the platform average of 44%.
+              You{"'"}re winning 60% of bids — above the platform average of 44%.
             </Text>
           </View>
 

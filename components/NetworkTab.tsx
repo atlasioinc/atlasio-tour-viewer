@@ -19,7 +19,7 @@
 // @backend TODO: accept/decline mutations — rpc_accept/reject_connection_request
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path, Circle, Line } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import SearchField from './SearchField';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -58,13 +58,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 // SVG ICONS
 // ─────────────────────────────────────────────
 
-const SearchIcon: React.FC = () => (
-  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Circle cx={9.17} cy={9.17} r={6.67} stroke={COLORS.lightText} strokeWidth={1.67} />
-    <Path d="M14.17 14.17L17.5 17.5" stroke={COLORS.lightText} strokeWidth={1.67} strokeLinecap="round" />
-  </Svg>
-);
-
 // Notification bell with red dot — driven by pending request count
 const ContactRequestsIcon: React.FC<{ hasNotification?: boolean }> = ({ hasNotification = true }) => (
   <View style={{ width: 24, height: 24 }}>
@@ -76,21 +69,6 @@ const ContactRequestsIcon: React.FC<{ hasNotification?: boolean }> = ({ hasNotif
       <View style={{ position: 'absolute', top: -4, right: -4, width: 12, height: 12, borderRadius: 9999, backgroundColor: COLORS.notificationRed, borderWidth: 1.5, borderColor: '#FFFFFF' }} />
     )}
   </View>
-);
-
-// Check icon for Accept button
-const CheckIcon: React.FC = () => (
-  <Svg width={14} height={14} viewBox="0 0 14 14" fill="none">
-    <Path d="M11.67 3.5L5.25 9.92L2.33 7" stroke="#FFFFFF" strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-// X icon for Decline button
-const XSmallIcon: React.FC = () => (
-  <Svg width={14} height={14} viewBox="0 0 14 14" fill="none">
-    <Path d="M10.5 3.5L3.5 10.5" stroke={COLORS.bodyText} strokeWidth={1.33} strokeLinecap="round" />
-    <Path d="M3.5 3.5L10.5 10.5" stroke={COLORS.bodyText} strokeWidth={1.33} strokeLinecap="round" />
-  </Svg>
 );
 
 // ─────────────────────────────────────────────
@@ -256,113 +234,6 @@ const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }
 // Business context: Every accepted connection → messaging →
 // squad eligibility → job → bid → 3% fee. This is the trust gateway.
 
-const ConnectionRequestCard: React.FC<{
-  request: ConnectionRequest;
-  onAccept: (id: string) => void;
-  onDecline: (id: string) => void;
-}> = ({ request, onAccept, onDecline }) => (
-  <View
-    style={{
-      width: 260,
-      padding: 16,
-      backgroundColor: COLORS.background,
-      borderRadius: 14,
-      borderWidth: 0.68,
-      borderColor: 'rgba(0, 61, 195, 0.15)',
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
-      shadowRadius: 3,
-      elevation: 2,
-      gap: 12,
-    }}
-  >
-    {/* Avatar + Info */}
-    <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
-      <AvatarPlaceholder name={request.name} color={request.avatarColor} size={44} />
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text
-          style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}
-          numberOfLines={1}
-        >
-          {request.name}
-        </Text>
-        <Text
-          style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}
-          numberOfLines={1}
-        >
-          {request.role} · {request.company}
-        </Text>
-        {request.mutualConnections > 0 && (
-          <Text style={{ fontSize: 11, fontWeight: '400', color: COLORS.lightText, lineHeight: 16 }}>
-            {request.mutualConnections} mutual connection{request.mutualConnections !== 1 ? 's' : ''}
-          </Text>
-        )}
-      </View>
-    </View>
-
-    {/* Optional Note Preview */}
-    {request.note && (
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: '400',
-          color: COLORS.bodyText,
-          lineHeight: 16,
-          fontStyle: 'italic',
-        }}
-        numberOfLines={2}
-      >
-        "{request.note}"
-      </Text>
-    )}
-
-    {/* CTA Buttons: Accept (primary) + Decline (outline) */}
-    <View style={{ flexDirection: 'row', gap: 8 }}>
-      <Pressable
-        onPress={() => onAccept(request.id)}
-        style={({ pressed }) => ({
-          flex: 1,
-          height: 34,
-          backgroundColor: COLORS.primary,
-          borderRadius: 8,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 4,
-          opacity: pressed ? 0.7 : 1,
-        })}
-      >
-        <CheckIcon />
-        <Text style={{ fontSize: 13, fontWeight: '500', color: '#FFFFFF', lineHeight: 18 }}>
-          Accept
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={() => onDecline(request.id)}
-        style={({ pressed }) => ({
-          flex: 1,
-          height: 34,
-          backgroundColor: COLORS.background,
-          borderRadius: 8,
-          borderWidth: 1,
-          borderColor: COLORS.border,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 4,
-          opacity: pressed ? 0.7 : 1,
-        })}
-      >
-        <XSmallIcon />
-        <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.bodyText, lineHeight: 18 }}>
-          Decline
-        </Text>
-      </Pressable>
-    </View>
-  </View>
-);
-
 // ─────────────────────────────────────────────
 // NETWORK PRO CARD (condensed design)
 // Squad toggle removed — squad management on HomeTab
@@ -513,6 +384,7 @@ const NetworkTab: React.FC = () => {
         }),
       ]).start(() => setRequestsSheetMounted(false));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animated refs are stable
   }, [requestsSheetVisible]);
 
   // ── Invite to Job modal state ──
@@ -1032,7 +904,7 @@ const NetworkTab: React.FC = () => {
                       }}
                       numberOfLines={2}
                     >
-                      "{request.note}"
+                      {"\u201C"}{request.note}{"\u201D"}
                     </Text>
                   )}
 

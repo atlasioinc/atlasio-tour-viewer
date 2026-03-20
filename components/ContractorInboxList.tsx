@@ -502,7 +502,7 @@ const EmptyInbox: React.FC = () => (
       No job chats yet
     </Text>
     <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20, textAlign: 'center', maxWidth: 280 }}>
-      Your conversations will appear here when you're invited to a job, submit a bid, or start working on a repair.
+      Your conversations will appear here when you{"'"}re invited to a job, submit a bid, or start working on a repair.
     </Text>
   </View>
 );

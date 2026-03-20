@@ -30,7 +30,6 @@ import {
   ScrollView,
   StatusBar,
   Platform,
-  TextInput,
   Modal,
   TouchableOpacity,
   LayoutAnimation,
@@ -38,7 +37,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { useNavigation, useRoute, CommonActions, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import InviteToJobModal from './InviteToJobModal';
 import type { InviteContractor } from './InviteToJobModal';
@@ -406,6 +405,7 @@ const FindTab: React.FC = () => {
 
     // Clear params after applying so back-navigation doesn't re-trigger
     navigation.setParams({ presetRole: undefined, presetFilters: undefined, presetSort: undefined } as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run on mount when navigated with preset params
   }, []);
 
   // ── Request to Connect modal state ──
@@ -431,11 +431,13 @@ const FindTab: React.FC = () => {
     closeConnectModal();
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- collapse filters when user starts typing
   useEffect(() => { if (searchText.length > 0 && showFilters) setShowFilters(false); }, [searchText]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset filters when role changes
   useEffect(() => { if (activeFilters.size === 0) return; setActiveFilters(new Set()); }, [activeRole]);
 
   const toggleFilter = (key: string): void => {
-    setActiveFilters((prev) => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; });
+    setActiveFilters((prev) => { const next = new Set(prev); if (next.has(key)) { next.delete(key); } else { next.add(key); } return next; });
   };
   const clearAllFilters = (): void => setActiveFilters(new Set());
   const getFiltersForRole = (): FilterGroup[] => [COMMON_FILTERS, ...(ROLE_FILTERS[activeRole] || [])];

@@ -444,6 +444,7 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
   const [validationError, setValidationError] = useState<string | null>(null);
 
   // Hook
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- isLoading reserved for loading state UI
   const { sendViaEmail, sendViaSms, isLoading, error: hookError, reset: resetHook } = useSquadShare();
 
   // SquadSlotPicker state
@@ -505,6 +506,7 @@ const SendSquadScreen: React.FC<SendSquadScreenProps> = ({
         }
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animated refs (roleBackdropAnim, roleSlideAnim) and roleModalMounted are stable
   }, [rolePickerVisible]);
 
   // Combine all slots (excluding "Add New" placeholder)

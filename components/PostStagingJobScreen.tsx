@@ -518,7 +518,7 @@ const PostStagingJobScreen: React.FC = () => {
               How it works
             </Text>
             <Text style={{ fontSize: 12, color: COLORS.bodyText, lineHeight: 17 }}>
-              Home stagers in your area will bid on this job. You'll see their portfolio, ratings, and pricing — then accept, counter, or pass. Staged homes sell for 5–15% more on average. A 3% platform fee is applied when you accept a bid.
+              Home stagers in your area will bid on this job. You{"'"}ll see their portfolio, ratings, and pricing — then accept, counter, or pass. Staged homes sell for 5–15% more on average. A 3% platform fee is applied when you accept a bid.
             </Text>
           </View>
         </ScrollView>

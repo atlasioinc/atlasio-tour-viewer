@@ -197,7 +197,7 @@ const DealChatScreen: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(MOCK_DEAL_MESSAGES);
   const [showAttach, setShowAttach] = useState(false);
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
-  const [attachments, setAttachments] = useState<Array<{ type: 'photo' | 'document'; uri: string; name: string }>>([]);
+  const [attachments, setAttachments] = useState<{ type: 'photo' | 'document'; uri: string; name: string }[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Editable deal details

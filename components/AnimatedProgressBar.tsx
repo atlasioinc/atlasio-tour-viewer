@@ -44,6 +44,7 @@ const AnimatedProgressBar: React.FC<AnimatedProgressBarProps> = ({
     }, 200);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- animated values are stable refs
   }, [currentStep]);
 
   // Convert animated value to a percentage string for width

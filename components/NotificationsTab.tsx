@@ -18,13 +18,12 @@ import {
   Pressable,
   SectionList,
   StatusBar,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import type { HomeStackParamList } from './HomeStack';
 import type { Job, BidWithProfile } from '../types';
 import { MOCK_REPAIR_JOBS } from './RepairJobsData';
@@ -99,20 +98,6 @@ const WrenchIcon: React.FC = () => (
     <Path
       d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z"
       stroke={COLORS.bidOrange}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
-// At sign icon (mention) — #AD46FF
-const AtSignIcon: React.FC = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Circle cx={12} cy={12} r={4} stroke={COLORS.mentionPurple} strokeWidth={2} />
-    <Path
-      d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"
-      stroke={COLORS.mentionPurple}
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -649,7 +634,7 @@ const NotificationsTab: React.FC = () => {
         No notifications yet
       </Text>
       <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, textAlign: 'center', paddingHorizontal: 48 }}>
-        Check back soon! You'll see connection requests, bids, vouches, and more here.
+        Check back soon! You{"'"}ll see connection requests, bids, vouches, and more here.
       </Text>
     </View>
   );

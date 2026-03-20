@@ -746,7 +746,7 @@ const RepairJobDetails: React.FC = () => {
       }));
 
       closeBidAction();
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to accept bid. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -795,7 +795,7 @@ const RepairJobDetails: React.FC = () => {
       }));
 
       closeBidAction();
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to send counter. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -823,7 +823,7 @@ const RepairJobDetails: React.FC = () => {
       }));
 
       closeBidAction();
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to reject bid. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -1463,7 +1463,7 @@ const RepairJobDetails: React.FC = () => {
               </View>
 
               <InfoBanner size="sm">
-                By accepting this bid, you'll mark this job as in progress and notify {selectedBid?.name} to begin work. You can continue to communicate through the job chat.
+                By accepting this bid, you{"'"}ll mark this job as in progress and notify {selectedBid?.name} to begin work. You can continue to communicate through the job chat.
               </InfoBanner>
             </View>
 

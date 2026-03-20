@@ -12,7 +12,7 @@
 //          Google Places Details — GET places.googleapis.com/v1/places/{placeId}?fields=location,formattedAddress
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -136,16 +136,16 @@ const AddressComparisonScreen: React.FC = () => {
   // @demo: not used — mock path uses DEMO_LAT/LNG with offsets inside the hook
   // @backend S57: coordinates passed to compare() in live path
   const [geocodedLocations, setGeocodedLocations] = useState<
-    Array<{ lat: number; lng: number } | null>
+    ({ lat: number; lng: number } | null)[]
   >([null, null]);
 
   // Per-slot autocomplete suggestions (live path)
   const [suggestions, setSuggestions] = useState<
-    Array<Array<{ placeId: string; description: string }>>
+    { placeId: string; description: string }[][]
   >([[], []]);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState<boolean[]>([false, false]);
-  const [addressErrors, setAddressErrors] = useState<Array<string | null>>([null, null]);
-  const autocompleteTimers = useRef<Array<ReturnType<typeof setTimeout> | null>>([null, null]);
+  const [addressErrors, setAddressErrors] = useState<(string | null)[]>([null, null]);
+  const autocompleteTimers = useRef<(ReturnType<typeof setTimeout> | null)[]>([null, null]);
 
   // ── Comparison hook ──
   const { compare, comparison, isLoading, loadingMessage, error, reset } = useAddressComparison();

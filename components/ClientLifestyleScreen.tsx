@@ -238,7 +238,7 @@ const ClientLifestyleScreen: React.FC = () => {
   // Live path autocomplete suggestions from Google Places API
   // @demo: not used — mock path renders hardcoded suggestion
   const [suggestions, setSuggestions] = useState<
-    Array<{ placeId: string; description: string }>
+    { placeId: string; description: string }[]
   >([]);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);

@@ -34,7 +34,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
-import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
+import { COLORS, TYPOGRAPHY, DIMENSIONS } from '../lib/tokens';
 import { supabase } from '../lib/supabase';
 
 // ─────────────────────────────────────────────

@@ -21,7 +21,6 @@ import {
   StatusBar,
   Platform,
   Alert,
-  TouchableOpacity,
   Keyboard,              
   KeyboardAvoidingView,  
 } from 'react-native';

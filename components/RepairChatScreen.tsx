@@ -289,7 +289,7 @@ const RepairChatScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<RepairChatRouteProp>();
 
-  const { bidId, bidderName, bidderAvatarColor, jobId, jobTitle } = route.params;
+  const { bidderName, bidderAvatarColor, jobId, jobTitle } = route.params;
 
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');

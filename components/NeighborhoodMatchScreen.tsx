@@ -142,12 +142,6 @@ const NeighborhoodMatchScreen: React.FC = () => {
     extrapolate: 'clamp',
   });
 
-  // Animated integer display
-  const displayScore = scoreAnim.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 100],
-    extrapolate: 'clamp',
-  });
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -419,28 +413,6 @@ const NeighborhoodMatchScreen: React.FC = () => {
         </ScrollView>
       )}
     </SafeAreaView>
-  );
-};
-
-// ─────────────────────────────────────────────
-// ANIMATED SCORE TEXT
-// Uses Animated listener to update integer display
-// ─────────────────────────────────────────────
-
-const AnimatedScoreText = ({ value, color }: { value: Animated.AnimatedInterpolation<number>; color: string }) => {
-  const [display, setDisplay] = React.useState(0);
-
-  useEffect(() => {
-    const id = value.addListener(({ value: v }) => {
-      setDisplay(Math.round(v));
-    });
-    return () => value.removeListener(id);
-  }, [value]);
-
-  return (
-    <Text style={{ fontSize: 36, fontWeight: '700', color }}>
-      {display}
-    </Text>
   );
 };
 

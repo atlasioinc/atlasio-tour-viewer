@@ -75,6 +75,7 @@ const AttachSheet: React.FC<AttachSheetProps> = ({
     } else {
       slideAnim.setValue(300);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- animated ref is stable
   }, [visible]);
 
   return (

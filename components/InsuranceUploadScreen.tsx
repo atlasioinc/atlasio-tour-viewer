@@ -30,7 +30,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -190,6 +189,7 @@ const InsuranceUploadScreen: React.FC = () => {
     if (FEATURE_FLAGS.LIVE_INSURANCE_HOOKS) {
       // @backend expo-document-picker → select PDF/image
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require for conditional feature flag
         const DocumentPicker = require('expo-document-picker');
         const result = await DocumentPicker.getDocumentAsync({
           type: ['application/pdf', 'image/*'],
@@ -360,7 +360,7 @@ const InsuranceUploadScreen: React.FC = () => {
               lineHeight: 22,
             }}
           >
-            We'll review your insurance certificate and notify you within 24–48 hours.
+            We{"'"}ll review your insurance certificate and notify you within 24–48 hours.
           </Text>
           {selectedFile && (
             <Text style={{ fontSize: 14, color: COLORS.secondaryText, textAlign: 'center' }}>
@@ -687,7 +687,7 @@ const InsuranceUploadScreen: React.FC = () => {
               }}
             >
               After uploading, our team reviews your document within 24-48 hours.
-              You'll receive a notification when approved.
+              You{"'"}ll receive a notification when approved.
             </Text>
           </View>
         </ScrollView>

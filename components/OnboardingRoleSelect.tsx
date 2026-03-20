@@ -386,7 +386,7 @@ const OnboardingRoleSelect: React.FC<Props> = ({ navigation }) => {
                 paddingHorizontal: 16,
               }}
             >
-              Select how you'll use Atlasio to get started
+              Select how you{"'"}ll use Atlasio to get started
             </Text>
 
             {/* ── Role Cards ── */}

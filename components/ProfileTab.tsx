@@ -232,12 +232,10 @@ const ProfileTab: React.FC = () => {
   const profileLicensed = liveProfile?.licensed ?? '';
   const verificationLevel = mockSource?.verification_level ?? liveProfile?.verification_level ?? 'none';
   const licenseVerified = mockSource?.license_verified ?? liveProfile?.license_verified ?? false;
-  const insuranceUploaded = mockSource?.insurance_uploaded ?? liveProfile?.insurance_uploaded ?? false;
   const insuranceStatus = (mockSource as any)?.insurance_status ?? (liveProfile as any)?.insurance_status ?? 'none';
   const insuranceExpiry = (mockSource as any)?.insurance_expiry ?? (liveProfile as any)?.insurance_expiry ?? '';
   const insuranceDocName = (liveProfile as any)?.insurance_doc_name ?? 'Certificate of Insurance';
   const licenseNumber = mockSource?.license_number ?? liveProfile?.license_number ?? '';
-  const licenseState = mockSource?.license_state ?? liveProfile?.license_state ?? '';
 
   // ── Specialties ──
   const specialties = FEATURE_FLAGS.USE_MOCK_DATA

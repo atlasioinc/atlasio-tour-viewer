@@ -37,7 +37,7 @@ import {
   FlatList,
   Dimensions,
 } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 
 // ─────────────────────────────────────────────
@@ -121,6 +121,12 @@ const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
   onAddPhoto,
   onRemovePhoto,
 }) => {
+  // ── State: which photo is selected for large view ──
+  // (Hooks must be called unconditionally, before any early returns)
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const flatListRef = useRef<FlatList>(null);
+  const largeListRef = useRef<FlatList>(null);
+
   // ── Role gate: don't render if role isn't eligible ──
   if (!role) return null;
   const isGalleryRole = GALLERY_ROLES.some(
@@ -132,11 +138,6 @@ const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
   const displayPhotos = photos.slice(0, MAX_PHOTOS);
   const photoCount = displayPhotos.length;
   const hasPhotos = photoCount > 0;
-
-  // ── State: which photo is selected for large view ──
-  const [selectedIndex, setSelectedIndex] = useState<number>(0);
-  const flatListRef = useRef<FlatList>(null);
-  const largeListRef = useRef<FlatList>(null);
 
   // ── Large photo swipe handler ──
   const handleLargePhotoScroll = (e: any): void => {

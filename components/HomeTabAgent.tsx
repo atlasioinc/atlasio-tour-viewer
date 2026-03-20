@@ -27,22 +27,19 @@ import {
   Pressable,
   ScrollView,
   StatusBar,
-  Platform,
-  TextInput,
-  FlatList,
   Modal,
   Animated,
   Dimensions,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import SearchField from './SearchField';
 import SquadSlotPicker, { SquadProCandidate } from './SquadSlotPicker';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
-import { MOCK_REPAIR_JOBS, ACTIVE_REPAIR_JOBS } from './RepairJobsData';
+import { ACTIVE_REPAIR_JOBS } from './RepairJobsData';
 import RepairCard from './RepairCard';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
@@ -53,8 +50,7 @@ import DealCreationSheet from '../features/partners/components/DealCreationSheet
 import { VerificationBanner } from './shared/VerificationBanner';
 import QuickActionsRow from './QuickActionsRow';
 import { useVerificationGate } from '../hooks/useVerificationGate';
-import { isMilestoneStale, getSlotStatusDot } from '../features/partners/lib/dealMilestones';
-import type { AgentDealPartner, PartnerRole } from '../features/partners/types/partner.types';
+import { getSlotStatusDot } from '../features/partners/lib/dealMilestones';
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -75,24 +71,6 @@ const LocationPinIcon: React.FC = () => (
       r={2}
       stroke={COLORS.bodyText}
       strokeWidth={1.33}
-    />
-  </Svg>
-);
-
-const SearchIcon: React.FC = () => (
-  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Circle
-      cx={9.17}
-      cy={9.17}
-      r={6.67}
-      stroke={COLORS.lightText}
-      strokeWidth={1.67}
-    />
-    <Path
-      d="M14.17 14.17L17.5 17.5"
-      stroke={COLORS.lightText}
-      strokeWidth={1.67}
-      strokeLinecap="round"
     />
   </Svg>
 );
@@ -131,85 +109,6 @@ const PlusIcon: React.FC<{ size?: number; color?: string }> = ({
       d="M3.33 8H12.67"
       stroke={color}
       strokeWidth={1.67}
-      strokeLinecap="round"
-    />
-  </Svg>
-);
-
-const ClockIcon: React.FC = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Circle
-      cx={12}
-      cy={12}
-      r={10}
-      stroke={COLORS.cardBlueIcon}
-      strokeWidth={2}
-    />
-    <Path
-      d="M12 6V12L16 14"
-      stroke={COLORS.cardBlueIcon}
-      strokeWidth={2}
-      strokeLinecap="round"
-    />
-  </Svg>
-);
-
-const ShieldDocIcon: React.FC = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"
-      stroke={COLORS.cardGreenIcon}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M14 2V8H20"
-      stroke={COLORS.cardGreenIcon}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M9 13L11 15L15 11"
-      stroke={COLORS.cardGreenIcon}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
-const ToolIcon: React.FC = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M14.7 6.3C14.5168 6.48693 14.4141 6.73825 14.4141 7C14.4141 7.26175 14.5168 7.51307 14.7 7.7L16.3 9.3C16.4869 9.48322 16.7383 9.58585 17 9.58585C17.2617 9.58585 17.5131 9.48322 17.7 9.3L21.47 5.53C21.9728 6.6412 22.1251 7.87924 21.9065 9.07916C21.6878 10.2791 21.1087 11.3838 20.2463 12.2463C19.3838 13.1087 18.2791 13.6878 17.0792 13.9065C15.8792 14.1251 14.6412 13.9728 13.53 13.47L6.62 20.38C6.22218 20.7778 5.68261 21.0013 5.12 21.0013C4.55739 21.0013 4.01783 20.7778 3.62 20.38C3.22218 19.9822 2.99868 19.4426 2.99868 18.88C2.99868 18.3174 3.22218 17.7778 3.62 17.38L10.53 10.47C10.0272 9.35878 9.87493 8.12076 10.0935 6.92084C10.3122 5.72092 10.8913 4.61623 11.7537 3.75377C12.6162 2.89131 13.7209 2.31219 14.9208 2.09355C16.1208 1.87491 17.3588 2.02718 18.47 2.53L14.71 6.29L14.7 6.3Z"
-      stroke={COLORS.primary}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
-const TrendingIcon: React.FC = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"
-      stroke={COLORS.cardPurpleIcon}
-      strokeWidth={2}
-    />
-    <Path
-      d="M16 12L12 8L8 12"
-      stroke={COLORS.cardPurpleIcon}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M12 16V8"
-      stroke={COLORS.cardPurpleIcon}
-      strokeWidth={2}
       strokeLinecap="round"
     />
   </Svg>
@@ -288,50 +187,6 @@ const ADDITIONAL_ROLES = [
 // ─────────────────────────────────────────────
 // QUICK ACTION CARD DATA
 // ─────────────────────────────────────────────
-
-interface QuickAction {
-  id: string;
-  title: string;
-  subtitle: string;
-  bgColor: string;
-  borderColor: string;
-  icon: React.ReactNode;
-}
-
-const QUICK_ACTIONS: QuickAction[] = [
-  {
-    id: 'fast-lender',
-    title: 'Need a Fast Lender',
-    subtitle: 'Closes ≤21 days ·\n10+ vouches',
-    bgColor: COLORS.cardBlue,
-    borderColor: COLORS.cardBlueBorder,
-    icon: <ClockIcon />,
-  },
-  {
-    id: 'reliable-title',
-    title: 'Reliable Title',
-    subtitle: 'Fees shown · 4.8+ rating',
-    bgColor: COLORS.cardGreen,
-    borderColor: COLORS.cardGreenBorder,
-    icon: <ShieldDocIcon />,
-  },
-  {
-    id: 'repair-bid',
-    title: 'Repair Bid',
-    subtitle: 'Get bids in <2h',
-    bgColor: COLORS.cardOrange,
-    borderColor: COLORS.cardOrangeBorder,
-    icon: <ToolIcon />,
-  },
-  {
-    id: 'top-this-week',
-    title: 'Top in Denver This Week',
-    subtitle: 'Highest vouches',
-    bgColor: COLORS.cardPurple,
-    borderColor: COLORS.cardPurpleBorder,
-    icon: <TrendingIcon />,
-  },
-];
 
 // ─────────────────────────────────────────────
 // NEIGHBORHOOD INTELLIGENCE ICONS + CARD
@@ -482,6 +337,7 @@ const HomeTabAgent: React.FC = () => {
         }
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animated refs are stable
   }, [rolePickerVisible]);
 
   // Computed squad values
@@ -554,13 +410,6 @@ const HomeTabAgent: React.FC = () => {
     setAdditionalSlots((prev) => [...prev, newSlot]);
     pendingPickerRef.current = { role: role.role, slotId: role.id };
     setRolePickerVisible(false);
-  };
-
-  const handleSendToClient = () => {
-    const filled = Object.entries(squadMembers).map(
-      ([slotId, pro]) => `${slotId}: ${pro.name}`
-    );
-    console.log('Send to Client:', filled);
   };
 
   // ── Vouch Feed → ProProfile navigation ──
@@ -1012,7 +861,7 @@ const HomeTabAgent: React.FC = () => {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 12 }}
             >
               {activeDeals!.map((deal) => {
                 // Count undismissed alerts across all partners
@@ -1255,7 +1104,7 @@ const HomeTabAgent: React.FC = () => {
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 12, paddingLeft: 16, paddingRight: 16, paddingBottom: 4 }}
+                contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingVertical: 4 }}
               >
                 {activeJobs.map((job) => (
                   <RepairCard

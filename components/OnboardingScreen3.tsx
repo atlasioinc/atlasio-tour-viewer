@@ -411,6 +411,7 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation, route }) => {
       subRoleOpacity.setValue(0);
       subRoleTranslateY.setValue(-10);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- animated refs are stable
   }, [needsSubRole]);
 
   // Find label for selected sub-role

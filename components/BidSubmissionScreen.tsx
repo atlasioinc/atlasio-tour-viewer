@@ -18,7 +18,7 @@
 // @backend useSubmitBid (wired) — rpc_submit_bid(p_job_id, p_amount, p_timeline, p_notes)
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -129,7 +129,6 @@ const BidSubmissionScreen: React.FC = () => {
   const feeAmount = Math.round(amountCents * (MOCK_FEE_TIER.percent / 100));
   const takeHome = amountCents - feeAmount;
   const timelineLabel = isTimelineSelected ? TIMELINE_OPTIONS[selectedTimeline].label : '';
-  const timelineDays = isTimelineSelected ? TIMELINE_OPTIONS[selectedTimeline].days : 0;
 
   // ── Format amount input ──
   const handleAmountChange = (text: string) => {

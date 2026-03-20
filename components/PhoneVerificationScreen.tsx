@@ -265,7 +265,7 @@ const PhoneVerificationScreen: React.FC = () => {
                   Enter your phone number
                 </Text>
                 <Text style={{ fontSize: 14, color: COLORS.bodyText, textAlign: 'center' }}>
-                  We'll send a verification code via SMS
+                  We{"'"}ll send a verification code via SMS
                 </Text>
               </View>
 

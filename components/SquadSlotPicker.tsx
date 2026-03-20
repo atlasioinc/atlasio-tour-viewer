@@ -269,6 +269,7 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
         }),
       ]).start(() => setModalMounted(false));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animated refs (backdropAnim, slideAnim) and modalMounted are stable
   }, [visible]);
 
   // ── Live data hook (keeps cache warm) ──

@@ -38,17 +38,12 @@ import {
   Platform,
   KeyboardAvoidingView,
   Keyboard,
-  Modal,
   Animated,
-  Dimensions,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import VouchPromptModal from './VouchPromptModal';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -154,13 +149,6 @@ const DEMO_PROOF_PHOTOS = [
 // ─────────────────────────────────────────────
 // SVG ICONS
 // ─────────────────────────────────────────────
-
-const CloseIcon: React.FC = () => (
-  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Path d="M5 5L15 15" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" />
-    <Path d="M15 5L5 15" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" />
-  </Svg>
-);
 
 const CheckCircleIcon: React.FC<{ size?: number; color?: string }> = ({ size = 20, color = COLORS.successGreen }) => (
   <Svg width={size} height={size} viewBox="0 0 20 20" fill="none">
@@ -318,12 +306,6 @@ const StatusTimeline: React.FC<{ steps: TimelineStep[] }> = ({ steps }) => (
   <View style={{ gap: 0 }}>
     {steps.map((step, index) => {
       const isLast = index === steps.length - 1;
-      const iconColor =
-        step.status === 'completed'
-          ? COLORS.successGreen
-          : step.status === 'active'
-          ? COLORS.primary
-          : COLORS.border;
 
       return (
         <View key={step.label} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
@@ -481,13 +463,12 @@ const AddPhotoButton: React.FC<{ onPress: () => void; count: number }> = ({ onPr
 // ═══════════════════════════════════════════════════════════════
 
 const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, route }) => {
-  const { jobId, userRole } = route.params;
-  const isContractor = userRole === 'contractor';
+  const { userRole } = route.params;
   const isAgent = userRole === 'agent';
 
   // @demo Job data (mock fallback) — @backend TODO: wire to useJob(jobId)
   // Agent sees the pending version (contractor already submitted)
-  const [job, setJob] = useState<CompletionJobData>(
+  const [job] = useState<CompletionJobData>(
     isAgent ? MOCK_JOB_PENDING : MOCK_JOB
   );
 
@@ -530,6 +511,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
       setRevisionNotes('');
     }
     setShowSuccess(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; activeIsAgent derived from demoRole
   }, [demoRole]);
 
   // ── Timeline steps (computed from status + role) ──
@@ -699,6 +681,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
         },
       ]
     );
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- job ref intentionally included for staleness check
   }, [job, showSuccessOverlay]);
 
   // ── AGENT: Request Revision ──
@@ -1194,7 +1177,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
                     lineHeight: 18,
                   }}
                 >
-                  This will send the job back to the contractor for revision. They'll be notified
+                  This will send the job back to the contractor for revision. They&apos;ll be notified
                   and can resubmit once addressed.
                 </Text>
               </View>

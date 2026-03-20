@@ -35,9 +35,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RouteProp } from '@react-navigation/native';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
@@ -47,10 +46,6 @@ import { CounterButton, DangerButton } from './Button';
 // ─────────────────────────────────────────────
 // ROUTE PARAMS
 // ─────────────────────────────────────────────
-
-type ContractorJobDetailsParams = {
-  ContractorJobDetails: { jobId: string };
-};
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -86,12 +81,6 @@ const CalendarIcon: React.FC = () => (
 const StarIcon: React.FC = () => (
   <Svg width={12} height={12} viewBox="0 0 14 14" fill="none">
     <Path d="M7 1.17L8.82 4.87L12.88 5.46L9.94 8.32L10.64 12.36L7 10.44L3.36 12.36L4.06 8.32L1.12 5.46L5.18 4.87L7 1.17Z" fill={COLORS.starColor} stroke={COLORS.starColor} strokeWidth={1.17} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-const ArrowRightIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-    <Path d="M5 12H19M19 12L12 5M19 12L12 19" stroke={COLORS.counterAmber} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -225,26 +214,6 @@ const AgentMessageBanner: React.FC<AgentMessageBannerProps> = ({
 );
 
 // ─────────────────────────────────────────────
-// BID STATUS CHIP
-// ─────────────────────────────────────────────
-
-const BID_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  pending: { label: 'Pending', bg: 'rgba(0, 61, 195, 0.08)', text: COLORS.primary },
-  countered: { label: 'Countered', bg: 'rgba(217, 119, 6, 0.10)', text: COLORS.counterAmber },
-  accepted: { label: 'Accepted', bg: 'rgba(22, 163, 74, 0.10)', text: COLORS.successGreen },
-  rejected: { label: 'Rejected', bg: 'rgba(231, 0, 11, 0.10)', text: COLORS.rejectRed },
-  edited: { label: 'Edited', bg: 'rgba(0, 61, 195, 0.08)', text: COLORS.primary },
-};
-
-const BidStatusChip: React.FC<{ status: string }> = ({ status }) => {
-  const config = BID_STATUS_CONFIG[status] ?? BID_STATUS_CONFIG.pending;
-  return (
-    <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: config.bg, borderRadius: 9999 }}>
-      <Text style={{ fontSize: 14, fontWeight: '600', color: config.text, lineHeight: 16 }}>{config.label}</Text>
-    </View>
-  );
-};
-
 // ─────────────────────────────────────────────
 // @demo MOCK DATA — 3 states
 // ─────────────────────────────────────────────
@@ -333,7 +302,6 @@ const DEMO_PHOTOS = [
 
 const ContractorJobDetails: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const route = useRoute<RouteProp<ContractorJobDetailsParams, 'ContractorJobDetails'>>();
   const insets = useSafeAreaInsets();
 
   // @demo State toggle (cycles through 3 mock states)
@@ -707,7 +675,7 @@ const ContractorJobDetails: React.FC = () => {
               color: COLORS.budgetLabelText,        // #DBEAFE
               marginBottom: 4,
             }}>
-              Agent's Budget
+              Agent{"'"}s Budget
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
               <Text style={{ ...TYPOGRAPHY.displayM, color: COLORS.background }}>
@@ -843,7 +811,7 @@ const ContractorJobDetails: React.FC = () => {
                 marginBottom: job.myBid.counterNotes ? 10 : 0,
               }}>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.counterAmber, lineHeight: 20 }}>
-                  Agent's counter:{' '}
+                  Agent{"'"}s counter:{' '}
                 </Text>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.counterAmber, lineHeight: 20 }}>
                   {centsToDisplay(job.myBid.counterAmount!)}
@@ -853,7 +821,7 @@ const ContractorJobDetails: React.FC = () => {
               {/* Row 3: Agent's counter note (optional) */}
               {job.myBid.counterNotes ? (
                 <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
-                  "{job.myBid.counterNotes}"
+                  {'"'}{job.myBid.counterNotes}{'"'}
                 </Text>
               ) : null}
             </View>

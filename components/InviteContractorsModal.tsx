@@ -317,7 +317,7 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
         <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
           <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }} numberOfLines={2}>
             Invite contractors from your network to bid on{' '}
-            <Text style={{ fontWeight: '500', color: COLORS.headingText }}>"{jobTitle}"</Text>
+            <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{'"'}{jobTitle}{'"'}</Text>
           </Text>
         </View>
 
@@ -347,7 +347,7 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
                 No matching contractors
               </Text>
               <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.lightText, textAlign: 'center' }}>
-                No contractors in your network match "{jobCategory}". Try broadening your search.
+                No contractors in your network match {'"'}{jobCategory}{'"'}. Try broadening your search.
               </Text>
             </View>
           }

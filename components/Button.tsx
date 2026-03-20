@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import React from 'react';
-import { Pressable, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { Pressable, Text, ActivityIndicator, ViewStyle } from 'react-native';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS (inline to keep component self-contained)

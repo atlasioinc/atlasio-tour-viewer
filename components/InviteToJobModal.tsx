@@ -20,12 +20,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Dimensions,
   Alert,
   Animated,
 } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SearchField from './SearchField';
 import ConfirmationModal from './ConfirmationModal';
 
@@ -58,8 +57,6 @@ const COLORS = {
   // Selection ring
   selectionRing: 'rgba(0, 61, 195, 0.10)',
 } as const;
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─────────────────────────────────────────────
 // TYPES — backend-ready interfaces
@@ -346,6 +343,7 @@ const InviteToJobModal: React.FC<InviteToJobModalProps> = ({
         stiffness: 200,
       }).start();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- slideAnim is an animated ref, stable
   }, [visible, step]);
 
   const activeJobs = jobs ?? MOCK_JOBS;
@@ -393,12 +391,12 @@ const InviteToJobModal: React.FC<InviteToJobModalProps> = ({
       // Store job title for confirmation modal, then show it
       setSentJobTitle(job.title);
       setShowConfirmModal(true);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to send invite. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedJobId, activeJobs, contractor, message, handleClose, onInviteSent]);
+  }, [selectedJobId, activeJobs, contractor, message, onInviteSent]);
 
   // ── Handle Create New Job ──
   const handleCreateNewJob = useCallback(() => {
