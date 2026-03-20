@@ -40,8 +40,8 @@
 //   NOTIFICATIONS (3)    — useNotifications, useMarkNotificationsRead, useUnreadNotificationCount
 //   FIND / SEARCH (4)    — useSearchPros, useFindPros, useRecommendedPros, useTrendingPros
 //   SQUADS (3)           — useSquadMembers, useAssignSquadMember, useRemoveSquadMember
-//   CONTRACTOR JOBS (5)  — useContractorJobDetails, useSubmitBid, useRespondToCounter,
-//                          useAcceptInvitation, useDeclineInvitation
+//   CONTRACTOR JOBS (6)  — useContractorJobDetails, useSubmitBid, useRespondToCounter,
+//                          useAcceptInvitation, useDeclineInvitation, useStartJob
 //   CONTRACTOR DASHBOARD (3) — useMatchingJobs, useContractorEarnings, useMarketPulse
 //   ONBOARDING (1)       — useCompleteOnboarding
 //   ACCOUNT (1)          — useDeleteAccount
@@ -1811,6 +1811,37 @@ export const useDeclineInvitation = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contractorJob'] });
+    },
+  });
+};
+
+/**
+ * Start work on an awarded job (contractor).
+ * @backend supabase.rpc('rpc_start_job', { p_job_id })
+ * → validates awarded contractor, transitions awarded → in_progress, notifies agent
+ */
+// STATUS: mock
+// @demo: mock 800ms delay, optimistic awarded → in_progress
+// @backend: rpc_start_job(p_job_id)
+export const useStartJob = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { jobId: string }) => {
+      try {
+        const { data, error } = await supabase
+          .rpc('rpc_start_job', { p_job_id: params.jobId });
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.warn('[useStartJob] Supabase RPC failed, using mock fallback', err);
+        // @demo mock fallback — 800ms delay
+        await new Promise((r) => setTimeout(r, 800));
+        return { success: true, job_id: params.jobId, status: 'in_progress' };
+      }
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['contractorJob', variables.jobId] });
+      qc.invalidateQueries({ queryKey: ['contractorActiveJobs'] });
     },
   });
 };

@@ -48,6 +48,7 @@ import { useAgentJobs, useMyProfile, useAgentActiveDeals } from '../hooks/useDat
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
 import DealCreationSheet from '../features/partners/components/DealCreationSheet';
 import { VerificationBanner } from './shared/VerificationBanner';
+import { SecondaryButton } from './Button';
 import QuickActionsRow from './QuickActionsRow';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 import { getSlotStatusDot } from '../features/partners/lib/dealMilestones';
@@ -142,6 +143,19 @@ const PostJobWrenchIcon: React.FC = () => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
+  </Svg>
+);
+
+const NewDealHouseIcon: React.FC = () => (
+  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z"
+      stroke={COLORS.primary}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path d="M9 22V12H15V22" stroke={COLORS.primary} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -848,12 +862,13 @@ const HomeTabAgent: React.FC = () => {
               {/* @demo flip DEAL_CREATION_ENABLED: true to show CTA
                   @backend rpc_create_transaction — entry point for deal creation */}
               {DEAL_CREATION_ENABLED && (
-                <Pressable
+                <SecondaryButton
+                  label="New Deal"
                   onPress={() => setDealSheetVisible(true)}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>New Deal +</Text>
-                </Pressable>
+                  fullWidth={false}
+                  leftIcon={<NewDealHouseIcon />}
+                  style={{ paddingHorizontal: 14 }}
+                />
               )}
             </View>
 

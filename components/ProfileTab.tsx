@@ -199,6 +199,31 @@ const MOCK_CONTRACTOR_PROFILE = {
   display_role: 'Contractor',
 };
 
+// ─────────────────────────────────────────────
+// @demo MOCK PARTNER PROFILE
+// @backend: replace with useMyProfile() when LIVE
+// ─────────────────────────────────────────────
+
+const MOCK_PARTNER_PROFILE = {
+  name: 'Sarah Chen',
+  company: 'First American Title',
+  role: 'partner' as const,
+  partnerType: 'title_escrow' as const,
+  bio: 'Title & escrow specialist with 12 years closing real estate transactions across Denver Metro.',
+  headline: 'Title & Escrow · First American',
+  location: 'Denver, CO',
+  avatar_color: '#8B5CF6',
+  rating: 4.9,
+  vouch_count: 23,
+  is_visible: true,
+  verification_level: 'basic' as const,
+  specialties: ['Title Insurance', 'Escrow Management', 'Closing Coordination', '1031 Exchanges'],
+  display_role: 'Title & Escrow',
+  dealsClosedCount: 47,
+  avgClosingDays: 18,
+  acceptingClients: true,
+};
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -211,11 +236,14 @@ const ProfileTab: React.FC = () => {
   const { data: liveProfile } = useMyProfile();
   const { demoRole } = useDemoRole();
 
-  // ── Mock gating: use contractor mock when USE_MOCK_DATA + contractor demo role ──
+  // ── Mock gating: use role-specific mock when USE_MOCK_DATA + demo role ──
   // demoRole comes from DemoRoleContext (BottomTabNavigator), NOT liveProfile.role
   // (useMyProfile mock fallback always returns role:'agent' regardless of demo role)
   const isMockContractor = FEATURE_FLAGS.USE_MOCK_DATA && demoRole === 'contractor';
-  const mockSource = isMockContractor ? MOCK_CONTRACTOR_PROFILE : null;
+  const isMockPartner = FEATURE_FLAGS.USE_MOCK_DATA && demoRole === 'partner';
+  const mockSource = isMockContractor ? MOCK_CONTRACTOR_PROFILE
+    : isMockPartner ? MOCK_PARTNER_PROFILE
+    : null;
 
   // ── Profile data ──
   const profileName = mockSource?.name ?? liveProfile?.name ?? 'Loading...';
@@ -227,15 +255,15 @@ const ProfileTab: React.FC = () => {
   const profileAvatarColor = mockSource?.avatar_color ?? liveProfile?.avatar_color ?? COLORS.primary;
   const profileRole = mockSource?.role ?? liveProfile?.role ?? 'agent';
   const profileDisplayRole = mockSource?.display_role ?? liveProfile?.display_role ?? ROLE_DISPLAY[profileRole] ?? 'Professional';
-  const profileTrade = mockSource?.trade ?? liveProfile?.trade ?? null;
+  const profileTrade = (mockSource as any)?.trade ?? liveProfile?.trade ?? null;
   const profileHeadline = mockSource?.headline ?? liveProfile?.headline ?? null;
   const profileLicensed = liveProfile?.licensed ?? '';
   const verificationLevel = mockSource?.verification_level ?? liveProfile?.verification_level ?? 'none';
-  const licenseVerified = mockSource?.license_verified ?? liveProfile?.license_verified ?? false;
+  const licenseVerified = (mockSource as any)?.license_verified ?? liveProfile?.license_verified ?? false;
   const insuranceStatus = (mockSource as any)?.insurance_status ?? (liveProfile as any)?.insurance_status ?? 'none';
   const insuranceExpiry = (mockSource as any)?.insurance_expiry ?? (liveProfile as any)?.insurance_expiry ?? '';
   const insuranceDocName = (liveProfile as any)?.insurance_doc_name ?? 'Certificate of Insurance';
-  const licenseNumber = mockSource?.license_number ?? liveProfile?.license_number ?? '';
+  const licenseNumber = (mockSource as any)?.license_number ?? liveProfile?.license_number ?? '';
 
   // ── Specialties ──
   const specialties = FEATURE_FLAGS.USE_MOCK_DATA
@@ -267,7 +295,16 @@ const ProfileTab: React.FC = () => {
     { id: 'vc-6', name: 'Emma Davis', role: 'Agent · Sotheby\'s', quote: '"Professional, licensed, insured — exactly what you want before a closing."' },
   ];
 
-  const mockVouches = profileRole === 'contractor' ? MOCK_CONTRACTOR_VOUCHES : MOCK_AGENT_VOUCHES;
+  // @demo Partner vouches — replace with useProfileVouches when LIVE
+  const MOCK_PARTNER_VOUCHES = [
+    { id: 'vp-1', name: 'Priya Patel', role: 'Agent · Keller Williams', quote: '"Closed on time every single deal. Communication is top-notch."' },
+    { id: 'vp-2', name: 'Marcus Webb', role: 'Agent · RE/MAX', quote: '"Best title company in Denver. Always responsive and thorough."' },
+    { id: 'vp-3', name: 'Emma Davis', role: 'Agent · Compass', quote: '"Sarah made a complex 1031 exchange feel simple. Incredible service."' },
+  ];
+
+  const mockVouches = profileRole === 'partner' ? MOCK_PARTNER_VOUCHES
+    : profileRole === 'contractor' ? MOCK_CONTRACTOR_VOUCHES
+    : MOCK_AGENT_VOUCHES;
 
   const vouches = (liveVouches && liveVouches.length > 0)
     ? liveVouches
@@ -304,6 +341,7 @@ const ProfileTab: React.FC = () => {
 
   // ── Role-conditional flags ──
   const isContractor = profileRole === 'contractor';
+  const isPartner = profileRole === 'partner';
   const isGalleryRole = ['contractor', 'home_stager', 'real_estate_photographer'].includes(profileRole);
 
   // ── Portfolio photos (mock for demo) ──
@@ -673,7 +711,29 @@ const ProfileTab: React.FC = () => {
           </View>
 
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            {isContractor ? (
+            {isPartner ? (
+              <>
+                {/* @demo Partner stats — replace with useMyProfile() live data */}
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>47</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    Deals{'\n'}Closed
+                  </Text>
+                </View>
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>18</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    Avg Close{'\n'}Days
+                  </Text>
+                </View>
+                <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
+                  <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>23</Text>
+                  <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
+                    {'\n'}Vouches
+                  </Text>
+                </View>
+              </>
+            ) : isContractor ? (
               <>
                 <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
                   <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.headingText }}>27</Text>

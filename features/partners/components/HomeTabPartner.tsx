@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../../../lib/tokens';
 import ActiveDealCard from './ActiveDealCard';
 import {
@@ -106,6 +107,9 @@ const DEMO_PARTNER_ID = 'partner-1';
 // ─────────────────────────────────────────────────────────────────
 
 const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage Pro' }) => {
+  // ── Navigation ──
+  const navigation = useNavigation<any>();
+
   // ── State ──
   const [acceptingClients, setAcceptingClients] = useState(true);
 
@@ -502,6 +506,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
 
           {/* View all deals link */}
           <Pressable
+            onPress={() => navigation.navigate('Deals')}
             style={{
               flexDirection: 'row',
               alignItems: 'center',

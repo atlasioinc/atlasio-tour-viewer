@@ -237,7 +237,7 @@ const AddContactRow: React.FC<{
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<ChatScreenRouteProp>();
-  const { threadId, contactName, contactCompany, contactRole, contactAvatarColor } = route.params;
+  const { threadId, contactName, contactCompany, contactRole, contactAvatarColor, dealAddress } = route.params;
 
   // ── Live data hooks ──
   const { data: liveMessages } = useMessages(threadId);
@@ -437,11 +437,13 @@ const ChatScreen: React.FC = () => {
               </Pressable>
               <SingleAvatar color={recipients[0]?.avatarColor || '#C0C0C0'} name={recipients[0]?.name || '?'} size={36} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }} numberOfLines={1}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, lineHeight: 22 }} numberOfLines={1}>
                   {recipients.length === 1 ? recipients[0]?.name : `${recipients[0]?.name} + ${recipients.length - 1}`}
                 </Text>
-                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }} numberOfLines={1}>
-                  {recipients.length === 1 ? recipients[0]?.company : `${recipients.length} members`}
+                <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 18 }} numberOfLines={1}>
+                  {dealAddress
+                    ? `${contactRole} · ${dealAddress}`
+                    : recipients.length === 1 ? recipients[0]?.company : `${recipients.length} members`}
                 </Text>
               </View>
               <Pressable

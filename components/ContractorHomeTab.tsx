@@ -303,7 +303,8 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
     agentAvatar: '#B5C4A8',
     agentRating: 4.7,
     agentCompany: 'RE/MAX Alliance',
-    jobStatus: 'pending_completion',
+    // @demo State 4: Awarded — bid accepted, ready to start work
+    jobStatus: 'awarded',
     deadline: 'Mar 15',
     acceptedAmount: '$1,450',
     trade: 'Plumber',
@@ -316,7 +317,8 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
     agentAvatar: '#A8C5DA',
     agentRating: 4.8,
     agentCompany: 'Compass',
-    jobStatus: 'awarded',
+    // @demo State 6: Pending Confirmation — proof submitted, awaiting agent review
+    jobStatus: 'pending_completion',
     deadline: 'Mar 18',
     acceptedAmount: '$2,200',
     trade: 'Plumber',

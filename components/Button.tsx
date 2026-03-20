@@ -41,6 +41,8 @@ interface ButtonProps {
   fullWidth?: boolean;
   /** Override minimum width */
   style?: ViewStyle;
+  /** Optional icon rendered left of the label */
+  leftIcon?: React.ReactNode;
 }
 
 // ─────────────────────────────────────────────
@@ -103,6 +105,7 @@ export const SecondaryButton: React.FC<ButtonProps> = ({
   loading = false,
   fullWidth = true,
   style,
+  leftIcon,
 }) => (
   <Pressable
     onPress={onPress}
@@ -116,6 +119,8 @@ export const SecondaryButton: React.FC<ButtonProps> = ({
       borderColor: disabled ? COLORS.disabledBg : COLORS.primary,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: 8,
       opacity: pressed ? 0.7 : 1,
       ...(fullWidth ? { width: '100%' as any } : {}),
       ...style,
@@ -124,17 +129,20 @@ export const SecondaryButton: React.FC<ButtonProps> = ({
     {loading ? (
       <ActivityIndicator color={COLORS.primary} size="small" />
     ) : (
-      <Text
-        style={{
-          fontSize: 14,
-          fontWeight: '500',
-          color: disabled ? COLORS.disabledText : COLORS.primary,
-          lineHeight: 20,
-          textAlign: 'center',
-        }}
-      >
-        {label}
-      </Text>
+      <>
+        {leftIcon}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '500',
+            color: disabled ? COLORS.disabledText : COLORS.primary,
+            lineHeight: 20,
+            textAlign: 'center',
+          }}
+        >
+          {label}
+        </Text>
+      </>
     )}
   </Pressable>
 );

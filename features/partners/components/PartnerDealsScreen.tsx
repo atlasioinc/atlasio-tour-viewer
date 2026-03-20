@@ -158,8 +158,9 @@ const PartnerDealsScreen: React.FC<PartnerDealsScreenProps> = ({ partnerRole = '
               key={chip.key}
               onPress={() => setActiveFilter(chip.key)}
               style={{
+                height: 32,
                 paddingHorizontal: 14,
-                paddingVertical: 8,
+                justifyContent: 'center',
                 borderRadius: DIMENSIONS.pillRadius,
                 backgroundColor: isActive ? COLORS.accentBlue : COLORS.chipBg,
               }}

@@ -28,6 +28,8 @@ export type InboxStackParamList = {
     contactCompany: string;
     contactRole: string;
     contactAvatarColor: string;
+    /** @demo — address hardcoded in mock threads; replace with thread.deal.address when LIVE */
+    dealAddress?: string;
   };
   CreateDealChat: undefined;
   DealChatScreen: {

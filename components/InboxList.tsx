@@ -127,6 +127,10 @@ interface ChatThread {
   memberCount?: number;
   avatarColors: string[];
   isOnline?: boolean;
+  /** @demo — role label for deal context threads; replace with thread.contact.role when LIVE */
+  contactRole?: string;
+  /** @demo — address for deal context threads; replace with thread.deal.address when LIVE */
+  dealAddress?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -167,6 +171,9 @@ const INITIAL_THREADS: ChatThread[] = [
     isPinned: false,
     isGroup: false,
     avatarColors: ['#A8D4C5'],
+    // @demo — address hardcoded here; replace with thread.deal.address when LIVE
+    contactRole: 'Mortgage Pro',
+    dealAddress: '123 Main St, Denver CO',
   },
   {
     id: 't4',
@@ -188,6 +195,9 @@ const INITIAL_THREADS: ChatThread[] = [
     isPinned: false,
     isGroup: false,
     avatarColors: ['#D4B5A8'],
+    // @demo — address hardcoded here; replace with thread.deal.address when LIVE
+    contactRole: 'Title/Escrow',
+    dealAddress: '456 Oak Ave, Denver CO',
   },
   {
     id: 't6',
@@ -520,8 +530,9 @@ const InboxList: React.FC = () => {
         threadId: thread.id,
         contactName,
         contactCompany,
-        contactRole: '',
+        contactRole: thread.contactRole ?? '',
         contactAvatarColor: thread.avatarColors?.[0] ?? '#7BA3C9',
+        dealAddress: thread.dealAddress,
       });
     }
   }, [navigation]);
@@ -602,7 +613,7 @@ const InboxList: React.FC = () => {
               {/* Pinned Section */}
               {pinnedThreads.length > 0 && (
                 <View>
-                  <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
+                  <View style={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
                     <Text style={{ color: COLORS.secondaryText, fontSize: 12, fontWeight: '400', textTransform: 'uppercase', lineHeight: 16, letterSpacing: 0.3 }}>
                       Pinned
                     </Text>

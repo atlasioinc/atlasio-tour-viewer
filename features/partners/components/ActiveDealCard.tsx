@@ -20,6 +20,7 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, DIMENSIONS, SPACING, SHADOWS } from '../../../lib/tokens';
 import { getRateLockDaysRemaining, RATE_LOCK_DANGER_THRESHOLD_DAYS } from '../lib/dealMilestones';
@@ -112,17 +113,21 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
   const [selectedAlertType, setSelectedAlertType] = useState<AlertTypeConfig | null>(null);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertExpiryDate, setAlertExpiryDate] = useState('');
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>([]);
+
+  // ── Filter out locally dismissed alerts ──
+  const visibleAlerts = deal.alerts.filter(a => !dismissedAlertIds.includes(a.id));
 
   // ── Rate lock escalation logic ──
   // @demo Rate lock countdown is client-side only — reads expires_at from DealAlert
   // In production: recalculate on every render, getRateLockDaysRemaining() in dealMilestones.ts
-  const rateLockAlert = deal.alerts.find(a => a.alert_type === 'rate_lock_expiry' && !a.dismissed_at);
+  const rateLockAlert = visibleAlerts.find(a => a.alert_type === 'rate_lock_expiry' && !a.dismissed_at);
   const daysRemaining = rateLockAlert ? getRateLockDaysRemaining(rateLockAlert.expires_at) : null;
   const isUrgent = daysRemaining !== null && daysRemaining <= RATE_LOCK_DANGER_THRESHOLD_DAYS;
 
   // ── Left border color ──
   // Danger: rate lock urgent. Warning: any alert or stale milestone. Default: neutral
-  const hasAnyAlert = deal.alerts.length > 0;
+  const hasAnyAlert = visibleAlerts.length > 0;
   const leftBorderColor = isUrgent
     ? COLORS.dangerText
     : hasAnyAlert
@@ -193,7 +198,7 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
         </View>
 
         {/* ── Alert Banners ── */}
-        {deal.alerts.map(alert => {
+        {visibleAlerts.map(alert => {
           const isRateLock = alert.alert_type === 'rate_lock_expiry';
           const rl = isRateLock ? getRateLockDaysRemaining(alert.expires_at) : null;
           const bannerIsUrgent = rl !== null && rl <= RATE_LOCK_DANGER_THRESHOLD_DAYS;
@@ -221,7 +226,10 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
                 {alert.message}
               </Text>
               <Pressable
-                onPress={() => onDismissAlert(alert.id)}
+                onPress={() => {
+                  setDismissedAlertIds(prev => [...prev, alert.id]);
+                  onDismissAlert(alert.id);
+                }}
                 style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
               >
                 <DismissIcon />
@@ -268,7 +276,16 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
             return (
               <Pressable
                 key={ms.id}
-                onPress={() => onMilestoneTap(ms.id, ms.status)}
+                onPress={() => {
+                  const next = getNextStatus(ms.status);
+                  // Haptic: Light for in_progress, Medium for complete
+                  Haptics.impactAsync(
+                    next === 'complete'
+                      ? Haptics.ImpactFeedbackStyle.Medium
+                      : Haptics.ImpactFeedbackStyle.Light,
+                  );
+                  onMilestoneTap(ms.id, ms.status);
+                }}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -311,9 +328,15 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
               backgroundColor: COLORS.filterBg,
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.accentBlue }}>
-              {composerOpen ? 'Cancel' : '+ Post alert to agent'}
-            </Text>
+            {composerOpen ? (
+              <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText }}>
+                Post Alert
+              </Text>
+            ) : (
+              <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.accentBlue }}>
+                + Post alert to agent
+              </Text>
+            )}
           </Pressable>
 
           {/* ── Alert Composer ── */}

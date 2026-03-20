@@ -37,10 +37,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
-import { useRespondToCounter } from '../hooks/useData';
+import { useRespondToCounter, useStartJob } from '../hooks/useData';
 import { CounterButton, DangerButton } from './Button';
 
 // ─────────────────────────────────────────────
@@ -284,9 +286,63 @@ const MOCK_JOB_COUNTERED: ContractorJobDetail = {
   },
 };
 
+// @demo State 4: Awarded — bid accepted, ready to start work
+// @demo hardcoded — replace with useContractorJobDetails(jobId)
+const MOCK_JOB_AWARDED: ContractorJobDetail = {
+  ...MOCK_JOB_NO_BID,
+  id: 'mj4',
+  jobStatus: 'awarded',
+  job_type: 'invite',
+  bidCount: 4,
+  myBid: {
+    id: 'bid-3',
+    amount: 45000, // $450
+    timelineDays: 3,
+    notes: 'Can start tomorrow. Will bring replacement parts for both faucet and P-trap.',
+    status: 'accepted',
+  },
+};
+
+// @demo State 5: In Progress — contractor is working, proof of work section active
+// @demo hardcoded — replace with useContractorJobDetails(jobId)
+const MOCK_JOB_IN_PROGRESS: ContractorJobDetail = {
+  ...MOCK_JOB_NO_BID,
+  id: 'mj5',
+  jobStatus: 'in_progress',
+  job_type: 'invite',
+  bidCount: 4,
+  myBid: {
+    id: 'bid-4',
+    amount: 45000,
+    timelineDays: 3,
+    notes: 'Can start tomorrow. Will bring replacement parts for both faucet and P-trap.',
+    status: 'accepted',
+  },
+};
+
+// @demo State 6: Pending Confirmation — waiting for agent review
+// @demo hardcoded — replace with useContractorJobDetails(jobId)
+const MOCK_JOB_PENDING_CONFIRMATION: ContractorJobDetail = {
+  ...MOCK_JOB_NO_BID,
+  id: 'mj6',
+  jobStatus: 'pending_completion',
+  job_type: 'invite',
+  bidCount: 4,
+  myBid: {
+    id: 'bid-5',
+    amount: 45000,
+    timelineDays: 3,
+    notes: 'Can start tomorrow. Will bring replacement parts for both faucet and P-trap.',
+    status: 'accepted',
+  },
+};
+
 // @demo Toggle states
-const DEMO_STATES: ContractorJobDetail[] = [MOCK_JOB_NO_BID, MOCK_JOB_BID_PENDING, MOCK_JOB_COUNTERED];
-const DEMO_LABELS = ['No Bid', 'Bid Pending', 'Countered'];
+const DEMO_STATES: ContractorJobDetail[] = [
+  MOCK_JOB_NO_BID, MOCK_JOB_BID_PENDING, MOCK_JOB_COUNTERED,
+  MOCK_JOB_AWARDED, MOCK_JOB_IN_PROGRESS, MOCK_JOB_PENDING_CONFIRMATION,
+];
+const DEMO_LABELS = ['No Bid', 'Pending', 'Counter', 'Awarded', 'Active', 'Review'];
 
 // @demo 3 placeholder photo tiles — replace with job.photos[] array of signed Supabase storage URLs
 // @backend Storage bucket: job-photos (agent upload, 5MB limit, accessible to bidding contractors)
@@ -304,7 +360,7 @@ const ContractorJobDetails: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const insets = useSafeAreaInsets();
 
-  // @demo State toggle (cycles through 3 mock states)
+  // @demo State toggle (cycles through 6 mock states)
   const [demoStateIndex, setDemoStateIndex] = useState(0);
 
   // Lightbox state for job photos
@@ -312,12 +368,29 @@ const ContractorJobDetails: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const job = DEMO_STATES[demoStateIndex];
   const respondToCounter = useRespondToCounter();
+  const startJob = useStartJob();
 
   const hasBid = !!job.myBid;
   const isCountered = job.myBid?.status === 'countered';
   const isAccepted = job.myBid?.status === 'accepted';
+  const isAwarded = job.jobStatus === 'awarded';
   const isInProgress = job.jobStatus === 'in_progress';
   const isPendingCompletion = job.jobStatus === 'pending_completion';
+
+  // ── Proof of work state (States 5 & 6) ──
+  // @demo Mock proof photos — 2 pre-filled tiles for in_progress, submitted read-only for pending_completion
+  const [proofPhotos, setProofPhotos] = useState<string[]>(
+    isInProgress ? [] : [],
+  );
+  const [completionNotes, setCompletionNotes] = useState('');
+
+  // @demo 2 pre-filled mock proof photos for demo states
+  const mockProofPhotos = isPendingCompletion
+    ? ['mock-proof-1.jpg', 'mock-proof-2.jpg']
+    : proofPhotos;
+  const mockCompletionNotes = isPendingCompletion
+    ? 'Replaced P-trap and faucet cartridge. Both leaks fixed. Ran water for 5 minutes to confirm — no drips.'
+    : completionNotes;
 
   // ── Counter-offer handlers ──
   // @backend All 3 use useRespondToCounter → rpc_respond_to_counter_offer
@@ -497,23 +570,38 @@ const ContractorJobDetails: React.FC = () => {
         prefillNotes: job.myBid!.notes,
         isEdit: true,
       });
-    } else if (isAccepted) {
+    } else if (isAwarded || isAccepted) {
+      // State 4: Awarded — "Start Work" with confirmation
       label = 'Start Work';
-      onPress = () => Alert.alert('Start Work', 'Mark this job as in progress?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start',
-          onPress: () => {
-            // @backend: rpc to update job status to in_progress
-            console.log('Start work:', job.id);
-            Alert.alert('Job Started', 'You can now track progress.');
+      onPress = () => Alert.alert(
+        'Ready to start?',
+        'Starting this job notifies the agent.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Start Work',
+            onPress: () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              // @backend rpc_start_job(p_job_id) — validates awarded contractor, transitions awarded → in_progress
+              // @demo: mock 800ms delay, optimistic status update
+              startJob.mutate({ jobId: job.id });
+            },
           },
-        },
-      ]);
+        ],
+      );
     } else if (isInProgress) {
+      // State 5: In Progress — "Mark Complete" (disabled if 0 proof photos)
+      const hasPhotos = proofPhotos.length > 0;
       label = 'Mark Complete';
-      onPress = () => navigation.navigate('JobCompletion', { jobId: job.id, userRole: 'contractor' });
+      disabled = !hasPhotos;
+      onPress = () => navigation.push('JobCompletion', {
+        jobId: job.id,
+        userRole: 'contractor',
+        proofPhotos,
+        completionNotes,
+      });
     } else if (isPendingCompletion) {
+      // State 6: Pending Confirmation — fully disabled
       label = 'Waiting for Agent Review';
       disabled = true;
     } else {
@@ -543,7 +631,7 @@ const ContractorJobDetails: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'center',
             opacity: pressed && !disabled ? 0.85 : 1,
-            ...(hasBid && !isAccepted && !isInProgress && !isPendingCompletion ? {
+            ...(hasBid && !isAwarded && !isAccepted && !isInProgress && !isPendingCompletion ? {
               backgroundColor: COLORS.background,
               borderWidth: 1,
               borderColor: COLORS.primary,
@@ -553,12 +641,18 @@ const ContractorJobDetails: React.FC = () => {
           <Text style={{
             fontSize: 16,
             fontWeight: '600',
-            color: disabled ? COLORS.disabledText : (hasBid && !isAccepted && !isInProgress && !isPendingCompletion ? COLORS.primary : '#FFFFFF'),
+            color: disabled ? COLORS.disabledText : (hasBid && !isAwarded && !isAccepted && !isInProgress && !isPendingCompletion ? COLORS.primary : '#FFFFFF'),
             lineHeight: 24,
           }}>
             {label}
           </Text>
         </Pressable>
+        {/* Helper text for disabled "Mark Complete" — when 0 proof photos */}
+        {isInProgress && proofPhotos.length === 0 && (
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, textAlign: 'center', marginTop: 8 }}>
+            Add at least 1 photo to mark complete
+          </Text>
+        )}
       </View>
     );
   };
@@ -1011,6 +1105,231 @@ const ContractorJobDetails: React.FC = () => {
             </Pressable>
           </View>
 
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {/* STATE 4: AWARDED — Success banner + accepted bid read-only   */}
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {isAwarded && job.myBid && (
+            <View style={{
+              backgroundColor: COLORS.warningBg,
+              borderLeftWidth: 3,
+              borderLeftColor: COLORS.successGreen,
+              borderRadius: 8,
+              padding: 16,
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, marginBottom: 4 }}>
+                Your bid was accepted! {'\uD83C\uDF89'}
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
+                {job.agent.name} · {job.address}
+              </Text>
+              <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: COLORS.border }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, marginBottom: 4 }}>
+                  Accepted: {centsToDisplay(job.myBid.amount)}
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText }}>
+                  Timeline: {job.myBid.timelineDays} {job.myBid.timelineDays === 1 ? 'day' : 'days'}
+                </Text>
+                {job.myBid.notes ? (
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, marginTop: 4 }} numberOfLines={2}>
+                    {job.myBid.notes}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {/* STATE 5: IN PROGRESS — Info banner + proof of work section   */}
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {isInProgress && (
+            <>
+              {/* Blue info card */}
+              <View style={{
+                backgroundColor: COLORS.backgroundInfo,
+                borderLeftWidth: 3,
+                borderLeftColor: COLORS.primary,
+                borderRadius: 8,
+                padding: 16,
+              }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.infoText }}>
+                  Job in progress
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 4 }}>
+                  {job.agent.name} · {job.address}
+                </Text>
+              </View>
+
+              {/* Proof of Work section */}
+              <View style={{ gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <CameraIcon width={18} height={18} color={COLORS.darkText} />
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText }}>
+                    Proof of Work
+                  </Text>
+                </View>
+
+                {/* Photo strip — 88×88 tiles, up to 5 */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8 }}
+                >
+                  {proofPhotos.map((uri, i) => (
+                    <Pressable
+                      key={i}
+                      onPress={() => {
+                        setLightboxIndex(i);
+                        setLightboxVisible(true);
+                      }}
+                      style={{ width: 88, height: 88, borderRadius: 10, overflow: 'hidden' }}
+                    >
+                      <Image source={{ uri }} style={{ width: 88, height: 88 }} resizeMode="cover" />
+                    </Pressable>
+                  ))}
+                  {proofPhotos.length < 5 && (
+                    <Pressable
+                      onPress={async () => {
+                        // @backend: upload to job-photos bucket at {jobId}/proof/{timestamp}.jpg
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                          quality: 0.8,
+                        });
+                        if (!result.canceled && result.assets[0]) {
+                          setProofPhotos(prev => [...prev, result.assets[0].uri]);
+                        }
+                      }}
+                      style={{
+                        width: 88,
+                        height: 88,
+                        borderRadius: 10,
+                        backgroundColor: COLORS.chipBg,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                        borderStyle: 'dashed',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <CameraIcon width={24} height={24} color={COLORS.lightText} />
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.secondaryText }}>
+                        Add photo
+                      </Text>
+                    </Pressable>
+                  )}
+                </ScrollView>
+
+                {/* Notes field */}
+                <View>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, marginBottom: 8 }}>
+                    Completion Notes
+                  </Text>
+                  <View style={{
+                    borderWidth: 1,
+                    borderColor: COLORS.inputBorder,
+                    borderRadius: DIMENSIONS.inputRadius,
+                    backgroundColor: COLORS.inputBackground,
+                    padding: 12,
+                    minHeight: 80,
+                  }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '400', color: completionNotes.length > 450 ? COLORS.warningAmber : COLORS.secondaryText }}>
+                        {completionNotes.length}/500
+                      </Text>
+                    </View>
+                    {/* @demo — notes input; replace with controlled field tied to proof submission */}
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: '400',
+                          color: completionNotes ? COLORS.darkText : COLORS.bodyText,
+                          lineHeight: 20,
+                        }}
+                        onPress={() => {
+                          // In a real implementation, this would be a TextInput
+                          // @demo: mock notes input — set pre-filled text on tap
+                          if (!completionNotes) {
+                            setCompletionNotes('Replaced P-trap and faucet cartridge. Both leaks fixed.');
+                          }
+                        }}
+                      >
+                        {completionNotes || 'Describe what was completed...'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {/* STATE 6: PENDING COMPLETION — Waiting banner + read-only     */}
+          {/* ══════════════════════════════════════════════════════════════ */}
+          {isPendingCompletion && (
+            <>
+              {/* Amber waiting card */}
+              <View style={{
+                backgroundColor: COLORS.warningBg,
+                borderLeftWidth: 3,
+                borderLeftColor: COLORS.warningAmber,
+                borderRadius: 8,
+                padding: 16,
+              }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.warningText }}>
+                  Waiting for agent review
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 4 }}>
+                  We{"'"}ve notified {job.agent.name}. They typically respond within 24 hours.
+                </Text>
+              </View>
+
+              {/* Proof summary — read-only photo strip */}
+              <View style={{ gap: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText }}>
+                  Submitted Proof
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8 }}
+                >
+                  {/* @demo 2 mock proof tiles — replace with job.proof_photos[] from Supabase Storage */}
+                  {mockProofPhotos.map((_, i) => (
+                    <View
+                      key={i}
+                      style={{
+                        width: 88,
+                        height: 88,
+                        borderRadius: 10,
+                        backgroundColor: COLORS.chipBg,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <CameraIcon width={24} height={24} color={COLORS.lightText} />
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.secondaryText, marginTop: 4 }}>
+                        Photo {i + 1}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* Notes summary — read-only */}
+                {mockCompletionNotes ? (
+                  <View style={{
+                    padding: 12,
+                    backgroundColor: COLORS.filterBg,
+                    borderRadius: DIMENSIONS.inputRadius,
+                  }}>
+                    <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                      {mockCompletionNotes}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </>
+          )}
 
         </View>
       </ScrollView>
