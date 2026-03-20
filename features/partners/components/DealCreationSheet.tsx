@@ -364,11 +364,11 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
           {/* ── Form Content ── */}
           <KeyboardAvoidingView
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -519,16 +519,14 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
                 }}
               />
             </ScrollView>
-          </KeyboardAvoidingView>
 
-          {/* ── Sticky CTA — outside KeyboardAvoidingView ── */}
-          <View style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            paddingHorizontal: 16, paddingVertical: 16,
-            paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 16) : 16,
-            backgroundColor: COLORS.background,
-            borderTopWidth: 0.69, borderTopColor: COLORS.border,
-          }}>
+            {/* ── Sticky CTA — inside KeyboardAvoidingView, outside ScrollView ── */}
+            <View style={{
+              paddingHorizontal: 16, paddingVertical: 16,
+              paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 16) : 16,
+              backgroundColor: COLORS.background,
+              borderTopWidth: 0.69, borderTopColor: COLORS.border,
+            }}>
             <Pressable
               onPress={handleCreateDeal}
               disabled={!isFormValid || createTransaction.isPending}
@@ -547,7 +545,8 @@ export default function DealCreationSheet({ visible, onClose }: DealCreationShee
                 </Text>
               )}
             </Pressable>
-          </View>
+            </View>
+          </KeyboardAvoidingView>
         </Pressable>
       </Animated.View>
     </Modal>

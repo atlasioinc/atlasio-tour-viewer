@@ -139,13 +139,6 @@ const MOCK_JOB_PENDING: CompletionJobData = {
     'Replaced kitchen faucet with Moen Arbor model as discussed. Tested water pressure and checked for leaks — all clear. Old faucet disposed. Noticed minor corrosion on the supply line connector; replaced it at no extra charge.',
 };
 
-// Mock proof photo placeholders (for contractor upload demo)
-const DEMO_PROOF_PHOTOS = [
-  'https://placeholder.co/400x300/E8F0FE/003DC3?text=Before',
-  'https://placeholder.co/400x300/E8F0FE/003DC3?text=After+1',
-  'https://placeholder.co/400x300/E8F0FE/003DC3?text=After+2',
-];
-
 // ─────────────────────────────────────────────
 // SVG ICONS
 // ─────────────────────────────────────────────
@@ -489,13 +482,11 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
   const [showVouchModal, setShowVouchModal] = useState(false);
   const pendingVouchRef = useRef(false);
 
-  // ── Demo toggle for role switching ──
-  const [demoRole, setDemoRole] = useState<'agent' | 'contractor'>(userRole);
-  const activeRole = demoRole;
-  const activeIsContractor = activeRole === 'contractor';
-  const activeIsAgent = activeRole === 'agent';
+  // ── Role derived from route param ──
+  const activeIsContractor = !isAgent;
+  const activeIsAgent = isAgent;
 
-  // Reset state on demo role switch
+  // Reset state on mount based on role
   useEffect(() => {
     if (activeIsAgent) {
       setJobStatus('pending_confirmation');
@@ -511,8 +502,8 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
       setRevisionNotes('');
     }
     setShowSuccess(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; activeIsAgent derived from demoRole
-  }, [demoRole]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; role is static from route param
+  }, []);
 
   // ── Timeline steps (computed from status + role) ──
   const getTimelineSteps = (): TimelineStep[] => {
@@ -585,10 +576,6 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
     },
     [proofPhotos]
   );
-
-  const handleLoadDemoPhotos = useCallback(() => {
-    setProofPhotos(DEMO_PROOF_PHOTOS);
-  }, []);
 
   const showSuccessOverlay = useCallback(
     (message: string, onComplete?: () => void) => {
@@ -786,48 +773,6 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
           <View style={{ width: 60 }} />
         </View>
 
-        {/* ═══ DEMO ROLE TOGGLE ═══ */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingVertical: 8,
-            backgroundColor: '#FFFBEB',
-            borderBottomWidth: 0.68,
-            borderBottomColor: '#FDE68A',
-            gap: 8,
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.warningText }}>
-            Demo View:
-          </Text>
-          {(['contractor', 'agent'] as const).map((role) => (
-            <Pressable
-              key={role}
-              onPress={() => setDemoRole(role)}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 4,
-                borderRadius: 9999,
-                backgroundColor: demoRole === role ? COLORS.primary : COLORS.background,
-                borderWidth: demoRole === role ? 0 : 0.68,
-                borderColor: COLORS.border,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: '500',
-                  color: demoRole === role ? '#FFFFFF' : COLORS.bodyText,
-                }}
-              >
-                {role === 'contractor' ? 'Contractor' : 'Agent'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
         {/* ═══ SCROLLABLE CONTENT ═══ */}
         <ScrollView
           style={{ flex: 1, backgroundColor: COLORS.screenBg }}
@@ -962,16 +907,6 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
               <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
                 Proof Photos
               </Text>
-              {activeIsContractor && proofPhotos.length === 0 && (
-                <Pressable
-                  onPress={handleLoadDemoPhotos}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.primary, lineHeight: 18 }}>
-                    Load demo photos
-                  </Text>
-                </Pressable>
-              )}
             </View>
 
             <View
