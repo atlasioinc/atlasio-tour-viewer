@@ -31,7 +31,7 @@
 // PATTERN MATCHES: EditRepairJob, CreateDealChat, OnboardingScreen1
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -41,7 +41,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
-  Modal,
+  TextInput,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,14 +52,15 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import InfoBanner from './InfoBanner';
 import FormField from './FormField';
-import { COLORS } from '../lib/tokens';
+import { COLORS, SHADOWS } from '../lib/tokens';
+import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 
 // Simple progress bar matching Figma header spec (4px track, no label)
 const WizardProgressBar: React.FC<{ currentStep: number; totalSteps: number }> = ({ currentStep, totalSteps }) => {
   const progress = currentStep / totalSteps;
   return (
-    <View style={{ height: 4, backgroundColor: '#E5E7EB', width: '100%' }}>
-      <View style={{ height: 4, backgroundColor: '#003DC3', width: `${progress * 100}%` }} />
+    <View style={{ height: 4, backgroundColor: COLORS.border, width: '100%' }}>
+      <View style={{ height: 4, backgroundColor: COLORS.primary, width: `${progress * 100}%` }} />
     </View>
   );
 };
@@ -163,6 +164,36 @@ const ClockLabelIcon: React.FC = () => (
     <Path d="M8 4V8L10.67 9.33" stroke="#003DC3" strokeWidth={1.33} strokeLinecap="round" />
   </Svg>
 );
+
+// Success state checkmark — matches DealCreationSheet pattern (64×64, filled green circle + white check)
+const CheckCircleIcon: React.FC = () => (
+  <Svg width={64} height={64} viewBox="0 0 64 64" fill="none">
+    <Path d="M32 58C46.3594 58 58 46.3594 58 32C58 17.6406 46.3594 6 32 6C17.6406 6 6 17.6406 6 32C6 46.3594 17.6406 58 32 58Z" fill={COLORS.successGreen} />
+    <Path d="M22 32L28 38L42 24" stroke={COLORS.background} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+// Pin icon for address autocomplete suggestions — matches DealCreationSheet
+const PinIcon: React.FC = () => (
+  <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
+    <Path
+      d="M8 1.33C5.42 1.33 3.33 3.42 3.33 6C3.33 9.5 8 14.67 8 14.67C8 14.67 12.67 9.5 12.67 6C12.67 3.42 10.58 1.33 8 1.33Z"
+      stroke={COLORS.bodyText}
+      strokeWidth={1.33}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+// ─────────────────────────────────────────────
+// AUTOCOMPLETE TYPES
+// ─────────────────────────────────────────────
+
+interface PlaceSuggestion {
+  placeId: string;
+  description: string;
+}
 
 // Users icon: 1.67px #003DC3 (Figma invite toggle)
 const UsersIcon: React.FC = () => (
@@ -302,6 +333,75 @@ interface StepProps {
 const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // ── Google Places Autocomplete state (local to StepBasics — matches DealCreationSheet) ──
+  const [addressQuery, setAddressQuery] = useState(form.propertyAddress);
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for loading indicator
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // @backend Google Places (New) API — autocomplete endpoint
+  // @demo Falls back silently on API failure — address can still be typed manually
+  const fetchAutocompleteSuggestions = async (input: string) => {
+    setIsFetchingSuggestions(true);
+    try {
+      const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+        },
+        body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
+      });
+      const data = await response.json();
+      const mapped = (data.suggestions ?? [])
+        .map((s: any) => ({
+          placeId: s.placePrediction?.placeId ?? '',
+          description: s.placePrediction?.text?.text ?? '',
+        }))
+        .filter((s: PlaceSuggestion) => s.placeId && s.description);
+      setSuggestions(mapped);
+    } catch {
+      console.warn('[PostJobWizard] Autocomplete failed');
+      setSuggestions([]);
+    } finally {
+      setIsFetchingSuggestions(false);
+    }
+  };
+
+  const handleAddressTextChange = (text: string) => {
+    setAddressQuery(text);
+    setForm((p) => ({ ...p, propertyAddress: '' })); // clear confirmed selection while typing
+
+    if (autocompleteTimerRef.current) clearTimeout(autocompleteTimerRef.current);
+
+    if (text.length < 3) {
+      setSuggestions([]);
+      setShowAutocomplete(false);
+      return;
+    }
+
+    setShowAutocomplete(true);
+    autocompleteTimerRef.current = setTimeout(() => {
+      fetchAutocompleteSuggestions(text);
+    }, 400);
+  };
+
+  const handleSuggestionSelect = (description: string) => {
+    setAddressQuery(description);
+    setForm((p) => ({ ...p, propertyAddress: description }));
+    setSuggestions([]);
+    setShowAutocomplete(false);
+  };
+
+  // Cleanup autocomplete timer
+  useEffect(() => {
+    return () => {
+      if (autocompleteTimerRef.current) clearTimeout(autocompleteTimerRef.current);
+    };
+  }, []);
+
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -319,16 +419,60 @@ const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
         error={showErrors && form.jobTitle.trim().length === 0 ? 'Job title is required' : undefined}
       />
 
-      {/* ── Property Address ── */}
-      <FormField
-        label="Property Address"
-        value={form.propertyAddress}
-        onChangeText={(t) => setForm((p) => ({ ...p, propertyAddress: t }))}
-        placeholder="123 Main St, Denver, CO"
-        required
-        error={showErrors && form.propertyAddress.trim().length === 0 ? 'Property address is required' : undefined}
-        helperText="Helps pros estimate travel time"
-      />
+      {/* ── Property Address — Google Places autocomplete (matches DealCreationSheet) ── */}
+      <View style={{ gap: 8 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
+          Property Address <Text style={{ color: '#FB2C36' }}>*</Text>
+        </Text>
+        <View style={{ position: 'relative', zIndex: 99 }}>
+          <TextInput
+            value={addressQuery}
+            onChangeText={handleAddressTextChange}
+            placeholder="Search address..."
+            placeholderTextColor={COLORS.bodyText}
+            style={{
+              backgroundColor: COLORS.inputBackground,
+              borderWidth: 0.68,
+              borderColor: addressQuery.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20,
+            }}
+          />
+
+          {/* Autocomplete dropdown */}
+          {showAutocomplete && suggestions.length > 0 && (
+            <View style={{
+              position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
+              backgroundColor: COLORS.background,
+              borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
+              ...SHADOWS.card,
+            }}>
+              {suggestions.map((s) => (
+                <Pressable
+                  key={s.placeId}
+                  onPress={() => handleSuggestionSelect(s.description)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
+                >
+                  <PinIcon />
+                  <Text style={{ fontSize: 14, color: COLORS.darkText, flex: 1 }} numberOfLines={1}>
+                    {s.description}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+        {showErrors && form.propertyAddress.trim().length === 0 && (
+          <Text style={{ fontSize: 12, fontWeight: '400', color: '#FB2C36', lineHeight: 16 }}>
+            Property address is required
+          </Text>
+        )}
+        <Text style={{ fontSize: 12, fontWeight: '400', color: '#999999', lineHeight: 16 }}>
+          Helps pros estimate travel time
+        </Text>
+      </View>
 
       {/* ── Due Date ── */}
       <View style={{ gap: 8 }}>
@@ -395,6 +539,7 @@ const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
               placeholder="Min"
               prefix="$"
               keyboardType="numeric"
+              textAlign="center"
             />
           </View>
           <Text style={{ fontSize: 15, fontWeight: '400', color: COLORS.lightText, lineHeight: 20, paddingHorizontal: 8 }}>–</Text>
@@ -406,6 +551,7 @@ const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
               placeholder="Max"
               prefix="$"
               keyboardType="numeric"
+              textAlign="center"
             />
           </View>
         </View>
@@ -715,10 +861,14 @@ const PostJobWizard: React.FC = () => {
   const navigation = useNavigation<NavProp>();
   const [currentStep, setCurrentStep] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  // ── Success state (S80 — in-place swap pattern from DealCreationSheet) ──
+  const [showSuccess, setShowSuccess] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setIsSubmitting is used, value read pending
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newJobId, setNewJobId] = useState<string | null>(null);
+  // @demo hardcoded fallback — never undefined
+  // @backend useCreateJob returns job ID on success
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in @backend nav to RepairJobDetails
+  const [newJobId, setNewJobId] = useState<string>('mock-job-001');
 
   const [form, setForm] = useState<PostJobFormData>({
     jobTitle: '',
@@ -783,23 +933,97 @@ const PostJobWizard: React.FC = () => {
     setTimeout(() => {
       setNewJobId(`job_${Date.now()}`);
       setIsSubmitting(false);
-      setShowConfirmModal(true);
+      setShowSuccess(true);
     }, 600);
   };
 
+  // ─────────────────────────────────────────────
+  // SUCCESS VIEW — in-place swap (DealCreationSheet pattern, S80)
+  // ─────────────────────────────────────────────
+
+  const renderSuccessView = () => (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+      <CheckCircleIcon />
+
+      <Text style={{
+        fontSize: 22, fontWeight: '700', color: COLORS.darkText,
+        textAlign: 'center', marginTop: 20,
+      }}>
+        Job Posted
+      </Text>
+
+      <Text style={{
+        fontSize: 15, fontWeight: '400', color: COLORS.secondaryText,
+        textAlign: 'center', marginTop: 8,
+      }} numberOfLines={2}>
+        {form.jobTitle} — {form.propertyAddress}
+      </Text>
+
+      <Text style={{
+        fontSize: 14, fontWeight: '400', color: COLORS.secondaryText,
+        textAlign: 'center', marginTop: 4,
+      }}>
+        Contractors in your area have been notified.
+      </Text>
+
+      {/* ── Primary CTA: View Job ── */}
+      <Pressable
+        onPress={() => {
+          // @demo navigation.goBack() only — RepairJobDetails not wired to mock yet
+          // @backend navigation.goBack() then navigation.push('RepairJobDetails', { jobId: newJobId })
+          navigation.goBack();
+        }}
+        style={({ pressed }) => ({
+          marginTop: 40,
+          height: 48, borderRadius: 10,
+          backgroundColor: COLORS.primary,
+          alignItems: 'center', justifyContent: 'center',
+          alignSelf: 'stretch',
+          opacity: pressed ? 0.9 : 1,
+        })}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background, lineHeight: 20 }}>
+          View Job
+        </Text>
+      </Pressable>
+
+      {/* ── Secondary CTA: Done ── */}
+      <Pressable
+        onPress={() => navigation.goBack()}
+        style={({ pressed }) => ({
+          marginTop: 12,
+          height: 48, borderRadius: 10,
+          backgroundColor: COLORS.background,
+          borderWidth: 1.35, borderColor: COLORS.border,
+          alignItems: 'center', justifyContent: 'center',
+          alignSelf: 'stretch',
+          opacity: pressed ? 0.7 : 1,
+        })}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
+          Done
+        </Text>
+      </Pressable>
+    </View>
+  );
+
+  // ─────────────────────────────────────────────
+  // MAIN RENDER
+  // ─────────────────────────────────────────────
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* ══════════════════════════════════════════
           HEADER — 61px total (56 nav + 4 progress)
-          Figma: bg white, borderBottom 1.35px #E5E7EB
+          Figma: bg white, borderBottom 1.35px COLORS.border
           Nav row: paddingLeft 8, paddingRight 16
           Back: 36×36 r10
-          Title: ALWAYS centered, 18/600/#003DC3 lh30
-          Progress: AnimatedProgressBar (matches Onboarding)
+          Title: ALWAYS centered, 16/500/COLORS.primary lh24
+          Progress: WizardProgressBar
           ══════════════════════════════════════════ */}
-      <View style={{ backgroundColor: '#FFFFFF', borderBottomWidth: 1.35, borderBottomColor: '#E5E7EB' }}>
+      <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 1.35, borderBottomColor: COLORS.border }}>
         {/* Nav row — 48px, no top padding (standard header height) */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, height: 48 }}>
           {/* Back */}
@@ -817,7 +1041,7 @@ const PostJobWizard: React.FC = () => {
 
           {/* Centered title — visible on ALL steps */}
           <View style={{ flex: 1 }} />
-          <Text style={{ fontSize: 16, fontWeight: '500', color: '#003DC3', lineHeight: 24 }}>
+          <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.primary, lineHeight: 24 }}>
             {stepConfig.headerTitle}
           </Text>
           <View style={{ flex: 1 }} />
@@ -832,178 +1056,57 @@ const PostJobWizard: React.FC = () => {
       </View>
 
       {/* ══════════════════════════════════════════
-          BODY — bg #F7F7FC
+          CONTENT: success state OR wizard body + footer
           ══════════════════════════════════════════ */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={{ flex: 1, backgroundColor: '#F7F7FC' }}>
-
-          {/* ── Step header — subtitle + indicator ── */}
-          <View style={{ paddingHorizontal: 24, paddingTop: 16, gap: 8, marginBottom: 20 }}>
-            {/* Subtitle: matches section headers (18/600/darkText) */}
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#1C1C1E', lineHeight: 24 }}>
-              {stepConfig.subtitle}
-            </Text>
-            {/* Step indicator: 14/400/#666666 */}
-            <Text style={{ fontSize: 14, fontWeight: '400', color: '#666666', lineHeight: 20 }}>
-              Step {currentStep + 1} of 3
-            </Text>
-          </View>
-
-          {/* ── Step content ── */}
-          {currentStep === 0 && <StepBasics form={form} setForm={setForm} showErrors={showErrors} />}
-          {currentStep === 1 && <StepDetails form={form} setForm={setForm} showErrors={showErrors} />}
-          {currentStep === 2 && <StepReview form={form} />}
-        </View>
-      </KeyboardAvoidingView>
-
-      {/* ══════════════════════════════════════════
-          FOOTER — Figma: 81px, pt17, px16
-          Button: 48px r8 #003DC3, text 14/500/white
-          ══════════════════════════════════════════ */}
-      <View style={{ backgroundColor: '#FFFFFF', borderTopWidth: 1.35, borderTopColor: '#E5E7EB', paddingHorizontal: 24, paddingTop: 17 }}>
-        <SafeAreaView edges={['bottom']}>
-          <Pressable
-            onPress={handleNext}
-            style={({ pressed }) => ({
-              height: 48, backgroundColor: '#003DC3', borderRadius: 8,
-              alignItems: 'center', justifyContent: 'center',
-              opacity: pressed ? 0.85 : 1,
-            })}
+      {showSuccess ? renderSuccessView() : (
+        <>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
-            <Text style={{ fontSize: 14, fontWeight: '500', color: '#FFFFFF', lineHeight: 20, textAlign: 'center' }}>
-              {stepConfig.buttonLabel}
-            </Text>
-          </Pressable>
-        </SafeAreaView>
-      </View>
-      {/* ═══════════════════════════════════════════════════════════════
-          JOB POSTED — SUCCESS CONFIRMATION MODAL
-          Figma spec: r16, p24, 64px icon, centered text, 2 CTAs
-          ═══════════════════════════════════════════════════════════════ */}
-      <Modal
-        visible={showConfirmModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => { setShowConfirmModal(false); navigation.goBack(); }}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingHorizontal: 24,
-          }}
-        >
-          <View
-            style={{
-              width: '100%',
-              maxWidth: 360,
-              padding: 24,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 16,
-              gap: 20,
-              shadowColor: '#000000',
-              shadowOffset: { width: 0, height: 20 },
-              shadowOpacity: 0.1,
-              shadowRadius: 25,
-              elevation: 10,
-            }}
-          >
-            {/* ── Icon — 64px blue circle with shield checkmark ── */}
-            <View style={{ alignSelf: 'flex-start' }}>
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 9999,
-                  backgroundColor: '#003DC3',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Svg width={32} height={32} viewBox="0 0 32 32" fill="none">
-                  {/* Shield outline */}
-                  <Path
-                    d="M16 2.67L5.33 8V14.67C5.33 21.07 9.87 27.01 16 29.33C22.13 27.01 26.67 21.07 26.67 14.67V8L16 2.67Z"
-                    stroke="#FFFFFF"
-                    strokeWidth={2.67}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                  {/* Checkmark inside shield */}
-                  <Path
-                    d="M12 16L14.67 18.67L20 13.33"
-                    stroke="#FFFFFF"
-                    strokeWidth={2.67}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </Svg>
+            <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+
+              {/* ── Step header — subtitle + indicator ── */}
+              <View style={{ paddingHorizontal: 24, paddingTop: 16, gap: 8, marginBottom: 20 }}>
+                {/* Subtitle: matches section headers (18/600/darkText) */}
+                <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
+                  {stepConfig.subtitle}
+                </Text>
+                {/* Step indicator: 14/400/secondaryText */}
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>
+                  Step {currentStep + 1} of 3
+                </Text>
               </View>
-            </View>
 
-            {/* ── Text Content ── */}
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: '#1C1C1E', fontSize: 20, fontWeight: '600', lineHeight: 30 }}>
-                Job Posted Successfully!
-              </Text>
-              <Text style={{ color: '#666666', fontSize: 16, fontWeight: '400', lineHeight: 24 }}>
-                {'"'}{form.jobTitle}{'"'} is now live
-              </Text>
-              <Text style={{ color: '#666666', fontSize: 14, fontWeight: '400', lineHeight: 22.75, paddingHorizontal: 2 }}>
-                Contractors matching the selected trades will start bidding within {form.bidWindowHours || '48'} hours. You can review, accept, or negotiate from the job details screen.
-              </Text>
+              {/* ── Step content ── */}
+              {currentStep === 0 && <StepBasics form={form} setForm={setForm} showErrors={showErrors} />}
+              {currentStep === 1 && <StepDetails form={form} setForm={setForm} showErrors={showErrors} />}
+              {currentStep === 2 && <StepReview form={form} />}
             </View>
+          </KeyboardAvoidingView>
 
-            {/* ── Actions ── */}
-            <View style={{ gap: 12 }}>
-              {/* View Job — primary */}
+          {/* ══════════════════════════════════════════
+              FOOTER — Figma: 81px, pt17, px16
+              Button: 48px r8 COLORS.primary, text 14/500/white
+              ══════════════════════════════════════════ */}
+          <View style={{ backgroundColor: COLORS.background, borderTopWidth: 1.35, borderTopColor: COLORS.border, paddingHorizontal: 24, paddingTop: 17 }}>
+            <SafeAreaView edges={['bottom']}>
               <Pressable
-                onPress={() => {
-                  setShowConfirmModal(false);
-                  navigation.replace('RepairJobDetails', { jobId: newJobId });
-                }}
+                onPress={handleNext}
                 style={({ pressed }) => ({
-                  height: 48,
-                  borderRadius: 8,
-                  backgroundColor: '#003DC3',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  height: 48, backgroundColor: COLORS.primary, borderRadius: 8,
+                  alignItems: 'center', justifyContent: 'center',
                   opacity: pressed ? 0.85 : 1,
                 })}
               >
-                <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '500', lineHeight: 20, textAlign: 'center' }}>
-                  View Job
+                <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.background, lineHeight: 20, textAlign: 'center' }}>
+                  {stepConfig.buttonLabel}
                 </Text>
               </Pressable>
-
-              {/* Back to Home — outline */}
-              <Pressable
-                onPress={() => { setShowConfirmModal(false); navigation.goBack(); }}
-                style={({ pressed }) => ({
-                  height: 48,
-                  borderRadius: 8,
-                  backgroundColor: '#FFFFFF',
-                  borderWidth: 1.35,
-                  borderColor: '#D1D5DC',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Text style={{ color: '#003DC3', fontSize: 14, fontWeight: '500', lineHeight: 20, textAlign: 'center' }}>
-                  Back to Home
-                </Text>
-              </Pressable>
-            </View>
+            </SafeAreaView>
           </View>
-        </View>
-      </Modal>
+        </>
+      )}
     </SafeAreaView>
   );
 };

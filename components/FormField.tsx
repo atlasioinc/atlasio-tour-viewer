@@ -65,6 +65,8 @@ export interface FormFieldProps {
   autoCorrect?: boolean;
   /** Secure text entry (passwords) */
   secureTextEntry?: boolean;
+  /** Text alignment inside the input (e.g. 'center' for budget fields) */
+  textAlign?: 'left' | 'center' | 'right';
 }
 
 // ─────────────────────────────────────────────
@@ -88,34 +90,37 @@ const FormField: React.FC<FormFieldProps> = ({
   autoCapitalize,
   autoCorrect,
   secureTextEntry,
+  textAlign,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const hasError = !!error;
 
   return (
-    <View style={{ gap: 8 }}>
-      {/* Label row */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {labelIcon}
-          <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
-            {label}
-            {required && <Text style={{ color: '#FB2C36' }}> *</Text>}
-          </Text>
+    <View style={{ gap: label ? 8 : 0 }}>
+      {/* Label row — skipped when label is empty (e.g. inline budget min/max fields) */}
+      {label ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {labelIcon}
+            <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
+              {label}
+              {required && <Text style={{ color: '#FB2C36' }}> *</Text>}
+            </Text>
+          </View>
+          {maxLength !== undefined && (
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '400',
+                color: value.length > maxLength * 0.9 ? '#FB2C36' : '#999999',
+                lineHeight: 16,
+              }}
+            >
+              {value.length}/{maxLength}
+            </Text>
+          )}
         </View>
-        {maxLength !== undefined && (
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: '400',
-              color: value.length > maxLength * 0.9 ? '#FB2C36' : '#999999',
-              lineHeight: 16,
-            }}
-          >
-            {value.length}/{maxLength}
-          </Text>
-        )}
-      </View>
+      ) : null}
 
       {/* Input container */}
       <View
@@ -153,6 +158,7 @@ const FormField: React.FC<FormFieldProps> = ({
             lineHeight: 20,
             ...(multiline ? { textAlignVertical: 'top' as const } : {}),
             ...(prefix ? { paddingVertical: 0 } : {}),
+            ...(textAlign ? { textAlign } : {}),
           }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
