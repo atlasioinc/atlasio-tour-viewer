@@ -565,7 +565,7 @@ const InboxList: React.FC = () => {
 
           {/* ── Verification Banner — inside scroll so it sits on screenBg naturally ── */}
           {showVerifyBanner && !verifyBannerDismissed && (
-            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+            <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4 }}>
               <VerificationBanner
                 level={verifyLevel}
                 role="agent"

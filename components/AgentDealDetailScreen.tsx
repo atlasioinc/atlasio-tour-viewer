@@ -436,9 +436,9 @@ const AgentDealDetailScreen: React.FC = () => {
             {isEditingClosingDetails && (
               <Pressable
                 onPress={() => setIsEditingClosingDetails(false)}
-                style={{ flexShrink: 0, width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' }}
+                style={{ minWidth: 52, height: 44, alignItems: 'flex-end', justifyContent: 'center' }}
               >
-                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Cancel</Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Cancel</Text>
               </Pressable>
             )}
           </View>

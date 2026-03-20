@@ -502,7 +502,7 @@ const NetworkTab: React.FC = () => {
       {/* ══════════════════════════════════════════
           STICKY HEADER
           ══════════════════════════════════════════ */}
-      <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.71, borderBottomColor: COLORS.border, paddingTop: 0, paddingBottom: 0 }}>
+      <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.71, borderBottomColor: COLORS.border, paddingTop: 0, paddingBottom: 4 }}>
 
         {/* Top Row: Title + Search + Contact Requests */}
         <View style={{ paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -591,7 +591,7 @@ const NetworkTab: React.FC = () => {
 
         {/* ── Verification Banner — inside scroll so it sits on screenBg naturally ── */}
         {showVerifyBanner && !verifyBannerDismissed && (
-          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4 }}>
             <VerificationBanner
               level={verifyLevel}
               role="agent"
