@@ -524,7 +524,7 @@ const NetworkTab: React.FC = () => {
         </View>
 
         {/* Tab Switcher */}
-        <View style={{ marginHorizontal: 16, marginBottom: 8, padding: 4, backgroundColor: COLORS.screenBg, borderRadius: 10, flexDirection: 'row' }}>
+        <View style={{ marginHorizontal: 16, padding: 4, backgroundColor: COLORS.screenBg, borderRadius: 10, flexDirection: 'row' }}>
           <Pressable
             onPress={() => { setActiveTab('partners'); setSearchText(''); }}
             style={{
@@ -604,7 +604,7 @@ const NetworkTab: React.FC = () => {
         )}
 
         {/* Partner/Contractor count */}
-        <View style={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 8 }}>
+        <View style={{ paddingHorizontal: 24, paddingVertical: 8 }}>
           <Text style={{ color: COLORS.secondaryText, fontSize: 14, fontWeight: '400', lineHeight: 20 }}>
             {totalCount} {activeTab === 'partners' ? 'Partners' : 'Contractors'}
           </Text>
@@ -616,8 +616,7 @@ const NetworkTab: React.FC = () => {
               {/* Group Header */}
               <View style={{
                 paddingHorizontal: 24,
-                paddingTop: 8,
-                paddingBottom: 8,
+                paddingVertical: 8,
                 backgroundColor: COLORS.screenBg,
                 borderBottomWidth: 0.71,
                 borderBottomColor: COLORS.border,

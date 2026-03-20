@@ -48,7 +48,7 @@ import { useAgentJobs, useMyProfile, useAgentActiveDeals } from '../hooks/useDat
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
 import DealCreationSheet from '../features/partners/components/DealCreationSheet';
 import { VerificationBanner } from './shared/VerificationBanner';
-import { SecondaryButton } from './Button';
+import { CardButton } from './Button';
 import QuickActionsRow from './QuickActionsRow';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 import { getSlotStatusDot } from '../features/partners/lib/dealMilestones';
@@ -862,12 +862,11 @@ const HomeTabAgent: React.FC = () => {
               {/* @demo flip DEAL_CREATION_ENABLED: true to show CTA
                   @backend rpc_create_transaction — entry point for deal creation */}
               {DEAL_CREATION_ENABLED && (
-                <SecondaryButton
+                <CardButton
+                  variant="outlined"
                   label="New Deal"
                   onPress={() => setDealSheetVisible(true)}
-                  fullWidth={false}
                   leftIcon={<NewDealHouseIcon />}
-                  style={{ paddingHorizontal: 14 }}
                 />
               )}
             </View>

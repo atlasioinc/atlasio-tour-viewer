@@ -416,6 +416,7 @@ const AgentDealDetailScreen: React.FC = () => {
           {/* Section header */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}>
             <Text style={{
+              flex: 1,
               fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
               textTransform: 'uppercase', letterSpacing: 0.5,
             }}>
@@ -427,17 +428,17 @@ const AgentDealDetailScreen: React.FC = () => {
                   setClosingForm(closingDetails);
                   setIsEditingClosingDetails(true);
                 }}
-                style={{ width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' }}
+                style={{ flexShrink: 0, width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' }}
               >
-                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Edit</Text>
+                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Edit</Text>
               </Pressable>
             )}
             {isEditingClosingDetails && (
               <Pressable
                 onPress={() => setIsEditingClosingDetails(false)}
-                style={{ width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' }}
+                style={{ flexShrink: 0, width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' }}
               >
-                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Cancel</Text>
+                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Cancel</Text>
               </Pressable>
             )}
           </View>

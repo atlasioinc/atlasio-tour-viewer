@@ -613,7 +613,7 @@ const InboxList: React.FC = () => {
               {/* Pinned Section */}
               {pinnedThreads.length > 0 && (
                 <View>
-                  <View style={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
+                  <View style={{ paddingHorizontal: 24, paddingVertical: 8, backgroundColor: COLORS.screenBg }}>
                     <Text style={{ color: COLORS.secondaryText, fontSize: 12, fontWeight: '400', textTransform: 'uppercase', lineHeight: 16, letterSpacing: 0.3 }}>
                       Pinned
                     </Text>
@@ -633,7 +633,7 @@ const InboxList: React.FC = () => {
 
               {/* Recent Section */}
               <View>
-                <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
+                <View style={{ paddingHorizontal: 24, paddingVertical: 8, backgroundColor: COLORS.screenBg }}>
                   <Text style={{ color: COLORS.secondaryText, fontSize: 12, fontWeight: '400', textTransform: 'uppercase', lineHeight: 16, letterSpacing: 0.3 }}>
                     Recent
                   </Text>

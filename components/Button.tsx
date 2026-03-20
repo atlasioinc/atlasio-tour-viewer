@@ -167,6 +167,7 @@ export const CardButton: React.FC<CardButtonProps> = ({
   flex = false,
   fullWidth = false,
   style,
+  leftIcon,
 }) => {
   const isFilled = variant === 'filled';
   return (
@@ -182,12 +183,15 @@ export const CardButton: React.FC<CardButtonProps> = ({
         borderColor: COLORS.primary,
         alignItems: 'center' as const,
         justifyContent: 'center' as const,
+        flexDirection: 'row' as const,
+        gap: 6,
         opacity: pressed ? 0.7 : 1,
         ...(flex ? { flex: 1 } : {}),
         ...(fullWidth ? { width: '100%' as any } : {}),
         ...style,
       })}
     >
+      {leftIcon}
       <Text
         style={{
           fontSize: 14,
