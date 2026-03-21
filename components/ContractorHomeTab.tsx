@@ -298,7 +298,7 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
   {
     id: 'aj2',
     title: 'Bathroom Pipe Replacement',
-    address: '782 Maple Drive, Lakewood CO',
+    address: '1203 Oak Lane, Denver CO',
     agentName: 'Marcus Lee',
     agentAvatar: '#B5C4A8',
     agentRating: 4.7,
@@ -312,7 +312,7 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
   {
     id: 'aj3',
     title: 'Install Water Heater',
-    address: '1150 Pine Court, Aurora CO',
+    address: '891 Birch Blvd, Denver CO',
     agentName: 'Emma Thompson',
     agentAvatar: '#A8C5DA',
     agentRating: 4.8,

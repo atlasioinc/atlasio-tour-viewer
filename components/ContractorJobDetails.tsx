@@ -304,6 +304,7 @@ const MOCK_JOB_COUNTERED: ContractorJobDetail = {
 const MOCK_JOB_AWARDED: ContractorJobDetail = {
   ...MOCK_JOB_NO_BID,
   id: 'mj4',
+  address: '1203 Oak Lane, Denver CO 80203',
   jobStatus: 'awarded',
   job_type: 'invite',
   bidCount: 4,
@@ -338,6 +339,7 @@ const MOCK_JOB_IN_PROGRESS: ContractorJobDetail = {
 const MOCK_JOB_PENDING_CONFIRMATION: ContractorJobDetail = {
   ...MOCK_JOB_NO_BID,
   id: 'mj6',
+  address: '891 Birch Blvd, Denver CO 80203',
   jobStatus: 'pending_completion',
   job_type: 'invite',
   bidCount: 4,
