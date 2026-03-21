@@ -21,6 +21,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -428,7 +430,10 @@ const AddressComparisonScreen: React.FC = () => {
 
       {/* ── Phase 1 — Input ── */}
       {showInput && (
-        <>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
@@ -606,7 +611,7 @@ const AddressComparisonScreen: React.FC = () => {
               </Text>
             </Pressable>
           </View>
-        </>
+        </KeyboardAvoidingView>
       )}
 
       {/* ── Phase 2 — Results ── */}

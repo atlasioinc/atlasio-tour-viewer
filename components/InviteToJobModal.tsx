@@ -534,7 +534,7 @@ const InviteToJobModal: React.FC<InviteToJobModalProps> = ({
       <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: COLORS.background }}>
         <KeyboardAvoidingView
           style={{ flex: 1, backgroundColor: COLORS.screenBg }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             {/* ── HEADER (white, sticky) ── */}
             <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 1.35, borderBottomColor: COLORS.border }}>

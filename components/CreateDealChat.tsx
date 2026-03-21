@@ -243,7 +243,7 @@ const CreateDealChat: React.FC = () => {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* ══════════════════════════════════════════
             HEADER
@@ -402,7 +402,7 @@ const CreateDealChat: React.FC = () => {
           <ScrollView
             showsVerticalScrollIndicator={false}
             style={{ flex: 1, backgroundColor: COLORS.screenBg }}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24, gap: 24 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 24, gap: 24 }}
             keyboardShouldPersistTaps="handled"
           >
             {/* Deal / Chat Name — Required */}

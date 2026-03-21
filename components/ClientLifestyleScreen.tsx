@@ -21,6 +21,8 @@ import {
   Easing,
   Dimensions,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -469,6 +471,10 @@ const ClientLifestyleScreen: React.FC = () => {
         <View style={{ width: 36 }} />
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
@@ -704,6 +710,7 @@ const ClientLifestyleScreen: React.FC = () => {
           </Text>
         </Pressable>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

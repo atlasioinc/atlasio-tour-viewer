@@ -738,7 +738,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* ═══ HEADER ═══ */}
         <View

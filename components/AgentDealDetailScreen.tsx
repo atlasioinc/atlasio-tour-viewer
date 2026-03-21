@@ -20,7 +20,7 @@
 // dismiss alert → useAgentDismissDealAlert mutation (optimistic)
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Share, TextInput } from 'react-native';
+import { View, Text, ScrollView, Pressable, Share, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -572,33 +572,37 @@ const AgentDealDetailScreen: React.FC = () => {
                   </Text>
                 </View>
               ) : (
-                <View style={{ gap: SPACING.lg }}>
-                  <TextInput
-                    value={notifyPhone}
-                    onChangeText={setNotifyPhone}
-                    placeholder="(555) 123-4567"
-                    placeholderTextColor={COLORS.secondaryText}
-                    keyboardType="phone-pad"
-                    style={{
-                      height: DIMENSIONS.formInputHeight,
-                      borderWidth: DIMENSIONS.cardBorderWidth,
-                      borderColor: notifyPhone ? COLORS.inputActiveBorder : COLORS.border,
-                      borderRadius: DIMENSIONS.inputRadius,
-                      backgroundColor: COLORS.inputBackground,
-                      paddingHorizontal: 14,
-                      fontSize: 15,
-                      fontWeight: '400',
-                      color: COLORS.darkText,
-                    }}
-                  />
-                  {notifyPhone.trim().length > 0 && (
-                    <PrimaryButton
-                      label="Send SMS"
-                      onPress={handleSendSms}
-                      loading={generateToken.isPending}
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                >
+                  <View style={{ gap: SPACING.lg }}>
+                    <TextInput
+                      value={notifyPhone}
+                      onChangeText={setNotifyPhone}
+                      placeholder="(555) 123-4567"
+                      placeholderTextColor={COLORS.secondaryText}
+                      keyboardType="phone-pad"
+                      style={{
+                        height: DIMENSIONS.formInputHeight,
+                        borderWidth: DIMENSIONS.cardBorderWidth,
+                        borderColor: notifyPhone ? COLORS.inputActiveBorder : COLORS.border,
+                        borderRadius: DIMENSIONS.inputRadius,
+                        backgroundColor: COLORS.inputBackground,
+                        paddingHorizontal: 14,
+                        fontSize: 15,
+                        fontWeight: '400',
+                        color: COLORS.darkText,
+                      }}
                     />
-                  )}
-                </View>
+                    {notifyPhone.trim().length > 0 && (
+                      <PrimaryButton
+                        label="Send SMS"
+                        onPress={handleSendSms}
+                        loading={generateToken.isPending}
+                      />
+                    )}
+                  </View>
+                </KeyboardAvoidingView>
               )}
             </View>
           </>

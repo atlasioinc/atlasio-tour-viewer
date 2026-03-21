@@ -25,7 +25,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, ScrollView, StatusBar,
   Alert, ActivityIndicator, RefreshControl, Modal, FlatList,
-  Animated, Easing, Dimensions,
+  Animated, Easing, Dimensions, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -323,9 +323,14 @@ const VerificationScreen: React.FC = () => {
         </Pressable>
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         style={{ backgroundColor: COLORS.screenBg }}
         contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 16 }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} />}
       >
         {/* ──────────────────────────────────────
@@ -496,6 +501,7 @@ const VerificationScreen: React.FC = () => {
 
         {/* Insurance upload flow lives in InsuranceUploadScreen (via ProfileTab) */}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* ──────────────────────────────────────
           STATE PICKER BOTTOM SHEET

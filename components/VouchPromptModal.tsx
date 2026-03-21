@@ -292,7 +292,7 @@ const VouchPromptModal: React.FC<VouchPromptModalProps> = ({
       {/* Sheet — slides up from bottom */}
       <KeyboardAvoidingView
         style={{ flex: 1, justifyContent: 'flex-end' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <Animated.View
           style={{
