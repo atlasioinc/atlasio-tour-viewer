@@ -775,7 +775,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
 
         {/* ═══ SCROLLABLE CONTENT ═══ */}
         <ScrollView
-          style={{ flex: 1, backgroundColor: COLORS.screenBg }}
+          style={{ flex: 1, backgroundColor: COLORS.background }}
           contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

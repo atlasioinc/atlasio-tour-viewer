@@ -35,7 +35,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
@@ -98,6 +99,19 @@ const CheckCircleIcon: React.FC<{ width?: number; height?: number; color?: strin
   <Svg width={width} height={height} viewBox="0 0 24 24" fill="none">
     <Path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     <Path d="M22 4L12 14.01l-3-3" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const CircleDotIcon: React.FC<{ color?: string }> = ({ color = COLORS.primary }) => (
+  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+    <Circle cx={10} cy={10} r={8.5} stroke={color} strokeWidth={1.67} />
+    <Circle cx={10} cy={10} r={4} fill={color} />
+  </Svg>
+);
+
+const CircleEmptyIcon: React.FC = () => (
+  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+    <Circle cx={10} cy={10} r={8.5} stroke={COLORS.border} strokeWidth={1.67} />
   </Svg>
 );
 
@@ -351,16 +365,111 @@ const DEMO_PHOTOS = [
   { isPlaceholder: true, url: null as string | null },
 ];
 
+// ─────────────────────────────────────────────
+// STATUS TIMELINE (States 4/5/6 progress tracker)
+// Pattern: matches JobCompletionScreen StatusTimeline exactly
+// ─────────────────────────────────────────────
+
+interface TimelineStep {
+  label: string;
+  status: 'completed' | 'active' | 'pending';
+  sublabel?: string;
+}
+
+const StatusTimeline: React.FC<{ steps: TimelineStep[] }> = ({ steps }) => (
+  <View style={{ gap: 0 }}>
+    {steps.map((step, index) => {
+      const isLast = index === steps.length - 1;
+
+      return (
+        <View key={step.label} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          {/* Icon column */}
+          <View style={{ width: 28, alignItems: 'center' }}>
+            {step.status === 'completed' ? (
+              <CheckCircleIcon width={20} height={20} color={COLORS.successGreen} />
+            ) : step.status === 'active' ? (
+              <CircleDotIcon color={COLORS.primary} />
+            ) : (
+              <CircleEmptyIcon />
+            )}
+            {/* Connector line */}
+            {!isLast && (
+              <View
+                style={{
+                  width: 2,
+                  height: 28,
+                  backgroundColor:
+                    step.status === 'completed' ? COLORS.successGreen : COLORS.border,
+                  marginTop: 4,
+                  marginBottom: 4,
+                  borderRadius: 1,
+                }}
+              />
+            )}
+          </View>
+
+          {/* Label */}
+          <View style={{ flex: 1, paddingLeft: 10, paddingBottom: isLast ? 0 : 8 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: step.status === 'active' ? '600' : '400',
+                color:
+                  step.status === 'pending'
+                    ? COLORS.lightText
+                    : step.status === 'active'
+                    ? COLORS.primary
+                    : COLORS.darkText,
+                lineHeight: 20,
+              }}
+            >
+              {step.label}
+            </Text>
+            {step.sublabel && (
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '400',
+                  color: COLORS.lightText,
+                  lineHeight: 16,
+                  marginTop: 2,
+                }}
+              >
+                {step.sublabel}
+              </Text>
+            )}
+          </View>
+        </View>
+      );
+    })}
+  </View>
+);
+
+// @demo Demo routing — maps ContractorHomeTab mock job IDs to MOCK_JOB_* constants.
+// Production: ContractorJobDetails reads job status from useContractorJobDetails(jobId).
+//   'aj1' (742 Pine Ave, 60% progress)   → index 4 → MOCK_JOB_IN_PROGRESS (State 5)
+//   'aj2' (1203 Oak Lane, 30% progress)  → index 3 → MOCK_JOB_AWARDED (State 4)
+//   'aj3' (891 Birch Blvd, 85% progress) → index 5 → MOCK_JOB_PENDING_CONFIRMATION (State 6)
+// Fallback: 0 (State 1 — no bid submitted). Never default to a state that assumes an active job.
+const JOB_ID_TO_STATE_INDEX: Record<string, number> = {
+  aj1: 4,  // MOCK_JOB_IN_PROGRESS
+  aj2: 3,  // MOCK_JOB_AWARDED
+  aj3: 5,  // MOCK_JOB_PENDING_CONFIRMATION
+};
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
 const ContractorJobDetails: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const route = useRoute<RouteProp<{ ContractorJobDetails: { jobId?: string } }, 'ContractorJobDetails'>>();
   const insets = useSafeAreaInsets();
 
   // @demo State toggle (cycles through 6 mock states)
-  const [demoStateIndex, setDemoStateIndex] = useState(0);
+  // Initialises from route param jobId when navigated from ContractorHomeTab active jobs
+  const initialIndex = route.params?.jobId ? (JOB_ID_TO_STATE_INDEX[route.params.jobId] ?? 0) : 0;
+  const [demoStateIndex, setDemoStateIndex] = useState(initialIndex);
 
   // Lightbox state for job photos
   const [lightboxVisible, setLightboxVisible] = useState(false);
@@ -554,7 +663,7 @@ const ContractorJobDetails: React.FC = () => {
         prefillNotes: job.myBid!.notes,
         isEdit: true,
       });
-    } else if (isAwarded || isAccepted) {
+    } else if (isAwarded) {
       // State 4: Awarded — "Start Work" with confirmation
       label = 'Start Work';
       onPress = () => Alert.alert(
@@ -866,6 +975,52 @@ const ContractorJobDetails: React.FC = () => {
                   {job.myBid!.notes}
                 </Text>
               ) : null}
+            </View>
+          )}
+
+          {/* ── Progress Tracker (States 4/5/6 only) ── */}
+          {/* Matches JobCompletionScreen progress section exactly */}
+          {(isAwarded || isInProgress || isPendingCompletion) && (
+            <View>
+              <Text style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: COLORS.darkText,
+                lineHeight: 24,
+                marginBottom: 12,
+              }}>
+                Progress
+              </Text>
+              <View style={{
+                backgroundColor: COLORS.background,
+                borderRadius: 14,
+                borderWidth: 0.68,
+                borderColor: COLORS.cardBorder,
+                ...SHADOWS.card,
+                padding: 16,
+              }}>
+                <StatusTimeline steps={[
+                  {
+                    label: 'Job Awarded',
+                    status: isAwarded ? 'active' : 'completed',
+                    sublabel: `${centsToDisplay(job.myBid!.amount)} · ${job.agent.name}`,
+                  },
+                  {
+                    label: 'Work In Progress',
+                    status: isInProgress ? 'active' : isAwarded ? 'pending' : 'completed',
+                    sublabel: `Due ${job.dueDate}`,
+                  },
+                  {
+                    label: 'Completion Submitted',
+                    status: isPendingCompletion ? 'active' : 'pending',
+                    sublabel: isPendingCompletion ? undefined : 'Upload proof & submit',
+                  },
+                  {
+                    label: 'Agent Confirmed',
+                    status: 'pending',
+                  },
+                ]} />
+              </View>
             </View>
           )}
 
