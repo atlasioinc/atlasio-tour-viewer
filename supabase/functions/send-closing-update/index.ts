@@ -33,11 +33,11 @@ const corsHeaders = {
 // ─── Closing Phases (must match lib/closingPhases.ts in atlasio-closing) ──────
 
 const CLOSING_PHASES = [
-  { key: 'loan_application', milestoneKeys: ['pre_approval', 'app_submitted', 'appraisal_ordered', 'appraisal_complete'] },
+  { key: 'loan_application', milestoneKeys: ['loan_application', 'pre_approval', 'app_submitted', 'appraisal_ordered', 'appraisal_complete'] },
   { key: 'title_search', milestoneKeys: ['title_search', 'lien_search', 'title_commitment'] },
-  { key: 'under_review', milestoneKeys: ['underwriting', 'conditional_approval'] },
+  { key: 'under_review', milestoneKeys: ['under_review', 'underwriting', 'conditional_approval'] },
   { key: 'clear_to_close', milestoneKeys: ['clear_to_close'] },
-  { key: 'closing_day', milestoneKeys: ['loan_docs_sent', 'closing_docs'] },
+  { key: 'closing_day', milestoneKeys: ['closing_day', 'loan_docs_sent', 'closing_docs'] },
 ];
 
 const PHASE_LABELS: Record<string, string> = {
