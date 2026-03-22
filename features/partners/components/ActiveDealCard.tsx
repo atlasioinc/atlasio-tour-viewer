@@ -115,6 +115,10 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
   const [alertExpiryDate, setAlertExpiryDate] = useState('');
   const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>([]);
 
+  // Optimistic milestone status overrides — same pattern as dismissedAlertIds
+  // Key: milestone.id, Value: overridden status
+  const [milestoneStatuses, setMilestoneStatuses] = useState<Record<string, MilestoneStatus>>({});
+
   // ── Filter out locally dismissed alerts ──
   const visibleAlerts = deal.alerts.filter(a => !dismissedAlertIds.includes(a.id));
 
@@ -136,7 +140,7 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
   const leftBorderWidth = isUrgent || hasAnyAlert ? 3 : 0.5;
 
   // ── Progress ──
-  const completedCount = deal.milestones.filter(m => m.status === 'complete').length;
+  const completedCount = deal.milestones.filter(m => (milestoneStatuses[m.id] ?? m.status) === 'complete').length;
   const totalCount = deal.milestones.length;
   const progressPct = totalCount > 0 ? completedCount / totalCount : 0;
 
@@ -267,9 +271,12 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
           .slice()
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(ms => {
-            const statusIcon = ms.status === 'complete'
+            // Optimistic: local override first, fall back to prop status
+            const displayStatus = milestoneStatuses[ms.id] ?? ms.status;
+
+            const statusIcon = displayStatus === 'complete'
               ? <CheckCircleIcon color={COLORS.scoreGreen} />
-              : ms.status === 'in_progress'
+              : displayStatus === 'in_progress'
                 ? <InProgressIcon color={COLORS.warningAmber} />
                 : <PendingIcon />;
 
@@ -277,14 +284,17 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
               <Pressable
                 key={ms.id}
                 onPress={() => {
-                  const next = getNextStatus(ms.status);
+                  const currentStatus = milestoneStatuses[ms.id] ?? ms.status;
+                  const next = getNextStatus(currentStatus);
+                  // Optimistic: update local state immediately
+                  setMilestoneStatuses(prev => ({ ...prev, [ms.id]: next }));
                   // Haptic: Light for in_progress, Medium for complete
                   Haptics.impactAsync(
                     next === 'complete'
                       ? Haptics.ImpactFeedbackStyle.Medium
                       : Haptics.ImpactFeedbackStyle.Light,
                   );
-                  onMilestoneTap(ms.id, ms.status);
+                  onMilestoneTap(ms.id, currentStatus);
                 }}
                 style={{
                   flexDirection: 'row',
@@ -299,10 +309,10 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
                   style={{
                     flex: 1,
                     fontSize: 14,
-                    fontWeight: ms.status === 'complete' ? '400' : '500',
-                    color: ms.status === 'complete' ? COLORS.secondaryText : COLORS.darkText,
+                    fontWeight: displayStatus === 'complete' ? '400' : '500',
+                    color: displayStatus === 'complete' ? COLORS.secondaryText : COLORS.darkText,
                     marginLeft: SPACING.lg,
-                    textDecorationLine: ms.status === 'complete' ? 'line-through' : 'none',
+                    textDecorationLine: displayStatus === 'complete' ? 'line-through' : 'none',
                   }}
                 >
                   {ms.milestone_label}
