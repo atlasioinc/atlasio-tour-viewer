@@ -342,8 +342,9 @@ export function useUpdateMilestoneStatus() {
 
 /**
  * Posts a new alert to a deal (visible to the agent).
- * @backend rpc_post_deal_alert(p_job_id: string, p_alert_type: AlertType, p_message: string, p_expires_at: string | null)
+ * @backend rpc_post_deal_alert(p_job_id: string, p_alert_type: AlertType, p_message: string, p_expires_at: string | null, p_transaction_id: string | null)
  * p_expires_at: ISO string for rate_lock_expiry, null for all other types
+ * p_transaction_id: anchors alert to a transaction when provided
  * Invalidates: ['partner_active_deals', partnerId]
  */
 export function usePostDealAlert() {
@@ -356,14 +357,16 @@ export function usePostDealAlert() {
       message,
       expiresAt,
       partnerId,
+      transactionId,
     }: {
       jobId: string;
       alertType: AlertType;
       message: string;
       expiresAt: string | null;
       partnerId: string;
+      transactionId?: string;
     }) => {
-      // @backend rpc_post_deal_alert(p_job_id, p_alert_type, p_message, p_expires_at)
+      // @backend rpc_post_deal_alert(p_job_id, p_alert_type, p_message, p_expires_at, p_transaction_id)
       console.log(`[usePostDealAlert] @demo posting ${alertType} to ${jobId}`);
       return {
         id: `alert-${Date.now()}`,
@@ -372,6 +375,7 @@ export function usePostDealAlert() {
         alert_type: alertType,
         message,
         expires_at: expiresAt,
+        transaction_id: transactionId ?? null,
         dismissed_at: null,
         created_at: new Date().toISOString(),
       };
@@ -396,6 +400,7 @@ export function usePostDealAlert() {
                     alert_type: variables.alertType,
                     message: variables.message,
                     expires_at: variables.expiresAt,
+                    transaction_id: variables.transactionId ?? null,
                     dismissed_at: null,
                     created_at: new Date().toISOString(),
                   },

@@ -2470,16 +2470,16 @@ export function useAgentDeals() {
 // ─── useAgentActiveDeals ──────────────────────────────────────
 // STATUS: mock
 // @backend rpc_get_deal_board_for_agent — one call per active job
-// NOTE: will migrate to transaction_id in S64 when transactions table exists
+// When transactionId is provided, filters deal board by transaction_id instead of job_id.
 // Returns: AgentActiveDeal[] — deals with seeded milestones
 // Mock data: 2 deals (1 with rate_lock alert + 1 stale milestone, 1 clean)
 
-export function useAgentActiveDeals() {
+export function useAgentActiveDeals(transactionId?: string) {
   return useQuery({
-    queryKey: ['agent_active_deals'],
+    queryKey: ['agent_active_deals', transactionId ?? null],
     queryFn: async (): Promise<AgentActiveDeal[]> => {
       // @demo — return mock deals
-      // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }
+      // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid(), p_transaction_id: transactionId ?? null }
       return MOCK_AGENT_ACTIVE_DEALS;
     },
   });
@@ -2692,15 +2692,24 @@ export function useUpdateClosingDetails() {
 }
 
 // ─── useRealtimeDealBoard ─────────────────────────────────────
-export function useRealtimeDealBoard(jobId: string): void {
+// When transactionId is provided, subscribe on transaction_id instead of job_id.
+// Falls back to job_id when transactionId is omitted (backward compatible).
+export function useRealtimeDealBoard(jobId: string, transactionId?: string): void {
   const qc = useQueryClient();
 
   useEffect(() => {
+    const filter = transactionId
+      ? `transaction_id=eq.${transactionId}`
+      : `job_id=eq.${jobId}`;
+    const channelName = transactionId
+      ? `deal_board_tx_${transactionId}`
+      : `deal_board_${jobId}`;
+
     const channel = supabase
-      .channel(`deal_board_${jobId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'deal_milestones', filter: `job_id=eq.${jobId}` },
+        { event: '*', schema: 'public', table: 'deal_milestones', filter },
         () => {
           qc.invalidateQueries({ queryKey: ['deal_board', jobId] });
           qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
@@ -2708,7 +2717,7 @@ export function useRealtimeDealBoard(jobId: string): void {
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'deal_alerts', filter: `job_id=eq.${jobId}` },
+        { event: '*', schema: 'public', table: 'deal_alerts', filter },
         () => {
           qc.invalidateQueries({ queryKey: ['deal_board', jobId] });
           qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
@@ -2719,5 +2728,5 @@ export function useRealtimeDealBoard(jobId: string): void {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [jobId, qc]);
+  }, [jobId, transactionId, qc]);
 }
