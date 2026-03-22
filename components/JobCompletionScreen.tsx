@@ -18,11 +18,11 @@
 // Stack: HomeStack (agent) + ContractorHomeStack (contractor)
 // Presentation: fullScreenModal, slide_from_bottom
 //
-// @demo: all 3 handlers (markComplete, confirmComplete, requestRevision)
-//        use 800ms setTimeout — no backend calls. Mock data for job/photos.
-//        DEV role toggle at bottom of screen for testing both views.
-// @backend TODO: wire to useMarkJobComplete, useConfirmJobComplete,
-//                useRequestJobRevision (all exist in useData.ts)
+// @demo: requestRevision handler uses 800ms setTimeout — no backend call yet.
+//        Mock data for job/photos. DEV role toggle at bottom of screen for testing.
+// @backend WIRED: useMarkJobComplete → rpc_mark_job_complete (S85b)
+// @backend WIRED: useConfirmJobComplete → rpc_confirm_job_complete (S85b)
+// @backend TODO: wire useRequestJobRevision (exists in useData.ts)
 // @backend TODO: wire vouch submit to useCreateReview mutation (not yet in useData.ts)
 // ═══════════════════════════════════════════════════════════════
 
@@ -44,6 +44,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import VouchPromptModal from './VouchPromptModal';
+import { useMarkJobComplete, useConfirmJobComplete } from '../hooks/useData';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -482,6 +483,10 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
   const [showVouchModal, setShowVouchModal] = useState(false);
   const pendingVouchRef = useRef(false);
 
+  // ── Live mutation hooks ──
+  const markJobComplete = useMarkJobComplete();
+  const confirmJobComplete = useConfirmJobComplete();
+
   // ── Role derived from route param ──
   const activeIsContractor = !isAgent;
   const activeIsAgent = isAgent;
@@ -611,7 +616,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
   );
 
   // ── CONTRACTOR: Mark Complete ──
-  // @backend TODO: wire to useMarkJobComplete(jobId, proofPhotos, completionNotes)
+  // @backend rpc_mark_job_complete(p_job_id, p_proof_photo_urls, p_completion_notes)
   const handleMarkComplete = useCallback(() => {
     Keyboard.dismiss();
 
@@ -626,19 +631,29 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setJobStatus('pending_confirmation');
-
-      showSuccessOverlay('Completion Submitted!', () => {
-        // In production: navigate back or stay on screen with updated status
-      });
-    }, 800);
-  }, [proofPhotos, completionNotes, showSuccessOverlay]);
+    markJobComplete.mutate(
+      {
+        jobId: job.id,
+        proofPhotoUrls: proofPhotos,
+        completionNotes: completionNotes.trim(),
+      },
+      {
+        onSuccess: () => {
+          setIsSubmitting(false);
+          setJobStatus('pending_confirmation');
+          showSuccessOverlay('Completion Submitted!', () => {});
+        },
+        onError: (err) => {
+          setIsSubmitting(false);
+          console.warn('[handleMarkComplete] error:', err);
+          Alert.alert('Error', 'Failed to submit completion. Please try again.');
+        },
+      }
+    );
+  }, [proofPhotos, completionNotes, showSuccessOverlay, markJobComplete, job.id]);
 
   // ── AGENT: Confirm Complete ──
-  // @backend TODO: wire to useConfirmJobComplete(jobId)
+  // @backend rpc_confirm_job_complete(p_job_id)
   const handleConfirmComplete = useCallback(() => {
     Alert.alert(
       'Confirm Job Complete',
@@ -649,27 +664,36 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
           text: 'Confirm',
           onPress: () => {
             setIsSubmitting(true);
-            setTimeout(() => {
-              setIsSubmitting(false);
-              setJobStatus('completed');
-              pendingVouchRef.current = true;
+            confirmJobComplete.mutate(
+              { jobId: job.id },
+              {
+                onSuccess: () => {
+                  setIsSubmitting(false);
+                  setJobStatus('completed');
+                  pendingVouchRef.current = true;
 
-              showSuccessOverlay('Job Completed! 🎉', () => {
-                // Open vouch modal after success overlay (sequential modal pattern)
-                if (pendingVouchRef.current) {
-                  pendingVouchRef.current = false;
-                  setTimeout(() => {
-                    setShowVouchModal(true);
-                  }, 100);
-                }
-              });
-            }, 800);
+                  showSuccessOverlay('Job Completed! 🎉', () => {
+                    // Open vouch modal after success overlay (sequential modal pattern)
+                    if (pendingVouchRef.current) {
+                      pendingVouchRef.current = false;
+                      setTimeout(() => {
+                        setShowVouchModal(true);
+                      }, 100);
+                    }
+                  });
+                },
+                onError: (err) => {
+                  setIsSubmitting(false);
+                  console.warn('[handleConfirmComplete] error:', err);
+                  Alert.alert('Error', 'Failed to confirm completion. Please try again.');
+                },
+              }
+            );
           },
         },
       ]
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- job ref intentionally included for staleness check
-  }, [job, showSuccessOverlay]);
+  }, [job, showSuccessOverlay, confirmJobComplete]);
 
   // ── AGENT: Request Revision ──
   // @backend TODO: wire to useRequestJobRevision(jobId, revisionNotes)

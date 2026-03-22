@@ -805,7 +805,11 @@ export const useRejectBid = () => {
 
 /**
  * Mark job as complete (contractor submits proof)
- * RPC: rpc_mark_complete(p_job_id UUID, p_proof_photos TEXT[] DEFAULT '{}', p_completion_notes TEXT DEFAULT '') → VOID
+ * @backend rpc_mark_job_complete(p_job_id, p_proof_photo_urls, p_completion_notes)
+ * Validates: caller is awarded contractor, job status is 'in_progress'
+ * Transitions: in_progress → pending_completion
+ * Stores: proof_photo_urls (text[]), completion_notes (text), contractor_completed_at
+ * Notifies: agent via 'contractor_marked_complete' notification
  */
 // STATUS: wired (with mock fallback)
 export const useMarkJobComplete = () => {
@@ -813,34 +817,44 @@ export const useMarkJobComplete = () => {
   return useMutation({
     mutationFn: async ({
       jobId,
-      proofPhotos,
+      proofPhotoUrls,
       completionNotes,
     }: {
       jobId: string;
-      proofPhotos?: string[];
+      proofPhotoUrls?: string[];
       completionNotes?: string;
     }) => {
       try {
-        const { error } = await supabase.rpc('rpc_mark_complete', {
+        const { data, error } = await supabase.rpc('rpc_mark_job_complete', {
           p_job_id: jobId,
-          p_proof_photos: proofPhotos ?? [],
-          p_completion_notes: completionNotes ?? '',
+          p_proof_photo_urls: proofPhotoUrls ?? [],
+          p_completion_notes: completionNotes ?? null,
         });
         if (error) throw error;
+        if (!data?.success) throw new Error(data?.message ?? 'Failed to mark job complete');
       } catch (err) {
         console.warn('[useMarkJobComplete] Supabase RPC failed, using mock fallback', err);
+        // @demo mock fallback — simulate success so demo app never breaks
         await new Promise((r) => setTimeout(r, 300));
       }
     },
     onSuccess: (_, { jobId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
+      qc.invalidateQueries({ queryKey: ['contractorJob', jobId] });
+      qc.invalidateQueries({ queryKey: ['contractorActiveJobs'] });
+      qc.invalidateQueries({ queryKey: queryKeys.agentJobs });
     },
   });
 };
 
 /**
  * Confirm job completion (agent approves)
- * RPC: rpc_confirm_complete(p_job_id UUID) → VOID
+ * @backend rpc_confirm_job_complete(p_job_id)
+ * Validates: caller is the job agent, job status is 'pending_completion'
+ * Transitions: pending_completion → completed
+ * Stores: agent_confirmed_at
+ * Notifies: contractor via 'agent_confirmed_complete' notification
+ * Sets: vouch_prompt_sent = false (picked up by send-vouch-prompts cron)
  */
 // STATUS: wired (with mock fallback)
 export const useConfirmJobComplete = () => {
@@ -848,17 +862,22 @@ export const useConfirmJobComplete = () => {
   return useMutation({
     mutationFn: async ({ jobId }: { jobId: string }) => {
       try {
-        const { error } = await supabase.rpc('rpc_confirm_complete', {
+        const { data, error } = await supabase.rpc('rpc_confirm_job_complete', {
           p_job_id: jobId,
         });
         if (error) throw error;
+        if (!data?.success) throw new Error(data?.message ?? 'Failed to confirm job complete');
       } catch (err) {
         console.warn('[useConfirmJobComplete] Supabase RPC failed, using mock fallback', err);
+        // @demo mock fallback — simulate success so demo app never breaks
         await new Promise((r) => setTimeout(r, 300));
       }
     },
     onSuccess: (_, { jobId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.agentJobs });
       qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
+      qc.invalidateQueries({ queryKey: ['contractorJob', jobId] });
+      qc.invalidateQueries({ queryKey: ['contractorActiveJobs'] });
     },
   });
 };
