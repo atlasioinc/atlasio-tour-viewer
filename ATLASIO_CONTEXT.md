@@ -659,3 +659,11 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 33 (unchanged), Hooks: 57 (unchanged), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 - **S89 next objectives:** Live wiring of partner deal hooks to Supabase RPCs, Next.js closing tracker web app
+
+### S89 — PostPhotoJobScreen + PostStagingJobScreen Live Job Creation (March 22, 2026)
+- **Modified:** `components/PostPhotoJobScreen.tsx` — Replaced mock submit handler with `useCreateJob` → `rpc_create_job({ p_job_type: 'photography' })`. Added mock fallback in catch block. Added `@backend` and `@demo` markers.
+- **Modified:** `components/PostStagingJobScreen.tsx` — Replaced mock submit handler with `useCreateJob` → `rpc_create_job({ p_job_type: 'staging' })`. Added mock fallback in catch block. Added `@backend` and `@demo` markers.
+- **Key decisions:** (1) `p_title` auto-generated as `'Photography Job'` / `'Staging Job'` — neither screen has a title input field yet. (2) PostPhotoJobScreen `sqft` field captured but not sent to RPC — `CreatePhotographyJobInput` has no `p_sqft` param. (3) PostStagingJobScreen `p_due_date` receives timeline key (e.g. `'1_week'`) not ISO date — needs proper date picker before launch. (4) No contractor invite flow on either screen — confirmed and not added.
+- **Metrics:** RPCs: 33 (unchanged), Hooks: 57 (unchanged), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+- **S90 next objectives:** Partner hooks live wiring (`usePartnerData.ts` audit + RPC wiring)
