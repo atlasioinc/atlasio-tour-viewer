@@ -977,6 +977,7 @@ export const useCreateJob = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.repairJobs });
+      qc.invalidateQueries({ queryKey: queryKeys.agentJobs });
     },
   });
 };

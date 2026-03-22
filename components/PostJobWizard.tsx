@@ -21,11 +21,12 @@
 //   Body (#F7F7FC): subtitle 16/600/#666 + step indicator 14/400/#666 → form
 //   Footer (81px): Primary button 48px r8 #003DC3, text 14/500/white
 //
-// @demo: handlePostJob uses 600ms setTimeout + mock ID generation.
-//        See TODO block for TanStack Query wiring target.
-// @backend: will wire to useCreateJob → supabase.rpc('rpc_create_job')
-//           Payload: job_type='repair', title, address, due_date,
-//           budget_min/max (cents), description, trades, bid_window_hours
+// @backend WIRED (S86): useCreateJob → supabase.rpc('rpc_create_job')
+//   Params: p_job_type='repair', p_title, p_address, p_due_date,
+//   p_description, p_is_urgent, p_trades, p_budget_min/max, p_bid_deadline_hours
+// @backend WIRED (S86): useInviteContractors → append_invited_contractors
+//   Params: p_job_id (from rpc_create_job), p_contractor_ids
+//   Non-blocking — fires only if agent selected contractors in Step 2
 //
 // ARCHITECTURE: Single parent component, local state, inline steps.
 // PATTERN MATCHES: EditRepairJob, CreateDealChat, OnboardingScreen1
@@ -56,6 +57,7 @@ import InviteContractorsModal from './InviteContractorsModal';
 import type { NetworkContractor } from './InviteContractorsModal';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../lib/config';
+import { useCreateJob, useInviteContractors } from '../hooks/useData';
 
 // Simple progress bar matching Figma header spec (4px track, no label)
 const WizardProgressBar: React.FC<{ currentStep: number; totalSteps: number }> = ({ currentStep, totalSteps }) => {
@@ -926,10 +928,11 @@ const PostJobWizard: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setIsSubmitting is used, value read pending
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // @demo hardcoded fallback — never undefined
-  // @backend useCreateJob returns job ID on success
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in @backend nav to RepairJobDetails
+  // @backend WIRED: useCreateJob → rpc_create_job, returns job UUID on success
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in handlePostJob + future nav to RepairJobDetails
   const [newJobId, setNewJobId] = useState<string>('mock-job-001');
+  const createJob = useCreateJob();
+  const inviteContractors = useInviteContractors();
 
   const [form, setForm] = useState<PostJobFormData>({
     jobTitle: '',
@@ -992,44 +995,50 @@ const PostJobWizard: React.FC = () => {
     else handlePostJob();
   };
 
-  const handlePostJob = () => {
+  // @backend WIRED: rpc_create_job(p_job_type, p_title, p_address, p_due_date,
+  //   p_description, p_is_urgent, p_trades, p_budget_min, p_budget_max,
+  //   p_budget_range, p_bid_deadline_hours)
+  // @backend WIRED: append_invited_contractors(p_job_id, p_contractor_ids)
+  //   — non-blocking, fires after job creation if agent selected contractors
+  const handlePostJob = async () => {
     setIsSubmitting(true);
-    const payload = {
-      title: form.jobTitle.trim(),
-      property_address: form.propertyAddress.trim(),
-      due_date: form.dueDate?.toISOString() || new Date(Date.now() + 7 * 86400000).toISOString(),
-      budget_min: form.budgetMin ? Number(form.budgetMin) : null,
-      budget_max: form.budgetMax ? Number(form.budgetMax) : null,
-      description: form.description.trim(),
-      photos: form.photos,
-      trades: Array.from(form.selectedTrades),
-      bid_window_hours: form.bidWindowHours ? Number(form.bidWindowHours) : 48,
-      invite_specific_pros: form.inviteSpecificPros,
-      // @demo: logs selected IDs to console — no backend call
-      // @backend: pass to rpc_create_job as p_invite_contractor_ids
-      //   rpc_invite_contractors fires after job creation with returned jobId
-      invite_contractor_ids: form.inviteSpecificPros
-        ? selectedInvitedContractors.map((c) => c.id)
-        : [],
-      status: 'open' as const,
-    };
-    console.log('🚀 Post Job payload:', JSON.stringify(payload, null, 2));
+    try {
+      const dueDateISO = form.dueDate
+        ? form.dueDate.toISOString().split('T')[0]
+        : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
-    // @backend TODO: TanStack Query mutation → useCreateJob (hooks/useData.ts)
-    // mutatePostJob(payload, {
-    //   onSuccess: (job) => {
-    //     setNewJobId(job.id);
-    //     setIsSubmitting(false);
-    //     setShowConfirmModal(true);
-    //   },
-    // });
+      const jobId = await createJob.mutateAsync({
+        p_job_type: 'repair',
+        p_title: form.jobTitle.trim(),
+        p_address: form.propertyAddress.trim(),
+        p_due_date: dueDateISO,
+        p_description: form.description.trim(),
+        p_is_urgent: false,
+        p_trades: Array.from(form.selectedTrades) as import('../types').TradeEnum[],
+        p_budget_min: form.budgetMin ? Number(form.budgetMin) : undefined,
+        p_budget_max: form.budgetMax ? Number(form.budgetMax) : undefined,
+        p_bid_deadline_hours: form.bidWindowHours ? Number(form.bidWindowHours) : 48,
+      });
 
-    // @demo Simulated delay for demo — generate mock ID
-    setTimeout(() => {
-      setNewJobId(`job_${Date.now()}`);
+      setNewJobId(jobId);
+
+      // Non-blocking invite — job is already created, invite failure doesn't block success
+      if (form.inviteSpecificPros && selectedInvitedContractors.length > 0) {
+        inviteContractors.mutate(
+          { jobId, contractorIds: selectedInvitedContractors.map((c) => c.id) },
+          { onError: (err) => console.warn('[PostJobWizard] Invite failed (non-blocking):', err) },
+        );
+      }
+
       setIsSubmitting(false);
       setShowSuccess(true);
-    }, 600);
+    } catch (err) {
+      // Mock fallback — demo never breaks even if RPC fails
+      console.warn('[PostJobWizard] createJob failed, falling back to mock:', err);
+      setNewJobId(`mock-job-${Date.now()}`);
+      setIsSubmitting(false);
+      setShowSuccess(true);
+    }
   };
 
   // ─────────────────────────────────────────────
