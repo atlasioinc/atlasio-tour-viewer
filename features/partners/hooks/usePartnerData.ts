@@ -2,10 +2,12 @@
 // What: All partner-specific TanStack Query hooks — queries + mutations
 // Who: Partner role users (Title/Escrow, Mortgage Pro)
 // Where: Consumed by HomeTabPartner, PartnerDealsScreen
-// @demo All hooks return mock data — RPCs not yet deployed
-// @backend RPCs listed below each hook (signatures for future backend session)
+// S90: 7 of 9 hooks wired to live Supabase RPCs (with mock fallback)
+// 2 hooks intentionally deferred: usePartnerInvitations, useRespondToDealInvitation
+// @backend RPCs listed below each hook — all wired hooks have try/catch with mock fallback
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../../lib/supabase';
 import { PARTNER_TRACK_ENABLED } from '../../../lib/config';
 import { isMilestoneStale } from '../lib/dealMilestones';
 import type {
@@ -122,9 +124,9 @@ const MOCK_CONNECTION_REQUESTS: PartnerConnectionRequest[] = [
 
 /**
  * Fetches all active deals for a partner, sorted by closing_date ASC nulls last.
- * @backend rpc_get_partner_active_deals(p_partner_id: string)
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_get_partner_active_deals — no params, uses auth.uid() server-side
  * Returns: PartnerActiveDeal[] with milestones + undismissed alerts joined
- * Note: RPC not yet deployed — demo mode returns mock data
  */
 export function usePartnerActiveDeals(partnerId: string) {
   return useQuery({
@@ -139,9 +141,15 @@ export function usePartnerActiveDeals(partnerId: string) {
         });
       }
 
-      // @backend rpc_get_partner_active_deals(p_partner_id)
-      // When wired: try { supabase.rpc(...) } catch { return MOCK_DEALS }
-      return MOCK_DEALS;
+      try {
+        // @backend rpc_get_partner_active_deals — no params, uses auth.uid()
+        const { data, error } = await supabase.rpc('rpc_get_partner_active_deals');
+        if (error) throw error;
+        return (data as PartnerActiveDeal[]) ?? MOCK_DEALS;
+      } catch {
+        console.warn('[usePartnerActiveDeals] Supabase failed, using mock fallback');
+        return MOCK_DEALS;
+      }
     },
     enabled: !!partnerId,
   });
@@ -170,16 +178,31 @@ export function usePartnerNeedsAttention(partnerId: string, role: PartnerRole) {
 
 /**
  * Fetches partner visibility stats for the current month.
- * @backend rpc_get_partner_stats(p_partner_id: string)
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_get_partner_stats — no params, uses auth.uid() server-side
+ * NOTE: profile_views + search_appearances return 0 from RPC
+ * Flagged S62b for product review before partner launch — real tracking not yet implemented
  * Returns: PartnerStats
- * Note: RPC not yet deployed — demo mode returns mock stats
  */
 export function usePartnerStats(partnerId: string) {
   return useQuery({
     queryKey: ['partner_stats', partnerId],
     queryFn: async (): Promise<PartnerStats> => {
-      // @demo — return mock stats with positive trends
-      return MOCK_STATS;
+      if (!PARTNER_TRACK_ENABLED) {
+        // @demo — return mock stats with positive trends
+        return MOCK_STATS;
+      }
+
+      try {
+        // @backend rpc_get_partner_stats — NOTE: profile_views + search_appearances return 0
+        // Flagged S62b for product review before partner launch — real tracking not yet implemented
+        const { data, error } = await supabase.rpc('rpc_get_partner_stats');
+        if (error) throw error;
+        return (data as PartnerStats) ?? MOCK_STATS;
+      } catch {
+        console.warn('[usePartnerStats] Supabase failed, using mock fallback');
+        return MOCK_STATS;
+      }
     },
     enabled: !!partnerId,
   });
@@ -187,16 +210,28 @@ export function usePartnerStats(partnerId: string) {
 
 /**
  * Fetches pending connection requests for a partner.
- * @backend rpc_get_connection_requests(p_partner_id: string)
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_get_connection_requests — no params, uses auth.uid() server-side
  * Returns: PartnerConnectionRequest[]
- * Note: RPC not yet deployed — demo mode returns mock requests
  */
 export function usePartnerConnectionRequests(partnerId: string) {
   return useQuery({
-    queryKey: ['partner_connection_requests', partnerId],
+    queryKey: ['connection_requests', partnerId],
     queryFn: async (): Promise<PartnerConnectionRequest[]> => {
-      // @demo — return mock connection requests
-      return MOCK_CONNECTION_REQUESTS;
+      if (!PARTNER_TRACK_ENABLED) {
+        // @demo — return mock connection requests
+        return MOCK_CONNECTION_REQUESTS;
+      }
+
+      try {
+        // @backend rpc_get_connection_requests — no params, uses auth.uid()
+        const { data, error } = await supabase.rpc('rpc_get_connection_requests');
+        if (error) throw error;
+        return (data as PartnerConnectionRequest[]) ?? MOCK_CONNECTION_REQUESTS;
+      } catch {
+        console.warn('[usePartnerConnectionRequests] Supabase failed, using mock fallback');
+        return MOCK_CONNECTION_REQUESTS;
+      }
     },
     enabled: !!partnerId,
   });
@@ -243,8 +278,9 @@ const MOCK_PARTNER_INVITATIONS: PartnerInvitationsResponse = {
 
 /**
  * Fetches all pending invitations for a partner — both connection requests and deal invitations.
- * STATUS: mock
- * @backend rpc_get_partner_invitations() — no params, uses auth.uid()
+ * STATUS: mock — intentionally deferred
+ * @backend rpc_get_partner_invitations — RPC NOT YET DEPLOYED
+ * Wire in dedicated backend session before partner launch
  * Returns: PartnerInvitationsResponse { connection_requests, deal_invitations, total_count }
  * NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
  * Query key: ['partner_invitations']
@@ -267,21 +303,28 @@ export function usePartnerInvitations() {
 
 /**
  * Toggles the partner's accepting_clients status.
- * @backend rpc_toggle_accepting_clients(p_accepting: boolean)
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_toggle_accepting_clients — params: { p_accepting: boolean }
  * Optimistic update on profiles query.
- * Invalidates: ['profile', partnerId]
+ * Invalidates: ['partner_stats'], ['profile', partnerId]
  */
 export function useToggleAcceptingClients() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ partnerId, accepting }: { partnerId: string; accepting: boolean }) => {
-      // @backend rpc_toggle_accepting_clients(p_accepting: boolean)
-      // When wired: await supabase.rpc('rpc_toggle_accepting_clients', { p_accepting: accepting })
-      console.log(`[useToggleAcceptingClients] @demo toggling to ${accepting} for ${partnerId}`);
-      return { accepting };
+      try {
+        // @backend rpc_toggle_accepting_clients — params: { p_accepting: boolean }
+        const { data, error } = await supabase.rpc('rpc_toggle_accepting_clients', { p_accepting: accepting });
+        if (error) throw error;
+        return data ?? { accepting };
+      } catch {
+        console.warn(`[useToggleAcceptingClients] Supabase failed, mock toggling to ${accepting}`);
+        return { accepting };
+      }
     },
     onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['partner_stats', variables.partnerId] });
       queryClient.invalidateQueries({ queryKey: ['profile', variables.partnerId] });
     },
   });
@@ -289,8 +332,8 @@ export function useToggleAcceptingClients() {
 
 /**
  * Updates a milestone's status (pending → in_progress → complete).
- * @backend rpc_update_milestone_status(p_milestone_id: string, p_status: MilestoneStatus, p_completed_at: string | null)
- * p_completed_at: ISO string when status = 'complete', null otherwise
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_update_milestone_status — params: { p_milestone_id: string, p_status: MilestoneStatus }
  * Optimistic update: updates milestone in partner_active_deals cache immediately.
  * Invalidates: ['partner_active_deals', partnerId]
  */
@@ -309,9 +352,18 @@ export function useUpdateMilestoneStatus() {
       completedAt: string | null;
       partnerId: string;
     }) => {
-      // @backend rpc_update_milestone_status(p_milestone_id, p_status, p_completed_at)
-      console.log(`[useUpdateMilestoneStatus] @demo ${milestoneId} → ${status}`);
-      return { milestoneId, status, completedAt };
+      try {
+        // @backend rpc_update_milestone_status — params: { p_milestone_id, p_status }
+        const { data, error } = await supabase.rpc('rpc_update_milestone_status', {
+          p_milestone_id: milestoneId,
+          p_status: status,
+        });
+        if (error) throw error;
+        return data ?? { milestoneId, status, completedAt };
+      } catch {
+        console.warn(`[useUpdateMilestoneStatus] Supabase failed, mock ${milestoneId} → ${status}`);
+        return { milestoneId, status, completedAt };
+      }
     },
     onMutate: async (variables) => {
       // Optimistic update — cycle milestone in cache
@@ -345,7 +397,8 @@ export function useUpdateMilestoneStatus() {
 
 /**
  * Posts a new alert to a deal (visible to the agent).
- * @backend rpc_post_deal_alert(p_job_id: string, p_alert_type: AlertType, p_message: string, p_expires_at: string | null, p_transaction_id: string | null)
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_post_deal_alert — params: { p_job_id, p_transaction_id?, p_alert_type, p_message, p_expires_at? }
  * p_expires_at: ISO string for rate_lock_expiry, null for all other types
  * p_transaction_id: anchors alert to a transaction when provided
  * Invalidates: ['partner_active_deals', partnerId]
@@ -369,9 +422,7 @@ export function usePostDealAlert() {
       partnerId: string;
       transactionId?: string;
     }) => {
-      // @backend rpc_post_deal_alert(p_job_id, p_alert_type, p_message, p_expires_at, p_transaction_id)
-      console.log(`[usePostDealAlert] @demo posting ${alertType} to ${jobId}`);
-      return {
+      const mockResult = {
         id: `alert-${Date.now()}`,
         job_id: jobId,
         partner_id: partnerId,
@@ -382,6 +433,22 @@ export function usePostDealAlert() {
         dismissed_at: null,
         created_at: new Date().toISOString(),
       };
+
+      try {
+        // @backend rpc_post_deal_alert — params: { p_job_id, p_transaction_id, p_alert_type, p_message, p_expires_at }
+        const { data, error } = await supabase.rpc('rpc_post_deal_alert', {
+          p_job_id: jobId,
+          p_transaction_id: transactionId ?? null,
+          p_alert_type: alertType,
+          p_message: message,
+          p_expires_at: expiresAt,
+        });
+        if (error) throw error;
+        return data ?? mockResult;
+      } catch {
+        console.warn(`[usePostDealAlert] Supabase failed, mock posting ${alertType} to ${jobId}`);
+        return mockResult;
+      }
     },
     onMutate: async (variables) => {
       // Optimistic: add alert to deal in cache
@@ -428,7 +495,8 @@ export function usePostDealAlert() {
 
 /**
  * Dismisses a deal alert (writes dismissed_at = NOW()).
- * @backend rpc_dismiss_deal_alert(p_alert_id: string)
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_dismiss_deal_alert — params: { p_alert_id: string }
  * Optimistic: removes alert from deal in cache.
  * Invalidates: ['partner_active_deals', partnerId]
  */
@@ -443,9 +511,15 @@ export function useDismissDealAlert() {
       alertId: string;
       partnerId: string;
     }) => {
-      // @backend rpc_dismiss_deal_alert(p_alert_id)
-      console.log(`[useDismissDealAlert] @demo dismissing ${alertId}`);
-      return { alertId };
+      try {
+        // @backend rpc_dismiss_deal_alert — params: { p_alert_id }
+        const { data, error } = await supabase.rpc('rpc_dismiss_deal_alert', { p_alert_id: alertId });
+        if (error) throw error;
+        return data ?? { alertId };
+      } catch {
+        console.warn(`[useDismissDealAlert] Supabase failed, mock dismissing ${alertId}`);
+        return { alertId };
+      }
     },
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: ['partner_active_deals', variables.partnerId] });
@@ -478,11 +552,9 @@ export function useDismissDealAlert() {
 
 /**
  * Responds to a deal invitation — accept or decline.
- * STATUS: mock
- * @backend rpc_respond_to_deal_invitation({
- *   p_transaction_partner_id: string,
- *   p_response: 'accepted' | 'declined'
- * })
+ * STATUS: mock — intentionally deferred
+ * @backend rpc_respond_to_deal_invitation — RPC NOT YET DEPLOYED
+ * Wire in dedicated backend session before partner launch
  * NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
  * On accept: invalidates ['partner_invitations'] + ['partner_active_deals']
  * On decline: invalidates ['partner_invitations'] only

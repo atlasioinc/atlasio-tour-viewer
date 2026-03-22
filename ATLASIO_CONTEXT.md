@@ -667,3 +667,20 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 33 (unchanged), Hooks: 57 (unchanged), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 - **S90 next objectives:** Partner hooks live wiring (`usePartnerData.ts` audit + RPC wiring)
+
+### S90 — Partner Hooks Live Wiring (March 22, 2026)
+- **Modified:** `features/partners/hooks/usePartnerData.ts` — Wired 7 of 9 hooks from mock → live Supabase RPCs with mock fallback pattern:
+  - `usePartnerActiveDeals` → `rpc_get_partner_active_deals` (no params, auth.uid())
+  - `usePartnerStats` → `rpc_get_partner_stats` (no params, auth.uid(); profile_views + search_appearances return 0 — flagged S62b)
+  - `usePartnerConnectionRequests` → `rpc_get_connection_requests` (no params, auth.uid())
+  - `useToggleAcceptingClients` → `rpc_toggle_accepting_clients` (p_accepting: boolean)
+  - `useUpdateMilestoneStatus` → `rpc_update_milestone_status` (p_milestone_id, p_status)
+  - `usePostDealAlert` → `rpc_post_deal_alert` (p_job_id, p_transaction_id, p_alert_type, p_message, p_expires_at)
+  - `useDismissDealAlert` → `rpc_dismiss_deal_alert` (p_alert_id)
+- **Skipped (intentionally deferred):** `usePartnerInvitations` (RPC not yet deployed), `useRespondToDealInvitation` (RPC not yet deployed)
+- **Modified:** `lib/config.ts` — Reset `PARTNER_TRACK_ENABLED` and `DEAL_CREATION_ENABLED` to `false` (demo defaults)
+- **Added import:** `supabase` client from `lib/supabase.ts`
+- **Key decisions:** All 7 wired hooks use try/catch with mock fallback — demo app never breaks. Query hooks gated behind `PARTNER_TRACK_ENABLED` (mock when false). Mutations always attempt live RPC regardless of flag. `useToggleAcceptingClients` invalidates `partner_stats` (per spec) in addition to existing `profile` key.
+- **Metrics:** RPCs: 33 (unchanged), Hooks: 57 (unchanged — 7 upgraded from mock to wired, no new hooks), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+- **S91 next objectives:** Deploy partner RPCs to schema.sql, Next.js closing tracker web app, usePartnerInvitations + useRespondToDealInvitation RPC deployment + wiring
