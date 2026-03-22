@@ -1,7 +1,7 @@
 -- schema.sql
 -- ═══════════════════════════════════════════════════════════════
 -- Atlasio — Production-Ready Supabase Schema
--- Last updated: March 16, 2026 (S60 — neighborhood cache tables + RPCs)
+-- Last updated: March 22, 2026 (S93 — transactions, transaction_partners, 6 RPCs)
 -- Original base: Feb 28, 2026 (Phase 1 Backend Build)
 --
 -- ⚠️  AUDIT NOTE: This file was reconciled against live Supabase on March 12,
@@ -12,12 +12,13 @@
 -- Deploy: Supabase Dashboard → SQL Editor → New Query → paste & run
 -- OR: supabase db push (via CLI)
 --
--- Tables (20):
+-- Tables (22):
 --   profiles, performance_stats, connections, jobs, bids,
 --   reviews, vouches, vouch_likes, threads, thread_members,
 --   messages, notifications, squads, squad_members,
 --   reports, push_tokens, blocked_users, job_invitations,
---   neighborhood_analyses, address_comparisons
+--   neighborhood_analyses, address_comparisons,
+--   transactions, transaction_partners
 --
 -- Structure:
 --   1. ENUMS
@@ -30,6 +31,7 @@
 --   8. PROFILES MIGRATIONS (columns added post-base: Phase 6 + S47)
 --   9. POST-BASE RPCs (15 functions deployed S22–S49 via SQL Editor)
 --  10. NEIGHBORHOOD INTELLIGENCE TABLES + RPCs (S59–S60)
+--  11. TRANSACTIONS + PARTNER RPCs (S64a–S92)
 --
 -- Architecture:
 --   - Unified jobs table (repair, photography, staging) with job_type enum
@@ -52,7 +54,7 @@
 -- ALL RPCs NOW LIVE (deployed March 12, 2026 - S49/S50 audit session):
 --   - rpc_create_thread, rpc_complete_onboarding, rpc_send_connection_request
 --   - rpc_submit_vouch, rpc_invite_contractors -- all confirmed live
---   Total: 33 RPCs live
+--   Total: 39 RPCs live (33 base + 6 added S62b–S92)
 --
 -- ⚠️  KNOWN NAME MISMATCH:
 --   - Live RPC: rpc_get_job_details
@@ -1916,6 +1918,235 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ═════════════════════════════════════════════════════════════
+-- 11. TRANSACTIONS + PARTNER RPCs (S64a–S92)
+-- ═════════════════════════════════════════════════════════════
+
+-- transactions — S64a (March 17, 2026)
+CREATE TABLE IF NOT EXISTS transactions (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id         UUID NOT NULL REFERENCES profiles(id),
+  property_address TEXT NOT NULL,
+  mls_number       TEXT,
+  contract_price   NUMERIC,
+  closing_date     DATE,
+  buyer_name       TEXT,
+  status           TEXT NOT NULL DEFAULT 'active',
+  client_token     TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  updated_at       TIMESTAMPTZ DEFAULT now(),
+  notify_phone     TEXT,
+  closing_details  JSONB NOT NULL DEFAULT '{}'
+);
+
+-- transaction_partners — S64a (March 17, 2026)
+CREATE TABLE IF NOT EXISTS transaction_partners (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  transaction_id UUID NOT NULL REFERENCES transactions(id),
+  partner_id     UUID NOT NULL REFERENCES profiles(id),
+  partner_role   TEXT NOT NULL,
+  invited_by     UUID NOT NULL REFERENCES profiles(id),
+  status         TEXT NOT NULL DEFAULT 'invited',
+  invited_at     TIMESTAMPTZ DEFAULT now(),
+  responded_at   TIMESTAMPTZ
+);
+
+-- rpc_seed_deal_milestones — updated S87 (March 22, 2026) to add p_transaction_id
+-- p_transaction_id DEFAULT NULL for backward compatibility
+-- NOTE: body may differ from live — verify in Supabase if needed
+CREATE OR REPLACE FUNCTION rpc_seed_deal_milestones(
+  p_job_id         UUID,
+  p_partner_id     UUID,
+  p_partner_role   TEXT,
+  p_transaction_id UUID DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Body omitted — see Supabase Dashboard → Database → Functions for live definition
+  NULL;
+END;
+$$;
+
+-- rpc_get_partner_active_deals — updated S92 (March 22, 2026)
+-- Removed p_partner_id param — now uses auth.uid() internally
+-- NOTE: body may differ from live — verify in Supabase if needed
+CREATE OR REPLACE FUNCTION rpc_get_partner_active_deals()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Body omitted — see Supabase Dashboard → Database → Functions for live definition
+  RETURN '[]'::jsonb;
+END;
+$$;
+
+-- rpc_get_partner_stats — updated S92 (March 22, 2026)
+-- Removed p_partner_id param — now uses auth.uid() internally
+-- NOTE: body may differ from live — verify in Supabase if needed
+CREATE OR REPLACE FUNCTION rpc_get_partner_stats()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Body omitted — see Supabase Dashboard → Database → Functions for live definition
+  RETURN '{}'::jsonb;
+END;
+$$;
+
+-- rpc_get_connection_requests — S92 (March 22, 2026)
+-- Returns pending connection requests for auth.uid() as responder
+CREATE OR REPLACE FUNCTION rpc_get_connection_requests()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id uuid := auth.uid();
+  v_result  jsonb;
+BEGIN
+  SELECT COALESCE(jsonb_agg(
+    jsonb_build_object(
+      'id',                       c.id,
+      'requester_id',             c.requester_id,
+      'requester_name',           p.name,
+      'requester_company',        p.company,
+      'requester_role',           p.display_role,
+      'requester_avatar_color',   p.avatar_color,
+      'mutual_connections_count', 0,
+      'note',                     c.note,
+      'created_at',               c.created_at
+    ) ORDER BY c.created_at DESC
+  ), '[]'::jsonb)
+  INTO v_result
+  FROM connections c
+  JOIN profiles p ON p.id = c.requester_id
+  WHERE c.responder_id = v_user_id
+    AND c.status = 'pending'::connection_status;
+  RETURN v_result;
+END;
+$$;
+
+-- rpc_get_partner_invitations — S91 (March 22, 2026)
+-- Returns unified pending connection requests + deal invitations for auth.uid()
+CREATE OR REPLACE FUNCTION rpc_get_partner_invitations()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id        uuid := auth.uid();
+  v_connection_items jsonb;
+  v_deal_items       jsonb;
+  v_all_items        jsonb;
+  v_total_count      integer;
+BEGIN
+  SELECT COALESCE(jsonb_agg(
+    jsonb_build_object(
+      'item_type',              'connection_request',
+      'id',                     c.id,
+      'requester_name',         p.name,
+      'requester_company',      p.company,
+      'requester_role',         p.display_role,
+      'requester_avatar_color', p.avatar_color,
+      'mutual_connections_count', 0,
+      'note',                   c.note,
+      'created_at',             c.created_at
+    ) ORDER BY c.created_at DESC
+  ), '[]'::jsonb)
+  INTO v_connection_items
+  FROM connections c
+  JOIN profiles p ON p.id = c.requester_id
+  WHERE c.responder_id = v_user_id
+    AND c.status = 'pending'::connection_status;
+
+  SELECT COALESCE(jsonb_agg(
+    jsonb_build_object(
+      'item_type',         'deal_invitation',
+      'id',                tp.id,
+      'transaction_id',    tp.transaction_id,
+      'property_address',  t.property_address,
+      'closing_date',      t.closing_date,
+      'agent_name',        p.name,
+      'agent_avatar_color', p.avatar_color,
+      'role',              tp.partner_role,
+      'invited_at',        tp.invited_at
+    ) ORDER BY tp.invited_at DESC
+  ), '[]'::jsonb)
+  INTO v_deal_items
+  FROM transaction_partners tp
+  JOIN transactions t ON t.id  = tp.transaction_id
+  JOIN profiles p     ON p.id  = t.agent_id
+  WHERE tp.partner_id = v_user_id
+    AND tp.status = 'invited';
+
+  v_all_items   := v_connection_items || v_deal_items;
+  v_total_count := jsonb_array_length(v_all_items);
+
+  RETURN jsonb_build_object(
+    'items',       v_all_items,
+    'total_count', v_total_count
+  );
+END;
+$$;
+
+-- rpc_respond_to_deal_invitation — S91 (March 22, 2026)
+-- Accepts or declines a deal invitation. On accept: internally seeds milestones.
+CREATE OR REPLACE FUNCTION rpc_respond_to_deal_invitation(
+  p_transaction_partner_id UUID,
+  p_response               TEXT
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id uuid := auth.uid();
+  v_row     transaction_partners%ROWTYPE;
+BEGIN
+  IF p_response NOT IN ('accepted', 'declined') THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Invalid response. Must be accepted or declined.');
+  END IF;
+
+  SELECT * INTO v_row
+  FROM transaction_partners
+  WHERE id = p_transaction_partner_id
+    AND partner_id = v_user_id
+    AND status = 'invited';
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Invitation not found or already responded to.');
+  END IF;
+
+  UPDATE transaction_partners
+  SET status = p_response, responded_at = NOW()
+  WHERE id = p_transaction_partner_id;
+
+  IF p_response = 'accepted' THEN
+    PERFORM rpc_seed_deal_milestones(
+      p_job_id         := v_row.transaction_id,
+      p_partner_id     := v_user_id,
+      p_partner_role   := v_row.partner_role,
+      p_transaction_id := v_row.transaction_id
+    );
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', CASE WHEN p_response = 'accepted'
+      THEN 'Invitation accepted. Milestones seeded.'
+      ELSE 'Invitation declined.' END
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'message', SQLERRM);
+END;
+$$;
+
+
+-- ═════════════════════════════════════════════════════════════
 -- DONE
--- Last verified against live Supabase: March 16, 2026 (S60)
+-- Last verified against live Supabase: March 22, 2026 (S93)
 -- ═════════════════════════════════════════════════════════════

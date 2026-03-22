@@ -704,3 +704,18 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 33, Hooks: 57, Edge Functions: 11 (all unchanged)
 - **tsc:** 0
 - **S93 next objectives:** schema.sql sync (transactions, transaction_partners, rpc_seed_deal_milestones, rpc_get_partner_invitations, rpc_respond_to_deal_invitation), Next.js closing tracker web app
+
+### S93 — schema.sql Sync (March 22, 2026)
+- **Modified:** `sql/schema.sql` — added Section 11 (Transactions + Partner RPCs) with 8 items:
+  - `transactions` table (S64a)
+  - `transaction_partners` table (S64a)
+  - `rpc_seed_deal_milestones` updated signature with `p_transaction_id` (S87)
+  - `rpc_get_partner_active_deals` updated signature — removed `p_partner_id` param (S92)
+  - `rpc_get_partner_stats` updated signature — removed `p_partner_id` param (S92)
+  - `rpc_get_connection_requests` full body (S92)
+  - `rpc_get_partner_invitations` full body (S91)
+  - `rpc_respond_to_deal_invitation` full body (S91)
+- **Key decisions:** Documentation sync only — no SQL executed in Supabase, no hooks/UI changes. Table count updated 20→22. RPC count updated 33→39 in header.
+- **Metrics:** RPCs: 33 (unchanged — already deployed), Hooks: 57, Edge Functions: 11 (all unchanged)
+- **tsc:** 0
+- **S94 next objectives:** Next.js closing tracker web app, partner hooks device testing, live wiring audit
