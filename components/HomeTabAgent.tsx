@@ -887,7 +887,7 @@ const HomeTabAgent: React.FC = () => {
                 return (
                   <Pressable
                     key={deal.job_id}
-                    onPress={() => navigation.push('AgentDealDetail', { jobId: deal.job_id })}
+                    onPress={() => navigation.push('AgentDealDetail', { jobId: deal.job_id, transactionId: deal.transaction_id })}
                     style={({ pressed }) => ({
                       width: 180,
                       borderRadius: 14, borderWidth: 0.68, borderColor: COLORS.cardBorder,

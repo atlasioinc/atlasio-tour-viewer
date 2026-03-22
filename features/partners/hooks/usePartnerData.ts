@@ -32,6 +32,7 @@ const daysAgo = (d: number) => new Date(now.getTime() - d * 86400000).toISOStrin
 // @demo Deal 1 — Mortgage Pro, urgent rate lock
 const MOCK_DEAL_1: PartnerActiveDeal = {
   job_id: 'deal-001',
+  transaction_id: 'mock-txn-partner-001', // @demo hardcoded — replace with real transaction_id from rpc_create_transaction
   address: '1203 Rosewood Dr, #4, Denver CO',
   agent_name: 'Priya Patel',
   closing_date: daysFromNow(28),
@@ -62,6 +63,7 @@ const MOCK_DEAL_1: PartnerActiveDeal = {
 // @demo Deal 2 — Title/Escrow, stale milestone (title_commitment in_progress 4 days, threshold 3)
 const MOCK_DEAL_2: PartnerActiveDeal = {
   job_id: 'deal-002',
+  transaction_id: 'mock-txn-partner-002', // @demo hardcoded — replace with real transaction_id from rpc_create_transaction
   address: '4821 Birchwood Ave, Denver CO',
   agent_name: 'Marcus Webb',
   closing_date: daysFromNow(12),
@@ -78,6 +80,7 @@ const MOCK_DEAL_2: PartnerActiveDeal = {
 // @demo Deal 3 — Clean deal, no alerts, not stale
 const MOCK_DEAL_3: PartnerActiveDeal = {
   job_id: 'deal-003',
+  transaction_id: 'mock-txn-partner-003', // @demo hardcoded — replace with real transaction_id from rpc_create_transaction
   address: '887 Maple Canyon Rd, Denver CO',
   agent_name: 'Dani Torres',
   closing_date: daysFromNow(45),

@@ -209,7 +209,7 @@ const AgentDealsScreen: React.FC = () => {
             <DealCard
               key={deal.job_id}
               deal={deal}
-              onPress={() => navigation.push('AgentDealDetail', { jobId: deal.job_id })}
+              onPress={() => navigation.push('AgentDealDetail', { jobId: deal.job_id, transactionId: deal.transaction_id })}
             />
           ))
         )}

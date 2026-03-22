@@ -35,7 +35,7 @@ interface ActiveDealCardProps {
   deal: PartnerActiveDeal;
   partnerRole: PartnerRole;
   onMilestoneTap: (milestoneId: string, currentStatus: MilestoneStatus) => void;
-  onPostAlert: (jobId: string, alertType: AlertType, message: string, expiresAt: string | null) => void;
+  onPostAlert: (jobId: string, alertType: AlertType, message: string, expiresAt: string | null, transactionId?: string) => void;
   onDismissAlert: (alertId: string) => void;
 }
 
@@ -152,7 +152,8 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
     const expiresAt = selectedAlertType.requiresDate && alertExpiryDate
       ? new Date(alertExpiryDate).toISOString()
       : null;
-    onPostAlert(deal.job_id, selectedAlertType.type, alertMessage.trim(), expiresAt);
+    // @backend rpc_post_deal_alert — S88: transaction_id wired from deal.transaction_id when available
+    onPostAlert(deal.job_id, selectedAlertType.type, alertMessage.trim(), expiresAt, deal.transaction_id);
     // Reset composer
     setComposerOpen(false);
     setSelectedAlertType(null);

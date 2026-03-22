@@ -155,13 +155,15 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
     });
   }, [updateMilestone]);
 
-  const handlePostAlert = useCallback((jobId: string, alertType: AlertType, message: string, expiresAt: string | null) => {
+  const handlePostAlert = useCallback((jobId: string, alertType: AlertType, message: string, expiresAt: string | null, transactionId?: string) => {
+    // @backend rpc_post_deal_alert — S88: transaction_id forwarded from ActiveDealCard when available
     postAlert.mutate({
       jobId,
       alertType,
       message,
       expiresAt,
       partnerId: DEMO_PARTNER_ID,
+      transactionId,
     });
   }, [postAlert]);
 

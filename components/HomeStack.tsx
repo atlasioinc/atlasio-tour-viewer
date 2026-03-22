@@ -100,6 +100,7 @@ export type HomeStackParamList = {
   DealCreation: undefined;
   AgentDealDetail: {
     jobId: string;
+    transactionId?: string; // S88: optional — used for Realtime channel subscription
   };
   AddressComparisonScreen: {
     priorities: LifestylePriority[];

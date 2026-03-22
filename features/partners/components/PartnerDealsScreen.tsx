@@ -108,8 +108,9 @@ const PartnerDealsScreen: React.FC<PartnerDealsScreenProps> = ({ partnerRole = '
     updateMilestone.mutate({ milestoneId, status: nextStatus, completedAt, partnerId: DEMO_PARTNER_ID });
   }, [updateMilestone]);
 
-  const handlePostAlert = useCallback((jobId: string, alertType: AlertType, message: string, expiresAt: string | null) => {
-    postAlert.mutate({ jobId, alertType, message, expiresAt, partnerId: DEMO_PARTNER_ID });
+  const handlePostAlert = useCallback((jobId: string, alertType: AlertType, message: string, expiresAt: string | null, transactionId?: string) => {
+    // @backend rpc_post_deal_alert — S88: transaction_id forwarded from ActiveDealCard when available
+    postAlert.mutate({ jobId, alertType, message, expiresAt, partnerId: DEMO_PARTNER_ID, transactionId });
   }, [postAlert]);
 
   const handleDismissAlert = useCallback((alertId: string) => {

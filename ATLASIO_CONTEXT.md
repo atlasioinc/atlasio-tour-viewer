@@ -643,3 +643,19 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** Photo/Staging pattern selected as gold standard (Option A). FormField.tsx is the single source of truth for all label+input fields. BidSubmissionScreen intentionally excluded (custom bid-entry UX). 2 new COLORS tokens added. 5 screens migrated.
 - **tsc:** 0
 - **S70 next objectives:** Next.js closing tracker web app, transactions table deployment, live wiring of closing hooks
+
+### S88 — Wire transactionId to Screen-Level Callers (March 22, 2026)
+- **Modified:** `features/partners/types/partner.types.ts` — Added `transaction_id?: string` to `AgentActiveDeal` and `PartnerActiveDeal` interfaces
+- **Modified:** `hooks/useData.ts` — Added `transaction_id` to `MOCK_AGENT_ACTIVE_DEALS` (2 entries) and `MOCK_AGENT_DEALS` (4 entries)
+- **Modified:** `features/partners/hooks/usePartnerData.ts` — Added `transaction_id` to `MOCK_DEAL_1`, `MOCK_DEAL_2`, `MOCK_DEAL_3`
+- **Modified:** `components/HomeStack.tsx` — Added `transactionId?: string` to `AgentDealDetail` route params
+- **Modified:** `components/AgentDealDetailScreen.tsx` — Extracted `transactionId` from route params + deal data, wired to `useRealtimeDealBoard(jobId, transactionId)`, replaced `(deal as any).transaction_id` with typed access, wired to `useUpdateClosingDetails` and `useGenerateClientToken`
+- **Modified:** `components/HomeTabAgent.tsx` — Navigation to `AgentDealDetail` now passes `transactionId: deal.transaction_id`
+- **Modified:** `components/AgentDealsScreen.tsx` — Navigation to `AgentDealDetail` now passes `transactionId: deal.transaction_id`
+- **Modified:** `features/partners/components/ActiveDealCard.tsx` — `onPostAlert` callback now passes `deal.transaction_id` as 5th arg
+- **Modified:** `features/partners/components/HomeTabPartner.tsx` — `handlePostAlert` forwards `transactionId` to `postAlert.mutate()`
+- **Modified:** `features/partners/components/PartnerDealsScreen.tsx` — `handlePostAlert` forwards `transactionId` to `postAlert.mutate()`
+- **Key decisions:** (1) `useAgentActiveDeals()` in `HomeTabAgent.tsx` NOT wired with transactionId — listing screen fetches all deals, no single transactionId to pass. (2) `useAgentActiveDeals()` in `AgentDealDetailScreen.tsx` NOT wired — needs full list to find by jobId. (3) `transaction_id` added as optional to both deal types since existing deals may not have one.
+- **Metrics:** RPCs: 33 (unchanged), Hooks: 57 (unchanged), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+- **S89 next objectives:** Live wiring of partner deal hooks to Supabase RPCs, Next.js closing tracker web app

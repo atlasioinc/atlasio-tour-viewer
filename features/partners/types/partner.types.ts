@@ -52,6 +52,7 @@ export interface DealAlert {
 
 export interface PartnerActiveDeal {
   job_id: string;
+  transaction_id?: string;       // S88: optional — present when deal created via rpc_create_transaction
   address: string;               // property address from jobs table
   agent_name: string;            // from profiles join
   closing_date: string | null;   // ISO date string, nullable
@@ -109,6 +110,7 @@ export interface AgentDealPartner {
  */
 export interface AgentActiveDeal {
   job_id: string;
+  transaction_id?: string;       // S88: optional — present when deal created via rpc_create_transaction
   address: string;
   closing_date: string | null;
   partners: AgentDealPartner[];

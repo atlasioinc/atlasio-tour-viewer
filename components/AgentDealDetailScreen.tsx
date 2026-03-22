@@ -15,7 +15,8 @@
 
 // STATE FLOW:
 // route.params.jobId → find deal from useAgentActiveDeals cache
-// useRealtimeDealBoard(jobId) → live refresh via Supabase channels
+// deal.transaction_id ?? route.params.transactionId → transactionId for Realtime + mutations
+// useRealtimeDealBoard(jobId, transactionId) → live refresh via Supabase channels (S88: transaction_id channel when available)
 // per partner: milestones + alerts → progress bar + milestone list + alert banners
 // dismiss alert → useAgentDismissDealAlert mutation (optimistic)
 
@@ -106,17 +107,20 @@ function getStaleDays(milestone: { updated_at: string }): number {
 const AgentDealDetailScreen: React.FC = () => {
   const route = useRoute<RouteProp<HomeStackParamList, 'AgentDealDetail'>>();
   const navigation = useNavigation();
-  const { jobId } = route.params;
+  const { jobId, transactionId: routeTransactionId } = route.params;
 
   // ── Data ──
   const { data: allDeals } = useAgentActiveDeals();
   const deal = allDeals?.find(d => d.job_id === jobId);
+
+  // @backend S88: prefer deal.transaction_id (authoritative), fall back to route param, then undefined
+  const transactionId = deal?.transaction_id ?? routeTransactionId;
   const dismissAlert = useAgentDismissDealAlert();
   const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>([]);
 
   // ── Share button ──
-  // @demo Uses mock transaction_id — wire to real deal.transaction_id when DEAL_CREATION_ENABLED=true
   // @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id, p_notify_phone)
+  // @demo Falls back to 'mock-transaction-001' when transactionId is undefined
   const generateToken = useGenerateClientToken();
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [notifyPhone, setNotifyPhone] = useState('');
@@ -125,7 +129,7 @@ const AgentDealDetailScreen: React.FC = () => {
   const handleShare = async () => {
     try {
       const result = await generateToken.mutateAsync({
-        transactionId: (deal as any).transaction_id ?? 'mock-transaction-001',
+        transactionId: transactionId ?? 'mock-transaction-001',
       });
       setGeneratedUrl(result.url);
       await Share.share({
@@ -142,7 +146,7 @@ const AgentDealDetailScreen: React.FC = () => {
     if (!notifyPhone.trim()) return;
     try {
       await generateToken.mutateAsync({
-        transactionId: (deal as any).transaction_id ?? 'mock-transaction-001',
+        transactionId: transactionId ?? 'mock-transaction-001',
         notifyPhone: notifyPhone.trim(),
       });
       setSmsSent(true);
@@ -152,8 +156,8 @@ const AgentDealDetailScreen: React.FC = () => {
   };
 
   // ── Closing day details ──
-  // @demo Uses mock transaction_id — wire to real deal.transaction_id when DEAL_CREATION_ENABLED=true
   // @backend useUpdateClosingDetails — rpc_update_closing_details(p_transaction_id, p_closing_details)
+  // S88: transactionId wired from deal.transaction_id ?? route param
   const updateClosingDetails = useUpdateClosingDetails();
   const [closingDetails, setClosingDetails] = useState<{ time: string; location: string; bring_list: string; wire_amount: string } | null>(null);
   const [isEditingClosingDetails, setIsEditingClosingDetails] = useState(false);
@@ -181,11 +185,10 @@ const AgentDealDetailScreen: React.FC = () => {
   };
 
   const handleSaveClosingDetails = () => {
-    // @demo Mock save — wire to real transaction_id when DEAL_CREATION_ENABLED=true
     // @backend useUpdateClosingDetails — rpc_update_closing_details(p_transaction_id, p_closing_details)
-    const transactionId = 'mock-transaction-001';
+    // @demo Falls back to 'mock-transaction-001' when transactionId is undefined
     updateClosingDetails.mutate(
-      { transactionId, closingDetails: closingForm },
+      { transactionId: transactionId ?? 'mock-transaction-001', closingDetails: closingForm },
       {
         onSuccess: () => {
           setClosingDetails(closingForm);
@@ -196,7 +199,10 @@ const AgentDealDetailScreen: React.FC = () => {
   };
 
   // ── Realtime subscription (refreshes cache on milestone/alert changes) ──
-  useRealtimeDealBoard(jobId);
+  // @backend useRealtimeDealBoard — S88: subscribes via transaction_id channel when available
+  // When transactionId is defined, Realtime listens on transaction_id=eq.{transactionId}
+  // This gives new deals created via rpc_create_transaction live milestone + alert coverage
+  useRealtimeDealBoard(jobId, transactionId);
 
   if (!deal) {
     return (
@@ -219,8 +225,8 @@ const AgentDealDetailScreen: React.FC = () => {
         titleColor={COLORS.darkText}
         rightElement={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {/* @demo Uses mock transaction_id — wire to real deal.transaction_id when DEAL_CREATION_ENABLED=true */}
             {/* @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id) */}
+            {/* S88: transactionId wired from deal.transaction_id ?? route param */}
             <Pressable
               onPress={handleShare}
               disabled={generateToken.isPending}

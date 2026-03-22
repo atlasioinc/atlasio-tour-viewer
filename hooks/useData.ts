@@ -2250,6 +2250,7 @@ const _daysAgo = (d: number) => new Date(_now.getTime() - d * 86400000).toISOStr
 const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
   {
     job_id: 'mock-job-001',
+    transaction_id: 'mock-txn-001', // @demo hardcoded — replace with real transaction_id from rpc_create_transaction
     address: '2847 Maple Street, Denver, CO',
     closing_date: '2026-04-15',
     partners: [
@@ -2299,6 +2300,7 @@ const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
   },
   {
     job_id: 'mock-job-002',
+    transaction_id: 'mock-txn-002', // @demo hardcoded — replace with real transaction_id from rpc_create_transaction
     address: '1190 Corona Street, Denver, CO',
     closing_date: '2026-05-01',
     partners: [
@@ -2343,6 +2345,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
   {
     // Deal 1: rate lock alert → red status → "Needs attention"
     job_id: 'mock-deal-001',
+    transaction_id: 'mock-txn-deals-001', // @demo hardcoded — replace with real transaction_id
     address: '2847 Maple Street, Denver, CO',
     closing_date: '2026-04-15',
     partners: [
@@ -2377,6 +2380,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
   {
     // Deal 2: closing within 14 days → "Closing soon" + green (on track)
     job_id: 'mock-deal-002',
+    transaction_id: 'mock-txn-deals-002', // @demo hardcoded — replace with real transaction_id
     address: '1190 Corona Street, Denver, CO',
     closing_date: '2026-03-28',
     partners: [
@@ -2408,6 +2412,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
   {
     // Deal 3: stale milestone → amber status → "Needs attention"
     job_id: 'mock-deal-003',
+    transaction_id: 'mock-txn-deals-003', // @demo hardcoded — replace with real transaction_id
     address: '4521 Tennyson Street, Denver, CO',
     closing_date: '2026-06-10',
     partners: [
@@ -2427,6 +2432,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
   {
     // Deal 4: all green — normal state
     job_id: 'mock-deal-004',
+    transaction_id: 'mock-txn-deals-004', // @demo hardcoded — replace with real transaction_id
     address: '782 S Pearl Street, Denver, CO',
     closing_date: '2026-07-22',
     partners: [
