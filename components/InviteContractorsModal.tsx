@@ -58,17 +58,21 @@ export interface NetworkContractor {
 //     .eq('status', 'accepted').eq('profiles.role', 'contractor')
 // ─────────────────────────────────────────────
 
+// @demo hardcoded — 10 Denver contractors covering all TRADE_OPTIONS from PostJobWizard
+// Every trade in PostJobWizard (General Contractor, Electrical, Plumbing, HVAC, Roofing,
+// Carpentry / Handyman, Painting, Flooring) has ≥2 contractors so the list is never empty.
+// @backend TODO: replace with useNetworkContractors query (connections + profiles)
 const MOCK_NETWORK_CONTRACTORS: NetworkContractor[] = [
-  { id: 'nc-1', name: 'Mike Torres', company: 'Torres Electric', trades: ['Electrical'], rating: 4.9, avatarColor: '#E8D5B7' },
-  { id: 'nc-2', name: 'Sarah Chen', company: 'ProBuild Contractors', trades: ['Electrical', 'Plumbing'], rating: 4.8, avatarColor: '#A8C5DA' },
+  { id: 'nc-1', name: 'Mike Torres', company: 'Torres Electric', trades: ['Electrical', 'General Contractor'], rating: 4.9, avatarColor: '#E8D5B7' },
+  { id: 'nc-2', name: 'Sarah Chen', company: 'ProBuild Contractors', trades: ['Electrical', 'Plumbing', 'General Contractor'], rating: 4.8, avatarColor: '#A8C5DA' },
   { id: 'nc-3', name: 'David Park', company: 'Park & Sons Electric', trades: ['Electrical', 'HVAC'], rating: 4.7, avatarColor: '#B5D4A8' },
-  { id: 'nc-4', name: 'James Wilson', company: 'Wilson Home Services', trades: ['Electrical', 'Plumbing', 'HVAC'], rating: 4.6, avatarColor: '#D4A8B5' },
+  { id: 'nc-4', name: 'James Wilson', company: 'Wilson Home Services', trades: ['General Contractor', 'Plumbing', 'HVAC'], rating: 4.6, avatarColor: '#D4A8B5' },
   { id: 'nc-5', name: 'Carlos Rivera', company: 'Rivera Roofing', trades: ['Roofing', 'Carpentry / Handyman'], rating: 4.9, avatarColor: '#C4A882' },
   { id: 'nc-6', name: 'Tom Anderson', company: 'Anderson HVAC', trades: ['HVAC', 'Plumbing'], rating: 4.8, avatarColor: '#C5D4A8' },
-  { id: 'nc-7', name: 'Brian Cooper', company: 'Summit Roofing', trades: ['Roofing'], rating: 4.7, avatarColor: '#7BA3C9' },
-  { id: 'nc-8', name: 'Lisa Martinez', company: 'Precision Plumbing', trades: ['Plumbing'], rating: 5.0, avatarColor: '#B8A8D4' },
+  { id: 'nc-7', name: 'Brian Cooper', company: 'Summit Roofing', trades: ['Roofing', 'General Contractor'], rating: 4.7, avatarColor: '#7BA3C9' },
+  { id: 'nc-8', name: 'Lisa Martinez', company: 'Precision Plumbing', trades: ['Plumbing', 'General Contractor'], rating: 5.0, avatarColor: '#B8A8D4' },
   { id: 'nc-9', name: 'Jake Thompson', company: 'Thompson Handyman', trades: ['Carpentry / Handyman', 'Painting', 'Flooring'], rating: 4.8, avatarColor: '#A8C4B8' },
-  { id: 'nc-10', name: 'Angela Kim', company: 'Denver Electric Pros', trades: ['Electrical'], rating: 4.9, avatarColor: '#D4C5A8' },
+  { id: 'nc-10', name: 'Angela Kim', company: 'Denver Electric Pros', trades: ['Electrical', 'Painting', 'Flooring'], rating: 4.9, avatarColor: '#D4C5A8' },
 ];
 
 // ─────────────────────────────────────────────
@@ -112,11 +116,17 @@ const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
+// @demo mode='post-job' (default): logs invites to console + shows Alert (existing behavior from RepairJobDetails)
+// @demo mode='pre-job': returns selected contractors to parent via onConfirm — no RPC call, no Alert
+// @backend mode='post-job': will wire to useInviteContractors mutation (append_invited_contractors RPC)
+// @backend mode='pre-job': parent collects IDs and passes them to rpc_create_job → rpc_invite_contractors
 interface InviteContractorsModalProps {
   visible: boolean;
   onClose: () => void;
   jobTitle: string;
   jobCategory: string; // trade to filter by
+  mode?: 'post-job' | 'pre-job'; // default: 'post-job'
+  onConfirm?: (contractors: NetworkContractor[]) => void; // required when mode='pre-job'
 }
 
 const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
@@ -124,6 +134,8 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   onClose,
   jobTitle,
   jobCategory,
+  mode = 'post-job',
+  onConfirm,
 }) => {
   const [searchText, setSearchText] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -133,20 +145,18 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   // ── Filter contractors by trade match + search text ──
   // Production: this filtering happens server-side via query params
   const filteredContractors = useMemo(() => {
-    return MOCK_NETWORK_CONTRACTORS.filter((c) => {
-      // Trade match: show contractors whose trades include the job category
-      const matchesTrade = c.trades.some(
-        (t) => t.toLowerCase() === jobCategory.toLowerCase()
-      );
+    const tradeFiltered = MOCK_NETWORK_CONTRACTORS.filter((c) =>
+      c.trades.some((t) => t.toLowerCase() === jobCategory.toLowerCase())
+    );
+    // Fallback: if no contractors match the selected trade, show all
+    // (handles pre-job mode where agent may not have picked a trade yet)
+    const baseList = tradeFiltered.length > 0 ? tradeFiltered : MOCK_NETWORK_CONTRACTORS;
 
-      // Search filter
-      const matchesSearch =
-        searchText.length === 0 ||
-        c.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        c.company.toLowerCase().includes(searchText.toLowerCase());
-
-      return matchesTrade && matchesSearch;
-    });
+    if (searchText.length === 0) return baseList;
+    return baseList.filter((c) =>
+      c.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      c.company.toLowerCase().includes(searchText.toLowerCase())
+    );
   }, [searchText, jobCategory]);
 
   // ── Toggle contractor selection ──
@@ -169,20 +179,27 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
     });
   }, []);
 
-  // ── Handle send invites ──
+  // ── Handle send invites / confirm selection ──
   const handleSendInvites = useCallback(() => {
     if (selectedIds.size === 0) return;
 
-    const selectedNames = MOCK_NETWORK_CONTRACTORS
-      .filter((c) => selectedIds.has(c.id))
-      .map((c) => c.name);
+    const selectedContractors = MOCK_NETWORK_CONTRACTORS.filter((c) => selectedIds.has(c.id));
 
+    // Pre-job mode: return selected contractors to parent — no RPC, no Alert
+    if (mode === 'pre-job' && onConfirm) {
+      onConfirm(selectedContractors);
+      setSelectedIds(new Set());
+      setSearchText('');
+      return;
+    }
+
+    // Post-job mode: existing behavior — log + Alert + close
     // @backend TODO: wire to useInviteContractors mutation:
     //   1. RPC append_invited_contractors(p_job_id, p_contractor_ids)
     //   2. Insert job_invitations rows for tracking
     //   3. Auto-notification: "[Agent] invited you to bid on [Job]"
     console.log('Invites sent:', {
-      contractors: selectedNames,
+      contractors: selectedContractors.map((c) => c.name),
       jobTitle,
       note: note.trim(),
     });
@@ -192,7 +209,7 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
       `${selectedIds.size} contractor${selectedIds.size > 1 ? 's' : ''} invited to "${jobTitle}"`,
       [{ text: 'OK', onPress: () => { setSelectedIds(new Set()); onClose(); } }]
     );
-  }, [selectedIds, jobTitle, note, onClose]);
+  }, [selectedIds, jobTitle, note, onClose, mode, onConfirm]);
 
   // ── Reset state when modal closes ──
   const handleClose = useCallback(() => {
@@ -414,7 +431,9 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
               lineHeight: 24,
             }}>
               {selectedIds.size > 0
-                ? `Send ${selectedIds.size} Invite${selectedIds.size > 1 ? 's' : ''}`
+                ? mode === 'pre-job'
+                  ? `Select ${selectedIds.size} Pro${selectedIds.size > 1 ? 's' : ''}`
+                  : `Send ${selectedIds.size} Invite${selectedIds.size > 1 ? 's' : ''}`
                 : 'Select contractors to invite'}
             </Text>
           </Pressable>

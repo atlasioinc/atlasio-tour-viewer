@@ -52,6 +52,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import InfoBanner from './InfoBanner';
 import FormField from './FormField';
+import InviteContractorsModal from './InviteContractorsModal';
+import type { NetworkContractor } from './InviteContractorsModal';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 
@@ -328,6 +330,9 @@ interface StepProps {
   form: PostJobFormData;
   setForm: React.Dispatch<React.SetStateAction<PostJobFormData>>;
   showErrors: boolean;
+  // Invite toggle props (Step 2 only)
+  onInviteToggle?: (value: boolean) => void;
+  selectedInvitedContractors?: NetworkContractor[];
 }
 
 const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
@@ -579,7 +584,7 @@ const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
 //     Icon: users 1.67px #003DC3
 // ═══════════════════════════════════════════════════════════════
 
-const StepDetails: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
+const StepDetails: React.FC<StepProps> = ({ form, setForm, showErrors, onInviteToggle, selectedInvitedContractors = [] }) => {
   const toggleTrade = useCallback((trade: string) => {
     setForm((p) => {
       const next = new Set(p.selectedTrades);
@@ -700,32 +705,57 @@ const StepDetails: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
         helperText="How long pros have to submit bids (default: 48 hours)"
       />
 
-      {/* ── Invite Toggle — Figma: r16, 1.35px #E5E7EB, p16 ── */}
+      {/* ── Invite Toggle — Figma: r16, 1.35px COLORS.border, p16 ── */}
       <View
         style={{
-          padding: 16, backgroundColor: '#FFFFFF',
-          borderRadius: 16, borderWidth: 1.35, borderColor: '#E5E7EB',
+          padding: 16, backgroundColor: COLORS.background,
+          borderRadius: 16, borderWidth: 1.35, borderColor: COLORS.border,
           gap: 12,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <UsersIcon />
-            <Text style={{ fontSize: 16, fontWeight: '500', color: '#1C1C1E', lineHeight: 24 }}>
+            <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.darkText, lineHeight: 24 }}>
               Invite Specific Pros?
             </Text>
           </View>
           <Switch
             value={form.inviteSpecificPros}
-            onValueChange={(v) => setForm((p) => ({ ...p, inviteSpecificPros: v }))}
-            trackColor={{ false: '#D1D5DC', true: '#003DC3' }}
-            thumbColor="#FFFFFF"
-            ios_backgroundColor="#D1D5DC"
+            onValueChange={onInviteToggle}
+            trackColor={{ false: COLORS.inputBorder, true: COLORS.primary }}
+            thumbColor={COLORS.background}
+            ios_backgroundColor={COLORS.inputBorder}
           />
         </View>
-        <Text style={{ fontSize: 14, fontWeight: '400', color: '#666666', lineHeight: 20 }}>
+        <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>
           Notify specific pros from your network who match the selected trades
         </Text>
+
+        {/* ── Selected pros avatar row ── */}
+        {form.inviteSpecificPros && selectedInvitedContractors.length > 0 && (
+          <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
+            {selectedInvitedContractors.map((c) => {
+              const initials = c.name.split(' ').map((n) => n[0]).join('').substring(0, 2);
+              return (
+                <View key={c.id} style={{ alignItems: 'center', width: 52 }}>
+                  <View style={{
+                    width: 40, height: 40, borderRadius: 9999,
+                    backgroundColor: c.avatarColor, alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>{initials}</Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.darkText, textAlign: 'center', marginTop: 4 }} numberOfLines={1}>
+                    {c.name.split(' ')[0]}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: COLORS.secondaryText, textAlign: 'center' }} numberOfLines={1}>
+                    {c.trades[0]}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -752,7 +782,7 @@ const ReviewRow: React.FC<{ icon: React.ReactNode; label: string; value: string 
   </View>
 );
 
-const StepReview: React.FC<{ form: PostJobFormData }> = ({ form }) => {
+const StepReview: React.FC<{ form: PostJobFormData; selectedInvitedContractors?: NetworkContractor[] }> = ({ form, selectedInvitedContractors = [] }) => {
   const tradesArray = Array.from(form.selectedTrades);
 
   return (
@@ -825,6 +855,37 @@ const StepReview: React.FC<{ form: PostJobFormData }> = ({ form }) => {
             ))}
           </View>
         </View>
+
+        {/* Invited Pros — only when toggle ON + contractors selected */}
+        {form.inviteSpecificPros && selectedInvitedContractors.length > 0 && (
+          <View style={{ padding: 24, gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <UsersIcon />
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#1C1C1E', lineHeight: 24 }}>Invite Specific Pros</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
+              {selectedInvitedContractors.map((c) => {
+                const initials = c.name.split(' ').map((n) => n[0]).join('').substring(0, 2);
+                return (
+                  <View key={c.id} style={{ alignItems: 'center', width: 52 }}>
+                    <View style={{
+                      width: 40, height: 40, borderRadius: 9999,
+                      backgroundColor: c.avatarColor, alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>{initials}</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.darkText, textAlign: 'center', marginTop: 4 }} numberOfLines={1}>
+                      {c.name.split(' ')[0]}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: COLORS.secondaryText, textAlign: 'center' }} numberOfLines={1}>
+                      {c.trades[0]}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
       </View>
 
       {/* ── Info Banner ── */}
@@ -883,6 +944,34 @@ const PostJobWizard: React.FC = () => {
     inviteSpecificPros: false,
   });
 
+  // ── Invite toggle state (wired to InviteContractorsModal in pre-job mode) ──
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedInvitedContractors, setSelectedInvitedContractors] = useState<NetworkContractor[]>([]);
+
+  const handleInviteToggle = useCallback((value: boolean) => {
+    if (value) {
+      setForm((p) => ({ ...p, inviteSpecificPros: true }));
+      setShowInviteModal(true);
+    } else {
+      setForm((p) => ({ ...p, inviteSpecificPros: false }));
+      setSelectedInvitedContractors([]);
+    }
+  }, []);
+
+  const handleInviteModalDismiss = useCallback(() => {
+    setShowInviteModal(false);
+    // Reset toggle if nothing was selected
+    if (selectedInvitedContractors.length === 0) {
+      setForm((p) => ({ ...p, inviteSpecificPros: false }));
+    }
+  }, [selectedInvitedContractors.length]);
+
+  const handleInviteModalConfirm = useCallback((contractors: NetworkContractor[]) => {
+    setSelectedInvitedContractors(contractors);
+    setShowInviteModal(false);
+    // toggle stays ON — contractors were selected
+  }, []);
+
   const stepConfig = STEP_CONFIG[currentStep];
 
   const validateStep = (): boolean => {
@@ -916,6 +1005,12 @@ const PostJobWizard: React.FC = () => {
       trades: Array.from(form.selectedTrades),
       bid_window_hours: form.bidWindowHours ? Number(form.bidWindowHours) : 48,
       invite_specific_pros: form.inviteSpecificPros,
+      // @demo: logs selected IDs to console — no backend call
+      // @backend: pass to rpc_create_job as p_invite_contractor_ids
+      //   rpc_invite_contractors fires after job creation with returned jobId
+      invite_contractor_ids: form.inviteSpecificPros
+        ? selectedInvitedContractors.map((c) => c.id)
+        : [],
       status: 'open' as const,
     };
     console.log('🚀 Post Job payload:', JSON.stringify(payload, null, 2));
@@ -1080,8 +1175,8 @@ const PostJobWizard: React.FC = () => {
 
               {/* ── Step content ── */}
               {currentStep === 0 && <StepBasics form={form} setForm={setForm} showErrors={showErrors} />}
-              {currentStep === 1 && <StepDetails form={form} setForm={setForm} showErrors={showErrors} />}
-              {currentStep === 2 && <StepReview form={form} />}
+              {currentStep === 1 && <StepDetails form={form} setForm={setForm} showErrors={showErrors} onInviteToggle={handleInviteToggle} selectedInvitedContractors={selectedInvitedContractors} />}
+              {currentStep === 2 && <StepReview form={form} selectedInvitedContractors={selectedInvitedContractors} />}
             </View>
           </KeyboardAvoidingView>
 
@@ -1107,6 +1202,15 @@ const PostJobWizard: React.FC = () => {
           </View>
         </>
       )}
+      {/* ── Invite Contractors Modal (pre-job mode) ── */}
+      <InviteContractorsModal
+        visible={showInviteModal}
+        onClose={handleInviteModalDismiss}
+        jobTitle={form.jobTitle || 'New Job'}
+        jobCategory={form.selectedTrades.size > 0 ? Array.from(form.selectedTrades)[0] : 'General Contractor'}
+        mode="pre-job"
+        onConfirm={handleInviteModalConfirm}
+      />
     </SafeAreaView>
   );
 };
