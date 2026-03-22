@@ -473,7 +473,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
             textTransform: 'uppercase', letterSpacing: 0.5,
             marginBottom: SPACING.lg,
           }}>
-            Needs Attention
+            {needsAttentionDeals.length > 0 ? 'Needs Attention' : 'Your Deals'}
           </Text>
 
           {needsAttentionDeals.length === 0 ? (
@@ -506,22 +506,24 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
             ))
           )}
 
-          {/* View all deals link */}
-          <Pressable
-            onPress={() => navigation.navigate('Deals')}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingVertical: SPACING.lg,
-              marginTop: SPACING.sm,
-            }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.accentBlue }}>
-              View all {totalActiveDeals} deals
-            </Text>
-            <ChevronRightIcon color={COLORS.accentBlue} />
-          </Pressable>
+          {/* View all deals link — hidden when total deal count is 0 */}
+          {totalActiveDeals > 0 && (
+            <Pressable
+              onPress={() => navigation.navigate('Deals')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: SPACING.lg,
+                marginTop: SPACING.sm,
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.accentBlue }}>
+                View all {totalActiveDeals} deals
+              </Text>
+              <ChevronRightIcon color={COLORS.accentBlue} />
+            </Pressable>
+          )}
         </View>
 
         {/* ═════════════════════════════════════════════════════════ */}

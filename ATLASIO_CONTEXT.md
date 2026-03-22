@@ -695,3 +695,12 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 33 (unchanged — RPCs already deployed, schema.sql update deferred), Hooks: 57 (unchanged — 2 upgraded from mock to wired, no new hooks), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 - **S92 next objectives:** schema.sql sync (transactions, transaction_partners, rpc_seed_deal_milestones, rpc_get_partner_invitations, rpc_respond_to_deal_invitation), Next.js closing tracker web app
+
+### S92 — HomeTabPartner Deals Section Header + Empty State Fix (March 22, 2026)
+- **Modified:** `features/partners/components/HomeTabPartner.tsx` — 2 targeted fixes:
+  - Section header now conditional: "Needs Attention" when deals need attention, "Your Deals" when all clear (fixes semantic mismatch with empty state)
+  - "View all N deals →" link hidden when `totalActiveDeals === 0` (no longer shows "View all 0 deals")
+- **Key decisions:** UI-only fix, no hooks/RPCs/schema changes. Empty state copy unchanged — header fix resolves the context mismatch automatically.
+- **Metrics:** RPCs: 33, Hooks: 57, Edge Functions: 11 (all unchanged)
+- **tsc:** 0
+- **S93 next objectives:** schema.sql sync (transactions, transaction_partners, rpc_seed_deal_milestones, rpc_get_partner_invitations, rpc_respond_to_deal_invitation), Next.js closing tracker web app
