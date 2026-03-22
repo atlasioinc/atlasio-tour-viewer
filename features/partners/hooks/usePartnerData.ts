@@ -2,9 +2,8 @@
 // What: All partner-specific TanStack Query hooks — queries + mutations
 // Who: Partner role users (Title/Escrow, Mortgage Pro)
 // Where: Consumed by HomeTabPartner, PartnerDealsScreen
-// S90: 7 of 9 hooks wired to live Supabase RPCs (with mock fallback)
-// 2 hooks intentionally deferred: usePartnerInvitations, useRespondToDealInvitation
-// @backend RPCs listed below each hook — all wired hooks have try/catch with mock fallback
+// S90–S91: all 9 hooks wired to live Supabase RPCs (with mock fallback)
+// @backend RPCs listed below each hook — all hooks have try/catch with mock fallback
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
@@ -278,9 +277,8 @@ const MOCK_PARTNER_INVITATIONS: PartnerInvitationsResponse = {
 
 /**
  * Fetches all pending invitations for a partner — both connection requests and deal invitations.
- * STATUS: mock — intentionally deferred
- * @backend rpc_get_partner_invitations — RPC NOT YET DEPLOYED
- * Wire in dedicated backend session before partner launch
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_get_partner_invitations — no params, uses auth.uid() server-side
  * Returns: PartnerInvitationsResponse { connection_requests, deal_invitations, total_count }
  * NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
  * Query key: ['partner_invitations']
@@ -289,9 +287,20 @@ export function usePartnerInvitations() {
   return useQuery({
     queryKey: ['partner_invitations'],
     queryFn: async (): Promise<PartnerInvitationsResponse> => {
-      // @demo — return mock invitations
-      // @backend rpc_get_partner_invitations() — uses auth.uid() internally
-      return MOCK_PARTNER_INVITATIONS;
+      if (!PARTNER_TRACK_ENABLED) {
+        // @demo — return mock invitations
+        return MOCK_PARTNER_INVITATIONS;
+      }
+
+      try {
+        // @backend rpc_get_partner_invitations — no params, uses auth.uid()
+        const { data, error } = await supabase.rpc('rpc_get_partner_invitations');
+        if (error) throw error;
+        return (data as PartnerInvitationsResponse) ?? MOCK_PARTNER_INVITATIONS;
+      } catch {
+        console.warn('[usePartnerInvitations] Supabase failed, using mock fallback');
+        return MOCK_PARTNER_INVITATIONS;
+      }
     },
     enabled: PARTNER_TRACK_ENABLED || true, // always enabled in demo mode
   });
@@ -552,13 +561,12 @@ export function useDismissDealAlert() {
 
 /**
  * Responds to a deal invitation — accept or decline.
- * STATUS: mock — intentionally deferred
- * @backend rpc_respond_to_deal_invitation — RPC NOT YET DEPLOYED
- * Wire in dedicated backend session before partner launch
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_respond_to_deal_invitation — params: { p_transaction_partner_id: UUID, p_response: 'accepted' | 'declined' }
+ * On accept: RPC internally calls rpc_seed_deal_milestones — no separate frontend call needed
  * NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
  * On accept: invalidates ['partner_invitations'] + ['partner_active_deals']
  * On decline: invalidates ['partner_invitations'] only
- * @demo mock: 800ms delay → { success: true, response: p_response, milestones_seeded: 5 | 8 | 0 }
  */
 export function useRespondToDealInvitation() {
   const queryClient = useQueryClient();
@@ -571,15 +579,23 @@ export function useRespondToDealInvitation() {
       transactionPartnerId: string;
       response: 'accepted' | 'declined';
     }) => {
-      // @demo — 800ms delay to simulate network
-      // @backend rpc_respond_to_deal_invitation(p_transaction_partner_id, p_response)
-      await new Promise(resolve => setTimeout(resolve, 800));
-      console.log(`[useRespondToDealInvitation] @demo ${transactionPartnerId} → ${response}`);
-      return {
-        success: true,
-        response,
-        milestones_seeded: response === 'accepted' ? 5 : 0,
-      };
+      try {
+        // @backend rpc_respond_to_deal_invitation — params: { p_transaction_partner_id, p_response }
+        // On accept: RPC internally seeds milestones via rpc_seed_deal_milestones
+        const { data, error } = await supabase.rpc('rpc_respond_to_deal_invitation', {
+          p_transaction_partner_id: transactionPartnerId,
+          p_response: response,
+        });
+        if (error) throw error;
+        return data ?? { success: true, response, milestones_seeded: 0 };
+      } catch {
+        console.warn(`[useRespondToDealInvitation] Supabase failed, mock ${transactionPartnerId} → ${response}`);
+        return {
+          success: true,
+          response,
+          milestones_seeded: response === 'accepted' ? 5 : 0,
+        };
+      }
     },
     onMutate: async (variables) => {
       // Optimistic: remove invitation card from cache

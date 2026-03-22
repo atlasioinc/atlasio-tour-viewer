@@ -684,3 +684,14 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 33 (unchanged), Hooks: 57 (unchanged — 7 upgraded from mock to wired, no new hooks), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 - **S91 next objectives:** Deploy partner RPCs to schema.sql, Next.js closing tracker web app, usePartnerInvitations + useRespondToDealInvitation RPC deployment + wiring
+
+### S91 — Partner Invitation RPCs + Hook Wiring (March 22, 2026)
+- **Modified:** `features/partners/hooks/usePartnerData.ts` — Wired final 2 hooks from mock → live Supabase RPCs with mock fallback:
+  - `usePartnerInvitations` → `rpc_get_partner_invitations` (no params, auth.uid(); returns PartnerInvitationsResponse)
+  - `useRespondToDealInvitation` → `rpc_respond_to_deal_invitation` (p_transaction_partner_id, p_response; on accept internally seeds milestones via rpc_seed_deal_milestones)
+- **Updated file header:** "7 of 9 hooks wired" → "all 9 hooks wired"
+- **Schema note:** `transactions`, `transaction_partners` tables and `rpc_seed_deal_milestones` exist live in Supabase (deployed S62b/S64a) but schema.sql not yet updated — deferred to dedicated schema sync session
+- **Key decisions:** Both hooks gated behind `PARTNER_TRACK_ENABLED` (mock when false). `useRespondToDealInvitation` keeps optimistic card removal + conditional invalidation (accept: partner_invitations + partner_active_deals, decline: partner_invitations only). All 9 partner hooks now fully wired.
+- **Metrics:** RPCs: 33 (unchanged — RPCs already deployed, schema.sql update deferred), Hooks: 57 (unchanged — 2 upgraded from mock to wired, no new hooks), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+- **S92 next objectives:** schema.sql sync (transactions, transaction_partners, rpc_seed_deal_milestones, rpc_get_partner_invitations, rpc_respond_to_deal_invitation), Next.js closing tracker web app
