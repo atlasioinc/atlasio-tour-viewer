@@ -558,6 +558,7 @@ const ContractorInboxList: React.FC = () => {
           borderBottomWidth: DIMENSIONS.headerBorderWidth,
           borderBottomColor: COLORS.border,
           backgroundColor: COLORS.background,
+          paddingBottom: 4,
         }}
       >
         <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.primary }}>
