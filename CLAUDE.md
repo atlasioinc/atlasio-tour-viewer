@@ -161,6 +161,7 @@ All bottom sheets use this exact spring pattern:
 ---
 
 ## SQL Workflow (CRITICAL — never skip)
+0. **Run `/guard` before any SQL session** — activates `/careful` (warns before DROP TABLE, supabase db push, force-push) + `/freeze` (locks edits to the target SQL file only). This is the outermost safety layer for all schema and RPC work.
 1. **All SQL reviewed in Claude Chat first** — Claude Chat reviews every SQL statement before Tony executes it
 2. **Tony executes manually in Supabase SQL Editor** — never via CLI
 3. **Never run `supabase db push`** or any CLI database commands
@@ -321,6 +322,13 @@ Review `tasks/lessons.md` at the start of every session.
 - "Flag scope expansions before executing. If a task can be completed more thoroughly than planned, confirm before exceeding the original scope."
 - Never expand scope without user approval
 
+### 12. gstack Review Gate (MANDATORY)
+- Run `/review` before every commit — catches production bugs that pass `tsc` but break at runtime
+- Run `/investigate` instead of ad-hoc debugging — traces root cause before touching any code; auto-freezes scope to the module under investigation
+- Run `/guard` before any session touching SQL, Edge Functions, or Supabase schema
+- Run `/careful` before any destructive terminal command (rm -rf, git reset --hard, supabase db push — the last of which is permanently prohibited regardless)
+- Run `/qa` before every TestFlight build — browser-based click-through regression check
+
 ---
 
 ## Task Tracking
@@ -344,9 +352,11 @@ Review `tasks/lessons.md` at the start of every session.
 ### Starting a Session
 1. Create a feature branch: `backend/session-N-description`
 2. Review `tasks/lessons.md` for relevant past learnings
-3. Enter plan mode — outline what you'll build this session
-4. Get user approval on the plan before writing code
-5. **If building new UI** — identify the closest existing screen as a pattern reference (see Pattern Reference section under Design System Rules) and read it before writing any code
+3. If this is a debugging/bug-fix session → run `/investigate` first; do NOT touch code before root cause is confirmed
+4. If this session touches SQL or Edge Functions → run `/guard` before writing any queries
+5. Enter plan mode — outline what you'll build this session
+6. Get user approval on the plan before writing code
+7. **If building new UI** — identify the closest existing screen as a pattern reference (see Pattern Reference section under Design System Rules) and read it before writing any code
 
 ### During a Session
 - One tier or feature focus per session
@@ -355,21 +365,23 @@ Review `tasks/lessons.md` at the start of every session.
 - If you hit a blocker → document it → move to next task → come back
 
 ### Ending a Session
-1. Run final `npx tsc --noEmit` — must pass clean
-2. Run `npx expo lint` — fix any issues
-3. Create descriptive commit with summary of all changes
-4. Update `ATLASIO_CONTEXT.md`:
+1. Run `/review` — fix all flagged issues before proceeding
+2. Run final `npx tsc --noEmit` — must pass clean
+3. Run `npx expo lint` — fix any issues
+4. Create descriptive commit with summary of all changes
+5. Update `ATLASIO_CONTEXT.md`:
    - Add S[N] entry to cumulative progress list (files created/modified, key decisions)
    - Update screen count if new screens were added
    - Update hooks count if new hooks were added
    - Update feature flags list if new flags were added
    - Update S[N+1] next objectives section
    - Do NOT change any other sections
-5. Update `sql/schema.sql` if any schema changes were made:
+6. Update `sql/schema.sql` if any schema changes were made:
    - New table, column, RPC, trigger, or index added → update schema.sql to match
    - The file must always reflect what is actually deployed in Supabase
    - Never leave schema.sql behind the live database
-6. Output a session summary for the user to paste into Claude Chat:
+7. Run `git push origin main`
+8. Output a session summary for the user to paste into Claude Chat:
    - Hooks wired (list each, old status → new status)
    - Types updated
    - Files modified
@@ -517,6 +529,7 @@ This is the handoff contract for future engineers.
 ---
 
 ## Verification Checklist (before marking any session complete)
+- `/review` passed — all flagged issues resolved
 - `npx tsc --noEmit` → 0 errors
 - Shared components reused (not recreated inline)
 - No local COLORS objects — all tokens from `lib/tokens.ts`
@@ -531,66 +544,44 @@ This is the handoff contract for future engineers.
 
 ---
 
-## gstack — Virtual Engineering Team
+## gstack
 
-gstack is installed globally at ~/.claude/skills/gstack.
-Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__* tools.
-Bun is installed at ~/.bun/bin/bun (v1.3.11) — required for /browse and /qa.
-If skills aren't working: cd ~/.claude/skills/gstack && ./setup
+Use `/browse` from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
+
+If skills stop working, run: `cd .claude/skills/gstack && ./setup`
 
 ### Available Skills
-- /office-hours — Reframe any feature before writing code
-- /plan-ceo-review — Business + scope challenge on any feature idea
-- /plan-eng-review — Architecture, RPCs, edge cases, test matrix
-- /plan-design-review — Design system audit, 0–10 ratings, AI slop detection
-- /review — Staff engineer bug review (run BEFORE every commit, after tsc 0)
-- /investigate — Root-cause debugger. No fixes without investigation first
-- /design-review — Design audit + inline fixes with before/after screenshots
-- /qa — Real browser click-through testing (use before every investor demo)
-- /qa-only — Bug report only, no code changes
-- /ship — Replaces manual `git push origin main` (tests → push → PR)
-- /document-release — Auto-updates CLAUDE.md + docs after every session
-- /retro — Weekly commit/LOC stats across all Atlasio repos
-- /codex — OpenAI second opinion on any diff
-- /careful — Warns before destructive commands (DROP TABLE, rm -rf, force-push)
-- /guard — /careful + /freeze combined. Use for all Supabase SQL sessions
-- /freeze — Lock edits to one directory (use when debugging a single screen)
-- /unfreeze — Remove freeze boundary
-- /gstack-upgrade — Upgrade gstack to latest
 
-### Atlasio-Specific gstack Workflow Rules
+| Skill | Role | When to use in Atlasio |
+|---|---|---|
+| `/office-hours` | YC Office Hours | Reframe a feature before building — challenges your premise |
+| `/plan-ceo-review` | CEO/Founder | Scope review on any feature proposal |
+| `/plan-eng-review` | Eng Manager | Architecture, data flow, edge cases before implementation |
+| `/plan-design-review` | Senior Designer | Design audit (0–10 per dimension) on any screen |
+| `/design-consultation` | Design Partner | Full design system work |
+| `/review` | Staff Engineer | **Run before every commit** — finds production bugs tsc misses |
+| `/investigate` | Debugger | **Run instead of ad-hoc debugging** — root cause first, auto-freezes scope |
+| `/qa` | QA Lead | **Run before every TestFlight build** — real browser click-through |
+| `/qa-only` | QA Reporter | Bug report only, no code changes |
+| `/design-review` | Designer Who Codes | Design audit + fixes with atomic commits |
+| `/ship` | Release Engineer | Sync main, run tests, push, open PR |
+| `/browse` | QA Engineer | Real Chromium browser for manual testing |
+| `/setup-browser-cookies` | Session Manager | Import real browser session for authenticated QA |
+| `/document-release` | Technical Writer | Update docs after shipping (README, ARCHITECTURE, etc.) |
+| `/retro` | Eng Manager | Weekly dev stats — commits, lines added, test health |
+| `/codex` | Second Opinion | OpenAI independent review of any diff |
+| `/careful` | Safety Guardrails | Warns before destructive commands (rm -rf, DROP TABLE, force-push) |
+| `/freeze` | Edit Lock | Locks edits to one directory — use while debugging |
+| `/guard` | Full Safety | `/careful` + `/freeze` combined — **required for all SQL/Edge Function work** |
+| `/unfreeze` | Unlock | Remove freeze boundary |
+| `/gstack-upgrade` | Self-Updater | Upgrade gstack to latest version |
 
-**Pre-commit gate (run in this order — all must pass):**
-1. `npx tsc --noEmit` — 0 errors required (existing hard gate)
-2. `npx expo lint` — clean required (existing hard gate)
-3. `/review` — staff engineer audit before any commit (NEW via gstack)
+### Atlasio-Specific Rules (non-negotiable)
 
-**Session end protocol (run ALL steps):**
-1. Reset all feature flags to demo defaults in lib/featureFlags.ts
-2. `npx tsc --noEmit` — confirm 0 errors
-3. `/review` — final bug check
-4. `/ship` — replaces `git push origin main` (handles tests → push → PR)
-5. Log session in Notion (Build Log, Deployment Tracker, User Flows, Component Inventory, Live Build State)
-6. `/document-release` — auto-updates ATLASIO_CONTEXT.md + CLAUDE.md drift (NEW via gstack)
-7. Auto-generate next session context prompt as markdown to /mnt/user-data/outputs/
-
-**Pre-investor demo safety check:**
-- `/qa` — real browser click-through of full demo flow
-- Confirm all flags are at demo defaults (PARTNER_TRACK_ENABLED=true, DEAL_CREATION_ENABLED=true for investor demo)
-- Run on staging/Expo Go before every Matthew meeting
-
-**When to use which skill:**
-- Starting a new feature → /office-hours first, then /plan-ceo-review
-- Before any backend session → /plan-eng-review (architecture + RPC design)
-- After implementing screens → /plan-design-review (token compliance, spacing)
-- Before every commit → /review (catches what tsc misses)
-- Debugging a hard bug → /investigate (freeze to the affected module first)
-- Before investor demo → /qa (full click-through on real browser)
-- End of every session → /ship then /document-release
-- Weekly → /retro (check LOC + commit health across atlasio-demo + atlasio-closing)
-
-**Safety rules for Atlasio:**
-- Always use /guard for any Supabase SQL Editor session (prevents accidental DROP)
-- Always use /careful before any Edge Function deployment
-- /freeze to a single screen directory when debugging layout or token issues
-- Never run /ship if tsc has errors — fix first, then /ship
+- **`/guard` is required before any SQL session** — activates careful + freeze; prevents accidental schema changes outside the target file
+- **`/review` before every commit** — this is now part of the Verification Checklist and Ending a Session protocol
+- **`/investigate` for all debugging** — never start touching code before root cause is confirmed; auto-freezes to the module under investigation
+- **`/qa` before every TestFlight build** — catches regressions before the build goes to device
+- **`/careful` permanently blocks in this project (regardless of gstack):** `supabase db push`, `DROP TABLE`, `rm -rf`, force-push
+- **SQL workflow unchanged** — gstack adds a safety layer but does not replace it: all SQL reviewed in Claude Chat first, Tony executes manually in Supabase SQL Editor, never via CLI
+- **Mock data is never deleted** — `/review` and `/qa` must not flag missing mock fallbacks as issues; they are intentional
