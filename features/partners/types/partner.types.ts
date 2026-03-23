@@ -92,14 +92,44 @@ export interface AlertTypeConfig {
 // AGENT DEAL BOARD (S63) — agent-side composite for multi-partner views
 // ─────────────────────────────────────────────────────────────────
 
+/**
+ * Lean milestone shape returned by rpc_get_agent_deals per partner.
+ * Subset of DealMilestone — omits join fields (job_id, partner_id, partner_role,
+ * milestone_label, sort_order, created_at) that are only needed in the full table view.
+ * @backend rpc_get_agent_deals → partners[].milestones[]
+ */
+export interface AgentDealMilestone {
+  id: string;
+  milestone_key: string;
+  status: MilestoneStatus;
+  completed_at: string | null;
+  updated_at: string;            // always populated for in_progress milestones (stale check depends on this)
+  sort_order?: number;           // present in mock data; not returned by rpc_get_agent_deals
+  milestone_label?: string;      // present in mock data; not returned by rpc_get_agent_deals
+}
+
+/**
+ * Lean alert shape returned by rpc_get_agent_deals per partner.
+ * Subset of DealAlert — omits join fields (job_id, partner_id, created_at).
+ * @backend rpc_get_agent_deals → partners[].alerts[]
+ */
+export interface AgentDealAlert {
+  id: string;
+  alert_type: string;
+  message: string;
+  expires_at: string | null;
+  dismissed_at: string | null;   // always null — RPC filters dismissed_at IS NULL
+  document_requested: boolean | null;
+}
+
 /** A single partner's milestones + alerts within a deal, as seen by the agent */
 export interface AgentDealPartner {
   partner_id: string;
   name?: string;
   partner_role: PartnerRole;
   partner_avatar_color?: string;
-  milestones?: DealMilestone[];
-  alerts?: DealAlert[];
+  milestones?: AgentDealMilestone[];
+  alerts?: AgentDealAlert[];
 }
 
 /**

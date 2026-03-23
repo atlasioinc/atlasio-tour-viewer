@@ -911,10 +911,10 @@ const HomeTabAgent: React.FC = () => {
 
                     {/* Squad avatar row with status dots */}
                     <View style={{ flexDirection: 'row', marginTop: 10, gap: 4 }}>
-                      {deal.partners.map((partner) => {
+                      {deal.partners.map((partner, idx) => {
                         const dot = getSlotStatusDot(partner, partner.partner_role);
                         return (
-                          <View key={partner.partner_id} style={{ position: 'relative' }}>
+                          <View key={partner.partner_id ?? `partner-${idx}`} style={{ position: 'relative' }}>
                             <View style={{
                               width: 28, height: 28, borderRadius: 9999,
                               backgroundColor: partner.partner_avatar_color ?? COLORS.secondaryText,

@@ -377,7 +377,7 @@ const AgentDealDetailScreen: React.FC = () => {
 
                   {(partner.milestones ?? [])
                     .slice()
-                    .sort((a, b) => a.sort_order - b.sort_order)
+                    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                     .map(ms => {
                       const isStale = ms.status === 'in_progress' && isMilestoneStale(ms, partner.partner_role);
                       const staleDays = isStale ? getStaleDays(ms) : 0;
@@ -405,7 +405,7 @@ const AgentDealDetailScreen: React.FC = () => {
                             color: isStale ? COLORS.warningAmber : COLORS.darkText,
                             marginLeft: SPACING.lg,
                           }}>
-                            {ms.milestone_label}
+                            {ms.milestone_label ?? ms.milestone_key}
                           </Text>
                           {isStale && (
                             <View style={{
