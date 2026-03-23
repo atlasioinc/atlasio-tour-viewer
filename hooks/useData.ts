@@ -2525,7 +2525,7 @@ export function useAgentDismissDealAlert() {
                 ...deal,
                 partners: deal.partners.map(p => ({
                   ...p,
-                  alerts: p.alerts.filter(a => a.id !== variables.alertId),
+                  alerts: (p.alerts ?? []).filter(a => a.id !== variables.alertId),
                 })),
               }
             : deal,

@@ -43,10 +43,10 @@ function getSlotStatusDot(
   partner: AgentDealPartner,
   role: PartnerRole,
 ): 'red' | 'amber' | 'green' | 'gray' {
-  if (!partner.milestones.length) return 'gray';
-  const hasAlert = partner.alerts.some(a => !a.dismissed_at);
+  if (!(partner.milestones ?? []).length) return 'gray';
+  const hasAlert = (partner.alerts ?? []).some(a => !a.dismissed_at);
   if (hasAlert) return 'red';
-  const hasStale = partner.milestones.some(m => isMilestoneStale(m, role));
+  const hasStale = (partner.milestones ?? []).some(m => isMilestoneStale(m, role));
   if (hasStale) return 'amber';
   return 'green';
 }
@@ -270,8 +270,8 @@ const AgentDealDetailScreen: React.FC = () => {
       >
         {deal.partners.map((partner, index) => {
           const statusDot = getSlotStatusDot(partner, partner.partner_role);
-          const completedCount = partner.milestones.filter(m => m.status === 'complete').length;
-          const totalCount = partner.milestones.length;
+          const completedCount = (partner.milestones ?? []).filter(m => m.status === 'complete').length;
+          const totalCount = (partner.milestones ?? []).length;
           const progressPct = totalCount > 0 ? completedCount / totalCount : 0;
 
           return (
@@ -313,7 +313,7 @@ const AgentDealDetailScreen: React.FC = () => {
                 </View>
 
                 {/* ── 2. Alert Banners (undismissed only) ── */}
-                {partner.alerts.filter(a => !a.dismissed_at && !dismissedAlertIds.includes(a.id)).map(alert => {
+                {(partner.alerts ?? []).filter(a => !a.dismissed_at && !dismissedAlertIds.includes(a.id)).map(alert => {
                   const isRateLock = alert.alert_type === 'rate_lock_expiry';
                   const rl = isRateLock ? getRateLockDaysRemaining(alert.expires_at) : null;
                   const isDanger = rl !== null && rl <= RATE_LOCK_DANGER_THRESHOLD_DAYS;
@@ -375,7 +375,7 @@ const AgentDealDetailScreen: React.FC = () => {
                     Updated by {partner.partner_name}
                   </Text>
 
-                  {partner.milestones
+                  {(partner.milestones ?? [])
                     .slice()
                     .sort((a, b) => a.sort_order - b.sort_order)
                     .map(ms => {

@@ -98,8 +98,8 @@ export interface AgentDealPartner {
   partner_name: string;
   partner_role: PartnerRole;
   partner_avatar_color: string;
-  milestones: DealMilestone[];
-  alerts: DealAlert[];
+  milestones?: DealMilestone[];
+  alerts?: DealAlert[];
 }
 
 /**

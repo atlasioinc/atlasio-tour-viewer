@@ -75,9 +75,9 @@ function isClosingSoon(closingDate: string | null): boolean {
 
 function dealNeedsAttention(deal: AgentActiveDeal): boolean {
   return deal.partners.some((p) => {
-    const hasAlert = p.alerts.some(a => !a.dismissed_at);
+    const hasAlert = (p.alerts ?? []).some(a => !a.dismissed_at);
     if (hasAlert) return true;
-    const hasStale = p.milestones.some(m => isMilestoneStale(m, p.partner_role));
+    const hasStale = (p.milestones ?? []).some(m => isMilestoneStale(m, p.partner_role));
     return hasStale;
   });
 }
@@ -232,7 +232,7 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onPress }) => {
   const accentColor = accentStatus === 'gray' ? COLORS.cardBorder : STATUS_DOT_COLORS[accentStatus];
 
   const totalAlerts = deal.partners.reduce(
-    (sum, p) => sum + p.alerts.filter(a => !a.dismissed_at).length, 0,
+    (sum, p) => sum + (p.alerts ?? []).filter(a => !a.dismissed_at).length, 0,
   );
 
   const closingLabel = deal.closing_date

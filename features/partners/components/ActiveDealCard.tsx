@@ -120,7 +120,7 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
   const [milestoneStatuses, setMilestoneStatuses] = useState<Record<string, MilestoneStatus>>({});
 
   // ── Filter out locally dismissed alerts ──
-  const visibleAlerts = deal.alerts.filter(a => !dismissedAlertIds.includes(a.id));
+  const visibleAlerts = (deal.alerts ?? []).filter(a => !dismissedAlertIds.includes(a.id));
 
   // ── Rate lock escalation logic ──
   // @demo Rate lock countdown is client-side only — reads expires_at from DealAlert
@@ -140,8 +140,8 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
   const leftBorderWidth = isUrgent || hasAnyAlert ? 3 : 0.5;
 
   // ── Progress ──
-  const completedCount = deal.milestones.filter(m => (milestoneStatuses[m.id] ?? m.status) === 'complete').length;
-  const totalCount = deal.milestones.length;
+  const completedCount = (deal.milestones ?? []).filter(m => (milestoneStatuses[m.id] ?? m.status) === 'complete').length;
+  const totalCount = (deal.milestones ?? []).length;
   const progressPct = totalCount > 0 ? completedCount / totalCount : 0;
 
   // ── Alert types for composer ──

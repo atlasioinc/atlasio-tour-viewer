@@ -112,10 +112,10 @@ export function getSlotStatusDot(
   partner: AgentDealPartner,
   role: PartnerRole,
 ): SlotStatusDot {
-  if (!partner.milestones.length) return 'gray';
-  const hasAlert = partner.alerts.some(a => !a.dismissed_at);
+  if (!(partner.milestones ?? []).length) return 'gray';
+  const hasAlert = (partner.alerts ?? []).some(a => !a.dismissed_at);
   if (hasAlert) return 'red';
-  const hasStale = partner.milestones.some(m => isMilestoneStale(m, role));
+  const hasStale = (partner.milestones ?? []).some(m => isMilestoneStale(m, role));
   if (hasStale) return 'amber';
   return 'green';
 }

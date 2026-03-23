@@ -72,8 +72,8 @@ const PartnerDealsScreen: React.FC<PartnerDealsScreenProps> = ({ partnerRole = '
 
   const needsAttentionDeals = useMemo(() =>
     allDeals.filter(d =>
-      d.alerts.length > 0 ||
-      d.milestones.some(ms => isMilestoneStale(ms, partnerRole)),
+      (d.alerts ?? []).length > 0 ||
+      (d.milestones ?? []).some(ms => isMilestoneStale(ms, partnerRole)),
     ),
   [allDeals, partnerRole]);
 
