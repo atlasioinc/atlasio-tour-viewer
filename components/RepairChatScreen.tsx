@@ -82,7 +82,7 @@ const BackChevronIcon: React.FC = () => (
   <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
     <Path
       d="M12.5 15L7.5 10L12.5 5"
-      stroke={COLORS.primary}
+      stroke={COLORS.darkText}
       strokeWidth={1.67}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -347,6 +347,7 @@ const RepairChatScreen: React.FC = () => {
           style={{
             height: 48,
             paddingHorizontal: 16,
+            paddingBottom: 4,
             backgroundColor: COLORS.background,
             borderBottomWidth: 0.68,
             borderBottomColor: COLORS.border,
@@ -371,7 +372,7 @@ const RepairChatScreen: React.FC = () => {
               style={{
                 fontSize: 14,
                 fontWeight: '400',
-                color: COLORS.primary,
+                color: COLORS.darkText,
                 lineHeight: 20,
               }}
             >

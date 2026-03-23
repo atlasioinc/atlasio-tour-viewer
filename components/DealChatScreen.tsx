@@ -51,7 +51,7 @@ import { COLORS } from '../lib/tokens';
 
 const BackIcon: React.FC = () => (
   <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Path d="M12.5 15L7.5 10L12.5 5" stroke={COLORS.primary} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M12.5 15L7.5 10L12.5 5" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -301,7 +301,7 @@ const DealChatScreen: React.FC = () => {
         {/* ══════════════════════════════════════════
             HEADER: < Inbox | [grid avatar] | Deal Name
             ══════════════════════════════════════════ */}
-        <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
+        <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border, paddingBottom: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 48, justifyContent: 'space-between' }}>
             {/* Left: Back to Inbox */}
             <Pressable
@@ -310,7 +310,7 @@ const DealChatScreen: React.FC = () => {
               style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, opacity: pressed ? 0.5 : 1 })}
             >
               <BackIcon />
-              <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.primary, lineHeight: 24 }}>
+              <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.darkText, lineHeight: 24 }}>
                 Inbox
               </Text>
             </Pressable>
