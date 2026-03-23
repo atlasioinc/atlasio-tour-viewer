@@ -35,7 +35,6 @@ import {
   usePartnerNeedsAttention,
   usePartnerActiveDeals,
   usePartnerStats,
-  usePartnerConnectionRequests,
   usePartnerInvitations,
   useToggleAcceptingClients,
   useUpdateMilestoneStatus,
@@ -114,9 +113,11 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
   const [acceptingClients, setAcceptingClients] = useState(true);
 
   // ── Hooks ──
+  // @backend rpc_get_partner_active_deals — derives needsAttentionDeals client-side (stale milestones + undismissed alerts)
   const { data: needsAttentionDeals, allDeals } = usePartnerNeedsAttention(DEMO_PARTNER_ID, partnerRole);
+  // @backend rpc_get_partner_stats — profile_views + search_appearances return 0 until tracking wired (S62b)
   const { data: stats } = usePartnerStats(DEMO_PARTNER_ID);
-  const { data: connectionRequests } = usePartnerConnectionRequests(DEMO_PARTNER_ID);
+  // @backend rpc_get_partner_invitations — unified connection_requests + deal_invitations feed
   const { data: invitations } = usePartnerInvitations();
   const toggleAccepting = useToggleAcceptingClients();
   const updateMilestone = useUpdateMilestoneStatus();
@@ -284,7 +285,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
               }}>
                 Invitations
               </Text>
-              <Pressable style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44, justifyContent: 'center' }}>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.accentBlue }}>
                   See all ({invitationCount})
                 </Text>
@@ -294,7 +295,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: SPACING.xl }}
+              contentContainerStyle={{ paddingHorizontal: SPACING.xl, paddingVertical: 4 }}
             >
               {allInvitations.map(item => {
                 if (item.item_type === 'connection_request') {
@@ -324,7 +325,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                         marginBottom: SPACING.md,
                       }}>
                         <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background }}>
-                          {item.requester_name.split(' ').map(n => n[0]).join('')}
+                          {(item.requester_name ?? '').split(' ').map(n => n[0]).join('')}
                         </Text>
                       </View>
 
@@ -399,8 +400,8 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                         backgroundColor: item.agent_avatar_color,
                         alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Text style={{ fontSize: 10, fontWeight: '600', color: COLORS.background }}>
-                          {item.agent_name.charAt(0)}
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.background }}>
+                          {(item.agent_name ?? '').charAt(0)}
                         </Text>
                       </View>
                       <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
@@ -568,7 +569,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
             }}>
               Recent Vouches
             </Text>
-            <Pressable>
+            <Pressable style={{ minHeight: 44, justifyContent: 'center' }}>
               <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.accentBlue }}>See all</Text>
             </Pressable>
           </View>
@@ -584,6 +585,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                 borderColor: COLORS.cardBorder,
                 backgroundColor: COLORS.quoteBg,
                 marginBottom: SPACING.lg,
+                ...SHADOWS.card,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
@@ -596,7 +598,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                   justifyContent: 'center',
                 }}>
                   <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.background }}>
-                    {vouch.name.split(' ').map(n => n[0]).join('')}
+                    {(vouch.name ?? '').split(' ').map(n => n[0]).join('')}
                   </Text>
                 </View>
                 <View style={{ marginLeft: SPACING.md }}>
@@ -610,6 +612,12 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
             </View>
           ))}
         </View>
+
+        {/* ═════════════════════════════════════════════════════════ */}
+        {/* @s103-todo: 'My Network' summary row — connection count + nav to Network tab */}
+        {/* Decision: Active Connections full list lives on NetworkTab (partner role branch) */}
+        {/* HomeTabPartner gets summary row only: "My Network  12 connections  →" */}
+        {/* ═════════════════════════════════════════════════════════ */}
 
         {/* ═════════════════════════════════════════════════════════ */}
         {/* SECTION 6 — Share Profile CTA                           */}
@@ -635,6 +643,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
               borderWidth: DIMENSIONS.cardBorderWidth,
               borderColor: COLORS.cardBorder,
               backgroundColor: COLORS.backgroundInfo,
+              ...SHADOWS.card,
             }}
           >
             <View style={{
@@ -675,6 +684,7 @@ const StatTile: React.FC<{ label: string; value: number; trend: number }> = ({ l
     borderWidth: DIMENSIONS.cardBorderWidth,
     borderColor: COLORS.cardBorder,
     backgroundColor: COLORS.background,
+    ...SHADOWS.card,
   }}>
     <Text style={{ fontSize: 20, fontWeight: '700', color: COLORS.darkText }}>{value}</Text>
     <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: SPACING.sm }}>{label}</Text>

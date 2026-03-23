@@ -46,7 +46,7 @@ interface ActiveDealCardProps {
 const CheckCircleIcon: React.FC<{ color: string }> = ({ color }) => (
   <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
     <Circle cx={12} cy={12} r={10} fill={color} />
-    <Path d="M8 12L11 15L16 9" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M8 12L11 15L16 9" stroke={COLORS.background} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
