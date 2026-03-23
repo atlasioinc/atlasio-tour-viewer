@@ -16,6 +16,7 @@ import type {
   MilestoneStatus,
   AlertType,
   PartnerConnectionRequest,
+  PartnerAcceptedConnection,
   ConnectionRequestItem,
   DealInvitationItem,
   PartnerInvitationsResponse,
@@ -115,6 +116,28 @@ const MOCK_CONNECTION_REQUESTS: PartnerConnectionRequest[] = [
   { id: 'cr-001', requester_id: 'agent-101', name: 'Sarah Chen', company: 'Keller Williams', role: 'Agent', avatar_color: '#3B82F6', has_mutual_vouches: true, created_at: daysAgo(1) },
   { id: 'cr-002', requester_id: 'agent-102', name: 'James Thornton', company: 'RE/MAX Alliance', role: 'Agent', avatar_color: '#8B5CF6', has_mutual_vouches: false, created_at: daysAgo(2) },
   { id: 'cr-003', requester_id: 'agent-103', name: 'Maria Gonzalez', company: 'Compass', role: 'Agent', avatar_color: '#EC4899', has_mutual_vouches: true, created_at: daysAgo(3) },
+];
+
+// @demo Mock accepted connections — partner's agent network
+const MOCK_PARTNER_CONNECTIONS: PartnerAcceptedConnection[] = [
+  {
+    connection_id: 'mock-conn-001',
+    agent_id: '2fa946ad-175c-422b-b7e9-ff1c29ed4da0',
+    agent_name: 'Tony Giap',
+    agent_company: 'Atlasio Realty',
+    agent_avatar_color: '#003DC3',
+    deal_count: 2,
+    connected_since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    connection_id: 'mock-conn-002',
+    agent_id: 'mock-agent-002',
+    agent_name: 'Sarah Williams',
+    agent_company: 'Premier Properties',
+    agent_avatar_color: '#7BA3C9',
+    deal_count: 1,
+    connected_since: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -233,6 +256,35 @@ export function usePartnerConnectionRequests(partnerId: string) {
       }
     },
     enabled: !!partnerId,
+  });
+}
+
+/**
+ * Fetches accepted connections for a partner (their agent network).
+ * STATUS: wired (with mock fallback)
+ * @backend rpc_get_partner_accepted_connections — no params, uses auth.uid() server-side
+ * Returns: PartnerAcceptedConnection[] with agent profile + shared deal count
+ */
+export function usePartnerAcceptedConnections() {
+  return useQuery({
+    queryKey: ['partner_accepted_connections'],
+    queryFn: async (): Promise<PartnerAcceptedConnection[]> => {
+      if (!PARTNER_TRACK_ENABLED) {
+        // @demo — return mock accepted connections
+        return MOCK_PARTNER_CONNECTIONS;
+      }
+
+      try {
+        // @backend rpc_get_partner_accepted_connections — no params, uses auth.uid()
+        const { data, error } = await supabase.rpc('rpc_get_partner_accepted_connections');
+        if (error || !data?.success) throw error;
+        return (data.connections as PartnerAcceptedConnection[]) ?? MOCK_PARTNER_CONNECTIONS;
+      } catch (e) {
+        console.warn('[usePartnerAcceptedConnections] Supabase failed, using mock:', e);
+        return MOCK_PARTNER_CONNECTIONS;
+      }
+    },
+    staleTime: 1000 * 60 * 5,
   });
 }
 

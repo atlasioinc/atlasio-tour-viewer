@@ -28,7 +28,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../../../lib/tokens';
 import ActiveDealCard from './ActiveDealCard';
 import {
@@ -36,6 +36,7 @@ import {
   usePartnerActiveDeals,
   usePartnerStats,
   usePartnerInvitations,
+  usePartnerAcceptedConnections,
   useToggleAcceptingClients,
   useUpdateMilestoneStatus,
   usePostDealAlert,
@@ -70,9 +71,18 @@ const LinkIcon: React.FC<{ color: string }> = ({ color }) => (
   </Svg>
 );
 
-const ChevronRightIcon: React.FC<{ color: string }> = ({ color }) => (
-  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+const ChevronRightIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 16 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path d="M9 18L15 12L9 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const PeopleIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Circle cx={9} cy={7} r={4} stroke={color} strokeWidth={2} />
+    <Path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -126,6 +136,9 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
   const respondToDeal = useRespondToDealInvitation();
 
   const totalActiveDeals = allDeals?.length ?? 0;
+
+  // @backend usePartnerAcceptedConnections → rpc_get_partner_accepted_connections
+  const { data: acceptedConnections } = usePartnerAcceptedConnections();
 
   // ── Unified invitations list (S64b) ──
   // Merge connection requests + deal invitations into a single ordered list
@@ -614,10 +627,32 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
         </View>
 
         {/* ═════════════════════════════════════════════════════════ */}
-        {/* @s103-todo: 'My Network' summary row — connection count + nav to Network tab */}
-        {/* Decision: Active Connections full list lives on NetworkTab (partner role branch) */}
-        {/* HomeTabPartner gets summary row only: "My Network  12 connections  →" */}
+        {/* SECTION 5.5 — My Network Summary Row                    */}
+        {/* @backend usePartnerAcceptedConnections → rpc_get_partner_accepted_connections */}
+        {/* Taps to Network tab (partner role branch built in S103) */}
         {/* ═════════════════════════════════════════════════════════ */}
+        <Pressable
+          onPress={() => navigation.dispatch(CommonActions.navigate({ name: 'Network' }))}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: SPACING.xl,
+            minHeight: 44,
+            justifyContent: 'center',
+            marginTop: SPACING['3xl'],
+            borderBottomWidth: DIMENSIONS.headerBorderWidth,
+            borderBottomColor: COLORS.border,
+          }}
+        >
+          <PeopleIcon color={COLORS.secondaryText} />
+          <Text style={{ fontSize: 15, fontWeight: '500', color: COLORS.darkText, marginLeft: SPACING.md, flex: 1 }}>
+            My Network
+          </Text>
+          <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.secondaryText, marginRight: SPACING.sm }}>
+            {acceptedConnections?.length ?? 0} agent{(acceptedConnections?.length ?? 0) !== 1 ? 's' : ''}
+          </Text>
+          <ChevronRightIcon color={COLORS.secondaryText} />
+        </Pressable>
 
         {/* ═════════════════════════════════════════════════════════ */}
         {/* SECTION 6 — Share Profile CTA                           */}

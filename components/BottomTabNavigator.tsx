@@ -500,14 +500,14 @@ const BottomTabNavigator: React.FC<Props> = () => {
           }}
         />
 
-        {/* Network — agent only (hidden for contractor and partner) */}
+        {/* Network — agent + partner (hidden for contractor only) */}
         <Tab.Screen
           name="Network"
           component={NetworkStack}
           options={{
             tabBarIcon: ({ color }) => <NetworkIcon color={color} />,
-            tabBarButton: demoRole !== 'agent' ? () => null : undefined,
-            tabBarItemStyle: demoRole !== 'agent' ? { display: 'none' } : undefined,
+            tabBarButton: demoRole === 'contractor' ? () => null : undefined,
+            tabBarItemStyle: demoRole === 'contractor' ? { display: 'none' } : undefined,
           }}
         />
 

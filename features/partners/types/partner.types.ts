@@ -147,6 +147,21 @@ export interface AgentActiveDeal {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// ACCEPTED CONNECTION (partner network — S103)
+// ─────────────────────────────────────────────────────────────────
+
+/** Accepted connection between partner and agent, returned by rpc_get_partner_accepted_connections */
+export interface PartnerAcceptedConnection {
+  connection_id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_company: string | null;
+  agent_avatar_color: string | null;
+  deal_count: number;
+  connected_since: string;
+}
+
+// ─────────────────────────────────────────────────────────────────
 // CONNECTION REQUEST (partner-specific)
 // ─────────────────────────────────────────────────────────────────
 

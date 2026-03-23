@@ -42,12 +42,15 @@ import type { NetworkStackParamList } from './NetworkStack';
 import { mapNetworkContactToProfile } from './proProfileHelpers';
 import InviteToJobModal from './InviteToJobModal';
 import type { InviteContractor } from './InviteToJobModal';
-import { COLORS } from '../lib/tokens';
+import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useConnections, useConnectionRequests as useConnectionRequestsHook } from '../hooks/useData';
 import { adaptConnectionToNetworkContact, adaptConnectionToRequest } from '../lib/typeAdapters';
 import { VerificationBanner } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
+import { useDemoRole } from '../lib/demoRoleContext';
+import { usePartnerAcceptedConnections } from '../features/partners/hooks/usePartnerData';
+import type { PartnerAcceptedConnection } from '../features/partners/types/partner.types';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -317,7 +320,183 @@ const NetworkProCard: React.FC<{
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
+// ─────────────────────────────────────────────
+// PARTNER NETWORK VIEW (S103)
+// @backend usePartnerAcceptedConnections → rpc_get_partner_accepted_connections
+// Partner role branch — One Layout Tree (same file as agent/contractor network view)
+// ─────────────────────────────────────────────
+
+const PartnerNetworkView: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<NetworkStackParamList>>();
+  // @backend rpc_get_partner_accepted_connections — no params, uses auth.uid()
+  const { data: connections } = usePartnerAcceptedConnections();
+  const agentList = connections ?? [];
+
+  const handleMessageAgent = (conn: PartnerAcceptedConnection) => {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'Inbox',
+        params: {
+          screen: 'ChatScreen',
+          initial: false,
+          params: {
+            contactId: conn.agent_id,
+            contactName: (conn.agent_name ?? ''),
+            contactAvatarColor: (conn.agent_avatar_color ?? '#999999'),
+            contactCompany: (conn.agent_company ?? ''),
+          },
+        },
+      })
+    );
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+
+      {/* ── Header ── */}
+      <View style={{
+        height: DIMENSIONS.headerHeight,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.xl,
+        borderBottomWidth: DIMENSIONS.headerBorderWidth,
+        borderBottomColor: COLORS.border,
+      }}>
+        <Text style={{ fontSize: 17, fontWeight: '600', color: COLORS.darkText }}>My Network</Text>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1, backgroundColor: COLORS.screenBg }}
+        contentContainerStyle={{ paddingBottom: 120 }}
+      >
+        {agentList.length === 0 ? (
+          /* ── Empty State — No connections yet ── */
+          <View style={{ paddingTop: 80, paddingBottom: 48, paddingHorizontal: 32, alignItems: 'center', gap: 16 }}>
+            <Svg width={48} height={48} viewBox="0 0 24 24" fill="none">
+              <Path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+              <Circle cx={9} cy={7} r={4} stroke={COLORS.lightText} strokeWidth={1.5} />
+              <Path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28, textAlign: 'center' }}>
+              No connections yet
+            </Text>
+            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 22, textAlign: 'center' }}>
+              Connect with agents on the Find tab to start building your network.
+            </Text>
+          </View>
+        ) : (
+          /* ── YOUR AGENTS section ── */
+          <View style={{ paddingTop: SPACING.xl }}>
+            <Text style={{
+              fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+              paddingHorizontal: SPACING.xl, marginBottom: SPACING.lg,
+            }}>
+              Your Agents ({agentList.length})
+            </Text>
+
+            <View style={{ paddingHorizontal: SPACING.xl, gap: SPACING.lg }}>
+              {agentList.map(conn => {
+                const initials = (conn.agent_name ?? '').split(' ').map(n => (n[0] ?? '')).join('').substring(0, 2);
+                const dealCount = conn.deal_count ?? 0;
+
+                return (
+                  <View
+                    key={conn.connection_id}
+                    style={{
+                      padding: 14,
+                      borderRadius: DIMENSIONS.cardRadius,
+                      borderWidth: DIMENSIONS.cardBorderWidth,
+                      borderColor: COLORS.cardBorder,
+                      backgroundColor: COLORS.background,
+                      ...SHADOWS.card,
+                    }}
+                  >
+                    {/* Agent info row */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      {/* Avatar */}
+                      <View style={{
+                        width: 40, height: 40, borderRadius: DIMENSIONS.pillRadius,
+                        backgroundColor: conn.agent_avatar_color ?? '#999999',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>
+                          {initials}
+                        </Text>
+                      </View>
+
+                      {/* Name + company */}
+                      <View style={{ flex: 1, marginLeft: SPACING.lg }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }} numberOfLines={1}>
+                          {conn.agent_name ?? ''}
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 2 }} numberOfLines={1}>
+                          {conn.agent_company ?? ''}
+                        </Text>
+                      </View>
+
+                      {/* Deal count badge */}
+                      {dealCount > 0 && (
+                        <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.primary }}>
+                          {dealCount} deal{dealCount !== 1 ? 's' : ''}
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* Message CTA */}
+                    <Pressable
+                      onPress={() => handleMessageAgent(conn)}
+                      style={({ pressed }) => ({
+                        height: 36,
+                        marginTop: SPACING.lg,
+                        borderRadius: 8,
+                        borderWidth: 1.35,
+                        borderColor: COLORS.primary,
+                        backgroundColor: COLORS.background,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: pressed ? 0.7 : 1,
+                      })}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>
+                        Message
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════
+
 const NetworkTab: React.FC = () => {
+  const { demoRole } = useDemoRole();
+
+  // Partner role branch — render PartnerNetworkView (One Layout Tree rule)
+  if (demoRole === 'partner') {
+    return <PartnerNetworkView />;
+  }
+
+  // ── Agent/Contractor branch (existing) ──
+  return <AgentNetworkView />;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT/CONTRACTOR NETWORK VIEW (existing)
+// ═══════════════════════════════════════════════════════════════
+
+const AgentNetworkView: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<NetworkStackParamList>>();
   const [activeTab, setActiveTab] = useState<'partners' | 'contractors'>('partners');
   const [searchText, setSearchText] = useState<string>('');

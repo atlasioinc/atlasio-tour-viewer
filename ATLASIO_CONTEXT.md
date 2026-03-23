@@ -33,7 +33,7 @@
 
 ## Current Metrics (updated S65 — March 19, 2026)
 - **RPCs:** 48
-- **Hooks:** 73 (+2 S65: useGenerateClientToken, useUpdateClosingDetails)
+- **Hooks:** 74 (+1 S103: usePartnerAcceptedConnections)
 - **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` + `DEAL_CREATION_ENABLED` in lib/config.ts
 - **Edge Functions:** 11
 - **Storage Buckets:** 7
@@ -733,3 +733,13 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (+1: useAgentPartnerConnections), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 - **S97 next objectives:** Next.js closing tracker web app, partner hooks device testing with `USE_MOCK_DATA: false`, live deal creation E2E test
+
+### S103 — Partner Network Tab + HomeTabPartner My Network Row (March 23, 2026)
+- **Created:** `PartnerAcceptedConnection` type in `features/partners/types/partner.types.ts` — connection_id, agent_id, agent_name, agent_company, agent_avatar_color, deal_count, connected_since
+- **Modified:** `features/partners/hooks/usePartnerData.ts` — Added `usePartnerAcceptedConnections` hook (STATUS: wired with mock fallback). Queries `rpc_get_partner_accepted_connections` (no params, auth.uid()). Mock: 2 agents (Tony Giap, Sarah Williams). staleTime: 5min.
+- **Modified:** `features/partners/components/HomeTabPartner.tsx` — Replaced `@s103-todo` comment with "My Network" summary row. Full-width tappable row: PeopleIcon + "My Network" label + agent count pill + chevron. Navigates to Network tab via `CommonActions.navigate({ name: 'Network' })`.
+- **Modified:** `components/NetworkTab.tsx` — Added `PartnerNetworkView` component (partner role branch). Header "My Network" + "YOUR AGENTS" section with connection cards (40px avatar, name, company, deal count badge, Message CTA). Empty state: people icon + "No connections yet" + subtext. Uses `useDemoRole()` for role branching. Existing agent/contractor view extracted to `AgentNetworkView` — zero changes to existing behavior.
+- **Modified:** `components/BottomTabNavigator.tsx` — Network tab now visible for partner role. Changed `demoRole !== 'agent'` to `demoRole === 'contractor'` on tabBarButton/tabBarItemStyle. Partner gets 5 tabs: Home, Deals, Network, Inbox, Profile.
+- **Key decisions:** (1) One Layout Tree rule preserved — partner branch is a component inside NetworkTab.tsx, not a separate file. (2) RPC Consumer Audit applied: `?? ''` on agent_name, `?? '#999999'` on agent_avatar_color, `?? ''` on agent_company. (3) Network tab visibility expanded from agent-only to agent+partner.
+- **Metrics:** Hooks: 74 (+1: usePartnerAcceptedConnections) | **tsc:** 0
+- **S104 next objectives:** Next.js closing tracker web app, partner hooks device testing, live deal creation E2E test, partner Network tab device testing
