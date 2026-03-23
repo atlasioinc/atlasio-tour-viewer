@@ -879,7 +879,7 @@ const HomeTabAgent: React.FC = () => {
               {activeDeals!.map((deal) => {
                 // Count undismissed alerts across all partners
                 const totalAlerts = deal.partners.reduce(
-                  (sum, p) => sum + p.alerts.filter(a => !a.dismissed_at).length, 0,
+                  (sum, p) => sum + (p.alerts ?? []).filter(a => !a.dismissed_at).length, 0,
                 );
                 const closingLabel = deal.closing_date
                   ? new Date(deal.closing_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
