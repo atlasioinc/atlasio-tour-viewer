@@ -2480,11 +2480,13 @@ export function useAgentDeals() {
 // Returns: AgentActiveDeal[] — deals with seeded milestones
 // Mock data: 2 deals (1 with rate_lock alert + 1 stale milestone, 1 clean)
 
+// @s99-todo: wire live path when rpc_get_deal_board_for_agent is deployed to Supabase
+// Cache invalidation from useCreateTransaction is already wired (S97) — will work once this hook queries live data
 export function useAgentActiveDeals(transactionId?: string) {
   return useQuery({
     queryKey: ['agent_active_deals', transactionId ?? null],
     queryFn: async (): Promise<AgentActiveDeal[]> => {
-      // @demo — return mock deals
+      // @demo — return mock deals (no RPC exists yet — rpc_get_deal_board_for_agent not in schema.sql)
       // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid(), p_transaction_id: transactionId ?? null }
       return MOCK_AGENT_ACTIVE_DEALS;
     },
@@ -2594,7 +2596,10 @@ export function useCreateTransaction() {
       return data;
     },
     onSuccess: () => {
+      // query key must match useAgentActiveDeals exactly
       qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
+      // query key must match useAgentDeals exactly (AgentDealsScreen)
+      qc.invalidateQueries({ queryKey: ['agent_deals'] });
     },
   });
 }

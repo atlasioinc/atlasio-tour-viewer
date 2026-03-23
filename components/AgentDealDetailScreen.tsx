@@ -111,7 +111,9 @@ const AgentDealDetailScreen: React.FC = () => {
 
   // ── Data ──
   const { data: allDeals } = useAgentActiveDeals();
-  const deal = allDeals?.find(d => d.job_id === jobId);
+  // Look up by job_id first, fall back to transaction_id (new deals from rpc_create_transaction pass transaction_id as jobId)
+  const deal = allDeals?.find(d => d.job_id === jobId)
+    ?? allDeals?.find(d => d.transaction_id === jobId);
 
   // @backend S88: prefer deal.transaction_id (authoritative), fall back to route param, then undefined
   const transactionId = deal?.transaction_id ?? routeTransactionId;

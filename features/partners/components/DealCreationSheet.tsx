@@ -322,9 +322,16 @@ export default function DealCreationSheet() {
       {/* ── Primary CTA: View Deal ── */}
       <Pressable
         onPress={() => {
-          // @demo navigation.goBack() only — AgentDealDetail not wired to mock yet
-          // @backend navigation.goBack() then navigation.push('AgentDealDetail', { jobId: newDealId })
+          // @backend rpc_create_transaction returns transaction_id → used as jobId + transactionId
+          // Step 1: dismiss fullScreenModal
           navigation.goBack();
+          // Step 2: push to deal detail after modal dismiss completes
+          setTimeout(() => {
+            navigation.push('AgentDealDetail', {
+              jobId: newDealId,
+              transactionId: newDealId,
+            });
+          }, 0);
         }}
         style={({ pressed }) => ({
           marginTop: 40,
