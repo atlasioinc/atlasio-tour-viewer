@@ -876,7 +876,7 @@ const HomeTabAgent: React.FC = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 12 }}
             >
-              {activeDeals!.map((deal) => {
+              {(activeDeals ?? []).map((deal) => {
                 // Count undismissed alerts across all partners
                 const totalAlerts = deal.partners.reduce(
                   (sum, p) => sum + (p.alerts ?? []).filter(a => !a.dismissed_at).length, 0,

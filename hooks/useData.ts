@@ -2486,7 +2486,7 @@ export function useAgentActiveDeals(transactionId?: string) {
         // @backend rpc_get_agent_deals() — no params, uses auth.uid()
         const { data, error } = await supabase.rpc('rpc_get_agent_deals');
         if (error || !data?.success) throw error;
-        return data.deals;
+        return (data.deals ?? []) as AgentActiveDeal[];
       } catch (e) {
         console.warn('[useAgentActiveDeals] rpc_get_agent_deals failed, using mock:', e);
         // @demo hardcoded — mock fallback preserves demo app
