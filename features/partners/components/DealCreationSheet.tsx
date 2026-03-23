@@ -326,10 +326,19 @@ export default function DealCreationSheet() {
           // Step 1: dismiss fullScreenModal
           navigation.goBack();
           // Step 2: push to deal detail after modal dismiss completes
+          // @demo dealData passed via route params — deal is not yet in useAgentActiveDeals cache
+          // @s100-todo remove dealData passthrough once useAgentActiveDeals is wired to live RPC
           setTimeout(() => {
             navigation.push('AgentDealDetail', {
               jobId: newDealId,
               transactionId: newDealId,
+              dealData: {
+                job_id: newDealId,
+                transaction_id: newDealId,
+                address: selectedAddress,
+                closing_date: closingDateObj ? closingDateObj.toISOString().split('T')[0] : null,
+                partners: [], // empty — no milestones exist yet for a just-created deal
+              },
             });
           }, 0);
         }}

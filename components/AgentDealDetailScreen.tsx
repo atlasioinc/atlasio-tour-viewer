@@ -107,13 +107,16 @@ function getStaleDays(milestone: { updated_at: string }): number {
 const AgentDealDetailScreen: React.FC = () => {
   const route = useRoute<RouteProp<HomeStackParamList, 'AgentDealDetail'>>();
   const navigation = useNavigation();
-  const { jobId, transactionId: routeTransactionId } = route.params;
+  const { jobId, transactionId: routeTransactionId, dealData: routeDealData } = route.params;
 
   // ── Data ──
   const { data: allDeals } = useAgentActiveDeals();
-  // Look up by job_id first, fall back to transaction_id (new deals from rpc_create_transaction pass transaction_id as jobId)
+  // Look up by job_id first, fall back to transaction_id, then use routeDealData passed from DealCreationSheet
+  // @demo routeDealData fallback — used when deal was just created and not yet in cache
+  // @s100-todo remove routeDealData fallback once useAgentActiveDeals is wired to live rpc_get_agent_deals
   const deal = allDeals?.find(d => d.job_id === jobId)
-    ?? allDeals?.find(d => d.transaction_id === jobId);
+    ?? allDeals?.find(d => d.transaction_id === jobId)
+    ?? routeDealData;
 
   // @backend S88: prefer deal.transaction_id (authoritative), fall back to route param, then undefined
   const transactionId = deal?.transaction_id ?? routeTransactionId;

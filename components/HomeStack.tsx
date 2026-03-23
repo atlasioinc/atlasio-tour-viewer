@@ -35,6 +35,7 @@ import AgentDealDetailScreen from './AgentDealDetailScreen';
 import AgentDealsScreen from './AgentDealsScreen';
 import DealCreationSheet from '../features/partners/components/DealCreationSheet';
 import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis, RadiusMi } from '../types/neighborhood';
+import type { AgentActiveDeal } from '../features/partners/types/partner.types';
 
 // ─────────────────────────────────────────────
 // TYPE DEFINITIONS
@@ -101,6 +102,7 @@ export type HomeStackParamList = {
   AgentDealDetail: {
     jobId: string;
     transactionId?: string; // S88: optional — used for Realtime channel subscription
+    dealData?: AgentActiveDeal; // S99: passed from DealCreationSheet for newly created deals not yet in cache
   };
   AddressComparisonScreen: {
     priorities: LifestylePriority[];
