@@ -35,8 +35,8 @@ import SearchField from './SearchField';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useChatThreads } from '../hooks/useData';
-import { adaptChatThreadToLocal } from '../lib/typeAdapters';
+import { useChatThreads, useInboxThreads } from '../hooks/useData';
+import { adaptChatThreadToLocal, adaptInboxThreadToLocal } from '../lib/typeAdapters';
 import { VerificationBanner } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
@@ -122,6 +122,7 @@ interface ChatThread {
   lastMessage: string;
   timestamp: string;
   isUnread: boolean;
+  unreadCount?: number;
   isPinned: boolean;
   isGroup: boolean;
   memberCount?: number;
@@ -131,6 +132,10 @@ interface ChatThread {
   contactRole?: string;
   /** @demo — address for deal context threads; replace with thread.deal.address when LIVE */
   dealAddress?: string;
+  // Navigation helpers from RPC data
+  threadId?: string;
+  otherMemberUserId?: string;
+  otherMemberCompany?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -448,7 +453,15 @@ const SwipeableThreadRow: React.FC<{
             )}
 
             {thread.isUnread && (
-              <View style={{ width: 8, height: 8, borderRadius: 9999, backgroundColor: COLORS.primary }} />
+              (thread.unreadCount ?? 0) > 0 ? (
+                <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 9999, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>
+                    {(thread.unreadCount ?? 0) > 99 ? '99+' : thread.unreadCount}
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ width: 8, height: 8, borderRadius: 9999, backgroundColor: COLORS.primary }} />
+              )
             )}
           </View>
         </View>
@@ -468,14 +481,25 @@ const InboxList: React.FC = () => {
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
   const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
-  // ── Live data hook (keeps cache warm) ──
+  // ── Live data hooks ──
+  // @backend rpc_get_inbox_threads() — no params, auth.uid()
+  // Returns threads with other_member profile + unread_count
+  const { data: inboxThreads } = useInboxThreads();
+  // Legacy hook kept for backward compatibility
   const { data: liveThreads } = useChatThreads();
 
   React.useEffect(() => {
-    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveThreads) {
+    if (FEATURE_FLAGS.USE_MOCK_DATA) return;
+    // Prefer RPC-based inbox threads over legacy direct query
+    if (inboxThreads && inboxThreads.length > 0) {
+      setThreads(inboxThreads.map(adaptInboxThreadToLocal));
+      return;
+    }
+    // Fallback: legacy useChatThreads
+    if (liveThreads) {
       setThreads(liveThreads.map(adaptChatThreadToLocal));
     }
-  }, [liveThreads]);
+  }, [inboxThreads, liveThreads]);
 
   const filteredThreads = threads.filter((t) => {
     if (searchText.length === 0) return true;
@@ -513,25 +537,27 @@ const InboxList: React.FC = () => {
   // ── Navigate to chat screen ──
   const handleThreadPress = useCallback((thread: ChatThread) => {
     if (thread.isGroup) {
-      const parts = thread.name.split(/\s[-\u2013]\s/);
+      const parts = (thread.name ?? '').split(/\s[-\u2013]\s/);
       const propertyAddress = parts[0] ?? '';
 
       navigation.navigate('DealChatScreen' as any, {
-        dealName: thread.name,
+        dealName: thread.name ?? '',
         propertyAddress,
         closingDate: '',
       });
     } else {
-      const parts = thread.name.split(/\s[-\u2013]\s/);
-      const contactName = parts[0] ?? thread.name;
-      const contactCompany = parts[1] ?? '';
+      // Use RPC-sourced fields when available, fall back to parsed name
+      const resolvedThreadId = thread.threadId ?? thread.id;
+      const parts = (thread.name ?? '').split(/\s[-\u2013]\s/);
+      const contactName = parts[0] ?? thread.name ?? 'Unknown';
+      const contactCompany = thread.otherMemberCompany ?? parts[1] ?? '';
 
       navigation.navigate('ChatScreen', {
-        threadId: thread.id,
+        threadId: resolvedThreadId,
         contactName,
         contactCompany,
         contactRole: thread.contactRole ?? '',
-        contactAvatarColor: thread.avatarColors?.[0] ?? '#7BA3C9',
+        contactAvatarColor: (thread.avatarColors ?? [])[0] ?? '#7BA3C9',
         dealAddress: thread.dealAddress,
       });
     }

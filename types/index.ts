@@ -518,6 +518,48 @@ export interface Recipient {
 }
 
 // ─────────────────────────────────────────────
+// RPC RESPONSE TYPES — rpc_get_inbox_threads, rpc_get_thread_messages
+// @backend These mirror the exact JSON shape returned by the RPCs
+// ─────────────────────────────────────────────
+
+/** @backend rpc_get_inbox_threads() — single thread in the response array */
+export interface InboxThread {
+  thread_id: string;
+  type: 'one_to_one' | 'job_thread' | 'deal';
+  name: string | null;
+  job_id: string | null;
+  property_address: string | null;
+  closing_date: string | null;
+  is_pinned: boolean;
+  is_archived: boolean;
+  last_message: string | null;
+  last_message_at: string | null;
+  created_at: string;
+  is_muted: boolean;
+  last_read_at: string | null;
+  other_member: {
+    user_id: string;
+    name: string | null;
+    avatar_color: string | null;
+    company: string | null;
+  };
+  unread_count: number;
+}
+
+/** @backend rpc_get_thread_messages(p_thread_id) — single message in the response array */
+export interface ThreadMessage {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  sender_name: string;
+  content: string;
+  type: string;
+  attachment_url: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+// ─────────────────────────────────────────────
 // NOTIFICATION
 // Table: notifications
 // ─────────────────────────────────────────────

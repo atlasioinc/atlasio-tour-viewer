@@ -23,7 +23,7 @@
 //   @backend: Supabase tables + RPCs referenced throughout
 // ─────────────────────────────────────────────
 //
-// HOOK CATALOG (56 hooks, 14 sections):
+// HOOK CATALOG (58 hooks, 14 sections):
 //   QUERY KEYS           — centralized cache keys for invalidation
 //   PROFILE (5)          — useMyProfile, useProfile, useUpdateProfile,
 //                          useConnectionStatus, useProfileVouches
@@ -35,8 +35,9 @@
 //                          useMarkJobComplete, useConfirmJobComplete, useRequestJobRevision,
 //                          useCreateJob, useUpdateJob, useInviteContractors
 //   VOUCH FEED (2)       — useVouchFeed, useLikeVouch
-//   CHAT / INBOX (6)     — useChatThreads, useMarkThreadRead, useChatRecipients,
-//                          useCreateThread, useMessages, useSendMessage
+//   CHAT / INBOX (8)     — useChatThreads, useMarkThreadRead, useChatRecipients,
+//                          useCreateThread, useMessages, useSendMessage,
+//                          useInboxThreads, useThreadMessages
 //   NOTIFICATIONS (3)    — useNotifications, useMarkNotificationsRead, useUnreadNotificationCount
 //   FIND / SEARCH (4)    — useSearchPros, useFindPros, useRecommendedPros, useTrendingPros
 //   SQUADS (3)           — useSquadMembers, useAssignSquadMember, useRemoveSquadMember
@@ -77,6 +78,8 @@ import type {
   SquadShareEmailParams,
   SquadShareSmsParams,
   SquadShareResult,
+  InboxThread,
+  ThreadMessage,
 } from '../types';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 
@@ -112,6 +115,8 @@ export const queryKeys = {
   chatMessages: (conversationId: string) => ['messages', conversationId] as const,
   messages: (threadId: string) => ['messages', threadId] as const,
   chatRecipients: ['chat-recipients'] as const,
+  inboxThreads: ['inbox_threads'] as const,
+  threadMessages: (threadId: string) => ['thread_messages', threadId] as const,
 
   // Notifications
   notifications: ['notifications'] as const,
@@ -1269,8 +1274,9 @@ export const useChatRecipients = () => {
 };
 
 /**
- * Create a new chat thread with first message
- * No RPC available — uses two sequential inserts
+ * Create a new chat thread with first message (idempotent — reuses existing 1:1 thread)
+ * @backend rpc_create_thread({ p_recipient_id, p_first_message })
+ * Returns { success, thread_id, existing }
  */
 // STATUS: wired (with mock fallback)
 export const useCreateThread = () => {
@@ -1292,6 +1298,7 @@ export const useCreateThread = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.chatThreads });
+      qc.invalidateQueries({ queryKey: queryKeys.inboxThreads });
     },
   });
 };
@@ -1327,8 +1334,9 @@ export const useMessages = (threadId: string) => {
 };
 
 /**
- * Send a message
- * Reads sender_name from cached profile (queryKeys.myProfile)
+ * Send a message in an existing thread
+ * @backend rpc_send_message({ p_thread_id, p_content })
+ * Returns { success, message_id, thread_id }
  */
 // STATUS: wired (with mock fallback)
 export const useSendMessage = () => {
@@ -1338,39 +1346,81 @@ export const useSendMessage = () => {
     mutationFn: async ({
       threadId,
       content,
-      type = 'text',
     }: {
       threadId: string;
       content: string;
-      type?: 'text' | 'image' | 'document';
     }) => {
       try {
-        const userId = await getCurrentUserId();
-        if (!userId) throw new Error('Not authenticated');
-        // Get sender name from cached profile
-        const cachedProfile = qc.getQueryData<Profile>(queryKeys.myProfile);
-        const senderName = cachedProfile?.name ?? '';
-        const { data, error } = await supabase
-          .from('messages')
-          .insert({ thread_id: threadId, sender_id: userId, sender_name: senderName, content, type })
-          .select()
-          .single();
+        const { data, error } = await supabase.rpc('rpc_send_message', {
+          p_thread_id: threadId,
+          p_content: content,
+        });
         if (error) throw error;
-        return data as Message;
+        return data as { success: boolean; message_id: string; thread_id: string };
       } catch (err) {
         console.warn('[useSendMessage] Supabase failed, using mock fallback', err);
-        // TODO: [PRODUCTION] Remove mock fallback
-        return {
-          id: `msg-${Date.now()}`, thread_id: threadId, sender_id: '',
-          sender_name: '', content, type: 'text', attachment_url: null,
-          is_read: false, created_at: new Date().toISOString(),
-        } as Message;
+        // @demo mock fallback — preserves demo app
+        return { success: true, message_id: `msg-${Date.now()}`, thread_id: threadId };
       }
     },
     onSuccess: (_, { threadId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.messages(threadId) });
+      qc.invalidateQueries({ queryKey: queryKeys.threadMessages(threadId) });
       qc.invalidateQueries({ queryKey: queryKeys.chatThreads });
+      qc.invalidateQueries({ queryKey: queryKeys.inboxThreads });
     },
+  });
+};
+
+/**
+ * Fetch inbox threads for current user (ordered by last_message_at DESC)
+ * @backend rpc_get_inbox_threads() — no params, uses auth.uid()
+ * Returns InboxThread[] with other_member profile + unread_count
+ */
+// STATUS: wired (with mock fallback)
+export const useInboxThreads = () => {
+  return useQuery({
+    queryKey: queryKeys.inboxThreads,
+    queryFn: async (): Promise<InboxThread[]> => {
+      if (FEATURE_FLAGS.USE_MOCK_DATA) return [];
+      try {
+        const { data, error } = await supabase.rpc('rpc_get_inbox_threads');
+        if (error) throw error;
+        // @demo mock fallback — empty array keeps demo inbox showing INITIAL_THREADS
+        return (data ?? []) as InboxThread[];
+      } catch (err) {
+        console.warn('[useInboxThreads] Supabase failed, using mock fallback', err);
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * Fetch messages for a specific thread
+ * @backend rpc_get_thread_messages({ p_thread_id }) — validates membership, marks last_read_at
+ * Returns ThreadMessage[] ordered ASC by created_at
+ */
+// STATUS: wired (with mock fallback)
+export const useThreadMessages = (threadId: string | undefined) => {
+  return useQuery({
+    queryKey: queryKeys.threadMessages(threadId ?? ''),
+    queryFn: async (): Promise<ThreadMessage[]> => {
+      if (!threadId) return [];
+      try {
+        const { data, error } = await supabase.rpc('rpc_get_thread_messages', {
+          p_thread_id: threadId,
+        });
+        if (error) throw error;
+        const result = data as { success: boolean; messages: ThreadMessage[] } | null;
+        // @demo mock fallback — empty array when RPC returns nothing
+        return (result?.messages ?? []) as ThreadMessage[];
+      } catch (err) {
+        console.warn('[useThreadMessages] Supabase failed, using mock fallback', err);
+        return [];
+      }
+    },
+    enabled: !!threadId,
   });
 };
 

@@ -37,7 +37,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA:            false,     // @demo — true = demo mode, false = live Supabase
+  USE_MOCK_DATA:            true,      // @demo — true = demo mode, false = live Supabase
   LIVE_ONBOARDING:          false,  // true = call rpc_complete_onboarding
   LIVE_CONTRACTOR_HOOKS:    true,   // true = contractor hooks call live RPCs (permanent since S36)
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)

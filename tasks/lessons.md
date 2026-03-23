@@ -28,6 +28,14 @@ Before committing ANY hook wired to a live RPC for the first time:
 S100 cost: 3 back-to-back crashes, 3 hotfixes, 8 files changed.
 This rule prevents the entire class of bug.
 
+## RULE — Never use non-null assertion (!) on hook data (added S104, March 23 2026)
+
+Replace all `data!.property` and `array!.map()` patterns with
+`(data ?? []).map()` or `(data ?? {})` defensive guards.
+The `!` operator trusts that data is never null — live RPCs can return null
+for empty results even when COALESCE is in the RPC body.
+S104: `activeDeals!.map()` crashed when partner test user had no agent deals.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

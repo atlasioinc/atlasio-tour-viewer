@@ -9,6 +9,7 @@
 
 import type {
   ChatThreadView,
+  InboxThread,
   Message,
   Profile,
   Connection,
@@ -27,11 +28,18 @@ interface InboxChatThread {
   lastMessage: string;
   timestamp: string;
   isUnread: boolean;
+  unreadCount?: number;
   isPinned: boolean;
   isGroup: boolean;
   memberCount?: number;
   avatarColors: string[];
   isOnline?: boolean;
+  contactRole?: string;
+  dealAddress?: string;
+  // Navigation helpers from RPC data
+  threadId?: string;
+  otherMemberUserId?: string;
+  otherMemberCompany?: string;
 }
 
 export const adaptChatThreadToLocal = (thread: ChatThreadView): InboxChatThread => ({
@@ -48,6 +56,46 @@ export const adaptChatThreadToLocal = (thread: ChatThreadView): InboxChatThread 
   avatarColors: thread.avatar_colors,
   isOnline: thread.is_online,
 });
+
+// ─────────────────────────────────────────────
+// InboxList: InboxThread (RPC) → local ChatThread
+// @backend rpc_get_inbox_threads() — maps RPC response to InboxList display shape
+// ─────────────────────────────────────────────
+
+export const adaptInboxThreadToLocal = (thread: InboxThread): InboxChatThread => ({
+  id: thread.thread_id,
+  name: (thread.other_member?.name ?? '') || (thread.name ?? ''),
+  lastMessage: thread.last_message ?? '',
+  timestamp: thread.last_message_at
+    ? formatRelativeTimestamp(thread.last_message_at)
+    : '',
+  isUnread: (thread.unread_count ?? 0) > 0,
+  unreadCount: thread.unread_count ?? 0,
+  isPinned: thread.is_pinned ?? false,
+  isGroup: thread.type !== 'one_to_one',
+  avatarColors: [thread.other_member?.avatar_color ?? '#7BA3C9'],
+  contactRole: '',
+  dealAddress: thread.property_address ?? undefined,
+  // Pass through for navigation
+  threadId: thread.thread_id,
+  otherMemberUserId: thread.other_member?.user_id ?? '',
+  otherMemberCompany: thread.other_member?.company ?? '',
+});
+
+function formatRelativeTimestamp(isoString: string): string {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `${diffMins}m`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()] ?? `${diffDays}d`;
+  }
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 // ─────────────────────────────────────────────
 // ChatScreen: types.Message → MessageBubble.Message

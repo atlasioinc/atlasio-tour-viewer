@@ -43,7 +43,7 @@ import type { Message } from './MessageBubble';
 import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useMessages, useSendMessage, useMarkThreadRead } from '../hooks/useData';
+import { useMessages, useSendMessage, useMarkThreadRead, useCreateThread, useThreadMessages } from '../hooks/useData';
 import { useRealtimeMessages } from '../hooks/useRealtime';
 import { adaptMessageToBubble } from '../lib/typeAdapters';
 import { supabase } from '../lib/supabase';
@@ -237,18 +237,26 @@ const AddContactRow: React.FC<{
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<ChatScreenRouteProp>();
-  const { threadId, contactName, contactCompany, contactRole, contactAvatarColor, dealAddress } = route.params;
+  const { threadId: initialThreadId, recipientId, contactName, contactCompany, contactRole, contactAvatarColor, dealAddress } = route.params;
+
+  // ── Active thread ID — starts from route param, set after rpc_create_thread on first send ──
+  const [activeThreadId, setActiveThreadId] = useState<string | undefined>(initialThreadId);
 
   // ── Live data hooks ──
-  const { data: liveMessages } = useMessages(threadId);
+  // @backend rpc_get_thread_messages({ p_thread_id }) — load on mount when threadId known
+  const { data: rpcMessages } = useThreadMessages(activeThreadId);
+  // Legacy hook kept for realtime subscription compatibility
+  const { data: liveMessages } = useMessages(activeThreadId ?? '');
   const sendMessage = useSendMessage();
+  // @backend rpc_create_thread({ p_recipient_id, p_first_message }) — first message only
+  const createThread = useCreateThread();
   const markRead = useMarkThreadRead();
-  useRealtimeMessages(threadId);
+  useRealtimeMessages(activeThreadId ?? '');
 
   // Mark thread as read when screen mounts
   useEffect(() => {
-    if (threadId) markRead.mutate(threadId);
-  }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (activeThreadId) markRead.mutate(activeThreadId);
+  }, [activeThreadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth: resolve current user ID for message ownership ──
   const [currentUserId, setCurrentUserId] = useState<string>('current-user-id');
@@ -267,15 +275,30 @@ const ChatScreen: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
   const [attachments, setAttachments] = useState<{ type: 'photo' | 'document'; uri: string; name: string }[]>([]);
   const [messages, setMessages] = useState<Message[]>(FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_MESSAGES : []);
-  const [hasSentFirstMessage, setHasSentFirstMessage] = useState(true); // true = show conversation header
+  const [hasSentFirstMessage, setHasSentFirstMessage] = useState(!!initialThreadId); // true when opening existing thread
 
   // ── Sync live messages when feature flag is off ──
+  // Prefer RPC messages (useThreadMessages) over direct query (useMessages)
   useEffect(() => {
-    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveMessages && liveMessages.length > 0) {
+    if (FEATURE_FLAGS.USE_MOCK_DATA) return;
+    // RPC messages from rpc_get_thread_messages
+    if (rpcMessages && rpcMessages.length > 0) {
+      const adapted = rpcMessages.map((m) => ({
+        id: m.id,
+        text: m.content ?? '',
+        timestamp: new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        isMine: m.sender_id === currentUserId,
+        senderName: m.sender_name ?? undefined,
+      }));
+      setMessages(adapted);
+      return;
+    }
+    // Fallback: legacy direct query messages
+    if (liveMessages && liveMessages.length > 0) {
       const adapted = liveMessages.map((m) => adaptMessageToBubble(m, currentUserId));
       setMessages(adapted);
     }
-  }, [liveMessages, currentUserId]);
+  }, [rpcMessages, liveMessages, currentUserId]);
   const toInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -359,17 +382,34 @@ const ChatScreen: React.FC = () => {
   }, [messages]);
 
   // ── Handlers ──
-  const handleSend = () => {
+  // @backend rpc_send_message({ p_thread_id, p_content }) — subsequent messages
+  // @backend rpc_create_thread({ p_recipient_id, p_first_message }) — first message only
+  const handleSend = async () => {
     if (messageText.trim().length === 0 && attachments.length === 0) return;
 
     const content = messageText.trim() || (attachments.length > 0 ? `📎 ${attachments.length} attachment(s)` : '');
 
     if (!FEATURE_FLAGS.USE_MOCK_DATA) {
-      // Live mode: send via Supabase mutation (cache invalidation refreshes messages)
-      sendMessage.mutate({ threadId, content });
+      if (activeThreadId) {
+        // Thread exists — send message directly via RPC
+        sendMessage.mutate({ threadId: activeThreadId, content });
+      } else if (recipientId) {
+        // First message — create thread via RPC, store returned thread_id
+        try {
+          const result = await createThread.mutateAsync({
+            recipientId,
+            firstMessage: content,
+          });
+          if (result?.thread_id) {
+            setActiveThreadId(result.thread_id);
+          }
+        } catch (err) {
+          console.warn('[ChatScreen] createThread failed', err);
+        }
+      }
     }
 
-    // Always append locally for instant feedback
+    // Always append locally for instant feedback (optimistic update)
     const newMessage: Message = {
       id: `m${Date.now()}`,
       text: content,

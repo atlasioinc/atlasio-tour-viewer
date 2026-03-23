@@ -23,7 +23,10 @@ export type InboxStackParamList = {
   InboxList: undefined;
   NewMessage: undefined;
   ChatScreen: {
-    threadId: string;
+    /** threads.id UUID — required when opening an existing thread (from InboxList) */
+    threadId?: string;
+    /** profiles.id UUID — required when starting a new conversation (from ProCard / contact) */
+    recipientId?: string;
     contactName: string;
     contactCompany: string;
     contactRole: string;
