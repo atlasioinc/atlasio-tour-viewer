@@ -398,7 +398,8 @@ const HomeTabAgent: React.FC = () => {
   };
 
   const handleFindNewPro = () => {
-    console.log('Navigate to Find Tab');
+    setPickerVisible(false);
+    navigation.dispatch(CommonActions.navigate({ name: 'Find' }));
   };
 
   const handleRemovePro = () => {

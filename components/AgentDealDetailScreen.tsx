@@ -21,7 +21,7 @@
 // dismiss alert → useAgentDismissDealAlert mutation (optimistic)
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Share, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, Share, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -127,31 +127,38 @@ const AgentDealDetailScreen: React.FC = () => {
   const [smsSent, setSmsSent] = useState(false);
 
   const handleShare = async () => {
+    if (!transactionId) {
+      Alert.alert('Unable to share', 'No transaction ID found for this deal.');
+      return;
+    }
     try {
+      // @backend rpc_generate_client_token(p_transaction_id)
       const result = await generateToken.mutateAsync({
-        transactionId: transactionId ?? 'mock-transaction-001',
+        transactionId,
       });
       setGeneratedUrl(result.url);
       await Share.share({
         url: result.url,
         message: 'Track your closing progress: ' + result.url,
       });
-    } catch {
-      // silently fail in demo — live error handling in production
+    } catch (err: any) {
+      console.error('[AgentDealDetailScreen] handleShare error:', err);
+      Alert.alert('Unable to share', err?.message ?? 'Failed to generate sharing link.');
     }
   };
 
   // @backend rpc_generate_client_token(p_transaction_id, p_notify_phone) — idempotent, re-calls with phone to trigger SMS
   const handleSendSms = async () => {
-    if (!notifyPhone.trim()) return;
+    if (!notifyPhone.trim() || !transactionId) return;
     try {
       await generateToken.mutateAsync({
-        transactionId: transactionId ?? 'mock-transaction-001',
+        transactionId,
         notifyPhone: notifyPhone.trim(),
       });
       setSmsSent(true);
-    } catch {
-      // silently fail in demo
+    } catch (err: any) {
+      console.error('[AgentDealDetailScreen] handleSendSms error:', err);
+      Alert.alert('SMS failed', err?.message ?? 'Could not send SMS.');
     }
   };
 
@@ -224,21 +231,19 @@ const AgentDealDetailScreen: React.FC = () => {
         titleSize={15}
         titleColor={COLORS.darkText}
         rightElement={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {/* @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id) */}
-            {/* S88: transactionId wired from deal.transaction_id ?? route param */}
-            <Pressable
-              onPress={handleShare}
-              disabled={generateToken.isPending}
-              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: generateToken.isPending ? 0.5 : 1 }}
-            >
+          /* @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id) */
+          /* S88: transactionId wired from deal.transaction_id ?? route param */
+          <Pressable
+            onPress={handleShare}
+            disabled={generateToken.isPending}
+            style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: generateToken.isPending ? 0.5 : 1 }}
+          >
+            {generateToken.isPending ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
               <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Share</Text>
-            </Pressable>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <View style={{ width: 6, height: 6, borderRadius: 9999, backgroundColor: COLORS.successGreen }} />
-              <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.successGreen }}>Live</Text>
-            </View>
-          </View>
+            )}
+          </Pressable>
         }
         onBack={() => navigation.goBack()}
       />

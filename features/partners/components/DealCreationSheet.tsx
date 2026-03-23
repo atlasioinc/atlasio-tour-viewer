@@ -162,6 +162,7 @@ export default function DealCreationSheet() {
   // @demo hardcoded fallback 'mock-transaction-001' — never undefined
   // @backend rpc_create_transaction returns transaction_id on success
   const [newDealId, setNewDealId] = useState<string>('mock-transaction-001');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // ── Autocomplete state ──
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -259,6 +260,7 @@ export default function DealCreationSheet() {
   // ── Submit ──
   const handleCreateDeal = async () => {
     if (!isFormValid) return;
+    setErrorMessage(null);
 
     const partnerAssignments = selectedPartnerIds.map(id => {
       const partner = MOCK_CONNECTED_PARTNERS.find(p => p.id === id);
@@ -268,22 +270,27 @@ export default function DealCreationSheet() {
       };
     });
 
-    // @backend rpc_create_transaction — p_property_address, p_closing_date, p_contract_price, p_partner_assignments
-    // @backend p_closing_date: ISO date string (YYYY-MM-DD) or null
-    // @backend p_contract_price: raw number or null
-    // NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
-    const result = await createTransaction.mutateAsync({
-      propertyAddress: selectedAddress,
-      closingDate: closingDateObj ? closingDateObj.toISOString().split('T')[0] : null,
-      contractPrice: contractPrice ? Number(contractPrice) : null,
-      partnerAssignments,
-    });
+    try {
+      // @backend rpc_create_transaction — p_property_address, p_closing_date, p_contract_price, p_partner_assignments
+      // @backend p_closing_date: ISO date string (YYYY-MM-DD) or null
+      // @backend p_contract_price: raw number or null
+      // NOTE: anchors to transaction_id (S64+). job_id preserved for backward compat only.
+      const result = await createTransaction.mutateAsync({
+        propertyAddress: selectedAddress,
+        closingDate: closingDateObj ? closingDateObj.toISOString().split('T')[0] : null,
+        contractPrice: contractPrice ? Number(contractPrice) : null,
+        partnerAssignments,
+      });
 
-    // @backend result.transaction_id — real ID from rpc_create_transaction
-    // @demo mock returns transaction_id: `mock-txn-${Date.now()}` — always has a value
-    const dealId = result?.transaction_id ?? 'mock-transaction-001';
-    setNewDealId(dealId);
-    setShowSuccess(true);
+      // @backend result.transaction_id — real ID from rpc_create_transaction
+      // @demo mock returns transaction_id: `mock-txn-${Date.now()}` — always has a value
+      const dealId = result?.transaction_id ?? 'mock-transaction-001';
+      setNewDealId(dealId);
+      setShowSuccess(true);
+    } catch (err: any) {
+      console.error('[DealCreationSheet] rpc_create_transaction error:', err);
+      setErrorMessage(err?.message ?? 'Failed to create deal. Please try again.');
+    }
   };
 
   // ── Cleanup autocomplete timer ──
@@ -588,6 +595,11 @@ export default function DealCreationSheet() {
             backgroundColor: COLORS.background,
             borderTopWidth: 0.69, borderTopColor: COLORS.border,
           }}>
+            {errorMessage && (
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.errorRed, marginBottom: 12 }}>
+                {errorMessage}
+              </Text>
+            )}
             <Pressable
               onPress={handleCreateDeal}
               disabled={!isFormValid || createTransaction.isPending}
