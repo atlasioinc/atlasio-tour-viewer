@@ -187,10 +187,10 @@ export function usePartnerNeedsAttention(partnerId: string, role: PartnerRole) {
 
   const needsAttentionDeals = allDeals?.filter(deal => {
     // Deal has undismissed alerts
-    const hasAlerts = deal.alerts.length > 0;
+    const hasAlerts = (deal.alerts ?? []).length > 0;
 
     // Deal has a stale milestone (in_progress past stale_days threshold)
-    const hasStaleMilestone = deal.milestones.some(ms => isMilestoneStale(ms, role));
+    const hasStaleMilestone = (deal.milestones ?? []).some(ms => isMilestoneStale(ms, role));
 
     return hasAlerts || hasStaleMilestone;
   }) ?? [];
@@ -435,7 +435,7 @@ export function useUpdateMilestoneStatus() {
         ['partner_active_deals', variables.partnerId],
         (old) => old?.map(deal => ({
           ...deal,
-          milestones: deal.milestones.map(ms =>
+          milestones: (deal.milestones ?? []).map(ms =>
             ms.id === variables.milestoneId
               ? { ...ms, status: variables.status, completed_at: variables.completedAt, updated_at: new Date().toISOString() }
               : ms,
@@ -523,7 +523,7 @@ export function usePostDealAlert() {
             ? {
                 ...deal,
                 alerts: [
-                  ...deal.alerts,
+                  ...(deal.alerts ?? []),
                   {
                     id: `alert-${Date.now()}`,
                     job_id: variables.jobId,
@@ -590,7 +590,7 @@ export function useDismissDealAlert() {
         ['partner_active_deals', variables.partnerId],
         (old) => old?.map(deal => ({
           ...deal,
-          alerts: deal.alerts.filter(a => a.id !== variables.alertId),
+          alerts: (deal.alerts ?? []).filter(a => a.id !== variables.alertId),
         })),
       );
 
@@ -658,13 +658,13 @@ export function useRespondToDealInvitation() {
         ['partner_invitations'],
         (old) => {
           if (!old) return old;
-          const filtered = old.deal_invitations.filter(
+          const filtered = (old.deal_invitations ?? []).filter(
             inv => inv.id !== variables.transactionPartnerId,
           );
           return {
             ...old,
             deal_invitations: filtered,
-            total_count: old.connection_requests.length + filtered.length,
+            total_count: (old.connection_requests ?? []).length + filtered.length,
           };
         },
       );
