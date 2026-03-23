@@ -112,8 +112,9 @@ const AgentDealDetailScreen: React.FC = () => {
   // ── Data ──
   const { data: allDeals } = useAgentActiveDeals();
   // Look up by job_id first, fall back to transaction_id, then use routeDealData passed from DealCreationSheet
-  // @demo routeDealData fallback — used when deal was just created and not yet in cache
-  // @s100-todo remove routeDealData fallback once useAgentActiveDeals is wired to live rpc_get_agent_deals
+  // @demo fallback — routeDealData from route params used when deal not yet in cache
+  // Safe to remove post-launch once rpc_get_agent_deals cache is always warm
+  // Do NOT remove before TestFlight validation
   const deal = allDeals?.find(d => d.job_id === jobId)
     ?? allDeals?.find(d => d.transaction_id === jobId)
     ?? routeDealData;

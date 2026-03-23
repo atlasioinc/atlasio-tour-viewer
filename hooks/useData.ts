@@ -2474,21 +2474,26 @@ export function useAgentDeals() {
 }
 
 // ─── useAgentActiveDeals ──────────────────────────────────────
-// STATUS: mock
-// @backend rpc_get_deal_board_for_agent — one call per active job
+// STATUS: wired (with mock fallback)
+// @backend rpc_get_agent_deals() — no params, uses auth.uid()
+// Returns active deals with partner list for Home tab + AgentDealsScreen
 // When transactionId is provided, filters deal board by transaction_id instead of job_id.
-// Returns: AgentActiveDeal[] — deals with seeded milestones
-// Mock data: 2 deals (1 with rate_lock alert + 1 stale milestone, 1 clean)
+// Mock fallback: MOCK_AGENT_ACTIVE_DEALS (2 deals) — demo must never show empty Home tab
 
-// @s99-todo: wire live path when rpc_get_deal_board_for_agent is deployed to Supabase
-// Cache invalidation from useCreateTransaction is already wired (S97) — will work once this hook queries live data
 export function useAgentActiveDeals(transactionId?: string) {
   return useQuery({
     queryKey: ['agent_active_deals', transactionId ?? null],
     queryFn: async (): Promise<AgentActiveDeal[]> => {
-      // @demo — return mock deals (no RPC exists yet — rpc_get_deal_board_for_agent not in schema.sql)
-      // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid(), p_transaction_id: transactionId ?? null }
-      return MOCK_AGENT_ACTIVE_DEALS;
+      try {
+        // @backend rpc_get_agent_deals() — no params, uses auth.uid()
+        const { data, error } = await supabase.rpc('rpc_get_agent_deals');
+        if (error || !data?.success) throw error;
+        return data.deals;
+      } catch (e) {
+        console.warn('[useAgentActiveDeals] rpc_get_agent_deals failed, using mock:', e);
+        // @demo hardcoded — mock fallback preserves demo app
+        return MOCK_AGENT_ACTIVE_DEALS;
+      }
     },
   });
 }
@@ -2595,11 +2600,26 @@ export function useCreateTransaction() {
       if (error || !data?.success) throw new Error(data?.error ?? error?.message ?? 'Failed to create transaction');
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       // query key must match useAgentActiveDeals exactly
       qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
       // query key must match useAgentDeals exactly (AgentDealsScreen)
       qc.invalidateQueries({ queryKey: ['agent_deals'] });
+
+      // @backend rpc_seed_transaction_milestones({ p_transaction_id, p_partner_id, p_partner_role })
+      // Seeds milestone board for each partner immediately after deal creation
+      // Fire-and-forget — failure does not block the success flow
+      if (data?.transaction_id && !data.transaction_id.startsWith('mock-')) {
+        for (const partner of variables.partnerAssignments) {
+          supabase.rpc('rpc_seed_transaction_milestones', {
+            p_transaction_id: data.transaction_id,
+            p_partner_id: partner.partner_id,
+            p_partner_role: partner.partner_role,
+          }).then(res => {
+            if (res.error) console.warn('[seed milestones] failed for', partner.partner_id, res.error);
+          });
+        }
+      }
     },
   });
 }
