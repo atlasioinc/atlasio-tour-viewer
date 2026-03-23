@@ -95,9 +95,9 @@ export interface AlertTypeConfig {
 /** A single partner's milestones + alerts within a deal, as seen by the agent */
 export interface AgentDealPartner {
   partner_id: string;
-  partner_name: string;
+  name?: string;
   partner_role: PartnerRole;
-  partner_avatar_color: string;
+  partner_avatar_color?: string;
   milestones?: DealMilestone[];
   alerts?: DealAlert[];
 }

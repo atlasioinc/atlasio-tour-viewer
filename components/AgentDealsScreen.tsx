@@ -290,13 +290,13 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onPress }) => {
                     width: 28,
                     height: 28,
                     borderRadius: DIMENSIONS.pillRadius,
-                    backgroundColor: partner.partner_avatar_color,
+                    backgroundColor: partner.partner_avatar_color ?? COLORS.secondaryText,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
                   <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.background }}>
-                    {partner.partner_name.charAt(0)}
+                    {(partner.name ?? '').charAt(0)}
                   </Text>
                 </View>
                 {/* Status dot — bottom-right on avatar */}

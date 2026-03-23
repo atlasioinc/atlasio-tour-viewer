@@ -917,11 +917,11 @@ const HomeTabAgent: React.FC = () => {
                           <View key={partner.partner_id} style={{ position: 'relative' }}>
                             <View style={{
                               width: 28, height: 28, borderRadius: 9999,
-                              backgroundColor: partner.partner_avatar_color,
+                              backgroundColor: partner.partner_avatar_color ?? COLORS.secondaryText,
                               alignItems: 'center', justifyContent: 'center',
                             }}>
                               <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.background }}>
-                                {partner.partner_name.charAt(0)}
+                                {(partner.name ?? '').charAt(0)}
                               </Text>
                             </View>
                             {/* Status dot — bottom-right on avatar */}

@@ -287,18 +287,18 @@ const AgentDealDetailScreen: React.FC = () => {
                   {/* Avatar */}
                   <View style={{
                     width: 36, height: 36, borderRadius: 9999,
-                    backgroundColor: partner.partner_avatar_color,
+                    backgroundColor: partner.partner_avatar_color ?? COLORS.secondaryText,
                     alignItems: 'center', justifyContent: 'center',
                   }}>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>
-                      {partner.partner_name.charAt(0)}
+                      {(partner.name ?? '').charAt(0)}
                     </Text>
                   </View>
 
                   {/* Name + role */}
                   <View style={{ flex: 1, marginLeft: SPACING.lg }}>
                     <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}>
-                      {partner.partner_name}
+                      {partner.name ?? ''}
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
                       {partner.partner_role}
@@ -372,7 +372,7 @@ const AgentDealDetailScreen: React.FC = () => {
                     fontSize: 12, fontWeight: '600', color: COLORS.secondaryText,
                     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.lg,
                   }}>
-                    Updated by {partner.partner_name}
+                    Updated by {partner.name ?? ''}
                   </Text>
 
                   {(partner.milestones ?? [])

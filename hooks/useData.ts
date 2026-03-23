@@ -2256,7 +2256,7 @@ const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
     partners: [
       {
         partner_id: 'mock-partner-001',
-        partner_name: 'Sarah Chen',
+        name: 'Sarah Chen',
         partner_role: 'Title/Escrow',
         partner_avatar_color: '#7BA3C9',
         milestones: [
@@ -2281,7 +2281,7 @@ const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
       },
       {
         partner_id: 'mock-partner-002',
-        partner_name: 'James Rivera',
+        name: 'James Rivera',
         partner_role: 'Mortgage Pro',
         partner_avatar_color: '#A3C9A8',
         milestones: [
@@ -2306,7 +2306,7 @@ const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
     partners: [
       {
         partner_id: 'mock-partner-003',
-        partner_name: 'Priya Nair',
+        name: 'Priya Nair',
         partner_role: 'Title/Escrow',
         partner_avatar_color: '#C9A87B',
         milestones: [
@@ -2351,7 +2351,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
     partners: [
       {
         partner_id: 'mock-p-001',
-        partner_name: 'Sarah Chen',
+        name: 'Sarah Chen',
         partner_role: 'Title/Escrow',
         partner_avatar_color: '#7BA3C9',
         milestones: [
@@ -2363,7 +2363,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
       },
       {
         partner_id: 'mock-p-002',
-        partner_name: 'James Rivera',
+        name: 'James Rivera',
         partner_role: 'Mortgage Pro',
         partner_avatar_color: '#A3C9A8',
         milestones: [
@@ -2386,7 +2386,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
     partners: [
       {
         partner_id: 'mock-p-003',
-        partner_name: 'Priya Nair',
+        name: 'Priya Nair',
         partner_role: 'Title/Escrow',
         partner_avatar_color: '#C9A87B',
         milestones: [
@@ -2398,7 +2398,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
       },
       {
         partner_id: 'mock-p-004',
-        partner_name: 'Marcus Lee',
+        name: 'Marcus Lee',
         partner_role: 'Mortgage Pro',
         partner_avatar_color: '#C97BA3',
         milestones: [
@@ -2418,7 +2418,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
     partners: [
       {
         partner_id: 'mock-p-005',
-        partner_name: 'Olivia Park',
+        name: 'Olivia Park',
         partner_role: 'Title/Escrow',
         partner_avatar_color: '#9B7BC9',
         milestones: [
@@ -2438,7 +2438,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
     partners: [
       {
         partner_id: 'mock-p-006',
-        partner_name: 'Daniel Kim',
+        name: 'Daniel Kim',
         partner_role: 'Title/Escrow',
         partner_avatar_color: '#C9C97B',
         milestones: [
@@ -2449,7 +2449,7 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
       },
       {
         partner_id: 'mock-p-007',
-        partner_name: 'Rachel Gomez',
+        name: 'Rachel Gomez',
         partner_role: 'Mortgage Pro',
         partner_avatar_color: '#7BC9B8',
         milestones: [
