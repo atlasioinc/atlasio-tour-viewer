@@ -28,3 +28,9 @@ Before committing ANY hook wired to a live RPC for the first time:
 S100 cost: 3 back-to-back crashes, 3 hotfixes, 8 files changed.
 This rule prevents the entire class of bug.
 
+## Known terminal warning — not a bug
+
+"Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —
+investigated S103b, all 7 .map() calls confirmed to have unique keys.
+Source is React Navigation internals, not app code. Safe to ignore permanently.
+
