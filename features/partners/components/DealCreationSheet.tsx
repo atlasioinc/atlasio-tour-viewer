@@ -38,7 +38,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, SHADOWS } from '../../../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../../../lib/config';
-import { useCreateTransaction } from '../../../hooks/useData';
+import { useCreateTransaction, useAgentPartnerConnections } from '../../../hooks/useData';
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -105,24 +105,10 @@ const formatCurrencyDisplay = (raw: string): string => {
 };
 
 // ─────────────────────────────────────────────
-// MOCK DATA — Connected partners for multi-select
-// @demo hardcoded — replace with usePartnerConnections() in production
-// @backend usePartnerConnections() — future hook, not built this session
+// PARTNER DATA — Connected partners for multi-select
+// @backend useAgentPartnerConnections() — queries connections table (RLS)
+// @demo mock fallback: 3 hardcoded partners (via hook, not inline)
 // ─────────────────────────────────────────────
-
-interface MockPartner {
-  id: string;
-  name: string;
-  role: string;
-  avatar_color: string;
-}
-
-// @demo hardcoded — replace with real data in production
-const MOCK_CONNECTED_PARTNERS: MockPartner[] = [
-  { id: 'mock-partner-001', name: 'Lisa Nguyen', role: 'title_escrow', avatar_color: '#10B981' },
-  { id: 'mock-partner-002', name: 'David Park', role: 'mortgage_pro', avatar_color: '#6366F1' },
-  { id: 'mock-partner-003', name: 'Sarah Kim', role: 'title_escrow', avatar_color: '#F59E0B' },
-];
 
 const ROLE_LABELS: Record<string, string> = {
   title_escrow: 'Title/Escrow',
@@ -148,6 +134,8 @@ interface PlaceSuggestion {
 export default function DealCreationSheet() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const createTransaction = useCreateTransaction();
+  // @backend useAgentPartnerConnections — queries connections table for accepted partners
+  const { data: connectedPartners = [] } = useAgentPartnerConnections();
 
   // ── Form state ──
   const [addressText, setAddressText] = useState('');
@@ -262,8 +250,10 @@ export default function DealCreationSheet() {
     if (!isFormValid) return;
     setErrorMessage(null);
 
-    const partnerAssignments = selectedPartnerIds.map(id => {
-      const partner = MOCK_CONNECTED_PARTNERS.find(p => p.id === id);
+    // Safety filter — strip any mock IDs before sending to live RPC
+    const livePartnerIds = selectedPartnerIds.filter(id => !id.startsWith('mock-'));
+    const partnerAssignments = livePartnerIds.map(id => {
+      const partner = connectedPartners.find(p => p.id === id);
       return {
         partner_id: id,
         partner_role: partner?.role ?? 'title_escrow',
@@ -521,7 +511,7 @@ export default function DealCreationSheet() {
             }}>
               Add to Deal
             </Text>
-            {MOCK_CONNECTED_PARTNERS.map((partner) => {
+            {connectedPartners.map((partner) => {
               const isSelected = selectedPartnerIds.includes(partner.id);
               return (
                 <Pressable

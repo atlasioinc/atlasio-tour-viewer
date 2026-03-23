@@ -2697,6 +2697,90 @@ export function useUpdateClosingDetails() {
   });
 }
 
+// ─── useAgentPartnerConnections ───────────────────────────────
+// STATUS: wired (with mock fallback)
+// Returns accepted partner connections for the current agent.
+// Used by DealCreationSheet to populate the "Add to Deal" partner list.
+// @backend Direct query on `connections` table (RLS: "View own connections" policy)
+//   Joins `profiles` for partner name, display_role, avatar_color.
+// @demo mock: returns MOCK_CONNECTED_PARTNERS (3 hardcoded partners)
+
+interface PartnerConnection {
+  id: string;
+  name: string;
+  role: string;
+  avatar_color: string;
+}
+
+const MOCK_PARTNER_CONNECTIONS: PartnerConnection[] = [
+  { id: 'mock-partner-001', name: 'Lisa Nguyen', role: 'title_escrow', avatar_color: '#10B981' },
+  { id: 'mock-partner-002', name: 'David Park', role: 'mortgage_pro', avatar_color: '#6366F1' },
+  { id: 'mock-partner-003', name: 'Sarah Kim', role: 'title_escrow', avatar_color: '#F59E0B' },
+];
+
+export function useAgentPartnerConnections() {
+  return useQuery({
+    queryKey: ['agent_partner_connections'],
+    queryFn: async (): Promise<PartnerConnection[]> => {
+      if (FEATURE_FLAGS.USE_MOCK_DATA) {
+        // @demo mock — return hardcoded partner connections
+        return MOCK_PARTNER_CONNECTIONS;
+      }
+
+      try {
+        const userId = await getCurrentUserId();
+
+        // @backend Query accepted connections where agent is requester
+        const { data: asRequester, error: e1 } = await supabase
+          .from('connections')
+          .select('responder_id, profiles!connections_responder_id_fkey(id, name, display_role, avatar_color)')
+          .eq('requester_id', userId)
+          .eq('status', 'accepted');
+        if (e1) throw e1;
+
+        // @backend Query accepted connections where agent is responder
+        const { data: asResponder, error: e2 } = await supabase
+          .from('connections')
+          .select('requester_id, profiles!connections_requester_id_fkey(id, name, display_role, avatar_color)')
+          .eq('responder_id', userId)
+          .eq('status', 'accepted');
+        if (e2) throw e2;
+
+        const partners: PartnerConnection[] = [];
+
+        for (const row of asRequester ?? []) {
+          const p = row.profiles as any;
+          if (p?.id) {
+            partners.push({
+              id: p.id,
+              name: p.name ?? '',
+              role: p.display_role ?? '',
+              avatar_color: p.avatar_color ?? '#7BA3C9',
+            });
+          }
+        }
+
+        for (const row of asResponder ?? []) {
+          const p = row.profiles as any;
+          if (p?.id) {
+            partners.push({
+              id: p.id,
+              name: p.name ?? '',
+              role: p.display_role ?? '',
+              avatar_color: p.avatar_color ?? '#7BA3C9',
+            });
+          }
+        }
+
+        return partners;
+      } catch (err) {
+        console.warn('[useAgentPartnerConnections] Supabase failed, using mock fallback', err);
+        return MOCK_PARTNER_CONNECTIONS;
+      }
+    },
+  });
+}
+
 // ─── useRealtimeDealBoard ─────────────────────────────────────
 // When transactionId is provided, subscribe on transaction_id instead of job_id.
 // Falls back to job_id when transactionId is omitted (backward compatible).

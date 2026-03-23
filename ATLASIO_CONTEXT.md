@@ -719,3 +719,17 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 33 (unchanged — already deployed), Hooks: 57, Edge Functions: 11 (all unchanged)
 - **tsc:** 0
 - **S94 next objectives:** Next.js closing tracker web app, partner hooks device testing, live wiring audit
+
+### S95 — Deal Creation Error Surfacing + Share Button Wiring + Cross-Stack Nav + Live Indicator Removed (March 22, 2026)
+- See git log for details (S95 committed before S96 session)
+
+### S96 — Mock UUID Guards + Partner List Live Wiring (March 22, 2026)
+- **Modified:** `components/AgentDealDetailScreen.tsx` — Tightened `handleShare` and `handleSendSms` guards to reject mock-prefixed transaction IDs (`transactionId.startsWith('mock-')`) in addition to null/undefined check. Mock deals now show "This deal does not have a live transaction ID yet" alert instead of crashing with Postgres UUID error.
+- **Modified:** `hooks/useData.ts` — Added `useAgentPartnerConnections` hook (STATUS: wired with mock fallback). Queries `connections` table in both directions (agent as requester + agent as responder), joins `profiles` for name/display_role/avatar_color. Returns `PartnerConnection[]`. Mock fallback: 3 hardcoded partners (Lisa, David, Sarah).
+- **Modified:** `features/partners/components/DealCreationSheet.tsx` — Replaced hardcoded `MOCK_CONNECTED_PARTNERS` array with `useAgentPartnerConnections()` hook. Added safety filter before RPC call: `selectedPartnerIds.filter(id => !id.startsWith('mock-'))` strips any mock IDs before passing to `rpc_create_transaction`. Removed `MockPartner` interface (now provided by hook).
+- **Modified:** `lib/featureFlags.ts` — Reset `USE_MOCK_DATA` to `true` (demo default)
+- **Modified:** `lib/config.ts` — Reset `PARTNER_TRACK_ENABLED` and `DEAL_CREATION_ENABLED` to `false` (demo defaults)
+- **Key decisions:** (1) No new RPC needed — direct `connections` table query works via RLS "View own connections" policy. (2) Mock ID safety filter is a belt-and-suspenders guard — even if hook returns live data, any stale mock IDs in selectedPartnerIds get stripped before RPC call. (3) Seeded test partners Lisa Nguyen + David Park confirmed in Supabase with accepted connections to tony's UUID.
+- **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (+1: useAgentPartnerConnections), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+- **S97 next objectives:** Next.js closing tracker web app, partner hooks device testing with `USE_MOCK_DATA: false`, live deal creation E2E test

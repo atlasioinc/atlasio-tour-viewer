@@ -127,8 +127,8 @@ const AgentDealDetailScreen: React.FC = () => {
   const [smsSent, setSmsSent] = useState(false);
 
   const handleShare = async () => {
-    if (!transactionId) {
-      Alert.alert('Unable to share', 'No transaction ID found for this deal.');
+    if (!transactionId || transactionId.startsWith('mock-')) {
+      Alert.alert('Unable to share', 'This deal does not have a live transaction ID yet.');
       return;
     }
     try {
@@ -149,7 +149,7 @@ const AgentDealDetailScreen: React.FC = () => {
 
   // @backend rpc_generate_client_token(p_transaction_id, p_notify_phone) — idempotent, re-calls with phone to trigger SMS
   const handleSendSms = async () => {
-    if (!notifyPhone.trim() || !transactionId) return;
+    if (!notifyPhone.trim() || !transactionId || transactionId.startsWith('mock-')) return;
     try {
       await generateToken.mutateAsync({
         transactionId,

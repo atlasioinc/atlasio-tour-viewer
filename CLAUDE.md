@@ -33,7 +33,7 @@
 
 ## Current Metrics (updated S55 — March 15, 2026)
 - **RPCs:** 33
-- **Hooks:** 57
+- **Hooks:** 58
 - **Feature Flags:** 9
 - **Edge Functions:** 11
 - **Storage Buckets:** 6
