@@ -32,13 +32,13 @@
 ---
 
 ## Current Metrics (updated S107 — March 24, 2026)
-- **RPCs:** 48
-- **Hooks:** 74 (+2 S104b: useInboxThreads, useThreadMessages; +1 S103: usePartnerAcceptedConnections)
-- **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` + `DEAL_CREATION_ENABLED` in lib/config.ts
+- **RPCs:** 59 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, and others S91-S103)
+- **Hooks:** 58 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+- **Feature Flags:** 10 — 8 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts. Note: LIVE_NEIGHBORHOOD_HOOKS referenced in code but missing from featureFlags.ts (S105 finding).
 - **Edge Functions:** 11
 - **Storage Buckets:** 7
-- **Screens:** +1 S63 (AgentDealDetailScreen), +1 S64b (DealCreationSheet — bottom sheet modal)
-- **COLORS tokens:** 120
+- **Tables:** 22+ (schema.sql documents 22 as of S93; messaging tables predate tracking)
+- **COLORS tokens:** 123
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
 
@@ -56,8 +56,8 @@
 - `rpc_toggle_accepting_clients` — partner availability toggle (COALESCE-safe for nullable column)
 - `rpc_get_deal_board_for_agent` — agent deal board full data per job (S63 data source)
 
-**Architecture note:** All 8 RPCs anchor to `job_id` as FK (temporary).
-Migrate to `transaction_id` in S64 when `transactions` table exists.
+**Architecture note:** ~~All 8 RPCs anchor to `job_id` as FK (temporary).~~
+Migration to `transaction_id` completed in S87. RPCs updated: rpc_seed_deal_milestones, rpc_post_deal_alert, rpc_get_deal_board_for_agent.
 
 **Live test:** `rpc_seed_deal_milestones` — 5 Title/Escrow milestones seeded correctly.
 Idempotency guard confirmed (second call returns `seeded: false`). Test data cleaned up.
