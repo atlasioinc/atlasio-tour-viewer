@@ -806,7 +806,7 @@ Located in `components/shared/index.ts` (barrel export):
 - **Modified:** `components/NewMessageScreen.tsx` — `threadId: contact.id` → `recipientId: contact.id` (contact.id is a user UUID, not a thread ID)
 - **Modified:** `components/ContractorJobDetails.tsx` — `contactId: job.agent.id` → `recipientId: job.agent.id` + added `contactRole: 'agent'`
 - **Key decisions:** S104b introduced `recipientId` param on InboxStack but left two nav call sites using old param names. Both fixed to use the correct typed params.
-- **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
+- **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 
 ### S106 — Live Messaging E2E Test (March 23, 2026)
@@ -814,8 +814,8 @@ Located in `components/shared/index.ts` (barrel export):
 - **Modified:** `components/ChatScreen.tsx` — handleSend restructured: newMessage declared before RPC block; on createThread failure removes optimistic message + shows Alert.
 - **Modified:** `components/InboxList.tsx` — Pull-to-refresh via RefreshControl on ScrollView.
 - **Modified:** `components/NetworkTab.tsx` — Both handleMessageContact + handleMessageAgent fixed: `contactId` → `recipientId`, added `contactRole`.
-- **Key decisions:** (1) Root cause was NetworkTab passing `contactId` instead of `recipientId` — ChatScreen got `undefined` and never called createThread. (2) Mock fallback catch blocks were returning fake success objects that masked the real error — now re-throw. (3) `useInboxThreads` was returning raw RPC response object instead of unwrapping `data.threads`.
-- **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
+- **Key decisions:** (1) Root cause was NetworkTab passing `contactId` instead of `recipientId` — ChatScreen got `undefined` and never called createThread. (2) Mock fallback catch blocks were returning fake success objects that masked the real error — now re-throw. (3) `useInboxThreads` was returning raw RPC response object instead of unwrapping `data.threads`. (4) SQL fix: created public.get_user_thread_ids(p_user_id uuid) SECURITY DEFINER function. Replaced 5 self-referencing RLS policies on thread_members (1), messages (2), threads (2) — all now use helper function instead of direct subqueries. Permanent rule: junction table RLS policies must never self-reference.
+- **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 
 ### S107 — Messaging Polish + Inbox Display (March 24, 2026)
@@ -826,6 +826,6 @@ Located in `components/shared/index.ts` (barrel export):
 - **Modified:** `components/ChatScreen.tsx` — Bubble flash fix: `currentUserId` init `''` instead of placeholder + message sync gates on userId resolved. `isConversationMode` includes `!!initialThreadId` so existing threads skip compose header. Input padding: replaced SafeAreaView with explicit `paddingBottom: Math.max(insets.bottom, 8)`.
 - **Modified:** `components/NewMessageScreen.tsx` — Back button 36×36 → 44×44, removed `hitSlop`, added `paddingBottom: 4` to header.
 - **Key decisions:** (1) Connection row UUID vs profile UUID was a 3-session debug trace (S106c–S107b). (2) `useInboxThreads` was returning raw RPC object — unwrapped `data.threads`. (3) ChatScreen flash caused by `isConversationMode` requiring `messages.length > 0` which is false on first render before RPC data loads.
-- **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
+- **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 - **S108 next objectives:** Live messaging E2E re-test (full flow verification), Next.js closing tracker web app, partner hooks device testing
