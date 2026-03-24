@@ -720,6 +720,13 @@ Located in `components/shared/index.ts` (barrel export):
 - **tsc:** 0
 - **S94 next objectives:** Next.js closing tracker web app, partner hooks device testing, live wiring audit
 
+### S94 — CLOSING_PHASES milestoneKeys Sync (March 24, 2026)
+- **Modified:** `supabase/functions/send-closing-update/index.ts` — Added each phase's own key to its `milestoneKeys` array: `loan_application` → loan_application phase, `under_review` → under_review phase, `closing_day` → closing_day phase. Ensures milestones seeded with phase-level keys (matching DB source of truth) are correctly matched by `computePhaseIndex`.
+- **Key decisions:** Existing milestone keys unchanged — only added the missing self-referential keys. `title_search` and `clear_to_close` phases already had their own key present.
+- **Metrics:** RPCs: 33, Hooks: 58, Edge Functions: 11 (all unchanged)
+- **tsc:** 0
+- **S95 next objectives:** Deal creation error surfacing, share button wiring, cross-stack nav
+
 ### S95 — Deal Creation Error Surfacing + Share Button Wiring + Cross-Stack Nav + Live Indicator Removed (March 22, 2026)
 - See git log for details (S95 committed before S96 session)
 
@@ -733,6 +740,8 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (+1: useAgentPartnerConnections), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 - **S97 next objectives:** Next.js closing tracker web app, partner hooks device testing with `USE_MOCK_DATA: false`, live deal creation E2E test
+
+### S97 — (skipped — no commit found)
 
 ### S98 — Deal Lookup Fallback to transaction_id (March 22, 2026)
 - **Modified:** `components/AgentDealDetailScreen.tsx` — Deal lookup now falls back to `transaction_id` when `jobId` match fails (deals created via DealCreationSheet have `transaction_id` but no `jobId`)
