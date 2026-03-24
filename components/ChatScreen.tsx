@@ -31,7 +31,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
@@ -237,6 +237,7 @@ const AddContactRow: React.FC<{
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<ChatScreenRouteProp>();
+  const insets = useSafeAreaInsets();
   const { threadId: initialThreadId, recipientId, contactName, contactCompany, contactRole, contactAvatarColor, dealAddress } = route.params;
 
   // ── Active thread ID — starts from route param, set after rpc_create_thread on first send ──
@@ -462,7 +463,7 @@ const ChatScreen: React.FC = () => {
   };
 
   // Determine header mode: conversation (has messages) vs compose (new/empty)
-  const isConversationMode = hasSentFirstMessage && messages.length > 0;
+  const isConversationMode = !!initialThreadId || (hasSentFirstMessage && messages.length > 0);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -678,7 +679,7 @@ const ChatScreen: React.FC = () => {
             borderTopWidth: 0.68,
             borderTopColor: COLORS.border,
             paddingTop: 8,
-            paddingBottom: 0,
+            paddingBottom: Math.max(insets.bottom, 8),
             paddingHorizontal: 16,
           }}
         >
@@ -738,7 +739,7 @@ const ChatScreen: React.FC = () => {
             </ScrollView>
           )}
 
-          <SafeAreaView edges={['bottom']} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
               onPress={() => setShowAttach(true)}
               hitSlop={8}
@@ -768,7 +769,7 @@ const ChatScreen: React.FC = () => {
             >
               <SendIcon />
             </Pressable>
-          </SafeAreaView>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
