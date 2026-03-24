@@ -829,3 +829,19 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
 - **tsc:** 0
 - **S108 next objectives:** Live messaging E2E re-test (full flow verification), Next.js closing tracker web app, partner hooks device testing
+
+### S108 — NewMessage Screen Flash Fix + Messaging Cleanup (March 24, 2026)
+- **Modified:** `components/ChatScreen.tsx` — 6 sub-sessions of incremental fixes:
+  - S108: Added `isLoadingThread` gate with `ActivityIndicator` to prevent flash of empty/compose UI when opening existing threads. Added `isReady` gate combining `currentUserId` resolution with mock data flag.
+  - S108b: Fixed chat input bottom padding — removed double safe-area offset (`Math.max(insets.bottom, 12)` → `paddingBottom: 8`), tab bar already handles home indicator.
+  - S108d: FlatList opacity gate — `listReady` state + `onContentSizeChange` callback hides ScrollView during initial layout calculation. 50ms settle delay. Reset on thread change.
+  - S108e: Removed `scrollToEnd` on initial thread open (`hasRenderedInitialMessages` ref). Post-send scroll delayed 150ms to avoid double-scroll. `blurOnSubmit={false}` keeps keyboard open on Send key (iMessage rapid-fire pattern).
+  - S108f: Navigation-timed reveal — 400ms `screenReady` delay masks loading snap during push animation. Messages rendered at `opacity: 0` during animation, revealed when both `screenReady` + `listReady` are true. New compose flow skips delay.
+  - S108g: Keyboard hides messages fix — `Keyboard.addListener('keyboardDidShow')` scrolls to latest messages when keyboard opens. KAV already wraps both ScrollView + input correctly.
+  - S108h: keyboardVerticalOffset reverted to 0 — tabBarHeight offset created 84px gap between input and keyboard. KAV wrapping was the actual fix for keyboard coverage.
+- **Modified:** `components/NetworkTab.tsx` — S108b: Both `handleMessageContact` (AgentNetworkView) and `handleMessageAgent` (PartnerNetworkView) now check `useInboxThreads()` for existing thread via `other_member.user_id` match. If found, passes `threadId` instead of `recipientId` — opens existing conversation directly instead of compose flow.
+- **Modified:** `hooks/useData.ts` — S108c: Added `staleTime: 30_000` to `useThreadMessages` for instant cache-based reopens within 30s.
+- **Key decisions:** (1) Layered reveal approach: `isLoadingThread` → `screenReady` (400ms nav delay) → `listReady` (layout settled) → `showMessages` (combined gate). (2) No scroll on initial load — only on new messages after first render. (3) Tab bar handles bottom safe area, so ChatScreen input needs only breathing room padding. (4) Network tab thread detection prevents redundant compose flow when thread already exists. (5) `keyboardVerticalOffset=0` is correct — tab bar height offset overcorrects, creating visible gap.
+- **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+- **S109 next objectives:** Device QA pass on full messaging flow, live E2E re-test, demo QA

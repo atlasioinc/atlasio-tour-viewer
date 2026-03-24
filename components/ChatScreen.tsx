@@ -30,6 +30,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -278,6 +280,26 @@ const ChatScreen: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_MESSAGES : []);
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(!!initialThreadId); // true when opening existing thread
 
+  // ── FlatList layout flash prevention (S108d) ──
+  const isInitialLayoutDone = useRef(false);
+  const [listReady, setListReady] = useState(false);
+  const hasRenderedInitialMessages = useRef(false);
+  const [screenReady, setScreenReady] = useState(!initialThreadId);
+
+  // Reset layout gate + navigation-timed reveal on thread change (S108d/S108f)
+  useEffect(() => {
+    isInitialLayoutDone.current = false;
+    hasRenderedInitialMessages.current = false;
+    setListReady(false);
+    if (!initialThreadId) {
+      setScreenReady(true);
+      return;
+    }
+    setScreenReady(false);
+    const timer = setTimeout(() => setScreenReady(true), 400);
+    return () => clearTimeout(timer);
+  }, [initialThreadId]);
+
   // ── Sync live messages when feature flag is off ──
   // Prefer RPC messages (useThreadMessages) over direct query (useMessages)
   useEffect(() => {
@@ -378,10 +400,24 @@ const ChatScreen: React.FC = () => {
     }
   }, [pendingAction, showAttach]);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change — skip entirely on initial load (S108e)
   useEffect(() => {
-    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    if (!hasRenderedInitialMessages.current && messages.length > 0) {
+      hasRenderedInitialMessages.current = true;
+      return; // initial messages — no scroll, let layout handle positioning
+    }
+    if (hasRenderedInitialMessages.current) {
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 150);
+    }
   }, [messages]);
+
+  // Scroll to latest when keyboard opens (S108g)
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+    return () => sub.remove();
+  }, []);
 
   // ── Handlers ──
   // @backend rpc_send_message({ p_thread_id, p_content }) — subsequent messages
@@ -464,6 +500,13 @@ const ChatScreen: React.FC = () => {
 
   // Determine header mode: conversation (has messages) vs compose (new/empty)
   const isConversationMode = !!initialThreadId || (hasSentFirstMessage && messages.length > 0);
+
+  // Ready gate: prevents blank→populated flash when loading live data
+  const isReady = FEATURE_FLAGS.USE_MOCK_DATA || currentUserId !== '';
+  // Loading gate: existing thread opened but messages haven't arrived yet
+  const isLoadingThread = !!initialThreadId && !FEATURE_FLAGS.USE_MOCK_DATA && (!isReady || messages.length === 0);
+  // Combined reveal gate: navigation animation complete + layout settled (S108f)
+  const showMessages = screenReady && listReady;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -617,7 +660,12 @@ const ChatScreen: React.FC = () => {
         {/* ══════════════════════════════════════════
             BODY
             ══════════════════════════════════════════ */}
-        {isAddingContact ? (
+        {isLoadingThread ? (
+          /* ── Loading state — prevents flash of empty/compose UI while messages load ── */
+          <View style={{ flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          </View>
+        ) : isAddingContact ? (
           /* ── Add contact list ── */
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -639,9 +687,15 @@ const ChatScreen: React.FC = () => {
           <ScrollView
             ref={scrollViewRef}
             showsVerticalScrollIndicator={false}
-            style={{ flex: 1, backgroundColor: COLORS.screenBg }}
+            style={{ flex: 1, backgroundColor: COLORS.screenBg, opacity: showMessages ? 1 : 0 }}
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, gap: 16 }}
             keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => {
+              if (!isInitialLayoutDone.current && messages.length > 0) {
+                isInitialLayoutDone.current = true;
+                setTimeout(() => setListReady(true), 50);
+              }
+            }}
           >
             {messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
@@ -679,7 +733,7 @@ const ChatScreen: React.FC = () => {
             borderTopWidth: 0.68,
             borderTopColor: COLORS.border,
             paddingTop: 8,
-            paddingBottom: Math.max(insets.bottom, 8),
+            paddingBottom: 8,
             paddingHorizontal: 16,
           }}
         >
@@ -758,6 +812,7 @@ const ChatScreen: React.FC = () => {
                 style={{ fontSize: 16, fontWeight: '400', color: COLORS.darkText }}
                 multiline={false}
                 returnKeyType="send"
+                blurOnSubmit={false}
                 onSubmitEditing={handleSend}
               />
             </View>

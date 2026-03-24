@@ -44,7 +44,7 @@ import InviteToJobModal from './InviteToJobModal';
 import type { InviteContractor } from './InviteToJobModal';
 import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useConnections, useConnectionRequests as useConnectionRequestsHook } from '../hooks/useData';
+import { useConnections, useConnectionRequests as useConnectionRequestsHook, useInboxThreads } from '../hooks/useData';
 import { adaptConnectionToNetworkContact, adaptConnectionToRequest } from '../lib/typeAdapters';
 import { VerificationBanner } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
@@ -331,8 +331,14 @@ const PartnerNetworkView: React.FC = () => {
   // @backend rpc_get_partner_accepted_connections — no params, uses auth.uid()
   const { data: connections } = usePartnerAcceptedConnections();
   const agentList = connections ?? [];
+  // @backend rpc_get_inbox_threads — check for existing thread before opening compose
+  const { data: partnerInboxThreads } = useInboxThreads();
 
   const handleMessageAgent = (conn: PartnerAcceptedConnection) => {
+    // Check for existing thread with this agent
+    const existingThread = (partnerInboxThreads ?? []).find(
+      (t) => t.other_member.user_id === conn.agent_id
+    );
     navigation.dispatch(
       CommonActions.navigate({
         name: 'Inbox',
@@ -340,7 +346,7 @@ const PartnerNetworkView: React.FC = () => {
           screen: 'ChatScreen',
           initial: false,
           params: {
-            recipientId: conn.agent_id,
+            ...(existingThread ? { threadId: existingThread.thread_id } : { recipientId: conn.agent_id }),
             contactName: (conn.agent_name ?? ''),
             contactAvatarColor: (conn.agent_avatar_color ?? '#999999'),
             contactCompany: (conn.agent_company ?? ''),
@@ -504,6 +510,8 @@ const AgentNetworkView: React.FC = () => {
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
   const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
   const [contacts, setContacts] = useState<NetworkContact[]>(ALL_CONTACTS);
+  // @backend rpc_get_inbox_threads — check for existing thread before opening compose
+  const { data: agentInboxThreads } = useInboxThreads();
 
   // ── Connection Requests state ──
   /**
@@ -592,6 +600,10 @@ const AgentNetworkView: React.FC = () => {
   // Uses CommonActions to push ChatScreen on top of InboxList so the
   // Inbox tab still shows its list when tapped directly from the tab bar.
   const handleMessageContact = (contact: NetworkContact) => {
+    // Check for existing thread with this contact
+    const existingThread = (agentInboxThreads ?? []).find(
+      (t) => t.other_member.user_id === contact.id
+    );
     navigation.dispatch(
       CommonActions.navigate({
         name: 'Inbox',
@@ -599,7 +611,7 @@ const AgentNetworkView: React.FC = () => {
           screen: 'ChatScreen',
           initial: false,
           params: {
-            recipientId: contact.id,
+            ...(existingThread ? { threadId: existingThread.thread_id } : { recipientId: contact.id }),
             contactName: contact.name,
             contactAvatarColor: contact.avatarColor,
             contactCompany: contact.company,
