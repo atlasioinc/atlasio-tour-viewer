@@ -1385,8 +1385,8 @@ export const useInboxThreads = () => {
       try {
         const { data, error } = await supabase.rpc('rpc_get_inbox_threads');
         if (error) throw error;
-        // @demo mock fallback — empty array keeps demo inbox showing INITIAL_THREADS
-        return (data ?? []) as InboxThread[];
+        const result = data as { success: boolean; threads: InboxThread[] } | null;
+        return (result?.threads ?? []) as InboxThread[];
       } catch (err) {
         console.warn('[useInboxThreads] Supabase failed, using mock fallback', err);
         return [];
