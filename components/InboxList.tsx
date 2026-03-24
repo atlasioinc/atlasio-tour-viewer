@@ -493,7 +493,10 @@ const InboxList: React.FC = () => {
     if (FEATURE_FLAGS.USE_MOCK_DATA) return;
     // Prefer RPC-based inbox threads over legacy direct query
     if (inboxThreads && inboxThreads.length > 0) {
-      setThreads(inboxThreads.map(adaptInboxThreadToLocal));
+      console.log('[DEBUG InboxList] raw inboxThreads[0]:', JSON.stringify(inboxThreads[0]));
+      const adapted = inboxThreads.map(adaptInboxThreadToLocal);
+      console.log('[DEBUG InboxList] adapted[0]:', JSON.stringify(adapted[0]));
+      setThreads(adapted);
       return;
     }
     // Fallback: legacy useChatThreads
