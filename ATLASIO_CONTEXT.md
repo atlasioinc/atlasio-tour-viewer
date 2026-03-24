@@ -31,9 +31,9 @@
 
 ---
 
-## Current Metrics (updated S65 — March 19, 2026)
+## Current Metrics (updated S107 — March 24, 2026)
 - **RPCs:** 48
-- **Hooks:** 74 (+1 S103: usePartnerAcceptedConnections)
+- **Hooks:** 74 (+2 S104b: useInboxThreads, useThreadMessages; +1 S103: usePartnerAcceptedConnections)
 - **Feature Flags:** 8 (+1 local: `LIVE_NEIGHBORHOOD_HOOKS`) + `PARTNER_TRACK_ENABLED` + `DEAL_CREATION_ENABLED` in lib/config.ts
 - **Edge Functions:** 11
 - **Storage Buckets:** 7
@@ -734,6 +734,40 @@ Located in `components/shared/index.ts` (barrel export):
 - **tsc:** 0
 - **S97 next objectives:** Next.js closing tracker web app, partner hooks device testing with `USE_MOCK_DATA: false`, live deal creation E2E test
 
+### S98 — Deal Lookup Fallback to transaction_id (March 22, 2026)
+- **Modified:** `components/AgentDealDetailScreen.tsx` — Deal lookup now falls back to `transaction_id` when `jobId` match fails (deals created via DealCreationSheet have `transaction_id` but no `jobId`)
+- **Modified:** `features/partners/components/DealCreationSheet.tsx` — Post-creation navigation passes deal data for immediate display
+- **Modified:** `hooks/useData.ts` — `useCreateTransaction` returns created deal data for navigation
+- **Key decisions:** Belt-and-suspenders: try jobId first, fall back to transaction_id. Flags reset to demo defaults.
+- **tsc:** 0
+
+### S99 — Deal Data via Route Params (March 23, 2026)
+- **Modified:** `components/AgentDealDetailScreen.tsx` — Accepts optional `dealData` via route params to avoid "Deal not found" flash after creation
+- **Modified:** `components/HomeStack.tsx` — Added `dealData` to `AgentDealDetail` route params
+- **Modified:** `features/partners/components/DealCreationSheet.tsx` — Passes full deal object via route params on creation success
+- **Key decisions:** Eliminates race condition where hook data hasn't refetched yet but user is already on detail screen.
+- **tsc:** 0
+
+### S100 — Live Deal Creation + useAgentActiveDeals Wiring (March 23, 2026)
+- **Modified:** `hooks/useData.ts` — `useCreateTransaction.onSuccess` now seeds milestones via `rpc_seed_transaction_milestones` fire-and-forget per assigned partner. `useAgentActiveDeals` wired to `rpc_get_agent_deals` with mock fallback.
+- **3 hotfixes:** (1) Null guard on `p.alerts` in HomeTabAgent. (2) 18 null guards on `milestones` + `alerts` across 7 files — live RPC returns nullable arrays unlike mock data. (3) `partner_name` → `name` on `AgentDealPartner` type to match live RPC shape + optional `name`/`partner_avatar_color` + null guards on `.charAt()` calls.
+- **Key lesson:** Live RPCs return nullable arrays and different field names than mock data — always add null guards and verify field names against actual RPC response shape.
+- **tsc:** 0
+
+### S101 — RPC Consumer Audit Rule + Lean Deal Types (March 23, 2026)
+- **Modified:** `tasks/lessons.md` — Added "RPC Consumer Audit" rule (prevents S100-class null/field-name bugs)
+- **Modified:** `components/HomeTabAgent.tsx` — Fixed key prop warning in deal partners map (added index fallback)
+- **Modified:** `features/partners/types/partner.types.ts` — Added `AgentDealMilestone` + `AgentDealAlert` lean interfaces matching actual RPC response shape. Updated `AgentDealPartner` to use lean types.
+- **Modified:** `hooks/useData.ts` — Trimmed mock data to match lean RPC response shape
+- **tsc:** 0
+
+### S102 — HomeTabPartner Polish Pass (March 23, 2026)
+- **Modified:** `features/partners/components/HomeTabPartner.tsx` — Added `SHADOWS.card` to vouch cards, StatTile, Share Profile card. Added `paddingVertical: 4` to invitations horizontal ScrollView. Bumped fontSize 10→11 on deal invitation agent avatar initial. Added `?? ''` null guards on `.split()`/`.charAt()` (RPC Consumer Audit rule). Removed unused `usePartnerConnectionRequests` hook call. Added `@backend` markers at hook call sites. Added `@s103-todo` for My Network summary row.
+- **Modified:** `features/partners/components/ActiveDealCard.tsx` — Replaced `#FFFFFF` with `COLORS.background` in CheckCircleIcon
+- **Modified:** `lib/config.ts` — Reset `PARTNER_TRACK_ENABLED` + `DEAL_CREATION_ENABLED` to false
+- **Key decisions:** All interactive text Pressables bumped to `minHeight: 44` for App Store compliance. RPC Consumer Audit rule applied proactively on all `.split()`/`.charAt()` calls.
+- **tsc:** 0
+
 ### S103 — Partner Network Tab + HomeTabPartner My Network Row (March 23, 2026)
 - **Created:** `PartnerAcceptedConnection` type in `features/partners/types/partner.types.ts` — connection_id, agent_id, agent_name, agent_company, agent_avatar_color, deal_count, connected_since
 - **Modified:** `features/partners/hooks/usePartnerData.ts` — Added `usePartnerAcceptedConnections` hook (STATUS: wired with mock fallback). Queries `rpc_get_partner_accepted_connections` (no params, auth.uid()). Mock: 2 agents (Tony Giap, Sarah Williams). staleTime: 5min.
@@ -743,6 +777,21 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** (1) One Layout Tree rule preserved — partner branch is a component inside NetworkTab.tsx, not a separate file. (2) RPC Consumer Audit applied: `?? ''` on agent_name, `?? '#999999'` on agent_avatar_color, `?? ''` on agent_company. (3) Network tab visibility expanded from agent-only to agent+partner.
 - **Metrics:** Hooks: 74 (+1: usePartnerAcceptedConnections) | **tsc:** 0
 - **S104 next objectives:** Next.js closing tracker web app, partner hooks device testing, live deal creation E2E test, partner Network tab device testing
+
+### S103b — Chat Header Alignment (March 23, 2026)
+- **Modified:** `components/ChatScreen.tsx`, `components/InboxList.tsx`, `components/ContractorInboxList.tsx` — Aligned chat header style (height, border, typography) across all three chat screens to canonical pattern
+- **Modified:** `tasks/lessons.md` — Documented key prop warning as known React Navigation internals issue, not app code
+- **tsc:** 0
+
+### S104b — Production Messaging Wiring (March 23, 2026)
+- **Modified:** `hooks/useData.ts` — +2 hooks: `useInboxThreads` (NEW, wired to `rpc_get_inbox_threads()` with unread_count badge), `useThreadMessages` (NEW, wired to `rpc_get_thread_messages(p_thread_id)`). Rewired `useSendMessage` → `rpc_send_message(p_thread_id, p_content)`. Updated `useCreateThread` to invalidate `inbox_threads` key.
+- **Modified:** `components/ChatScreen.tsx` — Dual-path send: `rpc_create_thread` for first message, `rpc_send_message` for subsequent. Tracks `activeThreadId` in state.
+- **Modified:** `components/InboxList.tsx` — Real threads from RPC replace mock data when `USE_MOCK_DATA=false`. Unread count badge renders from `thread.unread_count`.
+- **Modified:** `components/InboxStack.tsx` — `threadId` now optional, `recipientId` added for new-conversation flow.
+- **Modified:** `types/index.ts` — Added `InboxThread` + `ThreadMessage` interfaces matching RPC response shapes.
+- **Created:** `lib/typeAdapters.ts` — `adaptInboxThreadToLocal` with relative timestamp formatting.
+- **Key decisions:** (1) Dual-path send avoids creating empty threads — thread created on first message only. (2) `recipientId` param enables new-conversation flow from Network tab without requiring a pre-existing thread.
+- **Hooks:** 58 (+2: useInboxThreads, useThreadMessages) | **tsc:** 0
 
 ### S105 — Messaging Nav Fixes (March 23, 2026)
 - **Modified:** `components/NewMessageScreen.tsx` — `threadId: contact.id` → `recipientId: contact.id` (contact.id is a user UUID, not a thread ID)
