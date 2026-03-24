@@ -64,10 +64,6 @@ const InboxStack: React.FC = () => (
     <Stack.Screen
       name="ChatScreen"
       component={ChatScreen}
-      options={{
-        presentation: 'fullScreenModal',
-        animation: 'slide_from_bottom',
-      }}
     />
     <Stack.Screen
       name="CreateDealChat"

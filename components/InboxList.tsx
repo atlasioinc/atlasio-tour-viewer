@@ -28,7 +28,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Line } from 'react-native-svg';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -477,6 +477,7 @@ const SwipeableThreadRow: React.FC<{
 
 const InboxList: React.FC = () => {
   const navigation = useNavigation<InboxNavProp>();
+  const scrollViewRef = useRef<ScrollView>(null);
   const [searchText, setSearchText] = useState('');
   const [threads, setThreads] = useState<ChatThread[]>(INITIAL_THREADS);
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
@@ -501,6 +502,13 @@ const InboxList: React.FC = () => {
       setThreads(liveThreads.map(adaptChatThreadToLocal));
     }
   }, [inboxThreads, liveThreads]);
+
+  // Scroll to top when screen comes into focus (e.g., back from ChatScreen)
+  useFocusEffect(
+    useCallback(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }, []),
+  );
 
   const filteredThreads = threads.filter((t) => {
     if (searchText.length === 0) return true;
@@ -585,6 +593,7 @@ const InboxList: React.FC = () => {
 
         {/* Thread List */}
         <ScrollView
+          ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
           style={{ flex: 1, backgroundColor: COLORS.screenBg }}
           keyboardShouldPersistTaps="handled"
@@ -668,7 +677,7 @@ const InboxList: React.FC = () => {
 
               {/* Recent Section */}
               <View>
-                <View style={{ paddingHorizontal: 24, paddingVertical: 8, backgroundColor: COLORS.screenBg }}>
+                <View style={{ paddingHorizontal: 24, paddingTop: 0, paddingBottom: 8, backgroundColor: COLORS.screenBg }}>
                   <Text style={{ color: COLORS.secondaryText, fontSize: 12, fontWeight: '400', textTransform: 'uppercase', lineHeight: 16, letterSpacing: 0.3 }}>
                     Recent
                   </Text>
