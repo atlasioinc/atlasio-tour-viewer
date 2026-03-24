@@ -561,7 +561,7 @@ const InboxList: React.FC = () => {
       const contactName = parts[0] ?? thread.name ?? 'Unknown';
       const contactCompany = thread.otherMemberCompany ?? parts[1] ?? '';
 
-      navigation.navigate('ChatScreen', {
+      navigation.push('ChatScreen', {
         threadId: resolvedThreadId,
         contactName,
         contactCompany,

@@ -677,8 +677,8 @@ const ChatScreen: React.FC = () => {
             backgroundColor: COLORS.background,
             borderTopWidth: 0.68,
             borderTopColor: COLORS.border,
-            paddingTop: 12,
-            paddingBottom: 8,
+            paddingTop: 8,
+            paddingBottom: 0,
             paddingHorizontal: 16,
           }}
         >
