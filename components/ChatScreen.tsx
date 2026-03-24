@@ -259,7 +259,7 @@ const ChatScreen: React.FC = () => {
   }, [activeThreadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auth: resolve current user ID for message ownership ──
-  const [currentUserId, setCurrentUserId] = useState<string>('current-user-id');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user?.id) setCurrentUserId(data.user.id);
@@ -281,6 +281,7 @@ const ChatScreen: React.FC = () => {
   // Prefer RPC messages (useThreadMessages) over direct query (useMessages)
   useEffect(() => {
     if (FEATURE_FLAGS.USE_MOCK_DATA) return;
+    if (!currentUserId) return; // wait for auth — prevents bubble flash
     // RPC messages from rpc_get_thread_messages
     if (rpcMessages && rpcMessages.length > 0) {
       const adapted = rpcMessages.map((m) => ({

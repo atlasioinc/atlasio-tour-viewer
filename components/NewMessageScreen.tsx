@@ -175,14 +175,12 @@ const NewMessageScreen: React.FC = () => {
 
       {/* Header */}
       <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, paddingTop: 8 + insets.top }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, paddingTop: 8 + insets.top, paddingBottom: 4 }}>
           <Pressable
             onPress={() => navigation.goBack()}
-            hitSlop={12}
             style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 9999,
+              width: 44,
+              height: 44,
               alignItems: 'center',
               justifyContent: 'center',
               opacity: pressed ? 0.5 : 1,
@@ -190,7 +188,7 @@ const NewMessageScreen: React.FC = () => {
           >
             <BackIcon />
           </Pressable>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28, marginLeft: 12 }}>
+          <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28, marginLeft: 8 }}>
             New Message
           </Text>
         </View>
