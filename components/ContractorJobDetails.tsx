@@ -1242,8 +1242,9 @@ const ContractorJobDetails: React.FC = () => {
               onPress={() => {
                 // @nav → ChatScreen modal (1:1 agent message thread)
                 navigation.navigate('ChatScreen', {
-                  contactId: job.agent.id,
+                  recipientId: job.agent.id,
                   contactName: job.agent.name,
+                  contactRole: 'agent', // business rule: contractor always messages the job's agent
                   contactAvatarColor: job.agent.avatarColor,
                   contactCompany: job.agent.company,
                 });

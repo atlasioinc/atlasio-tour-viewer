@@ -389,6 +389,15 @@ const ChatScreen: React.FC = () => {
 
     const content = messageText.trim() || (attachments.length > 0 ? `📎 ${attachments.length} attachment(s)` : '');
 
+    // Declare optimistic message before RPC block so it's accessible in catch
+    const newMessageId = `m${Date.now()}`;
+    const newMessage: Message = {
+      id: newMessageId,
+      text: content,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      isMine: true,
+    };
+
     if (!FEATURE_FLAGS.USE_MOCK_DATA) {
       if (activeThreadId) {
         // Thread exists — send message directly via RPC
@@ -405,17 +414,19 @@ const ChatScreen: React.FC = () => {
           }
         } catch (err) {
           console.warn('[ChatScreen] createThread failed', err);
+          // Remove optimistic message — it was never sent
+          setMessages(prev => prev.filter(m => m.id !== newMessageId));
+          Alert.alert(
+            'Message not sent',
+            'Unable to start this conversation. Please try again.',
+            [{ text: 'OK' }],
+          );
+          return; // don't append optimistic message below
         }
       }
     }
 
-    // Always append locally for instant feedback (optimistic update)
-    const newMessage: Message = {
-      id: `m${Date.now()}`,
-      text: content,
-      timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-      isMine: true,
-    };
+    // Append locally for instant feedback (optimistic update)
     setMessages((prev) => [...prev, newMessage]);
     setMessageText('');
     setAttachments([]);

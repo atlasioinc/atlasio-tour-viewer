@@ -340,10 +340,11 @@ const PartnerNetworkView: React.FC = () => {
           screen: 'ChatScreen',
           initial: false,
           params: {
-            contactId: conn.agent_id,
+            recipientId: conn.agent_id,
             contactName: (conn.agent_name ?? ''),
             contactAvatarColor: (conn.agent_avatar_color ?? '#999999'),
             contactCompany: (conn.agent_company ?? ''),
+            contactRole: 'agent',
           },
         },
       })
@@ -598,10 +599,11 @@ const AgentNetworkView: React.FC = () => {
           screen: 'ChatScreen',
           initial: false,
           params: {
-            contactId: contact.id,
+            recipientId: contact.id,
             contactName: contact.name,
             contactAvatarColor: contact.avatarColor,
             contactCompany: contact.company,
+            contactRole: contact.role,
           },
         },
       })

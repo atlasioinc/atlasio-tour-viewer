@@ -25,6 +25,7 @@ import {
   UIManager,
   Platform,
   Animated,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CommonActions } from '@react-navigation/native';
@@ -484,7 +485,7 @@ const InboxList: React.FC = () => {
   // ── Live data hooks ──
   // @backend rpc_get_inbox_threads() — no params, auth.uid()
   // Returns threads with other_member profile + unread_count
-  const { data: inboxThreads } = useInboxThreads();
+  const { data: inboxThreads, refetch: refetchInbox, isRefetching: isInboxRefetching } = useInboxThreads();
   // Legacy hook kept for backward compatibility
   const { data: liveThreads } = useChatThreads();
 
@@ -587,6 +588,14 @@ const InboxList: React.FC = () => {
           showsVerticalScrollIndicator={false}
           style={{ flex: 1, backgroundColor: COLORS.screenBg }}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={isInboxRefetching}
+              onRefresh={refetchInbox}
+              tintColor={COLORS.primary}
+              colors={[COLORS.primary]}
+            />
+          }
         >
 
           {/* ── Verification Banner — inside scroll so it sits on screenBg naturally ── */}

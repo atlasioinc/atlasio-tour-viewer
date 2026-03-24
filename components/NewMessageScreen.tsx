@@ -157,7 +157,7 @@ const NewMessageScreen: React.FC = () => {
 
   const handleContactPress = (contact: SuggestedContact) => {
     navigation.navigate('ChatScreen', {
-      threadId: contact.id, // new thread or existing — resolved by backend
+      recipientId: contact.id, // user UUID — ChatScreen creates thread on first send
       contactName: contact.name,
       contactCompany: contact.company,
       contactRole: contact.role,

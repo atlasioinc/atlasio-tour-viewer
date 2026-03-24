@@ -1292,8 +1292,8 @@ export const useCreateThread = () => {
         if (error) throw error;
         return data as { success: boolean; thread_id: string; existing: boolean };
       } catch (err) {
-        console.warn('[useCreateThread] Supabase failed, using mock fallback', err);
-        return { success: true, thread_id: `mock-thread-${Date.now()}`, existing: false };
+        console.warn('[useCreateThread] failed:', err);
+        throw err;
       }
     },
     onSuccess: () => {
@@ -1358,9 +1358,8 @@ export const useSendMessage = () => {
         if (error) throw error;
         return data as { success: boolean; message_id: string; thread_id: string };
       } catch (err) {
-        console.warn('[useSendMessage] Supabase failed, using mock fallback', err);
-        // @demo mock fallback — preserves demo app
-        return { success: true, message_id: `msg-${Date.now()}`, thread_id: threadId };
+        console.warn('[useSendMessage] failed:', err);
+        throw err;
       }
     },
     onSuccess: (_, { threadId }) => {
@@ -2786,8 +2785,8 @@ interface PartnerConnection {
 }
 
 const MOCK_PARTNER_CONNECTIONS: PartnerConnection[] = [
-  { id: 'mock-partner-001', name: 'Lisa Nguyen', role: 'title_escrow', avatar_color: '#10B981' },
-  { id: 'mock-partner-002', name: 'David Park', role: 'mortgage_pro', avatar_color: '#6366F1' },
+  { id: 'a1b2c3d4-0001-4000-8000-000000000001', name: 'Lisa Nguyen', role: 'title_escrow', avatar_color: '#10B981' },
+  { id: 'a1b2c3d4-0002-4000-8000-000000000002', name: 'David Park', role: 'mortgage_pro', avatar_color: '#6366F1' },
   { id: 'mock-partner-003', name: 'Sarah Kim', role: 'title_escrow', avatar_color: '#F59E0B' },
 ];
 
