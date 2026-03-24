@@ -743,3 +743,31 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** (1) One Layout Tree rule preserved — partner branch is a component inside NetworkTab.tsx, not a separate file. (2) RPC Consumer Audit applied: `?? ''` on agent_name, `?? '#999999'` on agent_avatar_color, `?? ''` on agent_company. (3) Network tab visibility expanded from agent-only to agent+partner.
 - **Metrics:** Hooks: 74 (+1: usePartnerAcceptedConnections) | **tsc:** 0
 - **S104 next objectives:** Next.js closing tracker web app, partner hooks device testing, live deal creation E2E test, partner Network tab device testing
+
+### S105 — Messaging Nav Fixes (March 23, 2026)
+- **Modified:** `components/NewMessageScreen.tsx` — `threadId: contact.id` → `recipientId: contact.id` (contact.id is a user UUID, not a thread ID)
+- **Modified:** `components/ContractorJobDetails.tsx` — `contactId: job.agent.id` → `recipientId: job.agent.id` + added `contactRole: 'agent'`
+- **Key decisions:** S104b introduced `recipientId` param on InboxStack but left two nav call sites using old param names. Both fixed to use the correct typed params.
+- **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+
+### S106 — Live Messaging E2E Test (March 23, 2026)
+- **Modified:** `hooks/useData.ts` — useCreateThread + useSendMessage catch blocks now re-throw instead of returning fake success objects that masked real errors. Debug logs added/removed. useInboxThreads unwraps `data.threads` from RPC response (was returning raw `{ success, threads }` object). Mock IDs for Lisa Nguyen + David Park updated to real seeded profile UUIDs.
+- **Modified:** `components/ChatScreen.tsx` — handleSend restructured: newMessage declared before RPC block; on createThread failure removes optimistic message + shows Alert.
+- **Modified:** `components/InboxList.tsx` — Pull-to-refresh via RefreshControl on ScrollView.
+- **Modified:** `components/NetworkTab.tsx` — Both handleMessageContact + handleMessageAgent fixed: `contactId` → `recipientId`, added `contactRole`.
+- **Key decisions:** (1) Root cause was NetworkTab passing `contactId` instead of `recipientId` — ChatScreen got `undefined` and never called createThread. (2) Mock fallback catch blocks were returning fake success objects that masked the real error — now re-throw. (3) `useInboxThreads` was returning raw RPC response object instead of unwrapping `data.threads`.
+- **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+
+### S107 — Messaging Polish + Inbox Display (March 24, 2026)
+- **Modified:** `lib/typeAdapters.ts` — `adaptConnectionToNetworkContact` changed `id: conn.id` (connection row UUID) → `id: conn.profile?.id ?? conn.responder_id` (partner's profile UUID). Fixes FK violation on `rpc_create_thread`.
+- **Modified:** `tasks/lessons.md` — Added "Connection ID ≠ Profile ID" rule: `connections.id` is the connection row UUID, never a user identifier.
+- **Modified:** `components/InboxList.tsx` — Scroll-to-top on screen focus via `useFocusEffect` + `scrollViewRef`. RECENT section gap removed (`paddingVertical: 8` → `paddingTop: 0, paddingBottom: 8`). `navigate` → `push` for ChatScreen to prevent NewMessage flash.
+- **Modified:** `components/InboxStack.tsx` — ChatScreen changed from `fullScreenModal` to pushed screen, enabling iOS swipe-right-to-go-back gesture.
+- **Modified:** `components/ChatScreen.tsx` — Bubble flash fix: `currentUserId` init `''` instead of placeholder + message sync gates on userId resolved. `isConversationMode` includes `!!initialThreadId` so existing threads skip compose header. Input padding: replaced SafeAreaView with explicit `paddingBottom: Math.max(insets.bottom, 8)`.
+- **Modified:** `components/NewMessageScreen.tsx` — Back button 36×36 → 44×44, removed `hitSlop`, added `paddingBottom: 4` to header.
+- **Key decisions:** (1) Connection row UUID vs profile UUID was a 3-session debug trace (S106c–S107b). (2) `useInboxThreads` was returning raw RPC object — unwrapped `data.threads`. (3) ChatScreen flash caused by `isConversationMode` requiring `messages.length > 0` which is false on first render before RPC data loads.
+- **Metrics:** RPCs: 33 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+- **S108 next objectives:** Live messaging E2E re-test (full flow verification), Next.js closing tracker web app, partner hooks device testing
