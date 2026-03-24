@@ -175,7 +175,7 @@ const CONTRACTOR_ROLES = new Set(['contractor', 'home_stager', 'real_estate_phot
 export const adaptConnectionToNetworkContact = (
   conn: Connection & { profile: Profile },
 ): LocalNetworkContact => ({
-  id: conn.id,
+  id: conn.profile?.id ?? conn.responder_id,
   name: conn.profile.name,
   company: conn.profile.company,
   role: conn.profile.display_role,

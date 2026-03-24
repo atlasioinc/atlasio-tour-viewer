@@ -36,6 +36,23 @@ The `!` operator trusts that data is never null — live RPCs can return null
 for empty results even when COALESCE is in the RPC body.
 S104: `activeDeals!.map()` crashed when partner test user had no agent deals.
 
+## RULE — Connection ID ≠ Profile ID (added S107, March 23 2026)
+
+When querying the `connections` table, `connections.id` is the connection ROW UUID —
+NOT a user profile UUID. Never pass `connections.id` as a user identifier to any RPC
+that expects a `profiles.id` foreign key.
+
+Always use:
+- `requester_id` or `responder_id` for the actual profile UUID, OR
+- The joined profile object's `.id` field (e.g., `conn.profile.id` from a
+  `profile:profiles!responder_id(*)` join)
+
+Before using any `.id` field as a `recipientId` or user identifier, verify what the
+field actually refers to by tracing the data from the Supabase query through any
+adapter functions to the navigation call site. Do NOT assume — read the query.
+
+S107 cost: 3 debug sessions (S106c–S107b) to trace a single wrong UUID field.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —
