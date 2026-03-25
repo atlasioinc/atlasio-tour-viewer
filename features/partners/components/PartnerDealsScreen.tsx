@@ -248,7 +248,8 @@ const PartnerDealsScreen: React.FC<PartnerDealsScreenProps> = ({ partnerRole = '
             {activeGroup.length > 0 && (
               <View style={{ paddingHorizontal: SPACING.xl }}>
                 <View style={{
-                  paddingVertical: SPACING.lg,
+                  paddingTop: closingSoonGroup.length > 0 ? SPACING.lg : 0,
+                  paddingBottom: SPACING.lg,
                   borderBottomWidth: 0.5,
                   borderBottomColor: COLORS.border,
                   marginBottom: SPACING.lg,

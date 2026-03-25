@@ -394,7 +394,7 @@ export function useToggleAcceptingClients() {
 /**
  * Updates a milestone's status (pending → in_progress → complete).
  * STATUS: wired (with mock fallback)
- * @backend rpc_update_milestone_status — params: { p_milestone_id: string, p_status: MilestoneStatus }
+ * @backend rpc_update_milestone_status — params: { p_milestone_id, p_status, p_completed_at }
  * Optimistic update: updates milestone in partner_active_deals cache immediately.
  * Invalidates: ['partner_active_deals', partnerId]
  */
@@ -413,18 +413,22 @@ export function useUpdateMilestoneStatus() {
       completedAt: string | null;
       partnerId: string;
     }) => {
-      try {
-        // @backend rpc_update_milestone_status — params: { p_milestone_id, p_status }
-        const { data, error } = await supabase.rpc('rpc_update_milestone_status', {
-          p_milestone_id: milestoneId,
-          p_status: status,
-        });
-        if (error) throw error;
-        return data ?? { milestoneId, status, completedAt };
-      } catch {
-        console.warn(`[useUpdateMilestoneStatus] Supabase failed, mock ${milestoneId} → ${status}`);
+      if (!PARTNER_TRACK_ENABLED) {
+        // @demo mock fallback — no RPC call
         return { milestoneId, status, completedAt };
       }
+      // @backend rpc_update_milestone_status — params: { p_milestone_id, p_status, p_completed_at }
+      const { data, error } = await supabase.rpc('rpc_update_milestone_status', {
+        p_milestone_id: milestoneId,
+        p_status: status,
+        p_completed_at: completedAt,
+      });
+      if (error) {
+        console.error('[useUpdateMilestoneStatus] RPC failed:', error.message, { milestoneId, status });
+        throw error;
+      }
+      console.log('[useUpdateMilestoneStatus] Success:', milestoneId, '→', status);
+      return data ?? { milestoneId, status, completedAt };
     },
     onMutate: async (variables) => {
       // Optimistic update — cycle milestone in cache

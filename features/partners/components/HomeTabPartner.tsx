@@ -374,20 +374,21 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                   );
                 }
 
-                // ── Deal Invitation Card (S64b — NEW) ──
+                // ── Deal Invitation Card (S64b, redesigned S112) ──
                 // Visual distinction: 4px left border accent, COLORS.primary
                 const closingLabel = item.closing_date
                   ? new Date(item.closing_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                   : null;
-                const roleLabel = item.partner_role === 'title_escrow' ? 'Title/Escrow'
-                  : item.partner_role === 'mortgage_pro' ? 'Mortgage Pro'
-                  : item.partner_role;
+                // @demo contract_price may be null if RPC doesn't return it yet
+                const priceLabel = item.contract_price
+                  ? `$${item.contract_price.toLocaleString()}`
+                  : null;
 
                 return (
                   <View
                     key={item.id}
                     style={{
-                      width: 200,
+                      width: 220,
                       padding: SPACING.xl,
                       borderRadius: DIMENSIONS.cardRadius,
                       borderWidth: DIMENSIONS.cardBorderWidth,
@@ -402,42 +403,37 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                     {/* Property address */}
                     <Text
                       style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
                       {item.property_address}
                     </Text>
 
-                    {/* Agent row */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    {/* Agent avatar + name — 40px circle */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: SPACING.lg }}>
                       <View style={{
-                        width: 24, height: 24, borderRadius: 9999,
+                        width: 40, height: 40, borderRadius: 9999,
                         backgroundColor: item.agent_avatar_color,
                         alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.background }}>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background }}>
                           {(item.agent_name ?? '').charAt(0)}
                         </Text>
                       </View>
-                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>
                         {item.agent_name}
                       </Text>
                     </View>
 
-                    {/* Role pill */}
-                    <View style={{
-                      alignSelf: 'flex-start', marginTop: 8,
-                      backgroundColor: COLORS.tagBg,
-                      borderRadius: DIMENSIONS.pillRadius,
-                      paddingHorizontal: 8, paddingVertical: 2,
-                    }}>
-                      <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.bodyText }}>
-                        {roleLabel}
+                    {/* Purchase price */}
+                    {priceLabel && (
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, marginTop: SPACING.md }}>
+                        {priceLabel}
                       </Text>
-                    </View>
+                    )}
 
                     {/* Closing date */}
                     {closingLabel && (
-                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 6 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: 4 }}>
                         Closing {closingLabel}
                       </Text>
                     )}

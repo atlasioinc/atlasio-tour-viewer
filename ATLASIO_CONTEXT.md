@@ -31,7 +31,7 @@
 
 ---
 
-## Current Metrics (updated S107 — March 24, 2026)
+## Current Metrics (updated S112 — March 25, 2026)
 - **RPCs:** 59 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, and others S91-S103)
 - **Hooks:** 58 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 10 — 8 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts. Note: LIVE_NEIGHBORHOOD_HOOKS referenced in code but missing from featureFlags.ts (S105 finding).
@@ -872,4 +872,14 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decision:** No query key change needed (`['profile', 'me']` is fine) — `queryClient.clear()` on sign-out wipes all cached data, so the next user starts fresh.
 - **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged), Feature Flags: 11 (unchanged)
 - **tsc:** 0
-- **S112 next objectives:** Device QA re-test partner flow (Lisa login → partner tabs → deals → profile → logout → Tony login → agent tabs), wire live vouch feed for partners, wire closing tracker live E2E
+### S112 — Milestone Persistence Fix + Partner UX Bugs (March 25, 2026)
+- **Modified:** `features/partners/hooks/usePartnerData.ts` — CRITICAL: `useUpdateMilestoneStatus` was not persisting to Supabase. Root cause: missing `p_completed_at` param in RPC call (only sent 2 of 3 required params) + silent catch block swallowed errors. Fix: added `p_completed_at` param, added `PARTNER_TRACK_ENABLED` gate for mock path, errors now re-throw instead of faking success, added success/error logging.
+- **Modified:** `features/partners/components/HomeTabPartner.tsx` — Deal invitation card redesign: agent avatar 24px → 40px, removed redundant role pill, added purchase price display (`$XXX,XXX` from `contract_price`), card width 200 → 220, address allows 2 lines.
+- **Modified:** `features/partners/components/PartnerDealsScreen.tsx` — Fixed blank white space above ACTIVE section: removed excess `paddingTop` from ACTIVE section header when no "Closing Soon" deals exist (conditional `paddingTop: closingSoonGroup.length > 0 ? SPACING.lg : 0`).
+- **Modified:** `components/InboxList.tsx` — Inbox thread avatar/name fallbacks: `SingleAvatar` shows "?" when name is empty, thread name shows "Unknown" when name is empty. Root SQL fix for `rpc_get_inbox_threads` profile join may also be needed.
+- **Modified:** `lib/featureFlags.ts` — Flags set for device testing, reset to demo defaults before commit.
+- **Modified:** `lib/config.ts` — `PARTNER_TRACK_ENABLED` and `DEAL_CREATION_ENABLED` set for testing, reset to demo defaults before commit.
+- **Key decisions:** (1) Milestone RPC error handling now re-throws instead of faking success — matches S106 pattern for `useCreateThread`/`useSendMessage`. (2) `PARTNER_TRACK_ENABLED` gate added to mutation — mock path returns immediately without calling RPC. (3) Inbox avatar "?" fallback is defensive; root cause likely in RPC profile join (needs SQL investigation). (4) Deal invitation card purchase price gracefully hides if `contract_price` is null.
+- **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged), Feature Flags: 11 (unchanged)
+- **tsc:** 0
+- **S113 next objectives:** Verify `rpc_update_milestone_status` has 3 params in Supabase (add `p_completed_at` if missing), device QA milestone tap → Supabase row update → closing page Realtime refresh, investigate `rpc_get_inbox_threads` profile join for missing names/avatars, wire live vouch feed for partners

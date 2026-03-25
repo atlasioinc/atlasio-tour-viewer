@@ -253,7 +253,7 @@ const SingleAvatar: React.FC<{ color: string; name: string; size?: number }> = (
   name,
   size = 48,
 }) => {
-  const initials = name.split(' ').slice(0, 2).map((n) => n[0]).join('').substring(0, 2);
+  const initials = (name || '?').split(' ').slice(0, 2).map((n) => n[0] ?? '').join('').substring(0, 2) || '?';
   return (
     <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
@@ -430,7 +430,7 @@ const SwipeableThreadRow: React.FC<{
               style={{ flex: 1, fontSize: 16, fontWeight: thread.isUnread ? '600' : '400', color: COLORS.darkText, lineHeight: 24 }}
               numberOfLines={1}
             >
-              {thread.name}
+              {thread.name || 'Unknown'}
             </Text>
             <Text style={{ fontSize: 12, fontWeight: thread.isUnread ? '600' : '400', color: thread.isUnread ? COLORS.primary : COLORS.secondaryText, lineHeight: 16, marginLeft: 8 }}>
               {thread.timestamp}
