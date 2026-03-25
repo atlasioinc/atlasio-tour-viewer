@@ -34,7 +34,7 @@
 ## Current Metrics (updated S55 — March 15, 2026)
 - **RPCs:** 33
 - **Hooks:** 58
-- **Feature Flags:** 9
+- **Feature Flags:** 11
 - **Edge Functions:** 11
 - **Storage Buckets:** 6
 - **Screens:** 3 new (ClientLifestyleScreen, NeighborhoodMatchScreen, CategoryMapScreen)
@@ -55,6 +55,8 @@ DEV_BYPASS_AUTH: true          // true = loads agent demo user, bypasses login
 DEV_SHOW_PASSWORD_LOGIN: false // true = shows password input for device testing
 LIVE_SQUAD_SHARE: false
 LIVE_NEIGHBORHOOD_HOOKS: false  // false = mock data, true = Walk Score + Places + AirNow APIs (S56+)
+PARTNER_TRACK_ENABLED: false    // in lib/config.ts — false until partner onboarding live (S62)
+DEAL_CREATION_ENABLED: false    // in lib/config.ts — false until deal creation ready (S79)
 ```
 
 **Flag workflow:**

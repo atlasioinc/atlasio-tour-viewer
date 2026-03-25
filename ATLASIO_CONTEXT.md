@@ -844,4 +844,24 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** (1) Layered reveal approach: `isLoadingThread` → `screenReady` (400ms nav delay) → `listReady` (layout settled) → `showMessages` (combined gate). (2) No scroll on initial load — only on new messages after first render. (3) Tab bar handles bottom safe area, so ChatScreen input needs only breathing room padding. (4) Network tab thread detection prevents redundant compose flow when thread already exists. (5) `keyboardVerticalOffset=0` is correct — tab bar height offset overcorrects, creating visible gap.
 - **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
 - **tsc:** 0
-- **S109 next objectives:** Device QA pass on full messaging flow, live E2E re-test, demo QA
+### S109 — Closing Tracker E2E Audit (March 25, 2026)
+- **Context:** Device testing with `USE_MOCK_DATA: false`, logged in as Lisa Nguyen (partner, role: `title_escrow`). Found 8 bugs.
+- **Created partner test accounts:** Lisa Nguyen (`lisa@atlasioapp.com`, UUID: `c4a7dd76-4d1c-46b8-961a-84e77f638bd7`, role: `title_escrow`), David Park (`david@atlasioapp.com`, UUID: `a27e8c53-7fc3-4729-b429-425c2cda7757`, role: `mortgage_pro`). Both with accepted connections to Tony/Alex Morgan.
+- **Bugs found:** (1) RPC fix needed, (2) `buyer_name` always null, (3) CRITICAL: partner loads agent tabs, (4) profile role missing, (5+6) license upload not persisting / verification empty, (7) "All deals on track" with 0 deals, (8) vouches showing demo data while live
+- **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged)
+- **tsc:** 0
+
+### S110 — Partner Role Routing Fix + Partner Experience Polish (March 25, 2026)
+- **Modified:** `lib/demoRoleContext.ts` — Added `mapProfileRoleToDemoRole()` function that maps Supabase `profiles.role` values to DemoRole type. Partner roles (`title_escrow`, `mortgage_pro`, `attorney`, `warranty`, `inspector`, `home_inspector`, `appraiser`, `transaction_coordinator`) → `'partner'`.
+- **Modified:** `components/BottomTabNavigator.tsx` — When `DEV_BYPASS_AUTH: false`, `useMyProfile()` syncs `demoRole` state to the user's actual profile role via `useEffect`. Long-press role toggle disabled for live users. Added imports: `FEATURE_FLAGS`, `useMyProfile`, `mapProfileRoleToDemoRole`, `useEffect`.
+- **Modified:** `features/partners/components/HomeTabPartner.tsx` — (1) Bug #7: Deals section now distinguishes 0-deal empty state ("No active deals yet" / grey card) from all-deals-clear state ("All deals on track" / green card). (2) Bug #8: Vouch feed gated by `FEATURE_FLAGS.USE_MOCK_DATA` — shows empty state ("No vouches yet") when live. Added `FEATURE_FLAGS` import.
+- **Modified:** `features/partners/components/DealCreationSheet.tsx` — Bug #2: Added "Buyer Name" TextInput field (field 2, before closing date). `buyerName` state threaded through to `createTransaction.mutateAsync({ buyerName })`. File header updated from 4 fields to 5 fields.
+- **Modified:** `hooks/useData.ts` — `useCreateTransaction` mutation now accepts `buyerName?: string | null` and passes it as `p_buyer_name` to `rpc_create_transaction` (was hardcoded `null`).
+- **Modified:** `components/VerificationScreen.tsx` — Added S110 note documenting flag-dependent behavior for license uploads.
+- **Modified:** `components/OnboardingComplete.tsx` — Added S110 note documenting LIVE_ONBOARDING flag dependency for persisting onboarding data.
+- **Modified:** `lib/featureFlags.ts` — Reset flags to demo defaults (`USE_MOCK_DATA: true`, `DEV_BYPASS_AUTH: true`, `DEV_SHOW_PASSWORD_LOGIN: false`).
+- **Modified:** `lib/config.ts` — Reset `PARTNER_TRACK_ENABLED` and `DEAL_CREATION_ENABLED` to `false` (demo defaults).
+- **Key decisions:** (1) Role mapping lives in `demoRoleContext.ts` as a shared utility — reusable by any component needing to map profile roles. (2) Bug #4 resolved by Bug #3 fix — ProfileTab already reads `ROLE_DISPLAY[profileRole]` correctly; issue was the wrong role context. (3) Bug #5+#6 documented as expected flag-dependent behavior, no code fix needed.
+- **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged), Feature Flags: 11 (added PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED to CLAUDE.md)
+- **tsc:** 0
+- **S111 next objectives:** Device QA re-test partner flow (Lisa login → partner tabs → deals → profile), wire live vouch feed for partners, wire closing tracker live E2E
