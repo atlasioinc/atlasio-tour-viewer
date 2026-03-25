@@ -16,6 +16,11 @@
 //   LIVE_VERIFICATION_HOOKS = false (@demo) → console.log + mock Alert
 //   LIVE_VERIFICATION_HOOKS = true  → calls rpc_submit_license_verification
 //
+// NOTE (S110): When LIVE_VERIFICATION_HOOKS is false, license uploads during onboarding
+// are silently discarded (console.log only). The verification screen will show the empty
+// state since no data was persisted to Supabase. This is expected demo behavior.
+// To test real uploads: set LIVE_VERIFICATION_HOOKS: true + LIVE_ONBOARDING: true.
+//
 // @demo  Mock verification state from profile hook
 // @backend rpc_submit_license_verification (S47)
 //          ARELLO API license verify: edge function (deferred, pre-launch)

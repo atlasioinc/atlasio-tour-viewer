@@ -5,11 +5,12 @@
 // Where: HomeStack → DealCreation (fullScreenModal, slide_from_bottom)
 // Gated behind DEAL_CREATION_ENABLED flag (in HomeTabAgent)
 //
-// 4 fields:
+// 5 fields:
 //   1. Property address (Google Places Autocomplete)
-//   2. Closing date (optional, native DateTimePicker — S79)
-//   3. Assign partners (multi-select from mock connected partners)
-//   4. Contract price (optional, currency-formatted — S79)
+//   2. Buyer name (optional — S110)
+//   3. Closing date (optional, native DateTimePicker — S79)
+//   4. Assign partners (multi-select from mock connected partners)
+//   5. Contract price (optional, currency-formatted — S79)
 //
 // State flow:
 //   navigate → fill fields → Create Deal → mutation →
@@ -143,6 +144,7 @@ export default function DealCreationSheet() {
   const [closingDateObj, setClosingDateObj] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [contractPrice, setContractPrice] = useState(''); // raw digits only (e.g. "100000")
+  const [buyerName, setBuyerName] = useState(''); // @backend p_buyer_name — optional buyer name for transaction
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
 
   // ── Success state (S79 — in-place swap pattern from SendSquadScreen) ──
@@ -165,6 +167,7 @@ export default function DealCreationSheet() {
     setClosingDateObj(null);
     setShowDatePicker(false);
     setContractPrice('');
+    setBuyerName('');
     setSelectedPartnerIds([]);
     setSuggestions([]);
     setShowAutocomplete(false);
@@ -269,6 +272,7 @@ export default function DealCreationSheet() {
         propertyAddress: selectedAddress,
         closingDate: closingDateObj ? closingDateObj.toISOString().split('T')[0] : null,
         contractPrice: contractPrice ? Number(contractPrice) : null,
+        buyerName: buyerName.trim() || null,
         partnerAssignments,
       });
 
@@ -472,7 +476,29 @@ export default function DealCreationSheet() {
               )}
             </View>
 
-            {/* ── Field 2: Closing Date — native DateTimePicker (PostJobWizard pattern, S79) ── */}
+            {/* ── Field 2: Buyer Name (optional) ── */}
+            <Text style={{
+              fontSize: 14, fontWeight: '600', color: COLORS.darkText,
+              lineHeight: 20, marginBottom: 8, marginTop: 20,
+            }}>
+              Buyer Name
+            </Text>
+            <TextInput
+              value={buyerName}
+              onChangeText={setBuyerName}
+              placeholder="e.g. John & Jane Smith"
+              placeholderTextColor={COLORS.bodyText}
+              style={{
+                paddingHorizontal: 14, paddingVertical: 12,
+                backgroundColor: COLORS.inputBackground, borderRadius: 10,
+                borderWidth: 0.68,
+                borderColor: buyerName ? COLORS.inputActiveBorder : COLORS.border,
+                fontSize: 15, color: COLORS.darkText,
+              }}
+              returnKeyType="done"
+            />
+
+            {/* ── Field 3: Closing Date — native DateTimePicker (PostJobWizard pattern, S79) ── */}
             <Text style={{
               fontSize: 14, fontWeight: '600', color: COLORS.darkText,
               lineHeight: 20, marginBottom: 8, marginTop: 20,

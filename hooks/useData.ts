@@ -2616,11 +2616,13 @@ export function useCreateTransaction() {
       propertyAddress,
       closingDate,
       contractPrice,
+      buyerName,
       partnerAssignments,
     }: {
       propertyAddress: string;
       closingDate: string | null;
       contractPrice: number | null;
+      buyerName?: string | null;
       partnerAssignments: { partner_id: string; partner_role: string }[];
     }) => {
       if (FEATURE_FLAGS.USE_MOCK_DATA) {
@@ -2640,7 +2642,7 @@ export function useCreateTransaction() {
         p_property_address: propertyAddress,
         p_closing_date: closingDate,
         p_contract_price: contractPrice,
-        p_buyer_name: null,
+        p_buyer_name: buyerName ?? null,
         p_mls_number: null,
         p_partner_assignments: partnerAssignments,
       });

@@ -30,6 +30,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../../../lib/tokens';
+import { FEATURE_FLAGS } from '../../../lib/featureFlags';
 import ActiveDealCard from './ActiveDealCard';
 import {
   usePartnerNeedsAttention,
@@ -490,8 +491,25 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
             {needsAttentionDeals.length > 0 ? 'Needs Attention' : 'Your Deals'}
           </Text>
 
-          {needsAttentionDeals.length === 0 ? (
-            /* AllClearEmptyState — green card */
+          {needsAttentionDeals.length === 0 && totalActiveDeals === 0 ? (
+            /* ZeroDealsEmptyState — no deals exist yet */
+            <View style={{
+              padding: SPACING.xl,
+              borderRadius: DIMENSIONS.cardRadius,
+              backgroundColor: COLORS.chipBg,
+              borderWidth: DIMENSIONS.cardBorderWidth,
+              borderColor: COLORS.cardBorder,
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText }}>
+                No active deals yet
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: SPACING.sm, textAlign: 'center' }}>
+                Deals will appear here when agents invite you to their transactions
+              </Text>
+            </View>
+          ) : needsAttentionDeals.length === 0 ? (
+            /* AllClearEmptyState — deals exist but none need attention */
             <View style={{
               padding: SPACING.xl,
               borderRadius: DIMENSIONS.cardRadius,
@@ -587,43 +605,63 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
             </Pressable>
           </View>
 
-          {/* @demo Inline vouch cards — replace with useProfileVouches when wired */}
-          {DEMO_VOUCHES.map(vouch => (
-            <View
-              key={vouch.id}
-              style={{
-                padding: SPACING.xl,
-                borderRadius: DIMENSIONS.cardRadius,
-                borderWidth: DIMENSIONS.cardBorderWidth,
-                borderColor: COLORS.cardBorder,
-                backgroundColor: COLORS.quoteBg,
-                marginBottom: SPACING.lg,
-                ...SHADOWS.card,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
-                <View style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: DIMENSIONS.pillRadius,
-                  backgroundColor: vouch.avatarColor,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.background }}>
-                    {(vouch.name ?? '').split(' ').map(n => n[0]).join('')}
-                  </Text>
+          {/* @demo Inline vouch cards — gated by USE_MOCK_DATA (S110) */}
+          {/* @backend replace with useProfileVouches when wired */}
+          {FEATURE_FLAGS.USE_MOCK_DATA ? (
+            DEMO_VOUCHES.map(vouch => (
+              <View
+                key={vouch.id}
+                style={{
+                  padding: SPACING.xl,
+                  borderRadius: DIMENSIONS.cardRadius,
+                  borderWidth: DIMENSIONS.cardBorderWidth,
+                  borderColor: COLORS.cardBorder,
+                  backgroundColor: COLORS.quoteBg,
+                  marginBottom: SPACING.lg,
+                  ...SHADOWS.card,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
+                  <View style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: DIMENSIONS.pillRadius,
+                    backgroundColor: vouch.avatarColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.background }}>
+                      {(vouch.name ?? '').split(' ').map(n => n[0]).join('')}
+                    </Text>
+                  </View>
+                  <View style={{ marginLeft: SPACING.md }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>{vouch.name}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>{vouch.role}</Text>
+                  </View>
                 </View>
-                <View style={{ marginLeft: SPACING.md }}>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>{vouch.name}</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>{vouch.role}</Text>
-                </View>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, fontStyle: 'italic' }}>
+                  &ldquo;{vouch.quote}&rdquo;
+                </Text>
               </View>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, fontStyle: 'italic' }}>
-                &ldquo;{vouch.quote}&rdquo;
+            ))
+          ) : (
+            /* Live mode: empty state until vouch hooks are wired */
+            <View style={{
+              padding: SPACING.xl,
+              borderRadius: DIMENSIONS.cardRadius,
+              backgroundColor: COLORS.chipBg,
+              borderWidth: DIMENSIONS.cardBorderWidth,
+              borderColor: COLORS.cardBorder,
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 15, fontWeight: '500', color: COLORS.darkText }}>
+                No vouches yet
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, marginTop: SPACING.sm, textAlign: 'center' }}>
+                Vouches from agents will appear here after you close deals together
               </Text>
             </View>
-          ))}
+          )}
         </View>
 
         {/* ═════════════════════════════════════════════════════════ */}

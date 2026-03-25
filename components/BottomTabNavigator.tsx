@@ -33,8 +33,8 @@
 // @backend: useRealtimeNotifications keeps notification cache fresh
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useCallback, useRef } from 'react';
-import { DemoRoleContext, type DemoRole } from '../lib/demoRoleContext';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { DemoRoleContext, type DemoRole, mapProfileRoleToDemoRole } from '../lib/demoRoleContext';
 import { View, Text, Platform, Pressable, Animated, Vibration } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -48,6 +48,8 @@ import { COLORS } from '../lib/tokens';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useRealtimeNotifications } from '../hooks/useRealtime';
 import { supabase } from '../lib/supabase';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useMyProfile } from '../hooks/useData';
 
 // @demo — Import contractor screens for role toggle
 // Remove these imports when wiring to real auth role
@@ -402,13 +404,24 @@ const BottomTabNavigator: React.FC<Props> = () => {
   useRealtimeNotifications(rtUserId);
 
   // ── @demo Role toggle state ──
-  // Production: Remove entirely. Derive role from auth context:
-  //   const role = useAuthProfile().role; // 'agent' | 'contractor'
+  // When DEV_BYPASS_AUTH: true → demo mode, starts as 'agent', long-press toggles
+  // When DEV_BYPASS_AUTH: false → live auth, derives role from profiles.role via useMyProfile()
+  const { data: liveProfile } = useMyProfile();
   const [demoRole, setDemoRole] = useState<DemoRole>('agent');
+
+  // @backend When live auth is active, sync demoRole to the user's actual profile role
+  // This ensures partner users (title_escrow, mortgage_pro, etc.) land on the correct tabs
+  useEffect(() => {
+    if (!FEATURE_FLAGS.DEV_BYPASS_AUTH && liveProfile?.role) {
+      setDemoRole(mapProfileRoleToDemoRole(liveProfile.role));
+    }
+  }, [liveProfile?.role]);
 
   // @demo Role cycle: agent → contractor (→ partner only when PARTNER_TRACK_ENABLED)
   // When PARTNER_TRACK_ENABLED is false (default), partner is completely invisible
+  // Disabled when DEV_BYPASS_AUTH is false — live users should not toggle roles
   const toggleRole = useCallback(() => {
+    if (!FEATURE_FLAGS.DEV_BYPASS_AUTH) return; // no toggle for live users
     setDemoRole((prev) => {
       if (prev === 'agent') return 'contractor';
       if (prev === 'contractor' && PARTNER_TRACK_ENABLED) return 'partner';

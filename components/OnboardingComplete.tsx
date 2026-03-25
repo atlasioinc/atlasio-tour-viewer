@@ -9,6 +9,11 @@
 //
 // @demo  Console.log payload stub — no actual RPC call
 // @backend TODO: rpc_complete_onboarding(formData) — persist all onboarding data
+//
+// NOTE (S110): When LIVE_ONBOARDING is false, all onboarding data (including license
+// uploads) is logged to console but NOT persisted to Supabase. This means the
+// Verification screen will show an empty state after onboarding completes in demo mode.
+// To persist onboarding data: set LIVE_ONBOARDING: true in lib/featureFlags.ts.
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
