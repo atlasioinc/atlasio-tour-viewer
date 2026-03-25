@@ -864,4 +864,12 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** (1) Role mapping lives in `demoRoleContext.ts` as a shared utility — reusable by any component needing to map profile roles. (2) Bug #4 resolved by Bug #3 fix — ProfileTab already reads `ROLE_DISPLAY[profileRole]` correctly; issue was the wrong role context. (3) Bug #5+#6 documented as expected flag-dependent behavior, no code fix needed.
 - **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged), Feature Flags: 11 (added PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED to CLAUDE.md)
 - **tsc:** 0
-- **S111 next objectives:** Device QA re-test partner flow (Lisa login → partner tabs → deals → profile), wire live vouch feed for partners, wire closing tracker live E2E
+### S111 — Auth Session Cache Fix + Flag Reset (March 25, 2026)
+- **Modified:** `App.tsx` — CRITICAL fix: reordered `onAuthStateChange` handler so `SIGNED_OUT` event is checked before `!session` null guard. Previously, sign-out (which sends `session=null`) hit the null guard first and returned before `queryClient.clear()` could execute. Second user login saw first user's cached profile and role. Added `setUserRole('Agent')` reset on sign-out.
+- **Modified:** `tasks/lessons.md` — Added "Auth Session Switch (S111)" lesson documenting the cache clear ordering bug and fix.
+- **Bug #1 (CRITICAL) fixed:** After logout + login as different user, previous user's session persisted — wrong tabs, wrong profile name, wrong role. Root cause: dead code path where `queryClient.clear()` was unreachable.
+- **Bug #2 resolved:** Profile tab not showing partner role was a symptom of Bug #1 (stale cache served wrong user's data). ProfileTab.tsx role display logic was already correct.
+- **Key decision:** No query key change needed (`['profile', 'me']` is fine) — `queryClient.clear()` on sign-out wipes all cached data, so the next user starts fresh.
+- **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged), Feature Flags: 11 (unchanged)
+- **tsc:** 0
+- **S112 next objectives:** Device QA re-test partner flow (Lisa login → partner tabs → deals → profile → logout → Tony login → agent tabs), wire live vouch feed for partners, wire closing tracker live E2E
