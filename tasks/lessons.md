@@ -53,6 +53,17 @@ adapter functions to the navigation call site. Do NOT assume — read the query.
 
 S107 cost: 3 debug sessions (S106c–S107b) to trace a single wrong UUID field.
 
+## Auth Session Switch (S111)
+When a user logs out and a different user logs in, ALL cached data must be cleared:
+- queryClient.clear() on signOut
+- Reset demoRole state to default
+- Profile query key should include user ID to prevent cross-user cache hits
+Without this, the second user sees the first user's data and role.
+
+The specific bug: onAuthStateChange handler checked `!session` before `event === 'SIGNED_OUT'`.
+Since sign-out sends session=null, the null guard returned early and `queryClient.clear()` was
+never reached. Fix: check SIGNED_OUT event first, then the null guard.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

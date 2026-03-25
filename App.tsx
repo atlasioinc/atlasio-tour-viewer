@@ -159,14 +159,18 @@ export default function App() {
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event: string, session: Session | null) => {
-          if (!session) {
+          // SIGNED_OUT must be checked BEFORE !session guard —
+          // sign-out sends session=null, so the null guard would return
+          // before queryClient.clear() runs (S111 fix)
+          if (event === 'SIGNED_OUT') {
+            queryClient.clear();
+            setUserRole('Agent');
             setAuthState('unauthenticated');
             return;
           }
 
-          if (event === 'SIGNED_OUT') {
+          if (!session) {
             setAuthState('unauthenticated');
-            queryClient.clear();
             return;
           }
 
