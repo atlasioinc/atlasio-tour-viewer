@@ -396,14 +396,27 @@ export const useConnections = () => {
       try {
         const userId = await getCurrentUserId();
         if (!userId) throw new Error('Not authenticated');
+        // S115d: join BOTH profiles so we can pick the other person's profile
+        // (not always responder — current user can be either requester or responder)
         const { data, error } = await supabase
           .from('connections')
-          .select('*, profile:profiles!responder_id(*)')
+          .select('*, requester_profile:profiles!requester_id(*), responder_profile:profiles!responder_id(*)')
           .or(`requester_id.eq.${userId},responder_id.eq.${userId}`)
           .eq('status', 'accepted');
         if (error) throw error;
-        // Supabase typed client can't infer join alias — runtime shape is correct
-        return (data ?? []) as (Connection & { profile: Profile })[];
+        // @backend S115d: always use the OTHER person's profile, not self
+        // Before this fix, profiles!responder_id returned Tony's own profile
+        // when Lisa was the requester (requester=Lisa, responder=Tony)
+        const normalized = (data ?? []).map((conn: any) => {
+          const isRequester = conn.requester_id === userId;
+          return {
+            ...conn,
+            profile: isRequester
+              ? (conn.responder_profile ?? conn.requester_profile)
+              : (conn.requester_profile ?? conn.responder_profile),
+          };
+        });
+        return normalized as (Connection & { profile: Profile })[];
       } catch (err) {
         console.warn('[useConnections] Supabase failed, using mock fallback', err);
         // TODO: [PRODUCTION] Remove mock fallback
