@@ -143,6 +143,8 @@ export interface AgentActiveDeal {
   transaction_id?: string;       // S88: optional — present when deal created via rpc_create_transaction
   address: string;
   closing_date: string | null;
+  buyer_name?: string | null;        // S115c: from rpc_get_agent_deals → transactions.buyer_name
+  contract_price?: number | null;    // S115c: from rpc_get_agent_deals → transactions.contract_price
   partners: AgentDealPartner[];
 }
 

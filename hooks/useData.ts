@@ -2302,6 +2302,8 @@ const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
     transaction_id: 'mock-txn-001', // @demo hardcoded — replace with real transaction_id from rpc_create_transaction
     address: '2847 Maple Street, Denver, CO',
     closing_date: '2026-04-15',
+    buyer_name: 'James & Sarah Thornton', // @demo hardcoded — replace with rpc_get_agent_deals response
+    contract_price: 875000, // @demo hardcoded — replace with rpc_get_agent_deals response
     partners: [
       {
         partner_id: 'mock-partner-001',
@@ -2350,6 +2352,8 @@ const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
     transaction_id: 'mock-txn-002', // @demo hardcoded — replace with real transaction_id from rpc_create_transaction
     address: '1190 Corona Street, Denver, CO',
     closing_date: '2026-05-01',
+    buyer_name: 'David & Michelle Park', // @demo hardcoded — replace with rpc_get_agent_deals response
+    contract_price: 620000, // @demo hardcoded — replace with rpc_get_agent_deals response
     partners: [
       {
         partner_id: 'mock-partner-003',
@@ -2395,6 +2399,8 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
     transaction_id: 'mock-txn-deals-001', // @demo hardcoded — replace with real transaction_id
     address: '2847 Maple Street, Denver, CO',
     closing_date: '2026-04-15',
+    buyer_name: 'James & Sarah Thornton', // @demo hardcoded — replace with rpc_get_agent_deals response
+    contract_price: 875000, // @demo hardcoded — replace with rpc_get_agent_deals response
     partners: [
       {
         partner_id: 'mock-p-001',
@@ -2430,6 +2436,8 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
     transaction_id: 'mock-txn-deals-002', // @demo hardcoded — replace with real transaction_id
     address: '1190 Corona Street, Denver, CO',
     closing_date: '2026-03-28',
+    buyer_name: 'David & Michelle Park', // @demo hardcoded — replace with rpc_get_agent_deals response
+    contract_price: 620000, // @demo hardcoded — replace with rpc_get_agent_deals response
     partners: [
       {
         partner_id: 'mock-p-003',
@@ -2462,6 +2470,8 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
     transaction_id: 'mock-txn-deals-003', // @demo hardcoded — replace with real transaction_id
     address: '4521 Tennyson Street, Denver, CO',
     closing_date: '2026-06-10',
+    buyer_name: 'Angela Torres', // @demo hardcoded — replace with rpc_get_agent_deals response
+    contract_price: 540000, // @demo hardcoded — replace with rpc_get_agent_deals response
     partners: [
       {
         partner_id: 'mock-p-005',
@@ -2482,6 +2492,8 @@ const MOCK_AGENT_DEALS: AgentActiveDeal[] = [
     transaction_id: 'mock-txn-deals-004', // @demo hardcoded — replace with real transaction_id
     address: '782 S Pearl Street, Denver, CO',
     closing_date: '2026-07-22',
+    buyer_name: 'Robert & Lisa Chen', // @demo hardcoded — replace with rpc_get_agent_deals response
+    contract_price: 1250000, // @demo hardcoded — replace with rpc_get_agent_deals response
     partners: [
       {
         partner_id: 'mock-p-006',

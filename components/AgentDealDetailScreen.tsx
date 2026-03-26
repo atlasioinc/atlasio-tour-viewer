@@ -94,6 +94,12 @@ function formatClosingDate(dateStr: string | null): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// @backend rpc_get_agent_deals → transactions.contract_price
+function formatPrice(price: number | null | undefined): string | null {
+  if (!price) return null;
+  return '$' + price.toLocaleString('en-US');
+}
+
 function getStaleDays(milestone: { updated_at: string }): number {
   const updatedAt = new Date(milestone.updated_at);
   const now = new Date();
@@ -254,12 +260,20 @@ const AgentDealDetailScreen: React.FC = () => {
         onBack={() => navigation.goBack()}
       />
 
-      {/* Closing date subtitle — below header */}
-      {closingDateLabel ? (
+      {/* Subtitle bar — buyer name, contract price, closing date */}
+      {/* @backend rpc_get_agent_deals → buyer_name, contract_price, closing_date */}
+      {(deal.buyer_name || formatPrice(deal.contract_price) || closingDateLabel) ? (
         <View style={{ paddingHorizontal: 16, paddingVertical: 6, borderBottomWidth: DIMENSIONS.headerBorderWidth, borderBottomColor: COLORS.border }}>
-          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, textAlign: 'center' }}>
-            Closing {closingDateLabel}
-          </Text>
+          {deal.buyer_name ? (
+            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, textAlign: 'center' }}>
+              {deal.buyer_name}
+            </Text>
+          ) : null}
+          {(formatPrice(deal.contract_price) || closingDateLabel) ? (
+            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, textAlign: 'center' }}>
+              {[formatPrice(deal.contract_price), closingDateLabel ? `Closing ${closingDateLabel}` : null].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
