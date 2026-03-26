@@ -19,7 +19,9 @@ import {
   Pressable,
   TextInput,
   ScrollView,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, DIMENSIONS, SPACING, SHADOWS } from '../../../lib/tokens';
@@ -112,7 +114,8 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
   const [composerOpen, setComposerOpen] = useState(false);
   const [selectedAlertType, setSelectedAlertType] = useState<AlertTypeConfig | null>(null);
   const [alertMessage, setAlertMessage] = useState('');
-  const [alertExpiryDate, setAlertExpiryDate] = useState('');
+  const [alertExpiryDate, setAlertExpiryDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>([]);
 
   // Optimistic milestone status overrides — same pattern as dismissedAlertIds
@@ -150,7 +153,7 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
   const handleSendAlert = () => {
     if (!selectedAlertType || !alertMessage.trim()) return;
     const expiresAt = selectedAlertType.requiresDate && alertExpiryDate
-      ? new Date(alertExpiryDate).toISOString()
+      ? alertExpiryDate.toISOString()
       : null;
     // @backend rpc_post_deal_alert — S88: transaction_id wired from deal.transaction_id when available
     onPostAlert(deal.job_id, selectedAlertType.type, alertMessage.trim(), expiresAt, deal.transaction_id);
@@ -158,7 +161,8 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
     setComposerOpen(false);
     setSelectedAlertType(null);
     setAlertMessage('');
-    setAlertExpiryDate('');
+    setAlertExpiryDate(null);
+    setShowDatePicker(false);
   };
 
   return (
@@ -385,28 +389,57 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
                 })}
               </ScrollView>
 
-              {/* Date picker row — only for rate_lock_expiry */}
+              {/* Date picker row — only for rate_lock_expiry (native DateTimePicker, S114) */}
               {selectedAlertType?.requiresDate && (
                 <View style={{ marginBottom: SPACING.lg }}>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, marginBottom: SPACING.md }}>
                     Expiry date
                   </Text>
-                  <TextInput
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={COLORS.bodyText}
-                    value={alertExpiryDate}
-                    onChangeText={setAlertExpiryDate}
+                  <Pressable
+                    onPress={() => setShowDatePicker(!showDatePicker)}
                     style={{
                       height: 44,
-                      borderWidth: 1,
-                      borderColor: COLORS.inputBorder,
+                      borderWidth: 0.68,
+                      borderColor: alertExpiryDate ? COLORS.inputActiveBorder : COLORS.inputBorder,
                       borderRadius: DIMENSIONS.inputRadius,
                       paddingHorizontal: SPACING.lg,
-                      fontSize: 14,
-                      color: COLORS.darkText,
-                      backgroundColor: COLORS.filterBg,
+                      justifyContent: 'center',
+                      backgroundColor: COLORS.inputBackground,
                     }}
-                  />
+                  >
+                    <Text style={{
+                      fontSize: 15,
+                      fontWeight: '400',
+                      color: alertExpiryDate ? COLORS.darkText : COLORS.bodyText,
+                    }}>
+                      {alertExpiryDate
+                        ? alertExpiryDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                        : 'Select a date'}
+                    </Text>
+                  </Pressable>
+                  {showDatePicker && (
+                    <View style={{ alignItems: 'center' }}>
+                      {/* @demo default value 7 days from today when no date selected */}
+                      <DateTimePicker
+                        value={alertExpiryDate || new Date(Date.now() + 7 * 86400000)}
+                        mode="date"
+                        display="inline"
+                        themeVariant="light"
+                        minimumDate={new Date()}
+                        onChange={(event, date) => {
+                          if (Platform.OS === 'android') {
+                            setShowDatePicker(false);
+                          }
+                          if (event.type === 'set' && date) {
+                            setAlertExpiryDate(date);
+                            setShowDatePicker(false);
+                          } else if (event.type === 'dismissed') {
+                            setShowDatePicker(false);
+                          }
+                        }}
+                      />
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -448,7 +481,8 @@ const ActiveDealCard: React.FC<ActiveDealCardProps> = ({
                     setComposerOpen(false);
                     setSelectedAlertType(null);
                     setAlertMessage('');
-                    setAlertExpiryDate('');
+                    setAlertExpiryDate(null);
+                    setShowDatePicker(false);
                   }}
                   style={{
                     flex: 1,
