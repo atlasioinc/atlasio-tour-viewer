@@ -31,9 +31,9 @@
 
 ---
 
-## Current Metrics (updated S112 — March 25, 2026)
-- **RPCs:** 59 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, and others S91-S103)
-- **Hooks:** 58 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+## Current Metrics (updated S115 — March 26, 2026)
+- **RPCs:** 60 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, and others S91-S103)
+- **Hooks:** 59 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 10 — 8 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts. Note: LIVE_NEIGHBORHOOD_HOOKS referenced in code but missing from featureFlags.ts (S105 finding).
 - **Edge Functions:** 11
 - **Storage Buckets:** 7
@@ -883,3 +883,17 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 59 (unchanged), Hooks: 58 (unchanged), Edge Functions: 11 (unchanged), Feature Flags: 11 (unchanged)
 - **tsc:** 0
 - **S113 next objectives:** Verify `rpc_update_milestone_status` has 3 params in Supabase (add `p_completed_at` if missing), device QA milestone tap → Supabase row update → closing page Realtime refresh, investigate `rpc_get_inbox_threads` profile join for missing names/avatars, wire live vouch feed for partners
+### S114 — Post Alert DateTimePicker (March 26, 2026)
+- **Modified:** Replaced Post Alert date TextInput with native DateTimePicker
+- **tsc:** 0
+### S115 — Inbox Archive Fix + Deal Display + Connections Join (March 26, 2026)
+- **S115b-rpc:** `rpc_get_agent_deals` updated in Supabase — added `milestone_label` + `sort_order` to response
+- **S115c:** `AgentActiveDeal` type updated with `buyer_name` + `contract_price` fields, mock data updated, `AgentDealDetailScreen` displays buyer name + contract price
+- **S115d:** `hooks/useData.ts` — `useConnections` bidirectional profile join fix (always returns other person's profile, not self)
+- **S115e:** `rpc_archive_thread` new RPC deployed + `useArchiveThread` hook added + `InboxList.tsx` `handleDelete` wired to archive. `rpc_create_thread` updated to skip archived threads (no stale thread reuse).
+- **S115f:** `useArchiveThread` upgraded with `onMutate` optimistic cache removal + `onError` rollback + `onSettled` invalidation
+- **S115g:** `InboxList.tsx` `useEffect` condition fix — `inboxThreads.length > 0` → `inboxThreads !== undefined && !== null` so empty inbox after archiving all threads doesn't fall through to stale `liveThreads` branch
+- **Key decisions:** (1) Archive not hard-delete — preserves message history for compliance. (2) Optimistic cache removal with rollback — instant UI even on slow connections. (3) Two-layer optimistic update: local `setThreads` for animation + TanStack cache `onMutate` for data consistency.
+- **Metrics:** RPCs: 60 (+1: rpc_archive_thread), Hooks: 59 (+1: useArchiveThread), Edge Functions: 11 (unchanged), Feature Flags: 11 (unchanged)
+- **tsc:** 0
+- **S116 next objectives:** 3-dot menu + Edit Deal modal on AgentDealDetailScreen
