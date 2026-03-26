@@ -36,7 +36,7 @@ import SearchField from './SearchField';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useChatThreads, useInboxThreads } from '../hooks/useData';
+import { useChatThreads, useInboxThreads, useArchiveThread } from '../hooks/useData';
 import { adaptChatThreadToLocal, adaptInboxThreadToLocal } from '../lib/typeAdapters';
 import { VerificationBanner } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
@@ -483,6 +483,10 @@ const InboxList: React.FC = () => {
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
   const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
+  // ── Archive thread mutation ──
+  // @backend rpc_archive_thread({ p_thread_id })
+  const archiveThread = useArchiveThread();
+
   // ── Live data hooks ──
   // @backend rpc_get_inbox_threads() — no params, auth.uid()
   // Returns threads with other_member profile + unread_count
@@ -536,12 +540,17 @@ const InboxList: React.FC = () => {
     // TODO: TanStack mutation -> supabase.from('conversations').update({ muted_at: now() })
   }, []);
 
-  // ── Delete thread ──
+  // ── Delete (archive) thread ──
+  // @backend rpc_archive_thread({ p_thread_id }) — sets is_archived = true
   const handleDelete = useCallback((threadId: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    // Optimistic removal for instant UI feedback
     setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    // TODO: TanStack mutation -> supabase.from('conversations').update({ archived_at: now() })
-  }, []);
+    // Persist archive to Supabase — cache invalidation refreshes on success
+    archiveThread.mutateAsync(threadId).catch((error) => {
+      console.error('[handleDelete] archive failed:', error);
+    });
+  }, [archiveThread]);
 
   // ── Navigate to chat screen ──
   const handleThreadPress = useCallback((thread: ChatThread) => {

@@ -1436,6 +1436,33 @@ export const useThreadMessages = (threadId: string | undefined) => {
   });
 };
 
+/**
+ * Archive a thread so it no longer appears in the inbox.
+ * @backend rpc_archive_thread({ p_thread_id })
+ * rpc_create_thread now skips archived threads (S115e fix) so messaging
+ * the same person again creates a fresh thread with no old history.
+ */
+// STATUS: wired
+export const useArchiveThread = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (threadId: string) => {
+      const { data, error } = await supabase.rpc('rpc_archive_thread', {
+        p_thread_id: threadId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.inboxThreads });
+      qc.invalidateQueries({ queryKey: queryKeys.chatThreads });
+    },
+    onError: (error) => {
+      console.error('[useArchiveThread] failed:', error);
+    },
+  });
+};
+
 // ═══════════════════════════════════════════════════════════════
 // NOTIFICATION HOOKS
 // @backend: notifications table
