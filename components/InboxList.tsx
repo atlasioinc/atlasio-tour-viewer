@@ -497,7 +497,7 @@ const InboxList: React.FC = () => {
   React.useEffect(() => {
     if (FEATURE_FLAGS.USE_MOCK_DATA) return;
     // Prefer RPC-based inbox threads over legacy direct query
-    if (inboxThreads && inboxThreads.length > 0) {
+    if (inboxThreads !== undefined && inboxThreads !== null) {
       setThreads(inboxThreads.map(adaptInboxThreadToLocal));
       return;
     }
