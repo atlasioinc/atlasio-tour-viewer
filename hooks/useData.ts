@@ -23,7 +23,7 @@
 //   @backend: Supabase tables + RPCs referenced throughout
 // ─────────────────────────────────────────────
 //
-// HOOK CATALOG (58 hooks, 14 sections):
+// HOOK CATALOG (59 hooks, 14 sections):
 //   QUERY KEYS           — centralized cache keys for invalidation
 //   PROFILE (5)          — useMyProfile, useProfile, useUpdateProfile,
 //                          useConnectionStatus, useProfileVouches
@@ -2859,6 +2859,55 @@ export function useUpdateClosingDetails() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });
+    },
+  });
+}
+
+// ─── useUpdateTransaction ─────────────────────────────────────
+// STATUS: wired (with mock fallback)
+// PURPOSE: Agent edits top-level deal fields (buyer name, contract price, closing date).
+// Called from EditDealScreen via 3-dot menu on AgentDealDetailScreen.
+//
+// @backend rpc_update_transaction({
+//   p_transaction_id, p_buyer_name, p_contract_price, p_closing_date
+// })
+// Returns: { success: boolean }
+// On success: invalidate ['agent_deals'] + ['agent_active_deals']
+//
+// NOTE: rpc_update_closing_details handles closing_details JSONB separately.
+
+export function useUpdateTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      transactionId: string;
+      buyerName?: string | null;
+      contractPrice?: number | null;
+      closingDate?: string | null; // ISO date string YYYY-MM-DD
+    }) => {
+      if (FEATURE_FLAGS.USE_MOCK_DATA) {
+        // @demo mock — 600ms delay to simulate network
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return { success: true };
+      }
+
+      // @backend rpc_update_transaction(p_transaction_id, p_buyer_name, p_contract_price, p_closing_date)
+      const { data, error } = await supabase.rpc('rpc_update_transaction', {
+        p_transaction_id: input.transactionId,
+        p_buyer_name: input.buyerName ?? null,
+        p_contract_price: input.contractPrice ?? null,
+        p_closing_date: input.closingDate ?? null,
+      });
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.error ?? 'Failed to update transaction');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent_deals'] });
+      queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });
+    },
+    onError: (error) => {
+      console.error('[useUpdateTransaction] failed:', error);
     },
   });
 }

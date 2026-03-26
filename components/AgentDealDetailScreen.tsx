@@ -21,11 +21,12 @@
 // dismiss alert → useAgentDismissDealAlert mutation (optimistic)
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Share, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, Share, TextInput, KeyboardAvoidingView, Platform, Alert, ActionSheetIOS } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
 import { COLORS, DIMENSIONS, SPACING } from '../lib/tokens';
@@ -86,6 +87,14 @@ const AlertIcon: React.FC<{ color: string }> = ({ color }) => (
   </Svg>
 );
 
+const MoreHorizontalIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Circle cx={5} cy={12} r={1.5} fill={color} />
+    <Circle cx={12} cy={12} r={1.5} fill={color} />
+    <Circle cx={19} cy={12} r={1.5} fill={color} />
+  </Svg>
+);
+
 // ─── Helpers ──────────────────────────────────────────────────
 
 function formatClosingDate(dateStr: string | null): string {
@@ -112,7 +121,7 @@ function getStaleDays(milestone: { updated_at: string }): number {
 
 const AgentDealDetailScreen: React.FC = () => {
   const route = useRoute<RouteProp<HomeStackParamList, 'AgentDealDetail'>>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const { jobId, transactionId: routeTransactionId, dealData: routeDealData } = route.params;
 
   // ── Data ──
@@ -171,6 +180,49 @@ const AgentDealDetailScreen: React.FC = () => {
     } catch (err: any) {
       console.error('[AgentDealDetailScreen] handleSendSms error:', err);
       Alert.alert('SMS failed', err?.message ?? 'Could not send SMS.');
+    }
+  };
+
+  // ── 3-dot menu ──
+  const handleMenuPress = () => {
+    const options = ['Edit Deal', 'Share with Client', 'Cancel'];
+    const cancelButtonIndex = 2;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            // Edit Deal → navigate to EditDealScreen
+            navigation.push('EditDeal', {
+              transactionId: transactionId ?? '',
+              buyerName: deal?.buyer_name ?? null,
+              contractPrice: deal?.contract_price ?? null,
+              closingDate: deal?.closing_date ?? null,
+            });
+          } else if (buttonIndex === 1) {
+            // Share with Client → existing share logic
+            handleShare();
+          }
+        },
+      );
+    } else {
+      // Android fallback — Alert with buttons
+      Alert.alert('Deal Options', undefined, [
+        {
+          text: 'Edit Deal',
+          onPress: () => {
+            navigation.push('EditDeal', {
+              transactionId: transactionId ?? '',
+              buyerName: deal?.buyer_name ?? null,
+              contractPrice: deal?.contract_price ?? null,
+              closingDate: deal?.closing_date ?? null,
+            });
+          },
+        },
+        { text: 'Share with Client', onPress: handleShare },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
     }
   };
 
@@ -243,18 +295,12 @@ const AgentDealDetailScreen: React.FC = () => {
         titleSize={15}
         titleColor={COLORS.darkText}
         rightElement={
-          /* @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id) */
-          /* S88: transactionId wired from deal.transaction_id ?? route param */
+          /* 3-dot menu: Edit Deal + Share with Client */
           <Pressable
-            onPress={handleShare}
-            disabled={generateToken.isPending}
-            style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: generateToken.isPending ? 0.5 : 1 }}
+            onPress={handleMenuPress}
+            style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
           >
-            {generateToken.isPending ? (
-              <ActivityIndicator size="small" color={COLORS.primary} />
-            ) : (
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Share</Text>
-            )}
+            <MoreHorizontalIcon color={COLORS.darkText} />
           </Pressable>
         }
         onBack={() => navigation.goBack()}

@@ -32,6 +32,7 @@ import NeighborhoodMatchScreen from './NeighborhoodMatchScreen';
 import CategoryMapScreen from './CategoryMapScreen';
 import AddressComparisonScreen from './AddressComparisonScreen';
 import AgentDealDetailScreen from './AgentDealDetailScreen';
+import EditDealScreen from './EditDealScreen';
 import AgentDealsScreen from './AgentDealsScreen';
 import DealCreationSheet from '../features/partners/components/DealCreationSheet';
 import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis, RadiusMi } from '../types/neighborhood';
@@ -99,6 +100,12 @@ export type HomeStackParamList = {
   };
   AgentDealsScreen: undefined;
   DealCreation: undefined;
+  EditDeal: {
+    transactionId: string;
+    buyerName?: string | null;
+    contractPrice?: number | null;
+    closingDate?: string | null;
+  };
   AgentDealDetail: {
     jobId: string;
     transactionId?: string; // S88: optional — used for Realtime channel subscription
@@ -202,6 +209,11 @@ const HomeStack: React.FC = () => (
     <Stack.Screen
       name="DealCreation"
       component={DealCreationSheet}
+      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', headerShown: false }}
+    />
+    <Stack.Screen
+      name="EditDeal"
+      component={EditDealScreen}
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', headerShown: false }}
     />
     <Stack.Screen

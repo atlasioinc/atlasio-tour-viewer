@@ -31,9 +31,9 @@
 
 ---
 
-## Current Metrics (updated S115 — March 26, 2026)
-- **RPCs:** 60 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, and others S91-S103)
-- **Hooks:** 59 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+## Current Metrics (updated S116 — March 26, 2026)
+- **RPCs:** 61 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, and others S91-S103)
+- **Hooks:** 60 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 10 — 8 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts. Note: LIVE_NEIGHBORHOOD_HOOKS referenced in code but missing from featureFlags.ts (S105 finding).
 - **Edge Functions:** 11
 - **Storage Buckets:** 7
@@ -897,3 +897,12 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 60 (+1: rpc_archive_thread), Hooks: 59 (+1: useArchiveThread), Edge Functions: 11 (unchanged), Feature Flags: 11 (unchanged)
 - **tsc:** 0
 - **S116 next objectives:** 3-dot menu + Edit Deal modal on AgentDealDetailScreen
+
+### S116 — 3-Dot Menu + Edit Deal Modal on AgentDealDetailScreen (March 26, 2026)
+- **Files created:** `components/EditDealScreen.tsx` — fullScreenModal with buyer name, contract price (currency formatting), closing date (DateTimePicker inline)
+- **Files modified:** `components/AgentDealDetailScreen.tsx` (Share button → 3-dot menu with ActionSheetIOS/Alert), `components/HomeStack.tsx` (EditDeal route), `hooks/useData.ts` (useUpdateTransaction hook)
+- **SQL deployed:** `rpc_update_transaction` — updates buyer_name, contract_price, closing_date on transactions table (SECURITY DEFINER, agent ownership check)
+- **Key decisions:** (1) ActionSheetIOS on iOS / Alert on Android for 3-dot menu — lightweight, no new dependency needed for 2 menu items. (2) Currency formatting reuses DealCreationSheet pattern (strip non-digits on input, format with $ + commas on display). (3) DateTimePicker reuses DealCreationSheet inline pattern.
+- **Metrics:** RPCs: 61 (+1: rpc_update_transaction), Hooks: 60 (+1: useUpdateTransaction), Screens: +1 (EditDealScreen)
+- **tsc:** 0
+- **S117 next objectives:** Inbox scroll UX polish (iMessage pattern)
