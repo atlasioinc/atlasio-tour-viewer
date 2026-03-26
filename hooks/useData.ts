@@ -1446,6 +1446,20 @@ export const useThreadMessages = (threadId: string | undefined) => {
 export const useArchiveThread = () => {
   const qc = useQueryClient();
   return useMutation({
+    onMutate: async (threadId: string) => {
+      // Cancel in-flight refetch so it doesn't overwrite optimistic update
+      await qc.cancelQueries({ queryKey: queryKeys.inboxThreads });
+
+      // Snapshot current cache for rollback on error
+      const previousThreads = qc.getQueryData(queryKeys.inboxThreads);
+
+      // Optimistically remove thread from cache immediately
+      qc.setQueryData(queryKeys.inboxThreads, (old: InboxThread[] | undefined) =>
+        (old ?? []).filter((t) => t.thread_id !== threadId),
+      );
+
+      return { previousThreads };
+    },
     mutationFn: async (threadId: string) => {
       const { data, error } = await supabase.rpc('rpc_archive_thread', {
         p_thread_id: threadId,
@@ -1453,12 +1467,17 @@ export const useArchiveThread = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onError: (error, _threadId, context) => {
+      // Roll back optimistic update on failure
+      if (context?.previousThreads) {
+        qc.setQueryData(queryKeys.inboxThreads, context.previousThreads);
+      }
+      console.error('[useArchiveThread] failed:', error);
+    },
+    onSettled: () => {
+      // Always refetch after mutation to sync with server
       qc.invalidateQueries({ queryKey: queryKeys.inboxThreads });
       qc.invalidateQueries({ queryKey: queryKeys.chatThreads });
-    },
-    onError: (error) => {
-      console.error('[useArchiveThread] failed:', error);
     },
   });
 };
