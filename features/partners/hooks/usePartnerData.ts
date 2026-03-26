@@ -51,7 +51,7 @@ const MOCK_DEAL_1: PartnerActiveDeal = {
   alerts: [
     {
       id: 'alert-001',
-      job_id: 'deal-001',
+      transaction_id: 'mock-txn-partner-001',
       partner_id: 'partner-1',
       alert_type: 'rate_lock_expiry',
       message: 'Rate lock expires soon \u2014 buyer must confirm loan docs immediately',
@@ -462,10 +462,9 @@ export function useUpdateMilestoneStatus() {
 
 /**
  * Posts a new alert to a deal (visible to the agent).
- * STATUS: wired (with mock fallback)
- * @backend rpc_post_deal_alert — params: { p_job_id, p_transaction_id?, p_alert_type, p_message, p_expires_at? }
+ * STATUS: wired (with error re-throw)
+ * @backend rpc_post_deal_alert({ p_transaction_id, p_alert_type, p_message, p_expires_at })
  * p_expires_at: ISO string for rate_lock_expiry, null for all other types
- * p_transaction_id: anchors alert to a transaction when provided
  * Invalidates: ['partner_active_deals', partnerId]
  */
 export function usePostDealAlert() {
@@ -480,39 +479,27 @@ export function usePostDealAlert() {
       partnerId,
       transactionId,
     }: {
-      jobId: string;
+      /** @deprecated job_id no longer used by RPC — use transactionId */
+      jobId?: string;
       alertType: AlertType;
       message: string;
       expiresAt: string | null;
       partnerId: string;
-      transactionId?: string;
+      transactionId: string;
     }) => {
-      const mockResult = {
-        id: `alert-${Date.now()}`,
-        job_id: jobId,
-        partner_id: partnerId,
-        alert_type: alertType,
-        message,
-        expires_at: expiresAt,
-        transaction_id: transactionId ?? null,
-        dismissed_at: null,
-        created_at: new Date().toISOString(),
-      };
-
       try {
-        // @backend rpc_post_deal_alert — params: { p_job_id, p_transaction_id, p_alert_type, p_message, p_expires_at }
+        // @backend rpc_post_deal_alert({ p_transaction_id, p_alert_type, p_message, p_expires_at })
         const { data, error } = await supabase.rpc('rpc_post_deal_alert', {
-          p_job_id: jobId,
-          p_transaction_id: transactionId ?? null,
+          p_transaction_id: transactionId,
           p_alert_type: alertType,
           p_message: message,
-          p_expires_at: expiresAt,
+          p_expires_at: expiresAt ?? null,
         });
         if (error) throw error;
-        return data ?? mockResult;
-      } catch {
-        console.warn(`[usePostDealAlert] Supabase failed, mock posting ${alertType} to ${jobId}`);
-        return mockResult;
+        return data;
+      } catch (err) {
+        console.error('[usePostDealAlert] RPC failed:', err);
+        throw err;
       }
     },
     onMutate: async (variables) => {
@@ -520,27 +507,22 @@ export function usePostDealAlert() {
       await queryClient.cancelQueries({ queryKey: ['partner_active_deals', variables.partnerId] });
       const previous = queryClient.getQueryData<PartnerActiveDeal[]>(['partner_active_deals', variables.partnerId]);
 
+      const newAlert = {
+        id: `alert-${Date.now()}`,
+        partner_id: variables.partnerId,
+        alert_type: variables.alertType,
+        message: variables.message,
+        expires_at: variables.expiresAt,
+        transaction_id: variables.transactionId,
+        dismissed_at: null,
+        created_at: new Date().toISOString(),
+      };
+
       queryClient.setQueryData<PartnerActiveDeal[]>(
         ['partner_active_deals', variables.partnerId],
         (old) => old?.map(deal =>
-          deal.job_id === variables.jobId
-            ? {
-                ...deal,
-                alerts: [
-                  ...(deal.alerts ?? []),
-                  {
-                    id: `alert-${Date.now()}`,
-                    job_id: variables.jobId,
-                    partner_id: variables.partnerId,
-                    alert_type: variables.alertType,
-                    message: variables.message,
-                    expires_at: variables.expiresAt,
-                    transaction_id: variables.transactionId ?? null,
-                    dismissed_at: null,
-                    created_at: new Date().toISOString(),
-                  },
-                ],
-              }
+          deal.transaction_id === variables.transactionId
+            ? { ...deal, alerts: [...(deal.alerts ?? []), newAlert] }
             : deal,
         ),
       );

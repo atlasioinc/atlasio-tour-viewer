@@ -292,6 +292,11 @@ const HomeTabAgent: React.FC = () => {
   const { data: activeDeals } = useAgentActiveDeals();
   const hasActiveDeals = (activeDeals?.length ?? 0) > 0;
 
+  // ── Time-based greeting ──
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = myProfile?.name?.split(' ')[0] ?? 'there';
+
   // ── Squad State ──
   const [squadMembers, setSquadMembers] = useState<{ [slotId: string]: SquadProCandidate }>({});
   const [additionalSlots, setAdditionalSlots] = useState<SquadSlot[]>([]);
@@ -610,6 +615,16 @@ const HomeTabAgent: React.FC = () => {
               Filled
             </Text>
           </Pressable>
+        </View>
+
+        {/* ── Greeting header ── */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 16 }}>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: COLORS.darkText, lineHeight: 32 }}>
+            {greeting}, {firstName} 👋
+          </Text>
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, marginTop: 4 }}>
+            {activeDeals?.length ?? 0} active {(activeDeals?.length ?? 0) === 1 ? 'deal' : 'deals'} · {activeJobs.length} {activeJobs.length === 1 ? 'job' : 'jobs'} posted
+          </Text>
         </View>
 
         {/* ── YOUR CLOSING SQUAD SECTION ── */}

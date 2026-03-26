@@ -339,7 +339,7 @@ const AgentDealDetailScreen: React.FC = () => {
                       <Pressable
                         onPress={() => {
                           setDismissedAlertIds(prev => [...prev, alert.id]);
-                          dismissAlert.mutate({ alertId: alert.id, jobId: deal.job_id });
+                          dismissAlert.mutate({ alertId: alert.id, jobId: deal.job_id, transactionId: deal.transaction_id });
                         }}
                         style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
                       >

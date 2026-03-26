@@ -2546,19 +2546,33 @@ export function useAgentActiveDeals(transactionId?: string) {
 }
 
 // ─── useDismissDealAlert ──────────────────────────────────────
-// STATUS: mock
-// @backend rpc_dismiss_deal_alert(p_alert_id: string)
-// NOTE: will migrate to transaction_id in S64 when transactions table exists
-// Optimistic: removes alert from deal_board + agent_active_deals caches
+// STATUS: wired (S113d)
+// @backend rpc_dismiss_deal_alert({ p_alert_id })
+// Optimistic: removes alert from agent_active_deals cache by transaction_id
 
 export function useAgentDismissDealAlert() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ alertId, jobId }: { alertId: string; jobId: string }) => {
-      // @backend rpc_dismiss_deal_alert(p_alert_id)
-      console.log(`[useAgentDismissDealAlert] @demo dismissing ${alertId}`);
-      return { alertId };
+    mutationFn: async ({
+      alertId,
+      jobId,
+      transactionId,
+    }: {
+      alertId: string;
+      /** @deprecated use transactionId for optimistic matching */
+      jobId?: string;
+      transactionId?: string;
+    }) => {
+      // @backend rpc_dismiss_deal_alert({ p_alert_id })
+      const { data, error } = await supabase.rpc('rpc_dismiss_deal_alert', {
+        p_alert_id: alertId,
+      });
+      if (error) {
+        console.error('[useAgentDismissDealAlert] RPC failed:', error);
+        throw error;
+      }
+      return data;
     },
     onMutate: async (variables) => {
       await qc.cancelQueries({ queryKey: ['agent_active_deals'] });
@@ -2566,17 +2580,19 @@ export function useAgentDismissDealAlert() {
 
       qc.setQueryData<AgentActiveDeal[]>(
         ['agent_active_deals'],
-        (old) => old?.map(deal =>
-          deal.job_id === variables.jobId
-            ? {
-                ...deal,
-                partners: deal.partners.map(p => ({
-                  ...p,
-                  alerts: (p.alerts ?? []).filter(a => a.id !== variables.alertId),
-                })),
-              }
-            : deal,
-        ),
+        (old) => old?.map(deal => {
+          const isMatch = variables.transactionId
+            ? deal.transaction_id === variables.transactionId
+            : deal.job_id === variables.jobId;
+          if (!isMatch) return deal;
+          return {
+            ...deal,
+            partners: deal.partners.map(p => ({
+              ...p,
+              alerts: (p.alerts ?? []).filter(a => a.id !== variables.alertId),
+            })),
+          };
+        }),
       );
 
       return { previous };
@@ -2588,7 +2604,12 @@ export function useAgentDismissDealAlert() {
     },
     onSettled: (_data, _err, variables) => {
       qc.invalidateQueries({ queryKey: ['agent_active_deals'] });
-      qc.invalidateQueries({ queryKey: ['deal_board', variables.jobId] });
+      if (variables.jobId) {
+        qc.invalidateQueries({ queryKey: ['deal_board', variables.jobId] });
+      }
+      if (variables.transactionId) {
+        qc.invalidateQueries({ queryKey: ['deal_board', variables.transactionId] });
+      }
     },
   });
 }

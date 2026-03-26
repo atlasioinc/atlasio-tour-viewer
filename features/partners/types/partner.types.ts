@@ -37,7 +37,7 @@ export interface DealMilestone {
 
 export interface DealAlert {
   id: string;
-  job_id: string;
+  transaction_id: string;
   partner_id: string;
   alert_type: AlertType;
   message: string;
@@ -110,7 +110,7 @@ export interface AgentDealMilestone {
 
 /**
  * Lean alert shape returned by rpc_get_agent_deals per partner.
- * Subset of DealAlert — omits join fields (job_id, partner_id, created_at).
+ * Subset of DealAlert — omits join fields (transaction_id, partner_id, created_at).
  * @backend rpc_get_agent_deals → partners[].alerts[]
  */
 export interface AgentDealAlert {

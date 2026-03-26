@@ -49,6 +49,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
+import { useMyProfile } from '../hooks/useData';
 import { DisplayTag } from './DisplayTag';
 
 // ─────────────────────────────────────────────
@@ -1128,8 +1129,10 @@ const ContractorHomeTab: React.FC = () => {
   const marketPulse = isFilled ? MOCK_MARKET_PULSE : null;
 
   // ── Time-based greeting ──
+  const { data: profile } = useMyProfile();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = profile?.name?.split(' ')[0] ?? 'there';
 
   // ── Pull-to-refresh ──
   // @backend In production: invalidate TanStack Query cache
@@ -1229,7 +1232,7 @@ const ContractorHomeTab: React.FC = () => {
             ══════════════════════════════════════════ */}
         <View style={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 16 }}>
           <Text style={{ fontSize: 24, fontWeight: '700', color: COLORS.darkText, lineHeight: 32 }}>
-            {greeting}, {CURRENT_CONTRACTOR.name.split(' ')[0]} 👋
+            {greeting}, {firstName} 👋
           </Text>
           <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, marginTop: 4 }}>
             {invitations.length} {invitations.length === 1 ? 'invite' : 'invites'} · {matchingJobs.length} new jobs · {activeJobs.length} active

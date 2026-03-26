@@ -45,6 +45,7 @@ import {
   useRespondToDealInvitation,
 } from '../hooks/usePartnerData';
 import type { PartnerRole, MilestoneStatus, AlertType, InvitationItem } from '../types/partner.types';
+import { useMyProfile } from '../../../hooks/useData';
 
 // ─────────────────────────────────────────────────────────────────
 // SVG ICONS
@@ -138,6 +139,12 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
 
   const totalActiveDeals = allDeals?.length ?? 0;
 
+  // ── Time-based greeting ──
+  const { data: myProfile } = useMyProfile();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = myProfile?.name?.split(' ')[0] ?? 'there';
+
   // @backend usePartnerAcceptedConnections → rpc_get_partner_accepted_connections
   const { data: acceptedConnections } = usePartnerAcceptedConnections();
 
@@ -171,7 +178,8 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
   }, [updateMilestone]);
 
   const handlePostAlert = useCallback((jobId: string, alertType: AlertType, message: string, expiresAt: string | null, transactionId?: string) => {
-    // @backend rpc_post_deal_alert — S88: transaction_id forwarded from ActiveDealCard when available
+    if (!transactionId) return;
+    // @backend rpc_post_deal_alert({ p_transaction_id, p_alert_type, p_message, p_expires_at })
     postAlert.mutate({
       jobId,
       alertType,
@@ -241,6 +249,16 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
       >
+        {/* ── Greeting header ── */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 16 }}>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: COLORS.darkText, lineHeight: 32 }}>
+            {greeting}, {firstName} 👋
+          </Text>
+          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, marginTop: 4 }}>
+            {totalActiveDeals} active {totalActiveDeals === 1 ? 'deal' : 'deals'}
+          </Text>
+        </View>
+
         {/* ═════════════════════════════════════════════════════════ */}
         {/* SECTION 1 — Availability Card                           */}
         {/* Toggle accepting_clients — controls visibility on squad  */}
@@ -484,10 +502,10 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
             textTransform: 'uppercase', letterSpacing: 0.5,
             marginBottom: SPACING.lg,
           }}>
-            {needsAttentionDeals.length > 0 ? 'Needs Attention' : 'Your Deals'}
+            Your Deals
           </Text>
 
-          {needsAttentionDeals.length === 0 && totalActiveDeals === 0 ? (
+          {totalActiveDeals === 0 ? (
             /* ZeroDealsEmptyState — no deals exist yet */
             <View style={{
               padding: SPACING.xl,
@@ -504,34 +522,41 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                 Deals will appear here when agents invite you to their transactions
               </Text>
             </View>
-          ) : needsAttentionDeals.length === 0 ? (
-            /* AllClearEmptyState — deals exist but none need attention */
-            <View style={{
-              padding: SPACING.xl,
-              borderRadius: DIMENSIONS.cardRadius,
-              backgroundColor: COLORS.cardGreen,
-              borderWidth: DIMENSIONS.cardBorderWidth,
-              borderColor: COLORS.cardGreenBorder,
-              alignItems: 'center',
-            }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.addedGreen }}>
-                All deals on track
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.scoreGreen, marginTop: SPACING.sm }}>
-                Nothing needs your attention right now
-              </Text>
-            </View>
           ) : (
-            needsAttentionDeals.map(deal => (
-              <ActiveDealCard
-                key={deal.job_id}
-                deal={deal}
-                partnerRole={partnerRole}
-                onMilestoneTap={handleMilestoneTap}
-                onPostAlert={handlePostAlert}
-                onDismissAlert={handleDismissAlert}
-              />
-            ))
+            <>
+              {(allDeals ?? []).map(deal => (
+                <ActiveDealCard
+                  key={deal.job_id}
+                  deal={deal}
+                  partnerRole={partnerRole}
+                  onMilestoneTap={handleMilestoneTap}
+                  onPostAlert={handlePostAlert}
+                  onDismissAlert={handleDismissAlert}
+                />
+              ))}
+              {needsAttentionDeals.length === 0 && (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 4,
+                  paddingTop: 8,
+                }}>
+                  <View style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: COLORS.successGreen,
+                  }} />
+                  <Text style={{
+                    fontSize: 13,
+                    color: COLORS.secondaryText,
+                  }}>
+                    All deals on track
+                  </Text>
+                </View>
+              )}
+            </>
           )}
 
           {/* View all deals link — hidden when total deal count is 0 */}
