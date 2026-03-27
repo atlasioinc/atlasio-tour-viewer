@@ -23,6 +23,7 @@ module.exports = {
         'Atlasio uses your camera to upload profile and job photos.',
       NSPhotoLibraryUsageDescription:
         'Atlasio accesses your photo library to upload profile and job photos.',
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   splash: {
