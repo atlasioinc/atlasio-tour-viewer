@@ -18,7 +18,9 @@ import { GOOGLE_MAPS_API_KEY, AIRNOW_API_KEY } from '../lib/config';
 import { supabase } from '../lib/supabase';
 
 // @demo: false = mock data for investor demos. Flip true only for live testing, reset before commit.
-export const LIVE_NEIGHBORHOOD_HOOKS = false;
+// ⚠️ TESTFLIGHT OVERRIDE — set true for TestFlight builds (S109)
+// To restore demo mode: set false here + DEV_BYPASS_AUTH: true, DEV_SHOW_PASSWORD_LOGIN: false in featureFlags.ts
+export const LIVE_NEIGHBORHOOD_HOOKS = true;
 
 // @demo: 1700 Lincoln St, Denver CO 80203 — demo address coordinates
 const DEMO_LAT = 39.7404;

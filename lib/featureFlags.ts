@@ -42,8 +42,15 @@ export const FEATURE_FLAGS = {
   LIVE_CONTRACTOR_HOOKS:    true,   // true = contractor hooks call live RPCs (permanent since S36)
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
   LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
-  DEV_BYPASS_AUTH:          true,        // @demo — true = loads agent demo user, bypasses login
-  DEV_SHOW_PASSWORD_LOGIN:  false, // @demo — true = shows password input for device testing
+  // ⚠️ TESTFLIGHT OVERRIDES — these two differ from standard demo defaults
+  // DEV_BYPASS_AUTH: false — real devices have no hardcoded session; bypass causes crash
+  // DEV_SHOW_PASSWORD_LOGIN: true — magic link deep links deferred to S110 (Associated Domains)
+  // LIVE_NEIGHBORHOOD_HOOKS in hooks/useNeighborhoodAnalysis.ts also set to true for TestFlight
+  // To restore demo mode: set DEV_BYPASS_AUTH: true, DEV_SHOW_PASSWORD_LOGIN: false,
+  //   and LIVE_NEIGHBORHOOD_HOOKS: false in hooks/useNeighborhoodAnalysis.ts
+  // DEV_BYPASS_AUTH and DEV_SHOW_PASSWORD_LOGIN must always be toggled as a pair — never individually.
+  DEV_BYPASS_AUTH:          false,       // @demo — true = loads agent demo user, bypasses login
+  DEV_SHOW_PASSWORD_LOGIN:  true,  // @demo — true = shows password input for device testing
   LIVE_SQUAD_SHARE:         false,  // @demo — false for investor demos
 
   // DEAL_CREATION_ENABLED flag matrix:
