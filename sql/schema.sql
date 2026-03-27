@@ -2146,7 +2146,50 @@ END;
 $$;
 
 
+-- rpc_update_transaction — S116 (March 26, 2026), updated S116b (p_clear_closing_date)
+-- Agent edits top-level deal fields. p_clear_closing_date bypasses COALESCE to NULL out closing_date.
+
+CREATE OR REPLACE FUNCTION rpc_update_transaction(
+  p_transaction_id   uuid,
+  p_buyer_name       text    DEFAULT NULL,
+  p_contract_price   numeric DEFAULT NULL,
+  p_closing_date     date    DEFAULT NULL,
+  p_clear_closing_date boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_agent_id UUID;
+BEGIN
+  SELECT agent_id INTO v_agent_id
+  FROM transactions
+  WHERE id = p_transaction_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'transaction_not_found');
+  END IF;
+
+  IF v_agent_id != auth.uid() THEN
+    RETURN jsonb_build_object('success', false, 'error', 'unauthorized');
+  END IF;
+
+  UPDATE transactions SET
+    buyer_name     = COALESCE(p_buyer_name, buyer_name),
+    contract_price = COALESCE(p_contract_price, contract_price),
+    closing_date   = CASE
+                       WHEN p_clear_closing_date THEN NULL
+                       ELSE COALESCE(p_closing_date, closing_date)
+                     END,
+    updated_at     = NOW()
+  WHERE id = p_transaction_id;
+
+  RETURN jsonb_build_object('success', true);
+END;
+$$;
+
 -- ═════════════════════════════════════════════════════════════
 -- DONE
--- Last verified against live Supabase: March 22, 2026 (S93)
+-- Last verified against live Supabase: March 26, 2026 (S116b)
 -- ═════════════════════════════════════════════════════════════

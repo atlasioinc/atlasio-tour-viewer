@@ -2869,7 +2869,7 @@ export function useUpdateClosingDetails() {
 // Called from EditDealScreen via 3-dot menu on AgentDealDetailScreen.
 //
 // @backend rpc_update_transaction({
-//   p_transaction_id, p_buyer_name, p_contract_price, p_closing_date
+//   p_transaction_id, p_buyer_name, p_contract_price, p_closing_date, p_clear_closing_date
 // })
 // Returns: { success: boolean }
 // On success: invalidate ['agent_deals'] + ['agent_active_deals']
@@ -2884,6 +2884,7 @@ export function useUpdateTransaction() {
       buyerName?: string | null;
       contractPrice?: number | null;
       closingDate?: string | null; // ISO date string YYYY-MM-DD
+      clearClosingDate?: boolean; // true when user explicitly cleared the date
     }) => {
       if (FEATURE_FLAGS.USE_MOCK_DATA) {
         // @demo mock — 600ms delay to simulate network
@@ -2891,12 +2892,13 @@ export function useUpdateTransaction() {
         return { success: true };
       }
 
-      // @backend rpc_update_transaction(p_transaction_id, p_buyer_name, p_contract_price, p_closing_date)
+      // @backend rpc_update_transaction(p_transaction_id, p_buyer_name, p_contract_price, p_closing_date, p_clear_closing_date)
       const { data, error } = await supabase.rpc('rpc_update_transaction', {
         p_transaction_id: input.transactionId,
         p_buyer_name: input.buyerName ?? null,
         p_contract_price: input.contractPrice ?? null,
         p_closing_date: input.closingDate ?? null,
+        p_clear_closing_date: input.clearClosingDate ?? false,
       });
       if (error) throw error;
       if (data && !data.success) throw new Error(data.error ?? 'Failed to update transaction');

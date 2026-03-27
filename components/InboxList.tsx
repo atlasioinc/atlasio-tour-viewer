@@ -14,7 +14,7 @@
 // @backend TODO: pin/mute/delete mutations — update threads table
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -491,6 +491,19 @@ const InboxList: React.FC = () => {
   // @backend rpc_get_inbox_threads() — no params, auth.uid()
   // Returns threads with other_member profile + unread_count
   const { data: inboxThreads, refetch: refetchInbox, isRefetching: isInboxRefetching } = useInboxThreads();
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
+
+  // Reset manual refresh flag when background refetch completes
+  useEffect(() => {
+    if (!isInboxRefetching) {
+      setIsManualRefresh(false);
+    }
+  }, [isInboxRefetching]);
+
+  const handleManualRefresh = useCallback(() => {
+    setIsManualRefresh(true);
+    refetchInbox();
+  }, [refetchInbox]);
   // Legacy hook kept for backward compatibility
   const { data: liveThreads } = useChatThreads();
 
@@ -608,8 +621,8 @@ const InboxList: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
-              refreshing={isInboxRefetching}
-              onRefresh={refetchInbox}
+              refreshing={isManualRefresh && isInboxRefetching}
+              onRefresh={handleManualRefresh}
               tintColor={COLORS.primary}
               colors={[COLORS.primary]}
             />

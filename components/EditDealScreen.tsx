@@ -4,7 +4,7 @@
 // Who: Agent role — edits buyer name, contract price, closing date
 // Where: HomeStack → AgentDealDetail → 3-dot menu → Edit Deal
 //
-// @backend rpc_update_transaction({ p_transaction_id, p_buyer_name, p_contract_price, p_closing_date })
+// @backend rpc_update_transaction({ p_transaction_id, p_buyer_name, p_contract_price, p_closing_date, p_clear_closing_date })
 // NOTE: rpc_update_closing_details handles closing_details JSONB separately.
 // ═══════════════════════════════════════════════════════════════
 
@@ -55,9 +55,10 @@ const EditDealScreen: React.FC = () => {
     closingDate ? new Date(closingDate) : null,
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateWasCleared, setDateWasCleared] = useState(false);
 
   // ── Mutation ──
-  // @backend rpc_update_transaction({ p_transaction_id, p_buyer_name, p_contract_price, p_closing_date })
+  // @backend rpc_update_transaction({ p_transaction_id, p_buyer_name, p_contract_price, p_closing_date, p_clear_closing_date })
   const updateTransaction = useUpdateTransaction();
   const insets = useSafeAreaInsets();
 
@@ -79,6 +80,7 @@ const EditDealScreen: React.FC = () => {
         buyerName: name.trim() || null,
         contractPrice: parsedPrice,
         closingDate: formattedDate,
+        clearClosingDate: dateWasCleared,
       },
       {
         onSuccess: () => {
@@ -196,6 +198,7 @@ const EditDealScreen: React.FC = () => {
                     }
                     if (event.type === 'set' && date) {
                       setClosingDateObj(date);
+                      setDateWasCleared(false);
                       setShowDatePicker(false);
                     } else if (event.type === 'dismissed') {
                       setShowDatePicker(false);
@@ -207,7 +210,7 @@ const EditDealScreen: React.FC = () => {
 
             {closingDateObj && (
               <Pressable
-                onPress={() => { setClosingDateObj(null); setShowDatePicker(false); }}
+                onPress={() => { setClosingDateObj(null); setDateWasCleared(true); setShowDatePicker(false); }}
                 style={{ marginTop: SPACING.sm }}
               >
                 <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary }}>Clear date</Text>
