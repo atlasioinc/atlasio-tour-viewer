@@ -166,6 +166,7 @@ export interface Profile {
   licensed: string | null;            // e.g., "Licensed CO"
   active_since: string | null;        // e.g., "2022"
   specialties: string[];              // non-trade specialties (partners)
+  languages: string[];               // spoken languages — text[] NOT NULL DEFAULT '{}' (S119c)
   service_area: string | null;        // geographic coverage
   deals_closed: number;               // aggregated count
   phone: string | null;               // never exposed in messages (regex filtered)

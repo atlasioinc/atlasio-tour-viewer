@@ -37,21 +37,23 @@
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA:            true,           // @demo — true = demo mode, false = live Supabase
+  USE_MOCK_DATA:            false,           // @demo — true = demo mode, false = live Supabase
   LIVE_ONBOARDING:          false,  // true = call rpc_complete_onboarding
   LIVE_CONTRACTOR_HOOKS:    true,   // true = contractor hooks call live RPCs (permanent since S36)
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
   LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
+  // Controls live neighborhood analysis API calls (EPA AirNow, Google Places)
+  // Set true for TestFlight builds — false resets to mock data
+  LIVE_NEIGHBORHOOD_HOOKS:  true,   // true = live APIs (Google Places + AirNow), false = mock data (S57)
   // ⚠️ TESTFLIGHT OVERRIDES — these two differ from standard demo defaults
   // DEV_BYPASS_AUTH: false — real devices have no hardcoded session; bypass causes crash
   // DEV_SHOW_PASSWORD_LOGIN: true — magic link deep links deferred to S110 (Associated Domains)
-  // LIVE_NEIGHBORHOOD_HOOKS in hooks/useNeighborhoodAnalysis.ts also set to true for TestFlight
   // To restore demo mode: set DEV_BYPASS_AUTH: true, DEV_SHOW_PASSWORD_LOGIN: false,
-  //   and LIVE_NEIGHBORHOOD_HOOKS: false in hooks/useNeighborhoodAnalysis.ts
+  //   and LIVE_NEIGHBORHOOD_HOOKS: false
   // DEV_BYPASS_AUTH and DEV_SHOW_PASSWORD_LOGIN must always be toggled as a pair — never individually.
   DEV_BYPASS_AUTH:          false,       // @demo — true = loads agent demo user, bypasses login
   DEV_SHOW_PASSWORD_LOGIN:  true,  // @demo — true = shows password input for device testing
-  LIVE_SQUAD_SHARE:         false,  // @demo — false for investor demos
+  LIVE_SQUAD_SHARE:         true,  // @demo — false for investor demos
 
   // DEAL_CREATION_ENABLED flag matrix:
   // MVP launch (agent + contractor only):  PARTNER_TRACK_ENABLED: false, DEAL_CREATION_ENABLED: false

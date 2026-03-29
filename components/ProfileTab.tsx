@@ -248,7 +248,7 @@ const ProfileTab: React.FC = () => {
   // ── Profile data ──
   const profileName = mockSource?.name ?? liveProfile?.name ?? 'Loading...';
   const profileCompany = mockSource?.company ?? liveProfile?.company ?? '';
-  const profileLocation = mockSource?.location ?? liveProfile?.location ?? 'Denver, CO';
+  const profileServiceArea = (mockSource as any)?.service_area ?? liveProfile?.service_area ?? liveProfile?.location ?? null;
   const profileRating = mockSource?.rating ?? liveProfile?.rating ?? 0;
   const profileVouchCount = mockSource?.vouch_count ?? liveProfile?.vouch_count ?? 0;
   const profileVisible = mockSource?.is_visible ?? liveProfile?.is_visible ?? true;
@@ -269,6 +269,12 @@ const ProfileTab: React.FC = () => {
   const specialties = FEATURE_FLAGS.USE_MOCK_DATA
     ? (mockSource?.specialties ?? ['Residential', 'First-Time Buyers', 'Investment'])
     : (liveProfile?.specialties ?? ['Residential', 'First-Time Buyers', 'Investment']);
+
+  // ── Languages ──
+  // @backend liveProfile?.languages — profiles.languages text[] (wired S119c)
+  const profileLanguages: string[] = FEATURE_FLAGS.USE_MOCK_DATA
+    ? ['English', 'Spanish']
+    : (liveProfile?.languages ?? []);
 
   // ── Vouches (live data) ──
   const resolvedProfileId = liveProfile?.id ?? '';
@@ -440,9 +446,9 @@ const ProfileTab: React.FC = () => {
             </Text>
           </View>
 
-          {/* Company + Location */}
+          {/* Company + Service Area */}
           <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.bodyText, textAlign: 'center' }}>
-            {[profileCompany, profileLicensed].filter(Boolean).join(' · ')}{'\n'}{profileLocation}
+            {[profileCompany, profileLicensed].filter(Boolean).join(' · ')}{profileServiceArea ? `\n${profileServiceArea}` : ''}
           </Text>
 
           {/* Headline (all roles, conditional on profile.headline existing) */}
@@ -665,6 +671,32 @@ const ProfileTab: React.FC = () => {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {specialties.map((item) => (
                 <DisplayTag key={item} label={item} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ══════════════════════════════════════════
+            Z4b: LANGUAGES CARD
+            Hidden if user only speaks English (single language)
+            @backend liveProfile?.languages — string[] from profiles table
+            ══════════════════════════════════════════ */}
+        {profileLanguages.length > 1 && (
+          <View
+            style={{
+              padding: 16,
+              backgroundColor: COLORS.background,
+              borderRadius: DIMENSIONS.cardRadius,
+              borderWidth: DIMENSIONS.cardBorderWidth,
+              borderColor: COLORS.cardBorder,
+              ...SHADOWS.card,
+              gap: 12,
+            }}
+          >
+            <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.headingText }}>Languages</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {profileLanguages.map((lang) => (
+                <DisplayTag key={lang} label={lang} />
               ))}
             </View>
           </View>

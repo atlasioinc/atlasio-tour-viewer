@@ -19,7 +19,7 @@
 //   - Replace service area TextInput with Google Places autocomplete
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,8 +32,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { COLORS, DIMENSIONS } from '../lib/tokens';
+import { COLORS, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 import { useMyProfile, useUpdateProfile } from '../hooks/useData';
 import FormField from './FormField';
 import { ChipGroup, SingleSelectChipGroup } from './SelectableChip';
@@ -100,6 +101,15 @@ const CONTRACTOR_ROLES = ['Contractor', 'Home Stager', 'Real Estate Photographer
 const PARTNER_ROLES = Object.keys(PARTNER_SPECIALTIES);
 
 // ─────────────────────────────────────────────
+// AUTOCOMPLETE TYPES
+// ─────────────────────────────────────────────
+
+interface PlaceSuggestion {
+  placeId: string;
+  description: string;
+}
+
+// ─────────────────────────────────────────────
 // MOCK DATA — Pre-populated for demo
 // TODO: Replace with Supabase profiles query
 // ─────────────────────────────────────────────
@@ -109,7 +119,7 @@ const MOCK_AGENT_DATA: FormData = {
   headline: 'Fast closings, strong local connections',
   bio: 'Specializing in first-time buyers and investor flips. Fast closings, bilingual Spanish/English. Known for strong local connections and helping clients navigate complex deals with ease.',
   company: 'Keller Williams',
-  licenseNumber: 'MLS #123456',
+  licenseNumber: '', // @demo always blank — license managed via VerificationScreen
   serviceArea: 'Denver Metro',
   languages: ['English', 'Spanish'],
   specialties: ['Residential', 'First-Time Buyers', 'Investment'],
@@ -275,8 +285,6 @@ const ToggleRow: React.FC<{
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
-const BIO_LIMIT = 250;
-
 const EditProfileScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -304,6 +312,73 @@ const EditProfileScreen: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const isSaving = updateProfile.isPending;
 
+  // ── Service area autocomplete state (mirrors PostJobWizard) ──
+  const [serviceAreaQuery, setServiceAreaQuery] = useState(form.serviceArea);
+  const [citySuggestions, setCitySuggestions] = useState<PlaceSuggestion[]>([]);
+  const [showCityAutocomplete, setShowCityAutocomplete] = useState(false);
+  const cityAutocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // @backend Google Places (New) API — autocomplete restricted to (cities)
+  // @demo Falls back silently on API failure — city can still be typed manually
+  const fetchCitySuggestions = async (input: string) => {
+    try {
+      const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+        },
+        body: JSON.stringify({
+          input,
+          includedPrimaryTypes: ['(cities)'],
+        }),
+      });
+      const data = await response.json();
+      const mapped = (data.suggestions ?? [])
+        .map((s: any) => ({
+          placeId: s.placePrediction?.placeId ?? '',
+          description: s.placePrediction?.text?.text ?? '',
+        }))
+        .filter((s: PlaceSuggestion) => s.placeId && s.description);
+      setCitySuggestions(mapped);
+    } catch {
+      console.warn('[EditProfileScreen] City autocomplete failed');
+      setCitySuggestions([]);
+    }
+  };
+
+  const handleCityTextChange = (text: string) => {
+    setServiceAreaQuery(text);
+    updateField('serviceArea', ''); // clear confirmed selection while typing
+
+    if (cityAutocompleteTimerRef.current) clearTimeout(cityAutocompleteTimerRef.current);
+
+    if (text.length < 3) {
+      setCitySuggestions([]);
+      setShowCityAutocomplete(false);
+      return;
+    }
+
+    setShowCityAutocomplete(true);
+    cityAutocompleteTimerRef.current = setTimeout(() => {
+      fetchCitySuggestions(text);
+    }, 400);
+  };
+
+  const handleCitySelect = (description: string) => {
+    setServiceAreaQuery(description);
+    updateField('serviceArea', description);
+    setCitySuggestions([]);
+    setShowCityAutocomplete(false);
+  };
+
+  // Cleanup autocomplete timer
+  useEffect(() => {
+    return () => {
+      if (cityAutocompleteTimerRef.current) clearTimeout(cityAutocompleteTimerRef.current);
+    };
+  }, []);
+
   // ── Pre-fill form from live profile when available ──
   const [hasPreFilled, setHasPreFilled] = useState(false);
   useEffect(() => {
@@ -311,16 +386,18 @@ const EditProfileScreen: React.FC = () => {
       setForm((prev) => ({
         ...prev,
         fullName: myProfile.name || prev.fullName,
-        headline: prev.headline,
+        headline: myProfile.headline || prev.headline,
         bio: myProfile.bio || prev.bio,
         company: myProfile.company || prev.company,
         licenseNumber: myProfile.licensed || prev.licenseNumber,
-        serviceArea: myProfile.service_area || prev.serviceArea,
+        serviceArea: myProfile.service_area || prev.serviceArea,  // also synced to serviceAreaQuery below
         specialties: myProfile.specialties?.length ? myProfile.specialties : prev.specialties,
+        languages: myProfile.languages?.length ? myProfile.languages : prev.languages,
         primaryTrade: myProfile.trade || prev.primaryTrade,
         secondaryTrades: myProfile.trades?.length > 1 ? myProfile.trades.slice(1) : prev.secondaryTrades,
       }));
       setHasPreFilled(true);
+      if (myProfile.service_area) setServiceAreaQuery(myProfile.service_area);
     }
   }, [myProfile, hasPreFilled]);
 
@@ -358,7 +435,6 @@ const EditProfileScreen: React.FC = () => {
     const newErrors: FormErrors = {};
     if (!form.fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!form.company.trim()) newErrors.company = 'Company name is required';
-    if (form.bio.length > BIO_LIMIT) newErrors.bio = `Bio must be ${BIO_LIMIT} characters or less`;
     if (isContractor && !form.primaryTrade) newErrors.primaryTrade = 'Please select your primary trade';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -373,11 +449,13 @@ const EditProfileScreen: React.FC = () => {
     try {
       await updateProfile.mutateAsync({
         name: form.fullName.trim(),
+        headline: form.headline.trim() || null, // @backend profiles.headline — max 45 chars
         bio: form.bio.trim(),
         company: form.company.trim(),
         // license_number managed in VerificationScreen — not saved from EditProfile
         service_area: form.serviceArea.trim() || null,
         specialties: form.specialties,
+        languages: form.languages, // @backend profiles.languages text[] (S119c)
         trade: form.primaryTrade || null,
         trades: form.primaryTrade
           ? [form.primaryTrade as any, ...form.secondaryTrades]
@@ -520,31 +598,25 @@ const EditProfileScreen: React.FC = () => {
           error={errors.fullName}
         />
 
-        <FormField
-          label="Bio"
-          value={form.bio}
-          onChangeText={(text) => updateField('bio', text.slice(0, BIO_LIMIT))}
-          placeholder="Tell others about yourself..."
-          multiline
-          maxLength={BIO_LIMIT}
-          error={errors.bio}
-        />
+        {/* @demo bio field hidden — re-enable in v2 profile completion flow (S119b) */}
 
         <FormField
           label="Headline"
           value={form.headline}
-          onChangeText={(text) => updateField('headline', text.slice(0, 35))}
+          onChangeText={(text) => updateField('headline', text.slice(0, 45))}
           placeholder="Professional tagline (e.g., 'Fast closings, no surprises')"
-          maxLength={35}
-          helperText="35 chars max — one punchy line agents remember"
+          maxLength={45}
+          helperText="45 chars max — one punchy line agents remember"
         />
 
         <FormField
           label={isContractor ? 'Company Name' : 'Brokerage / Company'}
           value={form.company}
-          onChangeText={(text) => updateField('company', text)}
+          onChangeText={(text) => updateField('company', text.slice(0, 25))}
           placeholder={isContractor ? 'Your company name' : 'Your brokerage or company'}
           required
+          maxLength={25}
+          helperText="25 chars max"
           error={errors.company}
         />
 
@@ -568,22 +640,54 @@ const EditProfileScreen: React.FC = () => {
               opacity: pressed ? 0.7 : 1,
             })}
           >
-            <Text style={{ fontSize: 15, fontWeight: '400', color: form.licenseNumber ? COLORS.darkText : COLORS.lightText }}>
-              {form.licenseNumber || 'Not added'}
+            <Text style={{ fontSize: 15, fontWeight: '400', color: (myProfile?.license_number || myProfile?.licensed) ? COLORS.darkText : COLORS.lightText }}>
+              {myProfile?.license_number || myProfile?.licensed || 'Not added'}
             </Text>
             <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary }}>
-              {form.licenseNumber ? 'Update →' : 'Add License →'}
+              {(myProfile?.license_number || myProfile?.licensed) ? 'Update →' : 'Add License →'}
             </Text>
           </Pressable>
         </View>
 
-        <FormField
-          label="Service Area"
-          value={form.serviceArea}
-          onChangeText={(text) => updateField('serviceArea', text)}
-          placeholder="e.g., Denver Metro"
-          helperText="Helps clients and pros find you by location"
-        />
+        {/* ── Service Area — Google Places city autocomplete (mirrors PostJobWizard) ── */}
+        <View style={{ gap: 8 }}>
+          <View style={{ position: 'relative', zIndex: 99 }}>
+            <FormField
+              label="Service Area"
+              value={serviceAreaQuery}
+              onChangeText={handleCityTextChange}
+              placeholder="e.g., Denver, CO"
+              helperText="City where you primarily work"
+            />
+
+            {/* Autocomplete dropdown */}
+            {showCityAutocomplete && citySuggestions.length > 0 && (
+              <View style={{
+                position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
+                backgroundColor: COLORS.background,
+                borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
+                ...SHADOWS.card,
+              }}>
+                {citySuggestions.map((s) => (
+                  <Pressable
+                    key={s.placeId}
+                    onPress={() => handleCitySelect(s.description)}
+                    style={({ pressed }) => ({
+                      paddingHorizontal: 14, paddingVertical: 12,
+                      borderBottomWidth: 0.5, borderBottomColor: COLORS.border,
+                      flexDirection: 'row', alignItems: 'center', gap: 8,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: '400', color: COLORS.darkText, flex: 1 }} numberOfLines={1}>
+                      {s.description}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
 
         {/* ═══════════════════════════════════════
             LANGUAGES

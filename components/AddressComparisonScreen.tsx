@@ -30,7 +30,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { HomeStackParamList } from './HomeStack';
-import { useAddressComparison, LIVE_NEIGHBORHOOD_HOOKS } from '../hooks/useNeighborhoodAnalysis';
+import { useAddressComparison } from '../hooks/useNeighborhoodAnalysis';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { COLORS } from '../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 
@@ -232,7 +233,7 @@ const AddressComparisonScreen: React.FC = () => {
 
     setShowAutocomplete(slotIndex);
 
-    if (LIVE_NEIGHBORHOOD_HOOKS) {
+    if (FEATURE_FLAGS.LIVE_NEIGHBORHOOD_HOOKS) {
       autocompleteTimers.current[slotIndex] = setTimeout(() => {
         fetchAutocompleteSuggestions(text, slotIndex);
       }, 400);
@@ -288,7 +289,7 @@ const AddressComparisonScreen: React.FC = () => {
     const confirmedAddresses = addressDisplays.filter(Boolean);
     const allAddresses = [firstAddress, ...confirmedAddresses];
 
-    if (LIVE_NEIGHBORHOOD_HOOKS) {
+    if (FEATURE_FLAGS.LIVE_NEIGHBORHOOD_HOOKS) {
       // Validate all additional slots have geocoded coordinates
       const confirmedIndices = addressDisplays
         .map((d, i) => d ? i : -1)
@@ -356,7 +357,7 @@ const AddressComparisonScreen: React.FC = () => {
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
       }}>
-        {LIVE_NEIGHBORHOOD_HOOKS ? (
+        {FEATURE_FLAGS.LIVE_NEIGHBORHOOD_HOOKS ? (
           // Live path — dynamic suggestions
           isFetchingSuggestions[slotIndex] && suggestions[slotIndex].length === 0 ? (
             <View style={{ padding: 12, paddingHorizontal: 14 }}>

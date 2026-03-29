@@ -16,11 +16,10 @@ import type { LifestylePriority, LifestyleCategory, NeighborhoodAnalysis, POIRes
 import { computeAnalysis, CATEGORY_META, hashPriorities } from '../lib/neighborhoodScoring';
 import { GOOGLE_MAPS_API_KEY, AIRNOW_API_KEY } from '../lib/config';
 import { supabase } from '../lib/supabase';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 
-// @demo: false = mock data for investor demos. Flip true only for live testing, reset before commit.
-// ⚠️ TESTFLIGHT OVERRIDE — set true for TestFlight builds (S109)
-// To restore demo mode: set false here + DEV_BYPASS_AUTH: true, DEV_SHOW_PASSWORD_LOGIN: false in featureFlags.ts
-export const LIVE_NEIGHBORHOOD_HOOKS = true;
+// LIVE_NEIGHBORHOOD_HOOKS moved to lib/featureFlags.ts (S119a)
+// Import from featureFlags.ts — do not re-add here
 
 // @demo: 1700 Lincoln St, Denver CO 80203 — demo address coordinates
 const DEMO_LAT = 39.7404;
@@ -292,7 +291,7 @@ export function useNeighborhoodAnalysis() {
     setError(null);
     setLoadingMessage(null);
     try {
-      if (!LIVE_NEIGHBORHOOD_HOOKS) {
+      if (!FEATURE_FLAGS.LIVE_NEIGHBORHOOD_HOOKS) {
         await new Promise(r => setTimeout(r, 1200)); // @demo: realistic delay
         setAnalysis(computeAnalysis(MOCK_SCORES, MOCK_POIS, priorities, clientLabel, address, DEMO_LAT, DEMO_LNG));
       } else {
@@ -396,7 +395,7 @@ export function useAddressComparison() {
     radiusMi: RadiusMi = 1,  // S61: search radius
   ) => {
     // Type guard — live path sends AddressInput[], mock path sends string[]
-    const isLivePath = LIVE_NEIGHBORHOOD_HOOKS &&
+    const isLivePath = FEATURE_FLAGS.LIVE_NEIGHBORHOOD_HOOKS &&
       addresses.length > 0 &&
       typeof addresses[0] === 'object';
 

@@ -35,7 +35,7 @@ import type { LifestyleCategory, PriorityLevel, RadiusMi } from '../types/neighb
 import { CATEGORY_META } from '../lib/neighborhoodScoring';
 import { COLORS } from '../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../lib/config';
-import { LIVE_NEIGHBORHOOD_HOOKS } from '../hooks/useNeighborhoodAnalysis';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 
 // ── State flow ────────────────────────────────────────────────────────────────
 // route.params?.initialPriorities: LifestylePriority[] | undefined
@@ -256,7 +256,7 @@ const ClientLifestyleScreen: React.FC = () => {
   const canAnalyze =
     selectedTiles.size >= 1 &&
     addressDisplay.length > 0 &&
-    (LIVE_NEIGHBORHOOD_HOOKS ? (geocodedLat !== null && geocodedLng !== null) : true);
+    (FEATURE_FLAGS.LIVE_NEIGHBORHOOD_HOOKS ? (geocodedLat !== null && geocodedLng !== null) : true);
 
   // ── Tile handlers ──
 
@@ -385,7 +385,7 @@ const ClientLifestyleScreen: React.FC = () => {
 
     setShowAutocomplete(true);
 
-    if (LIVE_NEIGHBORHOOD_HOOKS) {
+    if (FEATURE_FLAGS.LIVE_NEIGHBORHOOD_HOOKS) {
       // Debounced live fetch
       autocompleteTimerRef.current = setTimeout(() => {
         fetchAutocompleteSuggestions(text);
@@ -646,7 +646,7 @@ const ClientLifestyleScreen: React.FC = () => {
                   shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
                 }}>
-                  {LIVE_NEIGHBORHOOD_HOOKS ? (
+                  {FEATURE_FLAGS.LIVE_NEIGHBORHOOD_HOOKS ? (
                     // Live path — dynamic suggestions from Google Places Autocomplete
                     isFetchingSuggestions && suggestions.length === 0 ? (
                       <View style={{ padding: 12, paddingHorizontal: 14 }}>
