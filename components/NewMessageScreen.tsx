@@ -8,9 +8,9 @@
 // Sections: Design Tokens, Navigation Type, SVG Icons,
 //           Data Types, Mock Data, Avatar, Contact Row, Main Screen
 //
-// @demo  5 mock contacts — all Closing Partners (no contractors)
-//        Fully mock — no hooks, no feature flag gate
-// @backend TODO: useConnections() filtered by partner roles only
+// @demo  SUGGESTED_CONTACTS used when USE_MOCK_DATA=true
+//        Live: useChatRecipients() — accepted connections, real profile UUIDs
+// @backend useChatRecipients (wired S119d) — connections table bidirectional join
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo } from 'react';
@@ -28,6 +28,8 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import SearchField from './SearchField';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
+import { useChatRecipients } from '../hooks/useData';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -143,17 +145,30 @@ const NewMessageScreen: React.FC = () => {
   const navigation = useNavigation<NewMessageNavProp>();
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState('');
+  const { data: liveRecipients = [] } = useChatRecipients();
+
+  // @backend useChatRecipients — queries connections table both directions
+  // Returns real profile UUIDs as id field (S115d bidirectional join fix applied)
+  const contacts: SuggestedContact[] = FEATURE_FLAGS.USE_MOCK_DATA
+    ? SUGGESTED_CONTACTS
+    : liveRecipients.map((r) => ({
+        id: r.id,
+        name: r.name,
+        company: r.company,
+        role: r.role,
+        avatarColor: r.avatar_color,
+      }));
 
   const filteredContacts = useMemo(() => {
-    if (searchText.length === 0) return SUGGESTED_CONTACTS;
+    if (searchText.length === 0) return contacts;
     const q = searchText.toLowerCase();
-    return SUGGESTED_CONTACTS.filter(
+    return contacts.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         c.company.toLowerCase().includes(q) ||
         c.role.toLowerCase().includes(q)
     );
-  }, [searchText]);
+  }, [searchText, contacts]);
 
   const handleContactPress = (contact: SuggestedContact) => {
     navigation.navigate('ChatScreen', {
