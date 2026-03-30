@@ -650,8 +650,8 @@ const EditProfileScreen: React.FC = () => {
         </View>
 
         {/* ── Service Area — Google Places city autocomplete (mirrors PostJobWizard) ── */}
-        <View style={{ gap: 8 }}>
-          <View style={{ position: 'relative', zIndex: 99 }}>
+        <View style={{ gap: 8, zIndex: 999 }}>
+          <View style={{ position: 'relative', zIndex: 999 }}>
             <FormField
               label="Service Area"
               value={serviceAreaQuery}
@@ -663,7 +663,7 @@ const EditProfileScreen: React.FC = () => {
             {/* Autocomplete dropdown */}
             {showCityAutocomplete && citySuggestions.length > 0 && (
               <View style={{
-                position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
+                position: 'absolute', top: 52, left: 0, right: 0, zIndex: 999,
                 backgroundColor: COLORS.background,
                 borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
                 ...SHADOWS.card,

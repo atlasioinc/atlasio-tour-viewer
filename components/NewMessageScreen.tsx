@@ -190,7 +190,7 @@ const NewMessageScreen: React.FC = () => {
 
       {/* Header */}
       <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, paddingTop: 8 + insets.top, paddingBottom: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, paddingTop: 12 + insets.top, paddingBottom: 4 }}>
           <Pressable
             onPress={() => navigation.goBack()}
             style={({ pressed }) => ({

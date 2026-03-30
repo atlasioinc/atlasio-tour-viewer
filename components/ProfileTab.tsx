@@ -273,7 +273,7 @@ const ProfileTab: React.FC = () => {
   // ── Languages ──
   // @backend liveProfile?.languages — profiles.languages text[] (wired S119c)
   const profileLanguages: string[] = FEATURE_FLAGS.USE_MOCK_DATA
-    ? ['English', 'Spanish']
+    ? ((mockSource as any)?.languages ?? ['English', 'Spanish'])
     : (liveProfile?.languages ?? []);
 
   // ── Vouches (live data) ──
@@ -461,6 +461,7 @@ const ProfileTab: React.FC = () => {
                 paddingVertical: 6,
                 flexDirection: 'row',
                 alignItems: 'center',
+                alignSelf: 'center',
                 gap: 5,
               }}
             >
@@ -473,12 +474,11 @@ const ProfileTab: React.FC = () => {
                 />
               </Svg>
               <Text
-                numberOfLines={1}
                 style={{
                   ...TYPOGRAPHY.bodyM,
                   fontWeight: '500',
                   color: COLORS.primary,
-                  flex: 1,
+                  textAlign: 'center',
                 }}
               >
                 {profileHeadline}

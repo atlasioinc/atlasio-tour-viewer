@@ -515,7 +515,7 @@ const ChatScreen: React.FC = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         {/* ══════════════════════════════════════════
             HEADER — Two modes
@@ -733,7 +733,7 @@ const ChatScreen: React.FC = () => {
             borderTopWidth: 0.68,
             borderTopColor: COLORS.border,
             paddingTop: 8,
-            paddingBottom: 8,
+            paddingBottom: 16,
             paddingHorizontal: 16,
           }}
         >
