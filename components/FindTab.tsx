@@ -308,16 +308,18 @@ const ProCardComponent: React.FC<{
       </View>
     </View>
     <View style={{ gap: 8 }}>
-      {pro.headline ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 6 }}>
-          <LightningIcon />
-          <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20, flex: 1 }} numberOfLines={1}>
-            {pro.headline}
-          </Text>
-        </View>
-      ) : null}
+      <View style={{ minHeight: 32 }}>
+        {pro.headline ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 6 }}>
+            <LightningIcon />
+            <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20, flex: 1 }} numberOfLines={1}>
+              {pro.headline}
+            </Text>
+          </View>
+        ) : null}
+      </View>
       {/* Tags — max 2 visible + "+N more" overflow pill */}
-      <View style={{ flexDirection: 'row', flexWrap: 'nowrap', gap: 6, marginTop: 8, overflow: 'hidden' }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'nowrap', gap: 6, overflow: 'hidden' }}>
         {pro.tags.slice(0, 2).map((tag) => (
           <View key={tag} style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.tagBg, borderRadius: 9999, flexShrink: 1 }}>
             <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '400', color: COLORS.tagText, lineHeight: 16 }}>{tag}</Text>
