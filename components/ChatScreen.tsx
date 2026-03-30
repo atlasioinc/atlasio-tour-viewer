@@ -530,13 +530,13 @@ const ChatScreen: React.FC = () => {
   }, [screenReady, initialThreadId, recipientId]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? (insets.bottom > 0 ? 44 : 93) : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* ══════════════════════════════════════════
             HEADER — Two modes
@@ -814,7 +814,7 @@ const ChatScreen: React.FC = () => {
             </ScrollView>
           )}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: insets.bottom }}>
             <Pressable
               onPress={() => setShowAttach(true)}
               hitSlop={8}
