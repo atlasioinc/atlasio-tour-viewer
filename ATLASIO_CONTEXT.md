@@ -31,9 +31,9 @@
 
 ---
 
-## Current Metrics (updated S116 — March 26, 2026)
-- **RPCs:** 61 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, and others S91-S103)
-- **Hooks:** 60 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+## Current Metrics (updated S121a — March 30, 2026)
+- **RPCs:** 63 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
+- **Hooks:** 62 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 10 — 8 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts. Note: LIVE_NEIGHBORHOOD_HOOKS referenced in code but missing from featureFlags.ts (S105 finding).
 - **Edge Functions:** 11
 - **Storage Buckets:** 7
@@ -957,3 +957,21 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decisions:** Outer `<View style={{ gap: 8 }}>` already handles inter-element spacing; redundant marginTop on both headline pill and tags row caused double spacing when headline present and orphaned spacing when absent. `minHeight: 32` wrapper ensures cards render at consistent height regardless of headline presence.
 - **Metrics unchanged:** RPCs: 61, Hooks: 60
 - **tsc:** 0
+
+### S121a — Transaction Close/Cancel Actions (March 30, 2026)
+- **Files modified:** `features/partners/types/partner.types.ts` (added `status?: 'active' | 'closed' | 'cancelled'` to AgentActiveDeal), `hooks/useData.ts` (+2 hooks: useCloseTransaction, useCancelTransaction), `components/AgentDealDetailScreen.tsx` (bottom action zone with "Mark as Closed" SecondaryButton + "Cancel Deal" DangerButton, native Alert confirmation, cache invalidation on success)
+- **Key decisions:** (1) Soft-archive pattern — no hard deletes, status column tracks lifecycle. (2) Action zone hidden when deal.status !== 'active'. (3) Review auto-fixed: tightened undefined-deal guard (`deal && ...`), removed no-op `loading` prop from DangerButton (component doesn't implement loading state). (4) Both RPCs already deployed as SECURITY DEFINER with agent ownership + active status checks.
+- **Metrics:** RPCs: 63 (+2: rpc_close_transaction, rpc_cancel_transaction — backend deployed prior), Hooks: 62 (+2: useCloseTransaction, useCancelTransaction)
+- **tsc:** 0
+
+### S121c — FindTab ProCard: Role as Plain Text (March 30, 2026)
+- **Files modified:** `components/FindTab.tsx` — ProCardComponent: removed role pill `<View>` wrapper (backgroundColor, borderRadius, paddingHorizontal/Vertical), role now renders as plain `<Text>` with `COLORS.primary`. Reduces competing pill/tag styles on card from 3 to 2.
+- **Metrics unchanged:** RPCs: 63, Hooks: 62
+- **tsc:** 0
+
+### S121d — ChatScreen Keyboard Gap + Auto-Focus (March 30, 2026) — REVERTED
+- **Attempted:** SafeAreaView edges fix, dynamic keyboardVerticalOffset, paddingBottom: insets.bottom on input bar, messageInputRef + auto-focus useEffects. All changes reverted after device testing — keyboard layout requires more investigation.
+- **Deferred to:** S122a
+- **Metrics unchanged:** RPCs: 63, Hooks: 62
+- **tsc:** 0
+- **S122 next objectives:** ChatScreen keyboard gap + auto-focus (S122a), ATLASIO_CONTEXT.md metrics cleanup
