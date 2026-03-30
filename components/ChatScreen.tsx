@@ -324,6 +324,7 @@ const ChatScreen: React.FC = () => {
     }
   }, [rpcMessages, liveMessages, currentUserId]);
   const toInputRef = useRef<TextInput>(null);
+  const messageInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Recipients
@@ -508,6 +509,17 @@ const ChatScreen: React.FC = () => {
   // Combined reveal gate: navigation animation complete + layout settled (S108f)
   const showMessages = screenReady && listReady;
 
+  // Auto-focus message input after screen is ready (S122a)
+  // New conversations: screenReady is true immediately → focus at 350ms
+  // Existing threads: screenReady fires after 400ms gate → focus at 750ms total
+  useEffect(() => {
+    if (!screenReady) return;
+    const timer = setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [screenReady]);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
@@ -515,7 +527,7 @@ const ChatScreen: React.FC = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 48 : 0}
       >
         {/* ══════════════════════════════════════════
             HEADER — Two modes
@@ -793,18 +805,20 @@ const ChatScreen: React.FC = () => {
             </ScrollView>
           )}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Pressable
-              onPress={() => setShowAttach(true)}
-              hitSlop={8}
-              style={({ pressed }) => ({ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
-            >
-              <AttachIcon />
-            </Pressable>
+          <View style={{ paddingBottom: insets.bottom }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Pressable
+                onPress={() => setShowAttach(true)}
+                hitSlop={8}
+                style={({ pressed }) => ({ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
+              >
+                <AttachIcon />
+              </Pressable>
 
-            <View style={{ flex: 1, height: 45, paddingHorizontal: 16, borderRadius: 9999, borderWidth: 0.68, borderColor: COLORS.inputBorder, justifyContent: 'center' }}>
-              <TextInput
-                value={messageText}
+              <View style={{ flex: 1, height: 45, paddingHorizontal: 16, borderRadius: 9999, borderWidth: 0.68, borderColor: COLORS.inputBorder, justifyContent: 'center' }}>
+                <TextInput
+                  ref={messageInputRef}
+                  value={messageText}
                 onChangeText={setMessageText}
                 onFocus={handleDismissContactList}
                 placeholder="Type a message..."
@@ -824,6 +838,7 @@ const ChatScreen: React.FC = () => {
             >
               <SendIcon />
             </Pressable>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
