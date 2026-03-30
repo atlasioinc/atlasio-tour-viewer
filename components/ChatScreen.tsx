@@ -510,14 +510,24 @@ const ChatScreen: React.FC = () => {
   const showMessages = screenReady && listReady;
 
   // Auto-focus message input after navigation animation completes (S121d)
-  // Only in conversation mode — compose mode focuses the "To:" contact input instead
+  // Gates on showMessages (screenReady && listReady) — TextInput is guaranteed
+  // to be in the tree by this point. Compose mode skipped via isConversationMode check.
   useEffect(() => {
-    if (!isConversationMode) return;
+    if (!isConversationMode || !showMessages) return;
     const timer = setTimeout(() => {
       messageInputRef.current?.focus();
     }, 300);
     return () => clearTimeout(timer);
-  }, [isConversationMode]);
+  }, [showMessages, isConversationMode]);
+
+  // Auto-focus for new conversations (recipientId set, no existing thread)
+  useEffect(() => {
+    if (initialThreadId || !recipientId || !screenReady) return;
+    const timer = setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [screenReady, initialThreadId, recipientId]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top', 'bottom']}>
@@ -526,7 +536,7 @@ const ChatScreen: React.FC = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? (insets.bottom > 0 ? 44 : 93) : 0}
       >
         {/* ══════════════════════════════════════════
             HEADER — Two modes
