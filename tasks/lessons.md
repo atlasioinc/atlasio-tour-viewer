@@ -64,6 +64,37 @@ The specific bug: onAuthStateChange handler checked `!session` before `event ===
 Since sign-out sends session=null, the null guard returned early and `queryClient.clear()` was
 never reached. Fix: check SIGNED_OUT event first, then the null guard.
 
+## RULE — Role constants must use Supabase snake_case values, not display labels (added S122c, March 30 2026)
+
+Any component constant that feeds a role value into a hook, filter, or query
+(e.g. `useConnectedPros(role)`) must use the Supabase `profiles.role` snake_case
+value — NOT a display label. Display strings belong in `label` fields only.
+
+Root cause: `SQUAD_SLOTS` in `HomeTabAgent.tsx` used `role: 'Mortgage Pro'` and
+`role: 'Title/Escrow'`. The `useConnectedPros(role)` hook filters by
+`c.profile?.role === role` against Supabase `profiles.role` which stores
+`'mortgage_pro'` and `'title_escrow'`. Exact string mismatch → empty picker sheet.
+Fixed by separating `label` (display) from `role` (DB key) across 3 files.
+
+Pattern to follow:
+```typescript
+// ✅ CORRECT — label for display, role for DB/filter
+const SQUAD_SLOTS = [
+  { id: 'mortgage', label: 'Mortgage Pro', role: 'mortgage_pro' },
+  { id: 'title',    label: 'Title Officer', role: 'title_escrow' },
+];
+
+// ❌ WRONG — display string used as filter value
+const SQUAD_SLOTS = [
+  { id: 'mortgage', label: 'Mortgage Pro', role: 'Mortgage Pro' },
+  { id: 'title',    label: 'Title Officer', role: 'Title/Escrow' },
+];
+```
+
+Applies to: Any constant, slot definition, or config object where a `role` field
+flows into `useConnectedPros()`, `useAgentPartnerConnections()`, or any hook that
+compares against `profiles.role` in Supabase.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —
