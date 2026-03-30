@@ -324,7 +324,6 @@ const ChatScreen: React.FC = () => {
     }
   }, [rpcMessages, liveMessages, currentUserId]);
   const toInputRef = useRef<TextInput>(null);
-  const messageInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Recipients
@@ -509,26 +508,6 @@ const ChatScreen: React.FC = () => {
   // Combined reveal gate: navigation animation complete + layout settled (S108f)
   const showMessages = screenReady && listReady;
 
-  // Auto-focus message input after navigation animation completes (S121d)
-  // Gates on showMessages (screenReady && listReady) — TextInput is guaranteed
-  // to be in the tree by this point. Compose mode skipped via isConversationMode check.
-  useEffect(() => {
-    if (!isConversationMode || !showMessages) return;
-    const timer = setTimeout(() => {
-      messageInputRef.current?.focus();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [showMessages, isConversationMode]);
-
-  // Auto-focus for new conversations (recipientId set, no existing thread)
-  useEffect(() => {
-    if (initialThreadId || !recipientId || !screenReady) return;
-    const timer = setTimeout(() => {
-      messageInputRef.current?.focus();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [screenReady, initialThreadId, recipientId]);
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
@@ -536,7 +515,7 @@ const ChatScreen: React.FC = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         {/* ══════════════════════════════════════════
             HEADER — Two modes
@@ -814,7 +793,7 @@ const ChatScreen: React.FC = () => {
             </ScrollView>
           )}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: insets.bottom }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
               onPress={() => setShowAttach(true)}
               hitSlop={8}
@@ -825,7 +804,6 @@ const ChatScreen: React.FC = () => {
 
             <View style={{ flex: 1, height: 45, paddingHorizontal: 16, borderRadius: 9999, borderWidth: 0.68, borderColor: COLORS.inputBorder, justifyContent: 'center' }}>
               <TextInput
-                ref={messageInputRef}
                 value={messageText}
                 onChangeText={setMessageText}
                 onFocus={handleDismissContactList}
