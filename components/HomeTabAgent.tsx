@@ -181,20 +181,23 @@ interface SquadSlot {
   isAddNew?: boolean;
 }
 
+// role values must match profiles.role in Supabase (snake_case) — NOT display labels
+// useConnectedPros(role) filters by c.profile?.role === role
+// label is the display string shown under the slot circle
 const SQUAD_SLOTS: SquadSlot[] = [
-  { id: 'mortgage', label: 'Mortgage Pro', role: 'Mortgage Pro' },
-  { id: 'title', label: 'Title Officer', role: 'Title/Escrow' },
-  { id: 'inspector', label: 'Home\nInspector', role: 'Home Inspector' },
-  { id: 'tc', label: 'Transaction\nCoordinator', role: 'Transaction Coordinator' },
+  { id: 'mortgage', label: 'Mortgage Pro', role: 'mortgage_pro' },
+  { id: 'title', label: 'Title Officer', role: 'title_escrow' },
+  { id: 'inspector', label: 'Home\nInspector', role: 'home_inspector' },
+  { id: 'tc', label: 'Transaction\nCoordinator', role: 'transaction_coordinator' },
   { id: 'add', label: 'Add Another\nRole', role: '', isAddNew: true },
 ];
 
 // Roles available to add beyond the default 4
 const ADDITIONAL_ROLES = [
-  { id: 'appraiser', label: 'Appraiser', role: 'Appraiser' },
-  { id: 'contractor', label: 'Contractor', role: 'Contractor' },
-  { id: 'warranty', label: 'Warranty', role: 'Warranty' },
-  { id: 'attorney', label: 'Attorney', role: 'Attorney' },
+  { id: 'appraiser', label: 'Appraiser', role: 'appraiser' },
+  { id: 'contractor', label: 'Contractor', role: 'contractor' },
+  { id: 'warranty', label: 'Warranty', role: 'warranty' },
+  { id: 'attorney', label: 'Attorney', role: 'attorney' },
 ];
 
 // ─────────────────────────────────────────────
@@ -788,7 +791,7 @@ const HomeTabAgent: React.FC = () => {
                         }}
                         numberOfLines={1}
                       >
-                        {slot.role}
+                        {slot.label.replace('\n', ' ')}
                       </Text>
                     </View>
                   ) : (

@@ -389,24 +389,25 @@ const AddRoleCard: React.FC<{ onPress: () => void }> = ({ onPress }) => (
 
 // ─── Role Label Mapping ──────────────────────────────────────────────────────
 
+// Keys must match profiles.role in Supabase (snake_case) — same as SQUAD_SLOTS.role
 const ROLE_SHORT_LABELS: Record<string, string> = {
-  'Mortgage Pro': 'Lender',
-  'Title/Escrow': 'Title',
-  'Home Inspector': 'Inspector',
-  'Transaction Coordinator': 'TC',
-  Appraiser: 'Appraiser',
-  Contractor: 'Contractor',
-  Warranty: 'Warranty',
-  Attorney: 'Attorney',
+  mortgage_pro: 'Lender',
+  title_escrow: 'Title',
+  home_inspector: 'Inspector',
+  transaction_coordinator: 'TC',
+  appraiser: 'Appraiser',
+  contractor: 'Contractor',
+  warranty: 'Warranty',
+  attorney: 'Attorney',
 };
 
 // ─── Additional Roles (matches HomeTabAgent) ─────────────────────────────────
 
 const ADDITIONAL_ROLES = [
-  { id: 'appraiser', label: 'Appraiser', role: 'Appraiser' },
-  { id: 'contractor', label: 'Contractor', role: 'Contractor' },
-  { id: 'warranty', label: 'Warranty', role: 'Warranty' },
-  { id: 'attorney', label: 'Attorney', role: 'Attorney' },
+  { id: 'appraiser', label: 'Appraiser', role: 'appraiser' },
+  { id: 'contractor', label: 'Contractor', role: 'contractor' },
+  { id: 'warranty', label: 'Warranty', role: 'warranty' },
+  { id: 'attorney', label: 'Attorney', role: 'attorney' },
 ];
 
 // ═══════════════════════════════════════════════════════════════

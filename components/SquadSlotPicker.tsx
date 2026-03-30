@@ -82,33 +82,45 @@ export interface SquadProCandidate {
 // ─────────────────────────────────────────────
 
 const CONNECTED_PROS: SquadProCandidate[] = [
-  { id: 'sp1', name: 'Mike Rodriguez', company: 'First National Bank', role: 'Mortgage Pro', rating: 4.9, vouches: 127, avatarColor: '#7BA3C9' },
-  { id: 'sp2', name: 'Sarah Williams', company: 'Elite Mortgage Group', role: 'Mortgage Pro', rating: 4.8, vouches: 98, avatarColor: '#D4C5A8' },
-  { id: 'sp3', name: 'Tom Anderson', company: 'VA Loan Pros', role: 'Mortgage Pro', rating: 4.9, vouches: 89, avatarColor: '#C5D4A8' },
-  { id: 'sp4', name: 'Jennifer Lee', company: 'Premier Title', role: 'Title/Escrow', rating: 4.9, vouches: 104, avatarColor: '#D4A8B5' },
-  { id: 'sp5', name: 'David Torres', company: 'Secure Title Co', role: 'Title/Escrow', rating: 4.8, vouches: 93, avatarColor: '#B5C4A8' },
-  { id: 'sp6', name: 'Emma Wilson', company: 'Prestige Title Services', role: 'Title/Escrow', rating: 4.7, vouches: 76, avatarColor: '#B8A8D4' },
-  { id: 'sp7', name: 'Carlos Martinez', company: 'Precision Inspections', role: 'Home Inspector', rating: 5.0, vouches: 156, avatarColor: '#A8D4C5' },
-  { id: 'sp8', name: 'Lisa Park', company: 'HomeCheck Pro', role: 'Home Inspector', rating: 4.8, vouches: 112, avatarColor: '#D4A8C5' },
-  { id: 'sp9', name: 'Angela Rivera', company: 'DetailCheck Inspections', role: 'Home Inspector', rating: 4.9, vouches: 88, avatarColor: '#C4A882' },
-  { id: 'sp10', name: 'Kevin Park', company: 'Smooth Close TC', role: 'Transaction Coordinator', rating: 4.9, vouches: 71, avatarColor: '#C9B87B' },
-  { id: 'sp11', name: 'Maria Santos', company: 'DealFlow Coordination', role: 'Transaction Coordinator', rating: 4.8, vouches: 64, avatarColor: '#A8B5D4' },
+  { id: 'sp1', name: 'Mike Rodriguez', company: 'First National Bank', role: 'mortgage_pro', rating: 4.9, vouches: 127, avatarColor: '#7BA3C9' },
+  { id: 'sp2', name: 'Sarah Williams', company: 'Elite Mortgage Group', role: 'mortgage_pro', rating: 4.8, vouches: 98, avatarColor: '#D4C5A8' },
+  { id: 'sp3', name: 'Tom Anderson', company: 'VA Loan Pros', role: 'mortgage_pro', rating: 4.9, vouches: 89, avatarColor: '#C5D4A8' },
+  { id: 'sp4', name: 'Jennifer Lee', company: 'Premier Title', role: 'title_escrow', rating: 4.9, vouches: 104, avatarColor: '#D4A8B5' },
+  { id: 'sp5', name: 'David Torres', company: 'Secure Title Co', role: 'title_escrow', rating: 4.8, vouches: 93, avatarColor: '#B5C4A8' },
+  { id: 'sp6', name: 'Emma Wilson', company: 'Prestige Title Services', role: 'title_escrow', rating: 4.7, vouches: 76, avatarColor: '#B8A8D4' },
+  { id: 'sp7', name: 'Carlos Martinez', company: 'Precision Inspections', role: 'home_inspector', rating: 5.0, vouches: 156, avatarColor: '#A8D4C5' },
+  { id: 'sp8', name: 'Lisa Park', company: 'HomeCheck Pro', role: 'home_inspector', rating: 4.8, vouches: 112, avatarColor: '#D4A8C5' },
+  { id: 'sp9', name: 'Angela Rivera', company: 'DetailCheck Inspections', role: 'home_inspector', rating: 4.9, vouches: 88, avatarColor: '#C4A882' },
+  { id: 'sp10', name: 'Kevin Park', company: 'Smooth Close TC', role: 'transaction_coordinator', rating: 4.9, vouches: 71, avatarColor: '#C9B87B' },
+  { id: 'sp11', name: 'Maria Santos', company: 'DealFlow Coordination', role: 'transaction_coordinator', rating: 4.8, vouches: 64, avatarColor: '#A8B5D4' },
   // Appraisers
-  { id: 'sp12', name: 'Sarah Chen', company: 'Mountain View Appraisals', role: 'Appraiser', rating: 4.9, vouches: 89, avatarColor: '#A8B5D4' },
-  { id: 'sp13', name: 'Robert Hayes', company: 'Front Range Valuations', role: 'Appraiser', rating: 4.8, vouches: 72, avatarColor: '#C5A8B5' },
-  { id: 'sp14', name: 'Diana Flores', company: 'Peak Appraisal Group', role: 'Appraiser', rating: 4.7, vouches: 58, avatarColor: '#D4C5B5' },
+  { id: 'sp12', name: 'Sarah Chen', company: 'Mountain View Appraisals', role: 'appraiser', rating: 4.9, vouches: 89, avatarColor: '#A8B5D4' },
+  { id: 'sp13', name: 'Robert Hayes', company: 'Front Range Valuations', role: 'appraiser', rating: 4.8, vouches: 72, avatarColor: '#C5A8B5' },
+  { id: 'sp14', name: 'Diana Flores', company: 'Peak Appraisal Group', role: 'appraiser', rating: 4.7, vouches: 58, avatarColor: '#D4C5B5' },
   // Contractors
-  { id: 'sp15', name: 'Brian Cooper', company: 'ProBuild Contractors', role: 'Contractor', rating: 5.0, vouches: 67, avatarColor: '#7BA3C9' },
-  { id: 'sp16', name: 'James Foster', company: 'Summit Roofing', role: 'Contractor', rating: 4.7, vouches: 52, avatarColor: '#D4C5A8' },
-  { id: 'sp17', name: 'Jake Thompson', company: 'Thompson Plumbing', role: 'Contractor', rating: 4.9, vouches: 94, avatarColor: '#B5D4A8' },
-  { id: 'sp18', name: 'Miguel Hernandez', company: 'Hernandez Drywall', role: 'Contractor', rating: 4.8, vouches: 61, avatarColor: '#A8C4D4' },
+  { id: 'sp15', name: 'Brian Cooper', company: 'ProBuild Contractors', role: 'contractor', rating: 5.0, vouches: 67, avatarColor: '#7BA3C9' },
+  { id: 'sp16', name: 'James Foster', company: 'Summit Roofing', role: 'contractor', rating: 4.7, vouches: 52, avatarColor: '#D4C5A8' },
+  { id: 'sp17', name: 'Jake Thompson', company: 'Thompson Plumbing', role: 'contractor', rating: 4.9, vouches: 94, avatarColor: '#B5D4A8' },
+  { id: 'sp18', name: 'Miguel Hernandez', company: 'Hernandez Drywall', role: 'contractor', rating: 4.8, vouches: 61, avatarColor: '#A8C4D4' },
   // Warranty
-  { id: 'sp19', name: 'Lisa Martinez', company: 'Denver Home Warranty', role: 'Warranty', rating: 4.8, vouches: 76, avatarColor: '#B8A8D4' },
-  { id: 'sp20', name: 'Paul Greene', company: 'Shield Home Protection', role: 'Warranty', rating: 4.6, vouches: 43, avatarColor: '#C4D4A8' },
+  { id: 'sp19', name: 'Lisa Martinez', company: 'Denver Home Warranty', role: 'warranty', rating: 4.8, vouches: 76, avatarColor: '#B8A8D4' },
+  { id: 'sp20', name: 'Paul Greene', company: 'Shield Home Protection', role: 'warranty', rating: 4.6, vouches: 43, avatarColor: '#C4D4A8' },
   // Attorneys
-  { id: 'sp21', name: 'David Kim', company: 'RE Law Group', role: 'Attorney', rating: 5.0, vouches: 64, avatarColor: '#A8D4B5' },
-  { id: 'sp22', name: 'Rachel Nguyen', company: 'Denver Property Law', role: 'Attorney', rating: 4.8, vouches: 51, avatarColor: '#D4B5A8' },
+  { id: 'sp21', name: 'David Kim', company: 'RE Law Group', role: 'attorney', rating: 5.0, vouches: 64, avatarColor: '#A8D4B5' },
+  { id: 'sp22', name: 'Rachel Nguyen', company: 'Denver Property Law', role: 'attorney', rating: 4.8, vouches: 51, avatarColor: '#D4B5A8' },
 ];
+
+// snake_case role → display label (for sheet titles, search placeholders, empty states)
+const ROLE_DISPLAY_LABELS: Record<string, string> = {
+  mortgage_pro: 'Mortgage Pro',
+  title_escrow: 'Title/Escrow',
+  home_inspector: 'Home Inspector',
+  transaction_coordinator: 'Transaction Coordinator',
+  appraiser: 'Appraiser',
+  contractor: 'Contractor',
+  warranty: 'Warranty',
+  attorney: 'Attorney',
+};
 
 // ─────────────────────────────────────────────
 // AVATAR
@@ -202,7 +214,7 @@ const ProRow: React.FC<{
 interface SquadSlotPickerProps {
   /** Whether the picker is visible */
   visible: boolean;
-  /** The role to filter by (e.g., 'Mortgage Pro', 'Title/Escrow') */
+  /** The role to filter by (e.g., 'mortgage_pro', 'title_escrow') — snake_case, matches profiles.role */
   role: string;
   /** Called when a pro is selected — parent fills the slot */
   onSelect: (pro: SquadProCandidate) => void;
@@ -396,7 +408,7 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
                   lineHeight: 28,
                 }}
               >
-                {currentProId ? `Change ${role}` : `Add ${role}`}
+                {currentProId ? `Change ${ROLE_DISPLAY_LABELS[role] ?? role}` : `Add ${ROLE_DISPLAY_LABELS[role] ?? role}`}
               </Text>
               <Text
                 style={{
@@ -431,7 +443,7 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
             <SearchField
               value={searchText}
               onChangeText={setSearchText}
-              placeholder={`Search ${role.toLowerCase()}s...`}
+              placeholder={`Search ${(ROLE_DISPLAY_LABELS[role] ?? role).toLowerCase()}s...`}
             />
           </View>
 
@@ -482,7 +494,7 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
                 >
                   {searchText.length > 0
                     ? 'No matching connections'
-                    : `No ${role.toLowerCase()}s in your network yet`}
+                    : `No ${(ROLE_DISPLAY_LABELS[role] ?? role).toLowerCase()}s in your network yet`}
                 </Text>
                 <Text
                   style={{
@@ -495,7 +507,7 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
                 >
                   {searchText.length > 0
                     ? 'Try a different search'
-                    : `Find and connect with ${role.toLowerCase()}s to add them to your squad`}
+                    : `Find and connect with ${(ROLE_DISPLAY_LABELS[role] ?? role).toLowerCase()}s to add them to your squad`}
                 </Text>
               </View>
             )}
@@ -575,7 +587,7 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
                         lineHeight: 20,
                       }}
                     >
-                      Find a new {role.toLowerCase()}
+                      Find a new {(ROLE_DISPLAY_LABELS[role] ?? role).toLowerCase()}
                     </Text>
                   </Pressable>
                 )}
