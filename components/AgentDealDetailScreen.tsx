@@ -1,8 +1,8 @@
 // AgentDealDetailScreen.tsx
 // ═══════════════════════════════════════════════════════════════
-// Agent Deal Detail — Read-only milestone board per deal (S63)
-// Who: Agent role — views partner milestone progress + alerts
-// Where: HomeStack → AgentDealDetail (push from Active Deals section)
+// What: Agent deal detail — milestones, partners, alerts, closing details, close/cancel actions
+// Who: Agent role only
+// Where: HomeStack → AgentDealDetail (pushed from HomeTabAgent or AgentDealsScreen)
 //
 // READ-ONLY VIEW — agent cannot tap or modify milestones.
 // Partner updates milestones via their own deal card (ActiveDealCard.tsx).
@@ -10,7 +10,8 @@
 //
 // @demo mock data from useAgentActiveDeals (hooks/useData.ts)
 // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }
-// NOTE: will migrate to transaction_id in S64 when transactions table exists
+// @backend rpc_close_transaction({ p_transaction_id: transactionId })
+// @backend rpc_cancel_transaction({ p_transaction_id: transactionId })
 // ═══════════════════════════════════════════════════════════════
 
 // STATE FLOW:
@@ -31,8 +32,8 @@ import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
 import { COLORS, DIMENSIONS, SPACING } from '../lib/tokens';
 import FormField from './FormField';
-import { useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard, useUpdateClosingDetails, useGenerateClientToken } from '../hooks/useData';
-import { PrimaryButton } from './Button';
+import { useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard, useUpdateClosingDetails, useGenerateClientToken, useCloseTransaction, useCancelTransaction } from '../hooks/useData';
+import { PrimaryButton, SecondaryButton, DangerButton } from './Button';
 import { isMilestoneStale, getRateLockDaysRemaining, RATE_LOCK_DANGER_THRESHOLD_DAYS } from '../features/partners/lib/dealMilestones';
 import type { AgentDealPartner, PartnerRole } from '../features/partners/types/partner.types';
 
@@ -146,6 +147,58 @@ const AgentDealDetailScreen: React.FC = () => {
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [notifyPhone, setNotifyPhone] = useState('');
   const [smsSent, setSmsSent] = useState(false);
+
+  // ── Deal lifecycle actions (S121a) ──
+  // @backend rpc_close_transaction({ p_transaction_id: transactionId })
+  // @backend rpc_cancel_transaction({ p_transaction_id: transactionId })
+  const closeTransaction = useCloseTransaction();
+  const cancelTransaction = useCancelTransaction();
+  const isLifecyclePending = closeTransaction.isPending || cancelTransaction.isPending;
+
+  const handleCloseDeal = () => {
+    if (!transactionId) return;
+    Alert.alert(
+      'Mark Deal as Closed?',
+      'This will mark the deal as successfully closed. The deal will be removed from your active pipeline.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Mark as Closed',
+          onPress: async () => {
+            try {
+              await closeTransaction.mutateAsync({ transactionId });
+              navigation.goBack();
+            } catch (err: any) {
+              Alert.alert('Error', err?.message ?? 'Failed to close transaction');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleCancelDeal = () => {
+    if (!transactionId) return;
+    Alert.alert(
+      'Cancel This Deal?',
+      'This will cancel the deal. It will be removed from your active pipeline. This cannot be undone.',
+      [
+        { text: 'Keep Deal', style: 'cancel' },
+        {
+          text: 'Cancel Deal',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelTransaction.mutateAsync({ transactionId });
+              navigation.goBack();
+            } catch (err: any) {
+              Alert.alert('Error', err?.message ?? 'Failed to cancel transaction');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleShare = async () => {
     if (!transactionId || transactionId.startsWith('mock-')) {
@@ -683,6 +736,32 @@ const AgentDealDetailScreen: React.FC = () => {
               )}
             </View>
           </>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────
+            DEAL LIFECYCLE ACTIONS
+            Only shown when deal.status === 'active' (or undefined for cached data)
+            Close: marks deal as successfully sold — removes from active pipeline
+            Cancel: marks deal as fallen through — removes from active pipeline
+            Both actions require native Alert confirmation before firing
+            Both invalidate agent_deals + agent_active_deals on success
+            ───────────────────────────────────────────────────────────── */}
+        {deal && (deal.status === 'active' || deal.status === undefined) && transactionId && (
+          <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 }}>
+            <View style={{ height: 1, backgroundColor: COLORS.border, marginBottom: 16 }} />
+            <SecondaryButton
+              label="Mark as Closed"
+              onPress={handleCloseDeal}
+              disabled={isLifecyclePending}
+              loading={closeTransaction.isPending}
+            />
+            <View style={{ height: 8 }} />
+            <DangerButton
+              label="Cancel Deal"
+              onPress={handleCancelDeal}
+              disabled={isLifecyclePending}
+            />
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>

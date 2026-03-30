@@ -277,18 +277,9 @@ const ProCardComponent: React.FC<{
             <VerificationBadge level={pro.verification_level ?? 'none'} size="small" />
           </View>
           <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }} numberOfLines={1}>{pro.company}</Text>
-          <View style={{
-            alignSelf: 'flex-start',
-            marginTop: 2,
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-            backgroundColor: COLORS.tagBg,
-            borderRadius: 9999,
-          }}>
-            <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.primary, lineHeight: 16 }}>
-              {pro.trade ?? pro.role}
-            </Text>
-          </View>
+          <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.primary, lineHeight: 16 }}>
+            {pro.trade ?? pro.role}
+          </Text>
           {/* @backend profiles.accepting_clients BOOLEAN — read from partner profile data
               @demo use mock profile data with accepting_clients field
               Only show badge when explicitly false (not when true or undefined) */}

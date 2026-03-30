@@ -906,3 +906,54 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 61 (+1: rpc_update_transaction), Hooks: 60 (+1: useUpdateTransaction), Screens: +1 (EditDealScreen)
 - **tsc:** 0
 - **S117 next objectives:** Inbox scroll UX polish (iMessage pattern)
+
+### S116b + S117 — Edit Deal Clear Date + Inbox Refetch Spinner (March 26, 2026)
+- **S116b modified:** `components/EditDealScreen.tsx` — added `dateWasCleared` state tracking so clearing a closing date persists NULL instead of being silently ignored by COALESCE. SQL: `p_clear_closing_date` boolean param added to `rpc_update_transaction`.
+- **S117 modified:** `components/InboxList.tsx` — RefreshControl spinner now only shows on user-initiated pull-to-refresh, not on background refetches triggered by cache invalidation after archive (prevents jank/flash after deleting a thread).
+- **Metrics:** RPCs: 61 (rpc_update_transaction updated, not new), Hooks: 60 (unchanged)
+- **tsc:** 0
+
+### S109/S118 — EAS Build Config + TestFlight Setup (March 26-27, 2026)
+- **Files created:** `eas.json` — EAS build config (development, preview, production profiles)
+- **Files modified:** `app.config.js` — added bundle ID `com.atlasioapp.atlasio`, build number, EAS project ID, iOS/Android config
+- **S118c-g:** autoSubmit preview profile, app display name `atlasio-demo` → `Atlasio`, revert invalid autoSubmit, build number increments (1→4), legacy anon key fix, ITSAppUsesNonExemptEncryption flag
+- **Metrics unchanged:** RPCs: 61, Hooks: 60
+- **tsc:** 0
+
+### S119a-c — Consolidate Flags, EditProfile Fixes, Wire Languages Column (March 28, 2026)
+- **S119a modified:** `lib/featureFlags.ts`, `components/AddressComparisonScreen.tsx`, `components/ClientLifestyleScreen.tsx` — moved `LIVE_NEIGHBORHOOD_HOOKS` from `hooks/useNeighborhoodAnalysis.ts` to `lib/featureFlags.ts`, updated all consumers
+- **S119b modified:** `components/EditProfileScreen.tsx` — hide bio field, add headline to save payload, headline limit 35→45, company 25 char limit, license row reads live data, service area Google Places city autocomplete, mock licenseNumber blanked
+- **S119b modified:** `components/ProfileTab.tsx` — Z1 location→service area, Z4b languages card (hidden if ≤1 language)
+- **S119c modified:** `types/index.ts`, `components/EditProfileScreen.tsx`, `components/ProfileTab.tsx`, `hooks/useData.ts` — wire `languages` column end-to-end (Profile type, save payload, useEffect pre-fill, ProfileTab live read)
+- **Metrics unchanged:** RPCs: 61, Hooks: 60, Feature Flags: 11
+- **tsc:** 0
+
+### S119d — Wire NewMessageScreen to Live Connections (March 28, 2026)
+- **Modified:** `components/NewMessageScreen.tsx` — replaced hardcoded `SUGGESTED_CONTACTS` (fake IDs) with live data from `useChatRecipients` hook. Feature-flagged: `USE_MOCK_DATA=true` keeps mock fallback. Live path returns real profile UUIDs from accepted connections, fixing broken thread creation for real users.
+- **Metrics unchanged:** RPCs: 61, Hooks: 60
+- **tsc:** 0
+
+### S120a — QA Bug Fixes from TestFlight Build #5 (March 29, 2026)
+- **Modified:** `components/ProfileTab.tsx` — (1) headline pill: removed `numberOfLines={1}` truncation, added `textAlign: 'center'` + `alignSelf: 'center'`; (2) languages card: added `(mockSource as any)?.languages` fallback so card shows in demo mode for agents
+- **Modified:** `components/EditProfileScreen.tsx` — service area autocomplete dropdown: `zIndex: 99` → `999` on outer, inner, and dropdown containers (fixes clipping by ScrollView siblings)
+- **Modified:** `components/NewMessageScreen.tsx` — header `paddingTop: 8` → `12` + insets.top (+4px breathing room)
+- **Modified:** `components/ChatScreen.tsx` — (1) input bar `paddingBottom: 8` → `16`; (2) `keyboardVerticalOffset={0}` → `{Platform.OS === 'ios' ? 88 : 0}` (fixes keyboard covering input on pushed screens)
+- **Modified:** `app.config.js` — build number 4 → 5
+- **Metrics unchanged:** RPCs: 61, Hooks: 60, Edge Functions: 11, Feature Flags: 11
+- **tsc:** 0
+- **S120b next objectives:** TestFlight Build #6 QA, remaining inbox/chat polish, partner track wiring
+
+### S113b/d/f/g — Alert Wiring Fixes, Dismiss Persistence, Greeting Headers, Deal Card Visibility (March 30, 2026)
+- **S113b modified:** `features/partners/hooks/usePartnerData.ts` — `usePostDealAlert`: removed `p_job_id` from RPC call (param no longer exists), error re-throw instead of silent mock fallback (matches S106/S112 pattern), optimistic update matches on `transaction_id` not `job_id`. `features/partners/types/partner.types.ts` — `DealAlert.job_id` → `DealAlert.transaction_id`. `features/partners/components/HomeTabPartner.tsx`, `PartnerDealsScreen.tsx` — guard `if (!transactionId) return` before `postAlert.mutate()`.
+- **S113d modified:** `hooks/useData.ts` — `useAgentDismissDealAlert` wired to live `rpc_dismiss_deal_alert` RPC (was mock-only). Optimistic update matches on `transaction_id` first, falls back to `job_id` for legacy deals. `components/AgentDealDetailScreen.tsx` — "Got it" handler passes `transactionId: deal.transaction_id`.
+- **S113f modified:** `components/HomeTabAgent.tsx`, `features/partners/components/HomeTabPartner.tsx`, `components/ContractorHomeTab.tsx` — personalized time-of-day greeting on all 3 home tabs via `useMyProfile()`. Contractor tab switched from `CURRENT_CONTRACTOR.name` (mock) to live profile data.
+- **S113g modified:** `features/partners/components/HomeTabPartner.tsx` — YOUR DEALS section: always renders `ActiveDealCard` for all deals when `totalActiveDeals > 0`. AllClearEmptyState no longer suppresses deal cards — replaced with subtle green dot + "All deals on track" text below cards.
+- **Key decisions:** (1) Error re-throw pattern (S113b) matches S106/S112 — surfaces failures to `onError` for rollback instead of hiding behind mock data. (2) `transactionId` guard prevents RPC call with undefined param. (3) `firstName` fallback is `'there'` for null profile. (4) Deal cards always visible — "all clear" state was suppressing content.
+- **Metrics:** RPCs: 61 (unchanged), Hooks: 60 (unchanged — useAgentDismissDealAlert upgraded from mock to live, not new)
+- **tsc:** 0
+
+### S121b — FindTab: Fix Double/Orphaned Spacing on ProCard Tags Row (March 30, 2026)
+- **Files modified:** `components/FindTab.tsx` — ProCardComponent: (1) wrapped headline conditional in `minHeight: 32` container for consistent card heights when headline is absent, (2) removed `marginTop: 6` from headline pill View, (3) removed `marginTop: 8` from tags row View (was stacking with outer `gap: 8` = 16px total)
+- **Key decisions:** Outer `<View style={{ gap: 8 }}>` already handles inter-element spacing; redundant marginTop on both headline pill and tags row caused double spacing when headline present and orphaned spacing when absent. `minHeight: 32` wrapper ensures cards render at consistent height regardless of headline presence.
+- **Metrics unchanged:** RPCs: 61, Hooks: 60
+- **tsc:** 0

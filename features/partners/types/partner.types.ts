@@ -145,6 +145,7 @@ export interface AgentActiveDeal {
   closing_date: string | null;
   buyer_name?: string | null;        // S115c: from rpc_get_agent_deals → transactions.buyer_name
   contract_price?: number | null;    // S115c: from rpc_get_agent_deals → transactions.contract_price
+  status?: 'active' | 'closed' | 'cancelled';  // S121a: transaction lifecycle status (default 'active')
   partners: AgentDealPartner[];
 }
 

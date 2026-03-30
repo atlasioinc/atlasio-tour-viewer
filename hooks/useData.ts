@@ -2863,6 +2863,72 @@ export function useUpdateClosingDetails() {
   });
 }
 
+// ─── useCloseTransaction ─────────────────────────────────────
+// STATUS: wired (with mock fallback)
+// PURPOSE: Agent marks a deal as successfully closed.
+// Removes the deal from the active pipeline.
+//
+// @backend rpc_close_transaction({ p_transaction_id: transactionId })
+// Returns: { success: boolean, error?: string }
+// On success: invalidate ['agent_deals'] + ['agent_active_deals']
+
+export function useCloseTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ transactionId }: { transactionId: string }) => {
+      if (FEATURE_FLAGS.USE_MOCK_DATA) {
+        // @demo mock — 800ms delay to simulate network
+        await new Promise(resolve => setTimeout(resolve, 800));
+        return { success: true };
+      }
+
+      // @backend rpc_close_transaction(p_transaction_id)
+      const { data, error } = await supabase.rpc('rpc_close_transaction', {
+        p_transaction_id: transactionId,
+      });
+      if (error || !data?.success) throw new Error(data?.error ?? error?.message ?? 'Failed to close transaction');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent_deals'] });
+      queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });
+    },
+  });
+}
+
+// ─── useCancelTransaction ────────────────────────────────────
+// STATUS: wired (with mock fallback)
+// PURPOSE: Agent cancels a deal (fell through / no longer active).
+// Removes the deal from the active pipeline.
+//
+// @backend rpc_cancel_transaction({ p_transaction_id: transactionId })
+// Returns: { success: boolean, error?: string }
+// On success: invalidate ['agent_deals'] + ['agent_active_deals']
+
+export function useCancelTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ transactionId }: { transactionId: string }) => {
+      if (FEATURE_FLAGS.USE_MOCK_DATA) {
+        // @demo mock — 800ms delay to simulate network
+        await new Promise(resolve => setTimeout(resolve, 800));
+        return { success: true };
+      }
+
+      // @backend rpc_cancel_transaction(p_transaction_id)
+      const { data, error } = await supabase.rpc('rpc_cancel_transaction', {
+        p_transaction_id: transactionId,
+      });
+      if (error || !data?.success) throw new Error(data?.error ?? error?.message ?? 'Failed to cancel transaction');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent_deals'] });
+      queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });
+    },
+  });
+}
+
 // ─── useUpdateTransaction ─────────────────────────────────────
 // STATUS: wired (with mock fallback)
 // PURPOSE: Agent edits top-level deal fields (buyer name, contract price, closing date).
