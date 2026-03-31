@@ -648,6 +648,20 @@ export interface JobInvitation {
 }
 
 // ─────────────────────────────────────────────
+// CLOSED DEAL
+// Frontend-only for now — maps to rpc_get_closed_deals when deployed
+// @backend rpc_get_closed_deals() — returns closed deals for the agent
+// ─────────────────────────────────────────────
+
+export interface ClosedDeal {
+  id: string;
+  address: string;
+  buyerName: string | null;
+  salePrice: number | null;
+  closingDate: string | null; // ISO date string
+}
+
+// ─────────────────────────────────────────────
 // PRO PROFILE (composite view for ProProfile screen)
 // Joins: profiles + performance_stats + vouches + connections
 // ─────────────────────────────────────────────

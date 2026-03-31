@@ -80,6 +80,7 @@ import type {
   SquadShareResult,
   InboxThread,
   ThreadMessage,
+  ClosedDeal,
 } from '../types';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 
@@ -3102,4 +3103,85 @@ export function useRealtimeDealBoard(jobId: string, transactionId?: string): voi
       supabase.removeChannel(channel);
     };
   }, [jobId, transactionId, qc]);
+}
+
+// ─── useMarkDealClosed ──────────────────────────────────────
+// STATUS: mock
+// PURPOSE: Marks a deal as closed for the celebration flow.
+// Separate from useCloseTransaction — this hook is specifically for
+// the DealClosedCelebration experience and does NOT replace the
+// existing close deal lifecycle action.
+//
+// @backend rpc_mark_deal_closed({ p_transaction_id: transactionId })
+// Returns: { success: boolean }
+// On success: invalidate ['agent_active_deals'], ['agent_deals'], ['closed_deals']
+
+export function useMarkDealClosed() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ transactionId }: { transactionId: string }) => {
+      // @demo mock — 800ms delay to simulate network
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return { success: true };
+      // @backend uncomment when rpc_mark_deal_closed is deployed:
+      // const { data, error } = await supabase.rpc('rpc_mark_deal_closed', {
+      //   p_transaction_id: transactionId,
+      // });
+      // if (error || !data?.success) throw new Error(data?.error ?? error?.message ?? 'Failed to mark deal closed');
+      // return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent_active_deals'] });
+      queryClient.invalidateQueries({ queryKey: ['agent_deals'] });
+      queryClient.invalidateQueries({ queryKey: ['closed_deals'] });
+    },
+  });
+}
+
+// ─── useClosedDeals ─────────────────────────────────────────
+// STATUS: mock
+// PURPOSE: Fetches closed deals for the agent's history list.
+//
+// @backend rpc_get_closed_deals() — does not exist yet, deploy before flipping USE_MOCK_DATA
+// @demo mock: returns MOCK_CLOSED_DEALS array
+// Query key: ['closed_deals']
+
+// @demo mock — 3 closed deals for demo
+// @backend replace with rpc_get_closed_deals when deployed
+const MOCK_CLOSED_DEALS: ClosedDeal[] = [
+  {
+    id: 'cd-001',
+    address: '4821 Maple Ridge Drive, Austin, TX 78746',
+    buyerName: 'James & Sarah Thornton',
+    salePrice: 875000,
+    closingDate: '2026-04-15',
+  },
+  {
+    id: 'cd-002',
+    address: '112 Westover Hills Blvd, Denver, CO 80219',
+    buyerName: 'Michael Rodriguez',
+    salePrice: 620000,
+    closingDate: '2026-03-28',
+  },
+  {
+    id: 'cd-003',
+    address: '3301 Lakefront Terrace, Nashville, TN 37214',
+    buyerName: 'Emily & David Kwan',
+    salePrice: 492500,
+    closingDate: '2026-02-14',
+  },
+];
+
+export function useClosedDeals() {
+  return useQuery({
+    queryKey: ['closed_deals'],
+    queryFn: async () => {
+      // @demo mock — return static closed deals
+      return MOCK_CLOSED_DEALS;
+      // @backend uncomment when rpc_get_closed_deals is deployed:
+      // const { data, error } = await supabase.rpc('rpc_get_closed_deals');
+      // if (error) throw error;
+      // return (data ?? []) as ClosedDeal[];
+    },
+  });
 }

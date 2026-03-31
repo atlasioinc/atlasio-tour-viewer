@@ -124,6 +124,9 @@ export const COLORS = {
   cardPurpleBorder: '#E9D4FF',
   cardPurpleIcon: '#9810FA',
 
+  // ── Celebration ──
+  confettiBlue: '#60A5FA',       // light blue — confetti cannon accent (S123)
+
   // ── Misc ──
   squadCircle: '#D9D9FF',
   selectedBg: '#EFF5FF',       // selected chips, active filter bg

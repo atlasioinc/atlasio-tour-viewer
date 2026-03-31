@@ -17,10 +17,11 @@
 // per deal: compute highest-priority status dot across all partners → accent bar color
 // deal tap → navigation.push('AgentDealDetail', { jobId })
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
@@ -33,7 +34,7 @@ import type { AgentActiveDeal } from '../features/partners/types/partner.types';
 // TYPES
 // ─────────────────────────────────────────────
 
-type DealFilter = 'all' | 'needs_attention' | 'closing_soon';
+type DealFilter = 'all' | 'needs_attention' | 'closing_soon' | 'closed';
 
 type Navigation = NativeStackNavigationProp<HomeStackParamList, 'AgentDealsScreen'>;
 
@@ -45,6 +46,7 @@ const FILTER_OPTIONS: { key: DealFilter; label: string }[] = [
   { key: 'all',             label: 'All' },
   { key: 'needs_attention', label: 'Needs attention' },
   { key: 'closing_soon',    label: 'Closing soon' },
+  { key: 'closed',          label: 'Closed' },
 ];
 
 // ─────────────────────────────────────────────
@@ -99,8 +101,20 @@ function getDealAccentStatus(deal: AgentActiveDeal): 'red' | 'amber' | 'green' |
 
 const AgentDealsScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
+  const route = useRoute<RouteProp<HomeStackParamList, 'AgentDealsScreen'>>();
   const { data: deals } = useAgentDeals();
   const [activeFilter, setActiveFilter] = useState<DealFilter>('all');
+
+  // ── Auto-navigate to ClosedDealsScreen if initialFilter === 'closed' ──
+  // Uses ref guard to fire exactly once on mount, not on back-navigation
+  // @backend: When useAgentDeals is live, Closed filter can be local state instead of navigation
+  const hasAutoNavigated = useRef(false);
+  useEffect(() => {
+    if (route.params?.initialFilter === 'closed' && !hasAutoNavigated.current) {
+      hasAutoNavigated.current = true;
+      navigation.push('ClosedDeals');
+    }
+  }, [route.params?.initialFilter, navigation]);
 
   // ── Filter logic ──
   const filteredDeals = useMemo(() => {
@@ -160,7 +174,14 @@ const AgentDealsScreen: React.FC = () => {
             return (
               <Pressable
                 key={key}
-                onPress={() => setActiveFilter(key)}
+                onPress={() => {
+                  if (key === 'closed') {
+                    // Closed chip navigates to ClosedDealsScreen
+                    navigation.push('ClosedDeals');
+                    return;
+                  }
+                  setActiveFilter(key);
+                }}
                 style={({ pressed }) => ({
                   paddingHorizontal: 14,
                   paddingVertical: 7,

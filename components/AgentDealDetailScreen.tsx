@@ -34,6 +34,8 @@ import { COLORS, DIMENSIONS, SPACING } from '../lib/tokens';
 import FormField from './FormField';
 import { useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard, useUpdateClosingDetails, useGenerateClientToken, useCloseTransaction, useCancelTransaction } from '../hooks/useData';
 import { PrimaryButton, SecondaryButton, DangerButton } from './Button';
+import { DEAL_CREATION_ENABLED } from '../lib/config';
+import * as Haptics from 'expo-haptics';
 import { isMilestoneStale, getRateLockDaysRemaining, RATE_LOCK_DANGER_THRESHOLD_DAYS } from '../features/partners/lib/dealMilestones';
 import type { AgentDealPartner, PartnerRole } from '../features/partners/types/partner.types';
 
@@ -154,6 +156,29 @@ const AgentDealDetailScreen: React.FC = () => {
   const closeTransaction = useCloseTransaction();
   const cancelTransaction = useCancelTransaction();
   const isLifecyclePending = closeTransaction.isPending || cancelTransaction.isPending;
+
+  // ── Deal Closed Celebration (S123) ──
+  // @backend rpc_mark_deal_closed({ p_transaction_id: transactionId })
+  // @demo In mock mode, skip mutation and navigate directly to celebration screen
+  // @backend When wired: const markDealClosed = useMarkDealClosed();
+  //   await markDealClosed.mutateAsync({ transactionId }); before navigation
+
+  const handleMarkDealClosed = () => {
+    if (!deal) return;
+    // 1. Heavy haptic immediately
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // 2. Navigate to celebration screen
+    // @demo: skip mutation in mock mode, navigate directly
+    navigation.push('DealClosedCelebration', {
+      deal: {
+        address: deal.address,
+        buyerName: deal.buyer_name ?? null,
+        salePrice: deal.contract_price ?? null,
+        closingDate: deal.closing_date ?? null,
+        agentName: 'Agent', // @backend replace with auth user's name
+      },
+    });
+  };
 
   const handleCloseDeal = () => {
     if (!transactionId) return;
@@ -736,6 +761,24 @@ const AgentDealDetailScreen: React.FC = () => {
               )}
             </View>
           </>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────
+            MARK DEAL CLOSED — CELEBRATION CTA (S123)
+            Gated behind DEAL_CREATION_ENABLED flag.
+            Fires haptic + navigates to DealClosedCelebrationScreen.
+            This is a NEW button — does NOT replace existing close/cancel lifecycle actions.
+            @demo CTA hidden behind DEAL_CREATION_ENABLED flag
+            Remove flag gate when rpc_mark_deal_closed is deployed and flow is live
+            ───────────────────────────────────────────────────────────── */}
+        {DEAL_CREATION_ENABLED && deal && deal.status !== 'closed' && (
+          <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+            <View style={{ height: 1, backgroundColor: COLORS.border, marginBottom: 20 }} />
+            <PrimaryButton
+              label="Mark Deal Closed 🏆"
+              onPress={handleMarkDealClosed}
+            />
+          </View>
         )}
 
         {/* ─────────────────────────────────────────────────────────────

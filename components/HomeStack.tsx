@@ -34,6 +34,8 @@ import AddressComparisonScreen from './AddressComparisonScreen';
 import AgentDealDetailScreen from './AgentDealDetailScreen';
 import EditDealScreen from './EditDealScreen';
 import AgentDealsScreen from './AgentDealsScreen';
+import DealClosedCelebrationScreen from './DealClosedCelebrationScreen';
+import ClosedDealsScreen from './ClosedDealsScreen';
 import DealCreationSheet from '../features/partners/components/DealCreationSheet';
 import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis, RadiusMi } from '../types/neighborhood';
 import type { AgentActiveDeal } from '../features/partners/types/partner.types';
@@ -98,7 +100,7 @@ export type HomeStackParamList = {
     addressLng: number;
     address: string;
   };
-  AgentDealsScreen: undefined;
+  AgentDealsScreen: { initialFilter?: 'closed' } | undefined;
   DealCreation: undefined;
   EditDeal: {
     transactionId: string;
@@ -106,6 +108,16 @@ export type HomeStackParamList = {
     contractPrice?: number | null;
     closingDate?: string | null;
   };
+  DealClosedCelebration: {
+    deal: {
+      address: string;
+      buyerName: string | null;
+      salePrice: number | null;
+      closingDate: string | null;
+      agentName: string;
+    };
+  };
+  ClosedDeals: undefined;
   AgentDealDetail: {
     jobId: string;
     transactionId?: string; // S88: optional — used for Realtime channel subscription
@@ -206,6 +218,12 @@ const HomeStack: React.FC = () => (
       }}
     />
     <Stack.Screen name="AgentDealsScreen" component={AgentDealsScreen} options={{ headerShown: false }} />
+    <Stack.Screen
+      name="DealClosedCelebration"
+      component={DealClosedCelebrationScreen}
+      options={{ presentation: 'fullScreenModal', headerShown: false }}
+    />
+    <Stack.Screen name="ClosedDeals" component={ClosedDealsScreen} options={{ headerShown: false }} />
     <Stack.Screen
       name="DealCreation"
       component={DealCreationSheet}
