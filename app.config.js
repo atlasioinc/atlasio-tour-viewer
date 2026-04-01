@@ -14,7 +14,6 @@ module.exports = {
   ios: {
     ...appJson.expo?.ios,
     bundleIdentifier: 'com.atlasioapp.atlasio',
-    buildNumber: '5',
     supportsTablet: false,
     infoPlist: {
       NSLocationWhenInUseUsageDescription:

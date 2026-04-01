@@ -44,15 +44,15 @@ export const FEATURE_FLAGS = {
   LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
   // Controls live neighborhood analysis API calls (EPA AirNow, Google Places)
   // Set true for TestFlight builds — false resets to mock data
-  LIVE_NEIGHBORHOOD_HOOKS:  false,  // true = live APIs (Google Places + AirNow), false = mock data (S57)
+  LIVE_NEIGHBORHOOD_HOOKS:  true,  // true = live APIs (Google Places + AirNow), false = mock data (S57)
   // ⚠️ TESTFLIGHT OVERRIDES — these two differ from standard demo defaults
   // DEV_BYPASS_AUTH: false — real devices have no hardcoded session; bypass causes crash
   // DEV_SHOW_PASSWORD_LOGIN: true — magic link deep links deferred to S110 (Associated Domains)
   // To restore demo mode: set DEV_BYPASS_AUTH: true, DEV_SHOW_PASSWORD_LOGIN: false,
   //   and LIVE_NEIGHBORHOOD_HOOKS: false
   // DEV_BYPASS_AUTH and DEV_SHOW_PASSWORD_LOGIN must always be toggled as a pair — never individually.
-  DEV_BYPASS_AUTH:          true,       // @demo — true = loads agent demo user, bypasses login
-  DEV_SHOW_PASSWORD_LOGIN:  false,  // @demo — true = shows password input for device testing
+  DEV_BYPASS_AUTH:          false,      // @testflight — real devices need real auth
+  DEV_SHOW_PASSWORD_LOGIN:  true,   // @testflight — magic link deep links not configured yet
   LIVE_SQUAD_SHARE:         false,  // @demo — false for investor demos
 
   // DEAL_CREATION_ENABLED flag matrix:
@@ -60,5 +60,5 @@ export const FEATURE_FLAGS = {
   // Partner pilot (view only):             PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: false
   // Full partner launch:                   PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: true
   // Investor demo (show everything):       PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: true
-  DEAL_CREATION_ENABLED:    false,  // @demo — false until deal creation ready for partner pilot
+  DEAL_CREATION_ENABLED:    true,  // @demo — false until deal creation ready for partner pilot
 } as const;
