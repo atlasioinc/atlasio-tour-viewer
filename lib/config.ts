@@ -25,4 +25,4 @@ export const PARTNER_TRACK_ENABLED = true;
 //   PARTNER_TRACK_ENABLED: controls whether the partner role is accessible
 //   DEAL_CREATION_ENABLED: controls whether agents can create deals
 // Demo: flip both true to show the full partner deal flow to investors.
-export const DEAL_CREATION_ENABLED = true;
+export const DEAL_CREATION_ENABLED = false;
