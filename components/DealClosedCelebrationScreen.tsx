@@ -10,19 +10,12 @@
 // @backend: when DEAL_CREATION_ENABLED=true, deal data comes from rpc_mark_deal_closed response
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, Dimensions, Share, Alert, StyleSheet } from 'react-native';
+import { View, Text, Animated, Dimensions, Share, Alert, StyleSheet, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, CommonActions } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
-import ReanimatedAnimated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  withDelay,
-  Easing,
-} from 'react-native-reanimated';
 import { captureRef } from 'react-native-view-shot';
 import type { HomeStackParamList } from './HomeStack';
 import { COLORS } from '../lib/tokens';
@@ -46,14 +39,14 @@ const CONFETTI_COLORS = [
   COLORS.starColor,
 ];
 
-const PARTICLE_COUNT = 80;
-
 // ─────────────────────────────────────────────────────────────
-// CONFETTI — Pure Reanimated implementation
-// No native modules — fully compatible with RN 0.83 Bridgeless
+// CONFETTI — Core RN Animated only (zero Reanimated / zero worklets)
+// 30 particles, fall + fade + horizontal drift
 // ─────────────────────────────────────────────────────────────
 
-interface ConfettiParticleProps {
+const PARTICLE_COUNT = 30;
+
+interface ParticleConfig {
   startX: number;
   endX: number;
   duration: number;
@@ -61,63 +54,10 @@ interface ConfettiParticleProps {
   size: number;
   isCircle: boolean;
   color: string;
-  rotationEnd: number;
 }
 
-const ConfettiParticle: React.FC<ConfettiParticleProps> = ({
-  startX,
-  endX,
-  duration,
-  delay,
-  size,
-  isCircle,
-  color,
-  rotationEnd,
-}) => {
-  // All initial values are plain pre-computed numbers — worklet-safe
-  const translateY = useSharedValue(-20);
-  const translateX = useSharedValue(startX);
-  const opacity = useSharedValue(1);
-  const rotate = useSharedValue(0);
-
-  useEffect(() => {
-    translateY.value = withDelay(
-      delay,
-      withTiming(SCREEN_HEIGHT + 20, { duration, easing: Easing.in(Easing.quad) })
-    );
-    translateX.value = withDelay(delay, withTiming(endX, { duration }));
-    opacity.value = withDelay(
-      delay + duration * 0.7,
-      withTiming(0, { duration: duration * 0.3 })
-    );
-    rotate.value = withDelay(
-      delay,
-      withTiming(rotationEnd, { duration })
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    width: size,
-    height: isCircle ? size : size * 2.5,
-    backgroundColor: color,
-    borderRadius: isCircle ? size / 2 : 2,
-    opacity: opacity.value,
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { rotate: `${rotate.value}deg` },
-    ],
-  }));
-
-  return <ReanimatedAnimated.View style={animatedStyle} />;
-};
-
-// Pre-compute ALL random values on JS thread at module level — never inside hooks or worklets
-const PARTICLE_PROPS: ConfettiParticleProps[] = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+// Pre-compute all random values at module level
+const PARTICLE_CONFIGS: ParticleConfig[] = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
   const startX = Math.random() * SCREEN_WIDTH;
   return {
     startX,
@@ -127,9 +67,60 @@ const PARTICLE_PROPS: ConfettiParticleProps[] = Array.from({ length: PARTICLE_CO
     size: 6 + Math.random() * 8,
     isCircle: Math.random() > 0.5,
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    rotationEnd: Math.random() * 720 - 360,
   };
 });
+
+const ConfettiParticle: React.FC<{ config: ParticleConfig }> = ({ config }) => {
+  const { startX, endX, duration, delay, size, isCircle, color } = config;
+
+  const translateY = useRef(new Animated.Value(-20)).current;
+  const translateX = useRef(new Animated.Value(startX)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Fall down
+    Animated.timing(translateY, {
+      toValue: SCREEN_HEIGHT + 20,
+      duration,
+      delay,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+    // Horizontal drift
+    Animated.timing(translateX, {
+      toValue: endX,
+      duration,
+      delay,
+      useNativeDriver: true,
+    }).start();
+
+    // Fade out in last 30%
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: duration * 0.3,
+      delay: delay + duration * 0.7,
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: size,
+        height: isCircle ? size : size * 2.5,
+        backgroundColor: color,
+        borderRadius: isCircle ? size / 2 : 2,
+        opacity,
+        transform: [{ translateX }, { translateY }],
+      }}
+    />
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -143,7 +134,7 @@ const DealClosedCelebrationScreen: React.FC = () => {
   // ── Refs ──
   const cardRef = useRef<View>(null);
 
-  // ── Trophy animation values (core RN Animated — avoids Reanimated worklet issues) ──
+  // ── Trophy animation values ──
   const trophyScale = useRef(new Animated.Value(0)).current;
   const trophyOpacity = useRef(new Animated.Value(0)).current;
 
@@ -184,7 +175,7 @@ const DealClosedCelebrationScreen: React.FC = () => {
       }),
     ]).start();
 
-    // 3. Card slide up (700ms delay)
+    // 4. Card slide up (700ms delay)
     Animated.parallel([
       Animated.timing(cardOpacity, {
         toValue: 1,
@@ -200,7 +191,7 @@ const DealClosedCelebrationScreen: React.FC = () => {
       }),
     ]).start();
 
-    // 4. CTAs appear (1000ms delay)
+    // 5. CTAs appear (1000ms delay)
     Animated.timing(ctaOpacity, {
       toValue: 1,
       duration: 300,
@@ -244,10 +235,10 @@ const DealClosedCelebrationScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* ── Confetti (pure Reanimated, fires once on mount) ── */}
+      {/* ── Confetti (core RN Animated, fires once on mount) ── */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-        {PARTICLE_PROPS.map((props, i) => (
-          <ConfettiParticle key={i} {...props} />
+        {PARTICLE_CONFIGS.map((config, i) => (
+          <ConfettiParticle key={i} config={config} />
         ))}
       </View>
 
