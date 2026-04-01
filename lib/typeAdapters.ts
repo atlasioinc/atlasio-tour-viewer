@@ -287,7 +287,7 @@ export const adaptConnectionToSquadCandidate = (
   id: conn.profile.id,
   name: conn.profile.name,
   company: conn.profile.company,
-  role: conn.profile.display_role,
+  role: conn.profile.role,
   rating: conn.profile.rating,
   vouches: conn.profile.vouch_count,
   avatarColor: conn.profile.avatar_color,

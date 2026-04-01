@@ -95,6 +95,20 @@ Applies to: Any constant, slot definition, or config object where a `role` field
 flows into `useConnectedPros()`, `useAgentPartnerConnections()`, or any hook that
 compares against `profiles.role` in Supabase.
 
+## RULE — Role string format in adapters and component logic (added S125a, April 1 2026)
+
+Always use snake_case DB values (`mortgage_pro`, `title_escrow`) in component logic
+and type adapters. Never map to display labels (`Mortgage Professional`, `Title & Escrow`)
+in `adaptConnection*` functions — display labels are for rendering only, never for
+filtering or comparison logic.
+
+Root cause: `adaptConnectionToSquadCandidate` mapped `conn.profile.display_role` to the
+`role` field on `SquadProCandidate`. SquadSlotPicker then filtered `p.role === role` using
+the snake_case slot role against the display string — exact mismatch → empty picker.
+
+Pattern: any `adaptX()` function that produces a `role` field consumed by a filter or
+hook must use `conn.profile.role` (snake_case), not `conn.profile.display_role`.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —
