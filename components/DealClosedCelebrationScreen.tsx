@@ -10,14 +10,20 @@
 // @backend: when DEAL_CREATION_ENABLED=true, deal data comes from rpc_mark_deal_closed response
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, Dimensions, Share, Alert } from 'react-native';
+import { View, Text, Animated, Dimensions, Share, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, CommonActions } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
-import ConfettiCannon from 'react-native-confetti-cannon';
-import * as Animatable from 'react-native-animatable';
+import ReanimatedAnimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
+import { MotiText } from 'moti';
 import { captureRef } from 'react-native-view-shot';
 import type { HomeStackParamList } from './HomeStack';
 import { COLORS } from '../lib/tokens';
@@ -29,7 +35,7 @@ import ShareableClosedDealCard from './ShareableClosedDealCard';
 // CONSTANTS
 // ─────────────────────────────────────────────
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Confetti colors: Atlasio primary blues + white + gold accent
 const CONFETTI_COLORS = [
@@ -40,6 +46,91 @@ const CONFETTI_COLORS = [
   COLORS.border,
   COLORS.starColor,
 ];
+
+const PARTICLE_COUNT = 80;
+
+// ─────────────────────────────────────────────────────────────
+// CONFETTI — Pure Reanimated implementation
+// No native modules — fully compatible with RN 0.83 Bridgeless
+// ─────────────────────────────────────────────────────────────
+
+interface ConfettiParticleProps {
+  index: number;
+  startX: number;
+  endX: number;
+  duration: number;
+  delay: number;
+  size: number;
+  isCircle: boolean;
+  color: string;
+}
+
+const ConfettiParticle: React.FC<ConfettiParticleProps> = ({
+  index: _index,
+  startX,
+  endX,
+  duration,
+  delay,
+  size,
+  isCircle,
+  color,
+}) => {
+  const translateY = useSharedValue(-20);
+  const translateX = useSharedValue(startX);
+  const opacity = useSharedValue(1);
+  const rotate = useSharedValue(0);
+  const targetRotation = (Math.random() * 720 - 360);
+
+  useEffect(() => {
+    translateY.value = withDelay(
+      delay,
+      withTiming(SCREEN_HEIGHT + 20, { duration, easing: Easing.in(Easing.quad) })
+    );
+    translateX.value = withDelay(delay, withTiming(endX, { duration }));
+    opacity.value = withDelay(
+      delay + duration * 0.7,
+      withTiming(0, { duration: duration * 0.3 })
+    );
+    rotate.value = withDelay(
+      delay,
+      withTiming(targetRotation, { duration })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    width: size,
+    height: isCircle ? size : size * 2.5,
+    backgroundColor: color,
+    borderRadius: isCircle ? size / 2 : 2,
+    opacity: opacity.value,
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { rotate: `${rotate.value}deg` },
+    ],
+  }));
+
+  return <ReanimatedAnimated.View style={animatedStyle} />;
+};
+
+// Pre-compute particle props outside render to avoid Math.random() in worklets
+const PARTICLE_PROPS = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+  const startX = Math.random() * SCREEN_WIDTH;
+  return {
+    index: i,
+    startX,
+    endX: startX + (Math.random() - 0.5) * 200,
+    duration: 2000 + Math.random() * 1500,
+    delay: Math.random() * 600,
+    size: 6 + Math.random() * 8,
+    isCircle: Math.random() > 0.5,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  };
+});
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -141,28 +232,24 @@ const DealClosedCelebrationScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* ── Confetti Cannon (absolute, fires once on mount) ── */}
-      <ConfettiCannon
-        count={120}
-        origin={{ x: screenWidth / 2, y: -20 }}
-        autoStart={true}
-        fadeOut={true}
-        explosionSpeed={350}
-        fallSpeed={3000}
-        colors={CONFETTI_COLORS}
-      />
+      {/* ── Confetti (pure Reanimated, fires once on mount) ── */}
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+        {PARTICLE_PROPS.map((props) => (
+          <ConfettiParticle key={props.index} {...props} />
+        ))}
+      </View>
 
       {/* ── Centered Content Column ── */}
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
-        {/* Trophy — bounceIn animation */}
-        <Animatable.Text
-          animation="bounceIn"
-          delay={400}
-          duration={1000}
+        {/* Trophy — bounceIn via Moti spring */}
+        <MotiText
+          from={{ opacity: 0, scale: 0.3 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', delay: 400, damping: 10, stiffness: 150 }}
           style={{ fontSize: 56, textAlign: 'center' }}
         >
           🏆
-        </Animatable.Text>
+        </MotiText>
 
         {/* Headline — fade up */}
         <Animated.View style={{ opacity: headlineOpacity, transform: [{ translateY: headlineTranslateY }] }}>
