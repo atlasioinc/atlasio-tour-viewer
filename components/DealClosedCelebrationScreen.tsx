@@ -23,7 +23,6 @@ import ReanimatedAnimated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { MotiText } from 'moti';
 import { captureRef } from 'react-native-view-shot';
 import type { HomeStackParamList } from './HomeStack';
 import { COLORS } from '../lib/tokens';
@@ -55,7 +54,6 @@ const PARTICLE_COUNT = 80;
 // ─────────────────────────────────────────────────────────────
 
 interface ConfettiParticleProps {
-  index: number;
   startX: number;
   endX: number;
   duration: number;
@@ -63,10 +61,10 @@ interface ConfettiParticleProps {
   size: number;
   isCircle: boolean;
   color: string;
+  rotationEnd: number;
 }
 
 const ConfettiParticle: React.FC<ConfettiParticleProps> = ({
-  index: _index,
   startX,
   endX,
   duration,
@@ -74,12 +72,13 @@ const ConfettiParticle: React.FC<ConfettiParticleProps> = ({
   size,
   isCircle,
   color,
+  rotationEnd,
 }) => {
+  // All initial values are plain pre-computed numbers — worklet-safe
   const translateY = useSharedValue(-20);
   const translateX = useSharedValue(startX);
   const opacity = useSharedValue(1);
   const rotate = useSharedValue(0);
-  const targetRotation = (Math.random() * 720 - 360);
 
   useEffect(() => {
     translateY.value = withDelay(
@@ -93,7 +92,7 @@ const ConfettiParticle: React.FC<ConfettiParticleProps> = ({
     );
     rotate.value = withDelay(
       delay,
-      withTiming(targetRotation, { duration })
+      withTiming(rotationEnd, { duration })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -117,11 +116,10 @@ const ConfettiParticle: React.FC<ConfettiParticleProps> = ({
   return <ReanimatedAnimated.View style={animatedStyle} />;
 };
 
-// Pre-compute particle props outside render to avoid Math.random() in worklets
-const PARTICLE_PROPS = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+// Pre-compute ALL random values on JS thread at module level — never inside hooks or worklets
+const PARTICLE_PROPS: ConfettiParticleProps[] = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
   const startX = Math.random() * SCREEN_WIDTH;
   return {
-    index: i,
     startX,
     endX: startX + (Math.random() - 0.5) * 200,
     duration: 2000 + Math.random() * 1500,
@@ -129,6 +127,7 @@ const PARTICLE_PROPS = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
     size: 6 + Math.random() * 8,
     isCircle: Math.random() > 0.5,
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    rotationEnd: Math.random() * 720 - 360,
   };
 });
 
@@ -144,6 +143,10 @@ const DealClosedCelebrationScreen: React.FC = () => {
   // ── Refs ──
   const cardRef = useRef<View>(null);
 
+  // ── Trophy animation values (core RN Animated — avoids Reanimated worklet issues) ──
+  const trophyScale = useRef(new Animated.Value(0)).current;
+  const trophyOpacity = useRef(new Animated.Value(0)).current;
+
   // ── Staggered animation values ──
   const headlineOpacity = useRef(new Animated.Value(0)).current;
   const headlineTranslateY = useRef(new Animated.Value(20)).current;
@@ -156,7 +159,16 @@ const DealClosedCelebrationScreen: React.FC = () => {
     // 1. Heavy haptic immediately
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    // 2. Headline fade up (600ms delay)
+    // 2. Trophy bounceIn (400ms delay)
+    Animated.sequence([
+      Animated.delay(400),
+      Animated.parallel([
+        Animated.spring(trophyScale, { toValue: 1, useNativeDriver: true, tension: 150, friction: 10 }),
+        Animated.timing(trophyOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    // 3. Headline fade up (600ms delay)
     Animated.parallel([
       Animated.timing(headlineOpacity, {
         toValue: 1,
@@ -234,22 +246,17 @@ const DealClosedCelebrationScreen: React.FC = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
       {/* ── Confetti (pure Reanimated, fires once on mount) ── */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-        {PARTICLE_PROPS.map((props) => (
-          <ConfettiParticle key={props.index} {...props} />
+        {PARTICLE_PROPS.map((props, i) => (
+          <ConfettiParticle key={i} {...props} />
         ))}
       </View>
 
       {/* ── Centered Content Column ── */}
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
-        {/* Trophy — bounceIn via Moti spring */}
-        <MotiText
-          from={{ opacity: 0, scale: 0.3 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', delay: 400, damping: 10, stiffness: 150 }}
-          style={{ fontSize: 56, textAlign: 'center' }}
-        >
+        {/* Trophy — bounceIn via core RN Animated spring */}
+        <Animated.Text style={{ fontSize: 56, textAlign: 'center', opacity: trophyOpacity, transform: [{ scale: trophyScale }] }}>
           🏆
-        </MotiText>
+        </Animated.Text>
 
         {/* Headline — fade up */}
         <Animated.View style={{ opacity: headlineOpacity, transform: [{ translateY: headlineTranslateY }] }}>
