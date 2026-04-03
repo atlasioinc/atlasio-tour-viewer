@@ -51,7 +51,7 @@ export const FEATURE_FLAGS = {
   // To restore demo mode: set DEV_BYPASS_AUTH: true, DEV_SHOW_PASSWORD_LOGIN: false,
   //   and LIVE_NEIGHBORHOOD_HOOKS: false
   // DEV_BYPASS_AUTH and DEV_SHOW_PASSWORD_LOGIN must always be toggled as a pair — never individually.
-  DEV_BYPASS_AUTH:          false,      // @testflight — real devices need real auth
+  DEV_BYPASS_AUTH:          true,      // @demo — true = loads agent demo user, bypasses login
   DEV_SHOW_PASSWORD_LOGIN:  false,   // @testflight — magic link deep links not configured yet
   LIVE_SQUAD_SHARE:         false,  // @demo — false for investor demos
 
