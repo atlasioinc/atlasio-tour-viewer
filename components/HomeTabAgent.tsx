@@ -700,6 +700,11 @@ const HomeTabAgent: React.FC = () => {
             )}
           </View>
 
+          {/* Context copy — always visible, not gated by fill state */}
+          <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20, paddingHorizontal: 16 }}>
+            Add your go-to pros. Send to clients in one tap.
+          </Text>
+
           {/* Squad Slots — Horizontal Scroll */}
           <ScrollView
             horizontal
@@ -813,33 +818,8 @@ const HomeTabAgent: React.FC = () => {
             })}
           </ScrollView>
 
-          {/* CTA / Progress Text */}
-          {!hasAnyFilled ? (
-            <View style={{ gap: 4, paddingHorizontal: 16 }}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: '500',
-                  color: COLORS.darkText,
-                  lineHeight: 24,
-                  textAlign: 'center',
-                }}
-              >
-                Build your closing squad
-              </Text>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: '400',
-                  color: COLORS.bodyText,
-                  lineHeight: 24,
-                  textAlign: 'center',
-                }}
-              >
-                Add your go-to pros. Send to clients in one tap.
-              </Text>
-            </View>
-          ) : filledCount < totalSlots ? (
+          {/* Progress Text — only when partially filled */}
+          {hasAnyFilled && filledCount < totalSlots ? (
             <View style={{ paddingHorizontal: 16 }}>
               <Text
                 style={{
