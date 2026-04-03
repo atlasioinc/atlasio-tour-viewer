@@ -44,7 +44,7 @@ export const FEATURE_FLAGS = {
   LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
   // Controls live neighborhood analysis API calls (EPA AirNow, Google Places)
   // Set true for TestFlight builds — false resets to mock data
-  LIVE_NEIGHBORHOOD_HOOKS:  true,  // true = live APIs (Google Places + AirNow), false = mock data (S57)
+  LIVE_NEIGHBORHOOD_HOOKS:  false,  // true = live APIs (Google Places + AirNow), false = mock data (S57)
   // ⚠️ TESTFLIGHT OVERRIDES — these two differ from standard demo defaults
   // DEV_BYPASS_AUTH: false — real devices have no hardcoded session; bypass causes crash
   // DEV_SHOW_PASSWORD_LOGIN: true — magic link deep links deferred to S110 (Associated Domains)
@@ -60,5 +60,5 @@ export const FEATURE_FLAGS = {
   // Partner pilot (view only):             PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: false
   // Full partner launch:                   PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: true
   // Investor demo (show everything):       PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: true
-  DEAL_CREATION_ENABLED:    true,  // @demo — false until deal creation ready for partner pilot
+  DEAL_CREATION_ENABLED:    false,  // @demo — false until deal creation ready for partner pilot
 } as const;

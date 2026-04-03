@@ -16,7 +16,7 @@ export const AIRNOW_API_KEY: string =
 // Partner Track — feature-flagged until partner onboarding is activated
 // Flip to true when first Title/Escrow or Mortgage Pro partner onboards
 // @demo default: false — partner track is pre-launch, not visible in agent/contractor demo
-export const PARTNER_TRACK_ENABLED = true;
+export const PARTNER_TRACK_ENABLED = false;
 
 // Deal Creation — gates the "New Deal +" CTA and DealCreationSheet
 // Default: false — hidden at MVP launch (agent + contractor only)
