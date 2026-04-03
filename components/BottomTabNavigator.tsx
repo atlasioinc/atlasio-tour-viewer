@@ -543,7 +543,7 @@ const BottomTabNavigator: React.FC<Props> = () => {
             tabBarIcon: ({ color }) => (
               <View>
                 <InboxIcon color={color} />
-                <RoleBadge role={demoRole} />
+                {FEATURE_FLAGS.DEV_BYPASS_AUTH && <RoleBadge role={demoRole} />}
               </View>
             ),
             tabBarButton: (props) => (
