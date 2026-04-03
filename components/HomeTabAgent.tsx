@@ -625,8 +625,9 @@ const HomeTabAgent: React.FC = () => {
           <Text style={{ fontSize: 24, fontWeight: '700', color: COLORS.darkText, lineHeight: 32 }}>
             {greeting}, {firstName} 👋
           </Text>
+          {/* @demo Phase 1 only — active deals shown in Phase 2 when DEAL_CREATION_ENABLED */}
           <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, marginTop: 4 }}>
-            {activeDeals?.length ?? 0} active {(activeDeals?.length ?? 0) === 1 ? 'deal' : 'deals'} · {activeJobs.length} {activeJobs.length === 1 ? 'job' : 'jobs'} posted
+            {activeJobs.length} {activeJobs.length === 1 ? 'job' : 'jobs'} posted
           </Text>
         </View>
 
@@ -853,7 +854,7 @@ const HomeTabAgent: React.FC = () => {
               flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
               paddingHorizontal: 16, marginBottom: 16,
             }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText }}>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
                 Active Deals
               </Text>
               {/* @demo flip DEAL_CREATION_ENABLED: true to show CTA

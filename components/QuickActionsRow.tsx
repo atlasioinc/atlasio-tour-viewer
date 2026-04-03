@@ -208,7 +208,7 @@ const QuickActionsRow: React.FC = () => {
   // ── Render ──
 
   return (
-    <View style={{ marginTop: 20 }}>
+    <View style={{ marginTop: 24 }}>
       {/* Section header */}
       <Text
         style={{
