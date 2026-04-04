@@ -625,10 +625,7 @@ const HomeTabAgent: React.FC = () => {
           <Text style={{ fontSize: 24, fontWeight: '700', color: COLORS.darkText, lineHeight: 32 }}>
             {greeting}, {firstName} 👋
           </Text>
-          {/* @demo Phase 1 only — active deals shown in Phase 2 when DEAL_CREATION_ENABLED */}
-          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, marginTop: 4 }}>
-            {activeJobs.length} {activeJobs.length === 1 ? 'job' : 'jobs'} posted
-          </Text>
+          {/* @demo subtitle removed — greeting is name only per S130a design decision */}
         </View>
 
         {/* ── YOUR CLOSING SQUAD SECTION ── */}
@@ -701,7 +698,7 @@ const HomeTabAgent: React.FC = () => {
           </View>
 
           {/* Context copy — always visible, not gated by fill state */}
-          <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20, paddingHorizontal: 16, marginTop: 4 }}>
+          <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20, paddingHorizontal: 16, marginTop: 8 }}>
             Add your go-to pros. Send to clients in one tap.
           </Text>
 
