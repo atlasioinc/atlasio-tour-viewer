@@ -698,7 +698,7 @@ const HomeTabAgent: React.FC = () => {
           </View>
 
           {/* Context copy — always visible, not gated by fill state */}
-          <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20, paddingHorizontal: 16, marginTop: 8 }}>
+          <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20, paddingHorizontal: 16, marginTop: 4 }}>
             Add your go-to pros. Send to clients in one tap.
           </Text>
 
