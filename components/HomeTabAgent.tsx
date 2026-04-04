@@ -639,7 +639,6 @@ const HomeTabAgent: React.FC = () => {
             paddingBottom: 24,
             borderBottomWidth: 0.69,
             borderBottomColor: COLORS.border,
-            gap: 24,
           }}
         >
           {/* Header Row */}
@@ -702,7 +701,7 @@ const HomeTabAgent: React.FC = () => {
           </View>
 
           {/* Context copy — always visible, not gated by fill state */}
-          <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20, paddingHorizontal: 16 }}>
+          <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20, paddingHorizontal: 16, marginTop: 4 }}>
             Add your go-to pros. Send to clients in one tap.
           </Text>
 
@@ -710,6 +709,7 @@ const HomeTabAgent: React.FC = () => {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 16 }}
             contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}
           >
             {allSquadSlots.map((slot) => {
@@ -821,7 +821,7 @@ const HomeTabAgent: React.FC = () => {
 
           {/* Progress Text — only when partially filled */}
           {hasAnyFilled && filledCount < totalSlots ? (
-            <View style={{ paddingHorizontal: 16 }}>
+            <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
               <Text
                 style={{
                   fontSize: 14,
@@ -1135,7 +1135,7 @@ const HomeTabAgent: React.FC = () => {
             @demo 20 mock vouch cards with filter tabs + 75% contractor bias
             @backend useVouchFeed() — vouches + profiles join
             Names are tappable → ProProfile navigation */}
-        <View style={{ paddingTop: 24 }}>
+        <View style={{ paddingTop: 24, paddingBottom: 20 }}>
           <VouchFeedSection onNavigateToProfile={handleVouchNavigate} />
         </View>
 
