@@ -161,10 +161,10 @@ const CategoryMapScreen: React.FC = () => {
             </Text>
             {selectedPOI.rating != null && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <StarIcon />
                 <Text style={{ fontSize: 14, color: COLORS.bodyText }}>
-                  {selectedPOI.rating} rating
+                  {selectedPOI.rating}
                 </Text>
+                <StarIcon />
               </View>
             )}
             <View style={{

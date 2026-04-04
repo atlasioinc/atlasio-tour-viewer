@@ -195,10 +195,10 @@ const ProRow: React.FC<{
     </View>
     <View style={{ alignItems: 'flex-end', gap: 2 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-        <StarIcon />
         <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.darkText, lineHeight: 18 }}>
           {pro.rating}
         </Text>
+        <StarIcon />
       </View>
       <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
         {pro.vouches} vouches

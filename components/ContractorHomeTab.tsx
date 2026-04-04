@@ -564,10 +564,10 @@ const ActiveWorkCard: React.FC<{ job: ActiveJob; onPress: () => void }> = ({ job
             <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
               {job.agentName}
             </Text>
-            <StarIcon size={12} />
             <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 18 }}>
               {job.agentRating.toFixed(1)}
             </Text>
+            <StarIcon size={12} />
           </View>
           <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16, textTransform: 'uppercase' }}>
             {job.agentCompany}
@@ -651,10 +651,10 @@ const JobInviteCard: React.FC<{
       <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 8 }} numberOfLines={1}>
         {invite.agentName}
       </Text>
-      <StarIcon size={12} />
       <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 4 }}>
         {invite.agentRating}
       </Text>
+      <StarIcon size={12} />
     </View>
 
     {/* Row 8 (optional): Agent comment — last element, no marginBottom */}

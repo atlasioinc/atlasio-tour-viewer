@@ -1225,10 +1225,10 @@ const ContractorJobDetails: React.FC = () => {
                 {job.agent.company}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                <StarIcon />
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.statText, lineHeight: 16 }}>
                   {job.agent.rating.toFixed(1)}
                 </Text>
+                <StarIcon />
                 <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
                   · {job.agent.vouchCount} vouches
                 </Text>
