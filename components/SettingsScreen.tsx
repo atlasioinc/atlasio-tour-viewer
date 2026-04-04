@@ -36,6 +36,7 @@ import { useNavigation } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS } from '../lib/tokens';
 import { supabase } from '../lib/supabase';
+import { useMyProfile } from '../hooks/useData';
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -199,7 +200,13 @@ const SortPills: React.FC<{
 // ═══════════════════════════════════════════════════════════════
 
 const SettingsScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
+  const { data: profile } = useMyProfile();
+
+  // ── Stripe Connect status (contractor only) ──
+  // @backend: profile.stripe_account_id read from useMyProfile → profiles table
+  const isContractor = profile?.role === 'contractor';
+  const isStripeConnected = profile?.stripe_account_id != null;
 
   // ── Notification Preferences ──
   // TODO: Wire to Supabase user_preferences table
@@ -329,8 +336,37 @@ const SettingsScreen: React.FC = () => {
               console.log('Change Password tapped');
               Alert.alert('Coming Soon', 'Password change will be available in the next update.');
             }}
-            isLast
+            isLast={!isContractor}
           />
+          {/* Payment Setup — contractor only */}
+          {/* @backend: profile.stripe_account_id determines connected status */}
+          {isContractor && (
+            <Pressable
+              onPress={() => navigation.push('PaymentSettings')}
+              style={({ pressed }) => ({
+                height: 52,
+                paddingHorizontal: 16,
+                backgroundColor: COLORS.background,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText }}>Payment Setup</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text
+                  style={{
+                    ...TYPOGRAPHY.bodyM,
+                    color: isStripeConnected ? COLORS.successGreen : COLORS.warningAmber,
+                  }}
+                >
+                  {isStripeConnected ? 'Connected \u2713' : 'Setup required'}
+                </Text>
+                <ChevronRightIcon />
+              </View>
+            </Pressable>
+          )}
         </View>
 
         {/* ── NOTIFICATIONS ── */}

@@ -22,6 +22,7 @@ import SettingsScreen from './SettingsScreen';
 import VerificationScreen from './VerificationScreen';
 import PhoneVerificationScreen from './PhoneVerificationScreen';
 import InsuranceUploadScreen from './InsuranceUploadScreen';
+import PaymentSettingsScreen from './PaymentSettingsScreen';
 
 // ─────────────────────────────────────────────
 // TYPE DEFINITIONS
@@ -34,6 +35,7 @@ export type ProfileStackParamList = {
   Verification: undefined;
   PhoneVerification: undefined;
   InsuranceUpload: { status?: string; documentName?: string } | undefined; // @demo — ready for production
+  PaymentSettings: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -84,6 +86,7 @@ const ProfileStack: React.FC = () => (
         animation: 'slide_from_bottom',
       }}
     />
+    <Stack.Screen name="PaymentSettings" component={PaymentSettingsScreen} />
   </Stack.Navigator>
 );
 

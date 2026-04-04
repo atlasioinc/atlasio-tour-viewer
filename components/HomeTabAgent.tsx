@@ -621,7 +621,7 @@ const HomeTabAgent: React.FC = () => {
         </View>
 
         {/* ── Greeting header ── */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16 }}>
           <Text style={{ fontSize: 24, fontWeight: '700', color: COLORS.darkText, lineHeight: 32 }}>
             {greeting}, {firstName} 👋
           </Text>
@@ -972,7 +972,7 @@ const HomeTabAgent: React.FC = () => {
             ──────────────────────────────────────────────────────────── */}
 
         {/* Section header */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16 }}>
           <Text style={{
             fontSize: 18, fontWeight: '600',
             color: COLORS.darkText,

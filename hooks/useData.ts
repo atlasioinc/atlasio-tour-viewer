@@ -3185,3 +3185,63 @@ export function useClosedDeals() {
     },
   });
 }
+
+// ═══════════════════════════════════════════════════════════════
+// STRIPE CONNECT HOOKS
+// @backend: stripe-connect-onboarding Edge Function
+// Note: Edge Function writes stripe_account_id directly to profiles.
+// useFocusEffect in PaymentSettingsScreen handles cache refresh on return.
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Get Stripe Connect onboarding URL from Edge Function
+ * Opens Stripe-hosted onboarding flow for contractor payment setup
+ */
+// STATUS: wired (with mock fallback)
+export const useGetStripeOnboardingUrl = () => {
+  return useMutation({
+    mutationFn: async (): Promise<{ url: string }> => {
+      // @demo hardcoded — return mock URL in demo mode
+      if (FEATURE_FLAGS.USE_MOCK_DATA) {
+        await new Promise((r) => setTimeout(r, 800));
+        return { url: 'https://demo.stripe.com/mock-onboarding' };
+      }
+
+      try {
+        // @backend: stripe-connect-onboarding Edge Function
+        // Body: { user_id: string, return_url: string }
+        // Returns { url: string } — Stripe-hosted onboarding URL
+        // return_url: https://closing.atlasioapp.com/stripe-return (page TBD — S-Web-02)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('Not authenticated');
+
+        const res = await fetch(
+          'https://fqeighzlnreghzmailgx.supabase.co/functions/v1/stripe-connect-onboarding',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              user_id: session.user.id,
+              return_url: 'https://closing.atlasioapp.com/stripe-return',
+            }),
+          },
+        );
+
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(`Edge Function error: ${res.status} ${body}`);
+        }
+
+        const data = await res.json();
+        return { url: data.url };
+      } catch (err) {
+        console.warn('[useGetStripeOnboardingUrl] Edge Function failed', err);
+        throw err; // S106 pattern — never fake success
+      }
+    },
+  });
+};
+

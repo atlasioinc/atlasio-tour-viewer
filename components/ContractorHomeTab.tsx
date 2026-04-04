@@ -46,11 +46,12 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { useMyProfile } from '../hooks/useData';
 import { DisplayTag } from './DisplayTag';
+import { CardButton } from './Button';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -1238,6 +1239,48 @@ const ContractorHomeTab: React.FC = () => {
             {invitations.length} {invitations.length === 1 ? 'invite' : 'invites'} · {matchingJobs.length} new jobs · {activeJobs.length} active
           </Text>
         </View>
+
+        {/* ══════════════════════════════════════════
+            STRIPE CONNECT BANNER — shown when payment not set up
+            ══════════════════════════════════════════ */}
+        {/* @demo: Banner hidden when USE_MOCK_DATA: true (mock profile has no stripe_account_id logic) */}
+        {/* @backend: profile.stripe_account_id read from useMyProfile → rpc_get_my_profile */}
+        {profile != null && profile.stripe_account_id == null && (
+          <View
+            style={{
+              backgroundColor: COLORS.warningBg,
+              borderWidth: DIMENSIONS.cardBorderWidth,
+              borderColor: COLORS.warningAmber,
+              borderRadius: DIMENSIONS.cardRadius,
+              padding: 16,
+              marginHorizontal: 16,
+              marginBottom: 12,
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, lineHeight: 22 }}>
+              {'\uD83D\uDCB3'}  Set up payments to receive jobs
+            </Text>
+            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20, marginTop: 4 }}>
+              Atlasio needs a payment method on file before you can accept paid work.
+            </Text>
+            <View style={{ marginTop: 12 }}>
+              <CardButton
+                label="Set up payments"
+                variant="filled"
+                onPress={() => {
+                  navigation.dispatch(
+                    CommonActions.navigate({
+                      name: 'Profile',
+                      params: {
+                        screen: 'PaymentSettings',
+                      },
+                    }),
+                  );
+                }}
+              />
+            </View>
+          </View>
+        )}
 
         {/* ══════════════════════════════════════════
             SECTION 1 — JOB INVITES (horizontal scroll)
