@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       body: new URLSearchParams({
         account: accountId,
         type: 'account_onboarding',
-        return_url: return_url || 'atlasio://stripe-onboarding-complete',
+        return_url: return_url || 'https://closing.atlasioapp.com/stripe-return',
         refresh_url: refresh_url || 'atlasio://stripe-onboarding-refresh',
       }),
     });

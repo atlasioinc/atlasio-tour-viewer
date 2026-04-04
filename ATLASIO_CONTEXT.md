@@ -998,3 +998,20 @@ Located in `components/shared/index.ts` (barrel export):
 - **Files modified:** `components/SquadSlotPicker.tsx`, `components/FindTab.tsx`, `components/CategoryMapScreen.tsx`, `components/ContractorJobDetails.tsx`, `components/ContractorHomeTab.tsx` — all star ratings now show number first, star icon second (e.g., "4.8 ★" not "★ 4.8"). 6 instances fixed across 5 files. 6 already-correct instances unchanged.
 - **Metrics unchanged**
 - **tsc:** 0
+
+### S130d — Closing Squad Header Row minHeight (April 5, 2026)
+- **Files modified:** Closing Squad header row minHeight 36 → 32
+- **Metrics unchanged**
+- **tsc:** 0
+
+### S130e — Closing Squad Header Top-Aligned (April 5, 2026)
+- **Files modified:** Closing Squad header row minHeight 28, text top-aligned
+- **Metrics unchanged**
+- **tsc:** 0
+
+### S130f — Stripe Return Page + Edge Function return_url (April 5, 2026)
+- **Files created:** `atlasio-closing/app/stripe-return/page.tsx` — pure static success page shown after Stripe Connect onboarding completes
+- **Files modified:** `supabase/functions/stripe-connect-onboarding/index.ts` — `return_url` default changed from `atlasio://stripe-onboarding-complete` → `https://closing.atlasioapp.com/stripe-return`
+- **Key decision:** return_url default = `https://closing.atlasioapp.com/stripe-return` (temporary until S-INFRA-04 deep links wired, at which point swap to `atlasio://stripe-onboarding-complete`)
+- **Metrics unchanged:** RPCs 61, Hooks 59, Edge Functions 11
+- **tsc:** 0
