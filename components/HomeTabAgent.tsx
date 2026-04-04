@@ -644,7 +644,7 @@ const HomeTabAgent: React.FC = () => {
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
-              minHeight: 36,
+              minHeight: 32,
               paddingHorizontal: 16,
             }}
           >
