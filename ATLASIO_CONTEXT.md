@@ -31,11 +31,12 @@
 
 ---
 
-## Current Metrics (updated S121a — March 30, 2026)
+## Current Metrics (updated S129 — April 4, 2026)
 - **RPCs:** 63 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 62 (useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+- **Hooks:** 63 (+1 useGetStripeOnboardingUrl S129; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 10 — 8 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts. Note: LIVE_NEIGHBORHOOD_HOOKS referenced in code but missing from featureFlags.ts (S105 finding).
 - **Edge Functions:** 11
+- **Screens:** +1 (PaymentSettingsScreen S129)
 - **Storage Buckets:** 7
 - **Tables:** 22+ (schema.sql documents 22 as of S93; messaging tables predate tracking)
 - **COLORS tokens:** 123
@@ -975,3 +976,25 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics unchanged:** RPCs: 63, Hooks: 62
 - **tsc:** 0
 - **S122 next objectives:** ChatScreen keyboard gap + auto-focus (S122a), ATLASIO_CONTEXT.md metrics cleanup
+
+### S129 — Stripe Connect Contractor Payment Setup (April 4, 2026)
+- **Files created:** `components/PaymentSettingsScreen.tsx` (status card: amber not-connected / green connected, "How it works" 3-step section, useFocusEffect cache refresh on return from Stripe)
+- **Files modified:** `hooks/useData.ts` (+1 hook: useGetStripeOnboardingUrl), `components/SettingsScreen.tsx` (conditional Payment Setup row, contractor only, green/amber status text), `components/ContractorHomeTab.tsx` (amber Stripe Connect banner above Job Invites, cross-stack nav via CommonActions to ProfileStack), `components/ProfileStack.tsx` (PaymentSettings route + type)
+- **Key decisions:** (1) stripe_account_id IS NOT NULL = connected (no boolean flag needed). (2) Return URL: https://closing.atlasioapp.com/stripe-return. (3) Cross-stack nav from ContractorHomeTab via CommonActions.navigate({ name: 'Profile', params: { screen: 'PaymentSettings' } }). (4) Edge Function writes stripe_account_id directly to profiles — useFocusEffect handles cache refresh. (5) /review P0 fixed: POST body now sends { user_id: session.user.id, return_url } to Edge Function (EF reads user_id from body, not JWT). (6) /review D: removed dead useSaveStripeAccountId hook — Edge Function handles the write, RPC was redundant.
+- **Metrics:** Hooks: 63 (+1: useGetStripeOnboardingUrl), Screens: +1 (PaymentSettingsScreen)
+- **tsc:** 0
+
+### S130a — HomeTabAgent Polish (April 4, 2026)
+- **Files modified:** `components/HomeTabAgent.tsx` — greeting subtitle ("X jobs posted") removed (name only), Closing Squad header→context copy marginTop set to 4px, Client Tools section header paddingBottom 8→16
+- **Metrics unchanged**
+- **tsc:** 0
+
+### S130b — HomeTabAgent Greeting Padding (April 4, 2026)
+- **Files modified:** `components/HomeTabAgent.tsx` — greeting paddingTop 20→16 (matches paddingBottom for balanced vertical spacing)
+- **Metrics unchanged**
+- **tsc:** 0
+
+### S130c — Star Rating Order Audit (April 4, 2026)
+- **Files modified:** `components/SquadSlotPicker.tsx`, `components/FindTab.tsx`, `components/CategoryMapScreen.tsx`, `components/ContractorJobDetails.tsx`, `components/ContractorHomeTab.tsx` — all star ratings now show number first, star icon second (e.g., "4.8 ★" not "★ 4.8"). 6 instances fixed across 5 files. 6 already-correct instances unchanged.
+- **Metrics unchanged**
+- **tsc:** 0
