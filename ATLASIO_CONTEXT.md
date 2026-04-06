@@ -1000,9 +1000,15 @@ Located in `components/shared/index.ts` (barrel export):
 - **tsc:** 0
 
 ### S130d — Closing Squad Header Row minHeight (April 5, 2026)
-- **Files modified:** Closing Squad header row minHeight 36 → 32
+- **Files modified:** `components/HomeTabAgent.tsx` — Closing Squad header row minHeight 36 → 32
 - **Metrics unchanged**
 - **tsc:** 0
+
+### S130e — Closing Squad Header Top-Align + minHeight 28 (April 5, 2026)
+- **Files modified:** `components/HomeTabAgent.tsx` — Closing Squad header row minHeight 32 → 28, alignItems: center → flex-start (text top-aligned, no padding above text)
+- **Metrics unchanged**
+- **tsc:** 0
+- **TestFlight Builds this session:** #18 (build 20), #19 (build 21), #20 (build 22), #21 (build 23)
 
 ### S130e — Closing Squad Header Top-Aligned (April 5, 2026)
 - **Files modified:** Closing Squad header row minHeight 28, text top-aligned
