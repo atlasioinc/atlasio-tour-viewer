@@ -31,11 +31,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { COLORS, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 import { useMyProfile, useUpdateProfile } from '../hooks/useData';
+import { useUploadAvatar } from '../hooks/useUploadAvatar';
+import { Avatar } from './shared';
 import FormField from './FormField';
 import { ChipGroup, SingleSelectChipGroup } from './SelectableChip';
 
@@ -191,38 +193,7 @@ const BackArrowIcon: React.FC = () => (
   </Svg>
 );
 
-const CameraIcon: React.FC = () => (
-  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Path d="M19.17 15.83C19.17 16.29 18.99 16.72 18.66 17.05C18.34 17.38 17.9 17.5 17.5 17.5H2.5C2.04 17.5 1.6 17.38 1.34 17.05C1.01 16.72 0.83 16.29 0.83 15.83V6.67C0.83 6.21 1.01 5.78 1.34 5.45C1.6 5.12 2.04 5 2.5 5H5.83L7.5 2.5H12.5L14.17 5H17.5C17.9 5 18.34 5.12 18.66 5.45C18.99 5.78 19.17 6.21 19.17 6.67V15.83Z" stroke="#FFFFFF" strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx={10} cy={10.83} r={3.33} stroke="#FFFFFF" strokeWidth={1.67} />
-  </Svg>
-);
-
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; size?: number }> = ({ name, size = 100 }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: DIMENSIONS.pillRadius,
-        backgroundColor: COLORS.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.35, fontWeight: '700', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
+// CameraIcon + AvatarPlaceholder replaced by shared Avatar component (S132)
 
 // ─────────────────────────────────────────────
 // SECTION HEADER (matches PostJobWizard label style)
@@ -306,6 +277,7 @@ const EditProfileScreen: React.FC = () => {
   // ── Live profile data ──
   const { data: myProfile } = useMyProfile();
   const updateProfile = useUpdateProfile();
+  const { pickAndUpload, isUploading: isAvatarUploading } = useUploadAvatar();
 
   // ── Form State ──
   const [form, setForm] = useState<FormData>(() => getMockData(role));
@@ -548,38 +520,16 @@ const EditProfileScreen: React.FC = () => {
       >
         {/* ── PROFILE PHOTO ── */}
         <View style={{ alignItems: 'center', gap: 12 }}>
-          <View style={{ position: 'relative' }}>
-            <AvatarPlaceholder name={form.fullName || 'User'} size={DIMENSIONS.avatarProfile} />
-            <Pressable
-              onPress={() => {
-                // TODO: Wire to expo-image-picker → Supabase Storage upload
-                console.log('Change photo tapped');
-                Alert.alert('Coming Soon', 'Photo upload will be available in the next update.');
-              }}
-              style={({ pressed }) => ({
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                width: 36,
-                height: 36,
-                borderRadius: DIMENSIONS.pillRadius,
-                backgroundColor: COLORS.primary,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 3,
-                borderColor: COLORS.background,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <CameraIcon />
-            </Pressable>
-          </View>
-          <Pressable
-            onPress={() => {
-              console.log('Change photo tapped');
-              Alert.alert('Coming Soon', 'Photo upload will be available in the next update.');
-            }}
-          >
+          <Avatar
+            uri={myProfile?.avatar_url}
+            name={form.fullName || 'User'}
+            size={DIMENSIONS.avatarProfile}
+            color={myProfile?.avatar_color ?? COLORS.primary}
+            onPress={pickAndUpload}
+            showCameraOverlay={true}
+            isUploading={isAvatarUploading}
+          />
+          <Pressable onPress={pickAndUpload}>
             <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20 }}>
               Change Photo
             </Text>

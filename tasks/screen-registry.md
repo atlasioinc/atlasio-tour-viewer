@@ -399,11 +399,11 @@
 **File:** `components/ProProfile.tsx`
 **Role:** All roles (viewing another user's profile)
 **Nav Type:** Pushed screen (FindStack, NetworkStack, HomeStack)
-**Feature Flag:** None
-**Wiring:** 🟡 Partial
+**Feature Flag:** LIVE_PROFILE_HOOKS (stats)
+**Wiring:** 🟡 Partial — live (LIVE_PROFILE_HOOKS gate for stats, avatar from live profile)
 
 **What's on this screen:**
-- Z1 Hero: avatar, name, role/trade pill, company, city
+- Z1 Hero: Avatar component (photo or initials), name, role/trade pill, company, city
 - Z2 Trust Bar: rating + vouch pill (NOT tappable — public view)
 - Z3 Credentials: read-only credential rows (no chevron on public view)
 - Z4 Specialties: DisplayTag chips
@@ -565,11 +565,11 @@
 **Role:** Agent + Contractor + Partner (role-conditional zones)
 **Nav Type:** Tab root (Profile tab)
 **Feature Flag:** Partner branch requires PARTNER_TRACK_ENABLED
-**Wiring:** 🟡 Partial
+**Wiring:** 🟡 Partial — avatar upload wired live (S132)
 
 **What's on this screen:**
 - Gear icon top-right → SettingsScreen
-- Z1 Hero: avatar (120px), name, role/trade pill, company, service area
+- Z1 Hero: Avatar component (120px, photo upload + camera overlay), name, role/trade pill, company, service area
 - Z2 Trust Bar: rating + vouch count (tappable own profile → VouchesBottomSheet)
 - Z3 Credentials: iOS Settings-style tappable rows
   - Agent: License row → VerificationScreen

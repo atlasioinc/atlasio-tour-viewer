@@ -61,4 +61,5 @@ export const FEATURE_FLAGS = {
   // Full partner launch:                   PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: true
   // Investor demo (show everything):       PARTNER_TRACK_ENABLED: true,  DEAL_CREATION_ENABLED: true
   DEAL_CREATION_ENABLED:    false,  // @demo — false until deal creation ready for partner pilot
+  LIVE_PROFILE_HOOKS:       false,  // Gates live RPCs for ProProfile stats — default false until rpc_get_profile_stats deployed
 } as const;

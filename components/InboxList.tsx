@@ -246,6 +246,9 @@ const SWIPE_ACTION_WIDTH = 80;
 
 // ─────────────────────────────────────────────
 // AVATAR COMPONENTS
+// @backend add avatar_url to rpc_get_inbox_threads response — S133
+// Once available, replace SingleAvatar with shared Avatar component
+// GroupAvatar uses 2x2 grid — not compatible with shared Avatar; keep as-is
 // ─────────────────────────────────────────────
 
 const SingleAvatar: React.FC<{ color: string; name: string; size?: number }> = ({

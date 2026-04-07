@@ -34,15 +34,14 @@ import { useNavigation, useRoute, CommonActions } from '@react-navigation/native
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useProfile, useConnectionStatus, useProfileVouches, useSendConnectionRequest } from '../hooks/useData';
-import { VerificationBadge } from './shared/VerificationBadge';
+import { useProfile, useConnectionStatus, useProfileVouches, useProfileStats, useSendConnectionRequest } from '../hooks/useData';
+import { Avatar, VerificationBadge, VerificationBanner } from './shared';
 import type { VerificationLevel } from '../types';
 import { mapProfileToProProfileData } from './proProfileHelpers';
 import PortfolioGallery from './PortfolioGallery';
 import RequestConnectModal from './RequestConnectModal';
 import InviteToJobModal from './InviteToJobModal';
 import type { InviteContractor } from './InviteToJobModal';
-import { VerificationBanner } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 import { DisplayTag } from './DisplayTag';
 
@@ -233,33 +232,7 @@ const LightningStatIcon: React.FC = () => (
   </Svg>
 );
 
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({
-  name,
-  color,
-  size = 120,
-}) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.3, fontWeight: '600', color: '#FFFFFF' }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
+// Avatar placeholder replaced by shared Avatar component (S132)
 
 // ─────────────────────────────────────────────
 // VOUCH CARD
@@ -337,6 +310,8 @@ const ProProfile: React.FC = () => {
   const { data: liveVouches } = useProfileVouches(
     !FEATURE_FLAGS.USE_MOCK_DATA && resolvedProfileId ? resolvedProfileId : '',
   );
+  // @backend useProfileStats — gated by LIVE_PROFILE_HOOKS, mock fallback when false
+  const { data: profileStats } = useProfileStats(resolvedProfileId);
   const sendConnectionRequest = useSendConnectionRequest();
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
   const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
@@ -540,8 +515,13 @@ const ProProfile: React.FC = () => {
               alignItems: 'center',
             }}
           >
-            {/* Avatar */}
-            <AvatarPlaceholder name={name} color={avatarColor} size={DIMENSIONS.avatarHero} />
+            {/* Avatar — @backend fetch full profile by profileId — avatar_url comes from live profiles table */}
+            <Avatar
+              uri={fetchedProfile?.avatar_url ?? null}
+              name={name}
+              size={DIMENSIONS.avatarHero}
+              color={avatarColor}
+            />
 
             {/* Name + Badge */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -905,10 +885,11 @@ const ProProfile: React.FC = () => {
             }}
           >
             <Text style={{ ...TYPOGRAPHY.headingM, color: COLORS.headingText }}>Performance</Text>
+            {/* @backend useProfileStats — live when LIVE_PROFILE_HOOKS: true, mock fallback otherwise */}
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
                 <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary }}>
-                  {performance_stats.completed_jobs}
+                  {profileStats?.completed_jobs ?? performance_stats.completed_jobs}
                 </Text>
                 <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
                   Jobs{'\n'}Won
@@ -916,7 +897,7 @@ const ProProfile: React.FC = () => {
               </View>
               <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
                 <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary }}>
-                  {performance_stats.on_time_rate}%
+                  {profileStats?.on_time_rate ?? performance_stats.on_time_rate}%
                 </Text>
                 <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
                   On-Time{'\n'}Rate
@@ -924,7 +905,7 @@ const ProProfile: React.FC = () => {
               </View>
               <View style={{ flex: 1, padding: 12, backgroundColor: COLORS.screenBg, borderRadius: 10, alignItems: 'center', gap: 4 }}>
                 <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary }}>
-                  {performance_stats.avg_response}
+                  {profileStats?.avg_response_hours != null ? `<${profileStats.avg_response_hours}h` : performance_stats.avg_response}
                 </Text>
                 <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textAlign: 'center' }}>
                   Avg{'\n'}Response

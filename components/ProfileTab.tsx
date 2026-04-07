@@ -40,7 +40,8 @@ import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMyProfile, useProfileVouches } from '../hooks/useData';
-import { VerificationBanner, VerificationBadge } from './shared';
+import { useUploadAvatar } from '../hooks/useUploadAvatar';
+import { Avatar, VerificationBanner, VerificationBadge } from './shared';
 import { DisplayTag } from './DisplayTag';
 import PortfolioGallery from './PortfolioGallery';
 import { useDemoRole } from '../lib/demoRoleContext';
@@ -97,33 +98,7 @@ const ShieldIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 
   </Svg>
 );
 
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({
-  name,
-  color,
-  size = 120,
-}) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.3, fontWeight: '600', color: '#FFFFFF' }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
+// Avatar placeholder replaced by shared Avatar component (S132)
 
 // ─────────────────────────────────────────────
 // VOUCH CARD (for bottom sheet)
@@ -234,6 +209,7 @@ const ProfileTab: React.FC = () => {
 
   // ── Live profile hook ──
   const { data: liveProfile } = useMyProfile();
+  const { pickAndUpload, isUploading: isAvatarUploading } = useUploadAvatar();
   const { demoRole } = useDemoRole();
 
   // ── Mock gating: use role-specific mock when USE_MOCK_DATA + demo role ──
@@ -423,7 +399,15 @@ const ProfileTab: React.FC = () => {
             alignItems: 'center',
           }}
         >
-          <AvatarPlaceholder name={profileName} color={profileAvatarColor} size={DIMENSIONS.avatarHero} />
+          <Avatar
+            uri={liveProfile?.avatar_url}
+            name={profileName}
+            size={DIMENSIONS.avatarHero}
+            color={profileAvatarColor}
+            onPress={pickAndUpload}
+            showCameraOverlay={true}
+            isUploading={isAvatarUploading}
+          />
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ ...TYPOGRAPHY.displayM, color: COLORS.darkText, textAlign: 'center' }}>

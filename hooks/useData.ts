@@ -94,6 +94,7 @@ export const queryKeys = {
   myProfile: ['profile', 'me'] as const,
   connectionStatus: (profileId: string) => ['connection-status', profileId] as const,
   profileVouches: (profileId: string) => ['profile-vouches', profileId] as const,
+  profileStats: (profileId: string) => ['profile-stats', profileId] as const,
 
   // Network
   networkContacts: (tab: 'partners' | 'contractors') => ['network', tab] as const,
@@ -330,6 +331,48 @@ export const useProfileVouches = (profileId: string) => {
         console.warn('[useProfileVouches] Supabase failed, using mock fallback', err);
         return [];
       }
+    },
+    enabled: !!profileId,
+  });
+};
+
+// ─────────────────────────────────────────────
+// PROFILE STATS
+// @backend rpc_get_profile_stats({ p_profile_id: profileId }) — NOT YET DEPLOYED
+// Wire mock only. Deploy RPC in a dedicated SQL session before flipping LIVE_PROFILE_HOOKS: true.
+// ─────────────────────────────────────────────
+
+export interface ProfileStats {
+  completed_jobs: number;
+  on_time_rate: number;        // percentage 0–100
+  avg_response_hours: number | null;
+  years_experience: number | null;
+}
+
+// STATUS: mock only (RPC not yet deployed)
+export const useProfileStats = (profileId: string) => {
+  return useQuery({
+    queryKey: queryKeys.profileStats(profileId),
+    queryFn: async (): Promise<ProfileStats> => {
+      if (FEATURE_FLAGS.LIVE_PROFILE_HOOKS) {
+        try {
+          // @backend rpc_get_profile_stats — wire when RPC is deployed
+          const { data, error } = await supabase.rpc('rpc_get_profile_stats', {
+            p_profile_id: profileId,
+          });
+          if (error) throw error;
+          return data as ProfileStats;
+        } catch (err) {
+          console.warn('[useProfileStats] Supabase failed, using mock fallback', err);
+        }
+      }
+      // @demo Mock fallback — matches live return type exactly
+      return {
+        completed_jobs: 14,
+        on_time_rate: 100,
+        avg_response_hours: 2,
+        years_experience: 8,
+      };
     },
     enabled: !!profileId,
   });

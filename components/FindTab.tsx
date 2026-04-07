@@ -49,7 +49,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useFindPros, useRecommendedPros, useTrendingPros } from '../hooks/useData';
 import { adaptProfileToProCard } from '../lib/typeAdapters';
-import { VerificationBadge } from './shared/VerificationBadge';
+import { Avatar, VerificationBadge } from './shared';
 import { DisplayTag } from './DisplayTag';
 import type { VerificationLevel } from '../types';
 
@@ -238,18 +238,7 @@ const ALL_PROS: ProCard[] = [
 const RECOMMENDED_PROS = ALL_PROS.slice(0, 5);
 const TRENDING_PROS = ALL_PROS.slice(0, 5);
 
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({ name, color, size = 56 }) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.32, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
+// Avatar placeholder replaced by shared Avatar component (S132)
 
 // ─────────────────────────────────────────────
 // PRO CARD COMPONENT
@@ -270,7 +259,8 @@ const ProCardComponent: React.FC<{
   <View style={{ width: width || '100%', padding: 16, backgroundColor: COLORS.background, borderRadius: 14, borderWidth: 0.68, borderColor: COLORS.cardBorder, shadowColor: '#000000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2, gap: 16 }}>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <View style={{ flexDirection: 'row', gap: 16, flex: 1 }}>
-        <AvatarPlaceholder name={pro.name} color={pro.avatarColor} />
+        {/* @backend add avatar_url to rpc_get_find_tab_profiles (or equivalent) response — S133 */}
+        <Avatar uri={null} name={pro.name} size={56} color={pro.avatarColor} />
         <View style={{ gap: 4, flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }} numberOfLines={1}>{pro.name}</Text>

@@ -33,8 +33,8 @@
 
 ## Current Metrics (updated S129 — April 4, 2026)
 - **RPCs:** 63 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 63 (+1 useGetStripeOnboardingUrl S129; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
-- **Feature Flags:** 10 — 8 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts. Note: LIVE_NEIGHBORHOOD_HOOKS referenced in code but missing from featureFlags.ts (S105 finding).
+- **Hooks:** 65 (+2 S132: useUploadAvatar, useProfileStats; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+- **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS added S132) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
 - **Storage Buckets:** 7
@@ -1021,3 +1021,17 @@ Located in `components/shared/index.ts` (barrel export):
 - **Key decision:** return_url default = `https://closing.atlasioapp.com/stripe-return` (temporary until S-INFRA-04 deep links wired, at which point swap to `atlasio://stripe-onboarding-complete`)
 - **Metrics unchanged:** RPCs 61, Hooks 59, Edge Functions 11
 - **tsc:** 0
+
+### S132 — Avatar Upload + ProProfile Live Data (April 7, 2026)
+- **Files created:** `components/shared/Avatar.tsx` (reusable avatar — photo + initials fallback + camera overlay + upload spinner), `hooks/useUploadAvatar.ts` (pick photo → Supabase avatars bucket → update profiles.avatar_url → invalidate cache)
+- **Files modified:** `components/shared/index.ts` (Avatar barrel export), `components/ProfileTab.tsx` (Avatar + useUploadAvatar wired), `components/EditProfileScreen.tsx` (Avatar + useUploadAvatar wired, CameraIcon removed), `components/ProProfile.tsx` (Avatar read-only + useProfileStats wired), `components/FindTab.tsx` (Avatar read-only, null URI), `components/InviteContractorsModal.tsx` (Avatar read-only, null URI), `components/InboxList.tsx` (@backend comment only), `hooks/useData.ts` (+useProfileStats with LIVE_PROFILE_HOOKS gate, +ProfileStats interface, +profileStats queryKey), `lib/featureFlags.ts` (+LIVE_PROFILE_HOOKS: false)
+- **Key decisions:** Avatar upload fully live (no mock path) — uses Supabase avatars bucket + profiles.avatar_url. useProfileStats mock-only (rpc_get_profile_stats not yet deployed). LIVE_PROFILE_HOOKS flag added (default false). InboxList keeps existing group avatar pattern (2x2 grid incompatible with shared Avatar). ProProfileData NOT modified — avatar_url read from live profile fetch.
+- **Shared component:** Avatar (components/shared/Avatar.tsx)
+- **Metrics:** Hooks: 65 (+2: useUploadAvatar, useProfileStats), Feature Flags: 11 (+1: LIVE_PROFILE_HOOKS)
+- **tsc:** 0
+
+### S133 — Next Objectives
+- Wire avatar_url into rpc_get_inbox_threads response → replace SingleAvatar with shared Avatar
+- Wire avatar_url into FindTab RPC response → pass to Avatar component
+- Deploy rpc_get_profile_stats RPC → flip LIVE_PROFILE_HOOKS: true
+- ProProfile: wire years_experience from profileStats into UI

@@ -30,6 +30,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
+import { Avatar } from './shared';
 import SearchField from './SearchField';
 
 // ─────────────────────────────────────────────
@@ -99,18 +100,7 @@ const CheckboxFilled: React.FC = () => (
   </View>
 );
 
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({ name, color, size = 44 }) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.3, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
+// Avatar placeholder replaced by shared Avatar component (S132)
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -243,8 +233,8 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
         {/* Checkbox */}
         {isSelected ? <CheckboxFilled /> : <CheckboxEmpty />}
 
-        {/* Avatar */}
-        <AvatarPlaceholder name={item.name} color={item.avatarColor} />
+        {/* Avatar — no avatar_url on NetworkContractor type yet, initials fallback */}
+        <Avatar uri={null} name={item.name} size={44} color={item.avatarColor} />
 
         {/* Info */}
         <View style={{ flex: 1, gap: 2 }}>
