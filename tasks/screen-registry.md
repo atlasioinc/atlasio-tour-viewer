@@ -374,7 +374,7 @@
 **Role:** Agent only (contractors/partners don't see Find tab)
 **Nav Type:** Tab root (Find tab)
 **Feature Flag:** None
-**Wiring:** ✅ Live (contractor search via Supabase)
+**Wiring:** ✅ Live (contractor search via Supabase, avatar_url flowing through adaptProfileToProCard S133)
 
 **What's on this screen:**
 - Role toggle: Contractors / Mortgage Pro / Title & Escrow / Inspector
@@ -399,8 +399,8 @@
 **File:** `components/ProProfile.tsx`
 **Role:** All roles (viewing another user's profile)
 **Nav Type:** Pushed screen (FindStack, NetworkStack, HomeStack)
-**Feature Flag:** LIVE_PROFILE_HOOKS (stats)
-**Wiring:** 🟡 Partial — live (LIVE_PROFILE_HOOKS gate for stats, avatar from live profile)
+**Feature Flag:** LIVE_PROFILE_HOOKS (stats) — flipped true S133
+**Wiring:** ✅ Live (LIVE_PROFILE_HOOKS: true, rpc_get_profile_stats deployed S133, avatar from live profile)
 
 **What's on this screen:**
 - Z1 Hero: Avatar component (photo or initials), name, role/trade pill, company, city
@@ -467,7 +467,7 @@
 **Role:** Agent + Partner (shared)
 **Nav Type:** Tab root (Inbox tab)
 **Feature Flag:** None
-**Wiring:** ✅ Live (useInboxThreads → rpc_get_inbox_threads)
+**Wiring:** ✅ Live (useInboxThreads → rpc_get_inbox_threads, avatar_url wired S133 via shared Avatar)
 
 **What's on this screen:**
 - VerificationBanner (amber, role/level-aware)

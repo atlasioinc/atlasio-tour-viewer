@@ -31,10 +31,10 @@
 
 ---
 
-## Current Metrics (updated S129 — April 4, 2026)
-- **RPCs:** 63 (includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 65 (+2 S132: useUploadAvatar, useProfileStats; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
-- **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS added S132) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
+## Current Metrics (updated S133 — April 8, 2026)
+- **RPCs:** 64 (+1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
+- **Hooks:** 65 (unchanged S133; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+- **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
 - **Storage Buckets:** 7
@@ -79,6 +79,7 @@ LIVE_INSURANCE_HOOKS: false   // flip true only for live insurance testing
 DEV_BYPASS_AUTH: true         // true = loads agent demo user, bypasses login
 DEV_SHOW_PASSWORD_LOGIN: false // true = shows password input for device testing
 LIVE_SQUAD_SHARE: false
+LIVE_PROFILE_HOOKS: true      // flipped true S133, rpc_get_profile_stats deployed — permanent
 PARTNER_TRACK_ENABLED: false  // added S62, default false until partner onboarding live
 DEAL_CREATION_ENABLED: false  // added S64b, default false until deal creation ready for partner pilot
 ```
@@ -1030,8 +1031,15 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** Hooks: 65 (+2: useUploadAvatar, useProfileStats), Feature Flags: 11 (+1: LIVE_PROFILE_HOOKS)
 - **tsc:** 0
 
-### S133 — Next Objectives
-- Wire avatar_url into rpc_get_inbox_threads response → replace SingleAvatar with shared Avatar
-- Wire avatar_url into FindTab RPC response → pass to Avatar component
-- Deploy rpc_get_profile_stats RPC → flip LIVE_PROFILE_HOOKS: true
+### S133 — Profile Stats Live + Avatar URL Wiring (April 8, 2026)
+- **Files modified (5):** `lib/featureFlags.ts` (LIVE_PROFILE_HOOKS flipped true), `types/index.ts` (avatar_url added to InboxThread.other_member), `lib/typeAdapters.ts` (avatarUrl added to InboxChatThread + FindProCard, mapped through both adapters), `components/InboxList.tsx` (SingleAvatar replaced with shared Avatar, dead component removed, @cleanup comment added), `components/FindTab.tsx` (avatarUrl added to local ProCard interface, passed to Avatar uri prop)
+- **Also updated:** `hooks/useData.ts` (useProfileStats status comment updated to "wired")
+- **Key decisions:** LIVE_PROFILE_HOOKS permanently true (rpc_get_profile_stats deployed). avatar_url wired into InboxList other_member + FindTab ProCard. SingleAvatar cleanup debt documented — 4 files remaining (NewMessageScreen, CreateDealChat, ChatScreen, SquadSlotPicker).
+- **Backend (deployed in Claude Chat, not this session):** rpc_get_profile_stats (new RPC), rpc_get_inbox_threads patched with avatar_url on other_member
+- **Metrics:** RPCs: 64 (+1), Hooks: 65 (unchanged), Feature Flags: 11 (LIVE_PROFILE_HOOKS flipped true)
+- **tsc:** 0
+
+### S134 — Next Objectives
+- SingleAvatar cleanup pass (NewMessageScreen, CreateDealChat, ChatScreen, SquadSlotPicker → shared Avatar)
+- Active Repairs live data wiring (HomeTabAgent)
 - ProProfile: wire years_experience from profileStats into UI

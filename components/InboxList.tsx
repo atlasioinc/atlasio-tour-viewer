@@ -38,7 +38,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useChatThreads, useInboxThreads, useArchiveThread } from '../hooks/useData';
 import { adaptChatThreadToLocal, adaptInboxThreadToLocal } from '../lib/typeAdapters';
-import { VerificationBanner } from './shared';
+import { Avatar, VerificationBanner } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Enable LayoutAnimation on Android
@@ -128,6 +128,7 @@ interface ChatThread {
   isGroup: boolean;
   memberCount?: number;
   avatarColors: string[];
+  avatarUrl?: string | null;    // S133: photo URL from other_member.avatar_url
   isOnline?: boolean;
   /** @demo — role label for deal context threads; replace with thread.contact.role when LIVE */
   contactRole?: string;
@@ -246,23 +247,13 @@ const SWIPE_ACTION_WIDTH = 80;
 
 // ─────────────────────────────────────────────
 // AVATAR COMPONENTS
-// @backend add avatar_url to rpc_get_inbox_threads response — S133
-// Once available, replace SingleAvatar with shared Avatar component
+// @backend rpc_get_inbox_threads — other_member now includes avatar_url (S133)
+// Avatar component wired — SingleAvatar removed from this file
+// @cleanup SingleAvatar still exists as an inline component in:
+// NewMessageScreen.tsx, CreateDealChat.tsx, ChatScreen.tsx, SquadSlotPicker.tsx
+// Replace all with shared Avatar component in a future cleanup session.
 // GroupAvatar uses 2x2 grid — not compatible with shared Avatar; keep as-is
 // ─────────────────────────────────────────────
-
-const SingleAvatar: React.FC<{ color: string; name: string; size?: number }> = ({
-  color,
-  name,
-  size = 48,
-}) => {
-  const initials = (name || '?').split(' ').slice(0, 2).map((n) => n[0] ?? '').join('').substring(0, 2) || '?';
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
 
 const GroupAvatar: React.FC<{ colors: string[]; size?: number; isOnline?: boolean }> = ({
   colors,
@@ -424,7 +415,7 @@ const SwipeableThreadRow: React.FC<{
         {thread.isGroup ? (
           <GroupAvatar colors={thread.avatarColors} isOnline={thread.isOnline} />
         ) : (
-          <SingleAvatar color={thread.avatarColors[0]} name={thread.name} />
+          <Avatar uri={thread.avatarUrl ?? null} name={thread.name} size={48} color={thread.avatarColors[0]} />
         )}
 
         <View style={{ flex: 1, gap: 4 }}>

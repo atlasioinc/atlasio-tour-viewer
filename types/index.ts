@@ -542,6 +542,7 @@ export interface InboxThread {
     user_id: string;
     name: string | null;
     avatar_color: string | null;
+    avatar_url: string | null;   // S133: now returned by rpc_get_inbox_threads
     company: string | null;
   };
   unread_count: number;

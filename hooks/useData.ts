@@ -338,8 +338,8 @@ export const useProfileVouches = (profileId: string) => {
 
 // ─────────────────────────────────────────────
 // PROFILE STATS
-// @backend rpc_get_profile_stats({ p_profile_id: profileId }) — NOT YET DEPLOYED
-// Wire mock only. Deploy RPC in a dedicated SQL session before flipping LIVE_PROFILE_HOOKS: true.
+// @backend rpc_get_profile_stats({ p_profile_id: profileId }) — deployed S133
+// LIVE_PROFILE_HOOKS: true — live RPC with mock fallback
 // ─────────────────────────────────────────────
 
 export interface ProfileStats {
@@ -349,7 +349,7 @@ export interface ProfileStats {
   years_experience: number | null;
 }
 
-// STATUS: mock only (RPC not yet deployed)
+// STATUS: wired (with mock fallback)
 export const useProfileStats = (profileId: string) => {
   return useQuery({
     queryKey: queryKeys.profileStats(profileId),

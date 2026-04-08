@@ -209,7 +209,7 @@ interface ProCard {
    *  Maps to profiles.secondary_trades (text[] with CHECK length ≤ 2) in Supabase. */
   secondary_trades?: string[];
   rating: number; vouches: number; tags: string[]; headline: string | null;
-  avatarColor: string; closingDays?: number; distanceMi?: number;
+  avatarColor: string; avatarUrl?: string | null; closingDays?: number; distanceMi?: number;
   verification_level?: VerificationLevel;
   /** @backend profiles.accepting_clients BOOLEAN — read from partner profile data
    *  @demo use mock profile data with accepting_clients field */
@@ -259,8 +259,8 @@ const ProCardComponent: React.FC<{
   <View style={{ width: width || '100%', padding: 16, backgroundColor: COLORS.background, borderRadius: 14, borderWidth: 0.68, borderColor: COLORS.cardBorder, shadowColor: '#000000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2, gap: 16 }}>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <View style={{ flexDirection: 'row', gap: 16, flex: 1 }}>
-        {/* @backend add avatar_url to rpc_get_find_tab_profiles (or equivalent) response — S133 */}
-        <Avatar uri={null} name={pro.name} size={56} color={pro.avatarColor} />
+        {/* @backend profiles.avatar_url — flows through adaptProfileToProCard (S133) */}
+        <Avatar uri={pro.avatarUrl ?? null} name={pro.name} size={56} color={pro.avatarColor} />
         <View style={{ gap: 4, flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }} numberOfLines={1}>{pro.name}</Text>

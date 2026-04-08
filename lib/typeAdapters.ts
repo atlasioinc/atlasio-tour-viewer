@@ -33,6 +33,7 @@ interface InboxChatThread {
   isGroup: boolean;
   memberCount?: number;
   avatarColors: string[];
+  avatarUrl?: string | null;    // S133: photo URL from other_member.avatar_url
   isOnline?: boolean;
   contactRole?: string;
   dealAddress?: string;
@@ -74,6 +75,7 @@ export const adaptInboxThreadToLocal = (thread: InboxThread): InboxChatThread =>
   isPinned: thread.is_pinned ?? false,
   isGroup: thread.type !== 'one_to_one',
   avatarColors: [thread.other_member?.avatar_color ?? '#7BA3C9'],
+  avatarUrl: thread.other_member?.avatar_url ?? null,
   contactRole: '',
   dealAddress: thread.property_address ?? undefined,
   // Pass through for navigation
@@ -134,6 +136,7 @@ interface FindProCard {
   tags: string[];
   headline: string | null;
   avatarColor: string;
+  avatarUrl?: string | null;    // S133: photo URL from profiles.avatar_url
   closingDays?: number;
   distanceMi?: number;
   verification_level?: VerificationLevel;
@@ -151,6 +154,7 @@ export const adaptProfileToProCard = (profile: Profile): FindProCard => ({
   tags: profile.tags as string[],
   headline: null,
   avatarColor: profile.avatar_color,
+  avatarUrl: profile.avatar_url ?? null,
   closingDays: profile.typical_close_days ?? undefined,
   verification_level: profile.verification_level,
 });
