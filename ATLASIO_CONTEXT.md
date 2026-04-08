@@ -1052,6 +1052,12 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 64 (unchanged), Hooks: 65 (unchanged), Feature Flags: 11 (unchanged)
 - **tsc:** 0
 
-### S135b — Next Objectives
-- Active Repairs live data wiring (HomeTabAgent — last major mock section visible in demo)
+### S135b — Active Jobs Live Data (HomeTabAgent) (April 9, 2026)
+- **Files modified (3):** `types/index.ts` (AgentActiveJob interface), `hooks/useData.ts` (useAgentActiveJobs hook + MOCK_AGENT_ACTIVE_JOBS), `components/HomeTabAgent.tsx` (wired hook, renamed section, inline card render)
+- **Key decisions:** `rpc_get_agent_active_jobs` deployed S135b (SQL done in Claude Chat). Section renamed "Active Repairs" → "Active Jobs" (UI label only). All job types returned (repair, photography, staging). RepairCard NOT reused — inline card render with AgentActiveJob shape. Status display: awarded=Scheduled, in_progress=In Progress, pending_completion=Review Required (amber). `contractor_completed_at` non-null = "Needs your review" badge. Inline hex cleanup in filter pills. Hook follows mock fallback pattern with try/catch.
+- **Metrics:** RPCs: 65 (+1 rpc_get_agent_active_jobs), Hooks: 66 (+1 useAgentActiveJobs), Feature Flags: 11 (unchanged)
+- **tsc:** 0
+
+### S136 — Next Objectives
 - ProProfile: wire years_experience from profileStats into UI
+- HomeTabAgent: Active Jobs card tap → job detail screen (verify navigation works with AgentActiveJob shape)

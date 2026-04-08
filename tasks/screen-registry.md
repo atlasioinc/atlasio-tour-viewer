@@ -72,7 +72,7 @@
 - Closing Squad section (squad slot row → SquadSlotPicker)
 - "Send to Client" button (→ SendSquadScreen, appears when any slot filled)
 - QuickActionsRow (4 cards: Photo Bids, Stage to Sell, Repair Bids, Fast-Close Lender)
-- Active Repairs vertical list (repair cards → RepairJobDetails)
+- Active Jobs horizontal scroll (job cards → RepairJobDetails) — live via rpc_get_agent_active_jobs (S135b)
 - VouchFeedSection (feed of recent vouches)
 
 **Entry Points:**
@@ -91,8 +91,8 @@
 - → FindTab with presetRole/Filters ("Fast-Close Lender") — `CommonActions.navigate`
 - → RepairJobDetails (tap repair card) — `navigation.push`
 
-**Live hooks:** useAgentActiveDeals (wired S100), useMyProfile (greeting)
-**Mock:** Active Repairs, VouchFeedSection, QuickActionsRow
+**Live hooks:** useAgentActiveDeals (wired S100), useMyProfile (greeting), useAgentActiveJobs (wired S135b)
+**Mock:** VouchFeedSection, QuickActionsRow
 **@demo:** Subtitle "Y jobs posted" only (active deals count deferred)
 
 ---
