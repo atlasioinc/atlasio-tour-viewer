@@ -1046,6 +1046,12 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 64 (unchanged), Hooks: 65 (unchanged), Feature Flags: 11 (unchanged)
 - **tsc:** 0
 
-### S135 — Next Objectives
+### S135a — Avatar Polish: Remove Photo + Role-Aware Guidance Copy (April 9, 2026)
+- **Files modified (3):** `hooks/useUploadAvatar.ts` (pickAndUpload accepts currentAvatarUrl, state-aware action sheet, Remove Photo logic), `components/EditProfileScreen.tsx` (role-aware helper text below avatar, caller updated), `components/ProfileTab.tsx` ("Add photo" nudge when avatar_url null, caller updated)
+- **Key decisions:** pickAndUpload now accepts `currentAvatarUrl?: string | null`. Action sheet is state-aware: "Take Photo" → "Change Photo" + "Remove Photo" when photo exists. Remove Photo clears `profiles.avatar_url` + attempts storage delete (non-critical, logged only). Role-aware helper text uses DB snake_case `'agent'` comparison. "Add photo" nudge is NOT a Pressable. No SQL, no new hooks, no new components.
+- **Metrics:** RPCs: 64 (unchanged), Hooks: 65 (unchanged), Feature Flags: 11 (unchanged)
+- **tsc:** 0
+
+### S135b — Next Objectives
 - Active Repairs live data wiring (HomeTabAgent — last major mock section visible in demo)
 - ProProfile: wire years_experience from profileStats into UI

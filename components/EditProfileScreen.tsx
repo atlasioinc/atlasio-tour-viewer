@@ -525,15 +525,18 @@ const EditProfileScreen: React.FC = () => {
             name={form.fullName || 'User'}
             size={DIMENSIONS.avatarProfile}
             color={myProfile?.avatar_color ?? COLORS.primary}
-            onPress={pickAndUpload}
+            onPress={() => pickAndUpload(myProfile?.avatar_url)}
             showCameraOverlay={true}
             isUploading={isAvatarUploading}
           />
-          <Pressable onPress={pickAndUpload}>
+          <Pressable onPress={() => pickAndUpload(myProfile?.avatar_url)}>
             <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20 }}>
               Change Photo
             </Text>
           </Pressable>
+          <Text style={{ fontSize: 13, color: COLORS.secondaryText, textAlign: 'center', marginTop: 6 }}>
+            {myProfile?.role === 'agent' ? 'Add a professional headshot' : 'Add your photo or company logo'}
+          </Text>
         </View>
 
         {/* ═══════════════════════════════════════

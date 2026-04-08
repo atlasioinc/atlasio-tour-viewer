@@ -36,33 +36,92 @@ export const useUploadAvatar = () => {
     return result;
   }, []);
 
-  const pickAndUpload = useCallback(async () => {
+  const pickAndUpload = useCallback(async (currentAvatarUrl?: string | null) => {
     setError(null);
+    const hasPhoto = !!currentAvatarUrl;
 
-    const showOptions = (resolve: (source: 'camera' | 'library' | null) => void) => {
+    const showOptions = (resolve: (source: 'camera' | 'library' | 'remove' | null) => void) => {
       if (Platform.OS === 'ios') {
-        ActionSheetIOS.showActionSheetWithOptions(
-          {
-            options: ['Take Photo', 'Choose from Library', 'Cancel'],
-            cancelButtonIndex: 2,
-          },
-          (buttonIndex) => {
-            if (buttonIndex === 0) resolve('camera');
-            else if (buttonIndex === 1) resolve('library');
-            else resolve(null);
-          },
-        );
+        if (hasPhoto) {
+          ActionSheetIOS.showActionSheetWithOptions(
+            {
+              options: ['Change Photo', 'Choose from Library', 'Remove Photo', 'Cancel'],
+              cancelButtonIndex: 3,
+              destructiveButtonIndex: 2,
+            },
+            (buttonIndex) => {
+              if (buttonIndex === 0) resolve('camera');
+              else if (buttonIndex === 1) resolve('library');
+              else if (buttonIndex === 2) resolve('remove');
+              else resolve(null);
+            },
+          );
+        } else {
+          ActionSheetIOS.showActionSheetWithOptions(
+            {
+              options: ['Take Photo', 'Choose from Library', 'Cancel'],
+              cancelButtonIndex: 2,
+            },
+            (buttonIndex) => {
+              if (buttonIndex === 0) resolve('camera');
+              else if (buttonIndex === 1) resolve('library');
+              else resolve(null);
+            },
+          );
+        }
       } else {
-        Alert.alert('Upload Photo', 'Choose a source', [
-          { text: 'Take Photo', onPress: () => resolve('camera') },
-          { text: 'Choose from Library', onPress: () => resolve('library') },
-          { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
-        ]);
+        const options = hasPhoto
+          ? [
+              { text: 'Change Photo', onPress: () => resolve('camera') },
+              { text: 'Choose from Library', onPress: () => resolve('library') },
+              { text: 'Remove Photo', style: 'destructive' as const, onPress: () => resolve('remove') },
+              { text: 'Cancel', style: 'cancel' as const, onPress: () => resolve(null) },
+            ]
+          : [
+              { text: 'Take Photo', onPress: () => resolve('camera') },
+              { text: 'Choose from Library', onPress: () => resolve('library') },
+              { text: 'Cancel', style: 'cancel' as const, onPress: () => resolve(null) },
+            ];
+        Alert.alert(hasPhoto ? 'Change Photo' : 'Upload Photo', 'Choose a source', options);
       }
     };
 
-    const source = await new Promise<'camera' | 'library' | null>(showOptions);
+    const source = await new Promise<'camera' | 'library' | 'remove' | null>(showOptions);
     if (!source) return;
+
+    // Handle remove photo
+    if (source === 'remove') {
+      try {
+        setIsUploading(true);
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) throw new Error('Not authenticated');
+
+        // Clear avatar_url on profile (critical — throw on failure)
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: null })
+          .eq('id', user.id);
+        if (profileError) throw new Error('Failed to remove photo');
+
+        // Delete file from storage (non-critical — log only)
+        const filePath = `${user.id}/avatar.jpg`;
+        const { error: storageError } = await supabase.storage
+          .from('avatars')
+          .remove([filePath]);
+        if (storageError) {
+          console.log('[useUploadAvatar] storage delete failed (non-critical):', storageError.message);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['my_profile'] });
+      } catch (err: any) {
+        const message = err?.message || 'Failed to remove photo';
+        setError(message);
+        console.error('[useUploadAvatar] Remove failed:', err);
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
 
     try {
       setIsUploading(true);

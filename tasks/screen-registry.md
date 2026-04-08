@@ -565,7 +565,7 @@
 **Role:** Agent + Contractor + Partner (role-conditional zones)
 **Nav Type:** Tab root (Profile tab)
 **Feature Flag:** Partner branch requires PARTNER_TRACK_ENABLED
-**Wiring:** 🟡 Partial — avatar upload wired live (S132)
+**Wiring:** 🟡 Partial — avatar upload wired live (S132), "Add photo" nudge S135a (conditional on avatar_url null)
 
 **What's on this screen:**
 - Gear icon top-right → SettingsScreen
@@ -624,7 +624,7 @@
 **Role:** All roles (role-conditional fields)
 **Nav Type:** Pushed screen (ProfileStack)
 **Feature Flag:** None
-**Wiring:** ✅ Live (headline, service area, languages — wired S119b/c)
+**Wiring:** ✅ Live (headline, service area, languages — wired S119b/c, role-aware avatar helper text S135a)
 
 **What's on this screen:**
 - Role-conditional fields: agent (agency, headline, service area, languages, license read-only); contractor (trades, insurance, service area); partner (company, specialties)

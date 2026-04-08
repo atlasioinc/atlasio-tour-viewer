@@ -404,10 +404,15 @@ const ProfileTab: React.FC = () => {
             name={profileName}
             size={DIMENSIONS.avatarHero}
             color={profileAvatarColor}
-            onPress={pickAndUpload}
+            onPress={() => pickAndUpload(liveProfile?.avatar_url)}
             showCameraOverlay={true}
             isUploading={isAvatarUploading}
           />
+          {!liveProfile?.avatar_url && (
+            <Text style={{ fontSize: 12, color: COLORS.primary, fontWeight: '500', marginTop: 4, textAlign: 'center' }}>
+              Add photo
+            </Text>
+          )}
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ ...TYPOGRAPHY.displayM, color: COLORS.darkText, textAlign: 'center' }}>
