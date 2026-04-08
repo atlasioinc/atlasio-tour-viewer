@@ -6,14 +6,14 @@
 //           Vouch Feed Data, Avatar, Main Component
 //
 // Layout: Top Bar → Active Deals (conditional) → Closing Squad (4 slots)
-//         → Client Tools → Quick Actions → Active Repairs → Vouch Feed
+//         → Client Tools → Quick Actions → Active Jobs → Vouch Feed
 //
 // Active Deals section renders only when useAgentActiveDeals() returns deals
 // with seeded milestones. Hidden entirely when no deals exist.
 //
 // @demo  Squad slots + quick actions + vouch feed = local constants
-// @demo  Active repairs from RepairJobsData (ACTIVE_REPAIR_JOBS)
-//        Feature flag gate: FEATURE_FLAGS.USE_MOCK_DATA
+// @demo  Active jobs from MOCK_AGENT_ACTIVE_JOBS when USE_MOCK_DATA: true
+// @backend rpc_get_agent_active_jobs() — deployed S135b
 // @backend useAgentJobs (wired) — jobs.agent_id = auth.uid()
 // @backend useMyProfile (wired) — profiles.id = auth.uid()
 // @backend useAgentActiveDeals (mock) — rpc_get_deal_board_for_agent
@@ -31,6 +31,7 @@ import {
   Animated,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -39,12 +40,10 @@ import SquadSlotPicker, { SquadProCandidate } from './SquadSlotPicker';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
-import { ACTIVE_REPAIR_JOBS } from './RepairJobsData';
-import RepairCard from './RepairCard';
+import type { AgentActiveJob } from '../types';
 import { COLORS, SHADOWS } from '../lib/tokens';
-import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
-import { useAgentJobs, useMyProfile, useAgentActiveDeals } from '../hooks/useData';
+import { useMyProfile, useAgentActiveDeals, useAgentActiveJobs } from '../hooks/useData';
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
 import { VerificationBanner } from './shared/VerificationBanner';
 import { CardButton } from './Button';
@@ -269,6 +268,16 @@ const ClientToolCard = ({ icon, title, subtitle, onPress }: ClientToolCardProps)
   </Pressable>
 );
 
+// ─────────────────────────────────────────────
+// JOB STATUS DISPLAY MAP — agent-facing labels
+// pending_completion = contractor marked done, agent needs to confirm
+// ─────────────────────────────────────────────
+const JOB_STATUS_LABELS: Record<string, string> = {
+  awarded: 'Scheduled',
+  in_progress: 'In Progress',
+  pending_completion: 'Review Required',
+};
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -285,9 +294,9 @@ const HomeTabAgent: React.FC = () => {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const { canPostJob } = useVerificationGate();
 
-  // Live data hook (runs even in mock mode to keep cache warm)
-  const { data: liveJobs } = useAgentJobs();
-  const activeJobs = FEATURE_FLAGS.USE_MOCK_DATA ? ACTIVE_REPAIR_JOBS : (liveJobs ?? []);
+  // @backend rpc_get_agent_active_jobs() — deployed S135b
+  // @demo MOCK_AGENT_ACTIVE_JOBS in hooks/useData.ts when USE_MOCK_DATA: true
+  const { data: activeJobs = [], isLoading: isLoadingJobs } = useAgentActiveJobs();
 
   // ── Active Deals (S63) ──
   // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }
@@ -989,7 +998,9 @@ const HomeTabAgent: React.FC = () => {
 
         <QuickActionsRow />
 
-        {/* ── ACTIVE REPAIRS SECTION ── */}
+        {/* ── ACTIVE JOBS SECTION ── */}
+        {/* @backend rpc_get_agent_active_jobs() — deployed S135b */}
+        {/* @demo MOCK_AGENT_ACTIVE_JOBS in hooks/useData.ts when USE_MOCK_DATA: true */}
         <View
           style={{
             paddingTop: 24,
@@ -997,13 +1008,7 @@ const HomeTabAgent: React.FC = () => {
             backgroundColor: COLORS.background,
           }}
         >
-          <View
-            style={{
-              paddingLeft: 0,
-              paddingRight: 0,
-              gap: 16,
-            }}
-          >
+          <View style={{ gap: 16 }}>
             {/* Header Row */}
             <View style={{ gap: 12, paddingHorizontal: 16 }}>
               <View
@@ -1021,7 +1026,7 @@ const HomeTabAgent: React.FC = () => {
                     lineHeight: 24,
                   }}
                 >
-                  {`Active Repairs (${hasActiveRepair ? activeJobs.length : 0})`}
+                  {`Active Jobs (${hasActiveRepair ? activeJobs.length : 0})`}
                 </Text>
                 <Pressable
                   onPress={() => {
@@ -1087,7 +1092,7 @@ const HomeTabAgent: React.FC = () => {
                       style={({ pressed }) => ({
                         paddingHorizontal: 10,
                         paddingVertical: 6,
-                        backgroundColor: activeRepairPill === pill ? '#003DC3' : '#F3F4F6',
+                        backgroundColor: activeRepairPill === pill ? COLORS.primary : COLORS.chipBg,
                         borderRadius: 9999,
                         opacity: pressed ? 0.7 : 1,
                       })}
@@ -1096,7 +1101,7 @@ const HomeTabAgent: React.FC = () => {
                         style={{
                           fontSize: 14,
                           fontWeight: '400',
-                          color: activeRepairPill === pill ? '#FFFFFF' : '#364153',
+                          color: activeRepairPill === pill ? COLORS.background : COLORS.statText,
                           lineHeight: 20,
                           textAlign: 'center',
                         }}
@@ -1109,19 +1114,123 @@ const HomeTabAgent: React.FC = () => {
               )}
             </View>
 
-            {hasActiveRepair && (
+            {/* Loading state */}
+            {isLoadingJobs && (
+              <ActivityIndicator
+                size="small"
+                color={COLORS.primary}
+                style={{ marginVertical: 16 }}
+              />
+            )}
+
+            {/* Empty state */}
+            {!isLoadingJobs && (!hasActiveRepair || activeJobs.length === 0) && (
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: COLORS.secondaryText,
+                  textAlign: 'center',
+                  paddingVertical: 16,
+                }}
+              >
+                No active jobs
+              </Text>
+            )}
+
+            {/* Job cards horizontal scroll */}
+            {!isLoadingJobs && hasActiveRepair && activeJobs.length > 0 && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingVertical: 4 }}
               >
-                {activeJobs.map((job) => (
-                  <RepairCard
+                {activeJobs.map((job: AgentActiveJob) => (
+                  <Pressable
                     key={job.id}
-                    job={job as any}
                     onPress={() => navigation.navigate('RepairJobDetails', { job: job as any })}
-                    width={325}
-                  />
+                    style={({ pressed }) => ({
+                      width: 325,
+                      borderRadius: 14,
+                      borderWidth: 0.68,
+                      borderColor: COLORS.cardBorder,
+                      backgroundColor: COLORS.background,
+                      padding: 16,
+                      gap: 8,
+                      ...SHADOWS.card,
+                      opacity: pressed ? 0.8 : 1,
+                    })}
+                  >
+                    {/* Urgent badge */}
+                    {job.is_urgent && (
+                      <View
+                        style={{
+                          alignSelf: 'flex-start',
+                          backgroundColor: COLORS.urgentBg,
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          borderRadius: 9999,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.urgentText }}>
+                          Urgent
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Title */}
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}
+                    >
+                      {job.title}
+                    </Text>
+
+                    {/* Address */}
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 14, color: COLORS.secondaryText }}
+                    >
+                      {job.address}
+                    </Text>
+
+                    {/* Contractor name */}
+                    <Text style={{ fontSize: 14, color: COLORS.bodyText }}>
+                      {job.contractor?.name ?? 'Contractor'}
+                    </Text>
+
+                    {/* Status + Due date row */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: '500',
+                          color: job.status === 'pending_completion' ? COLORS.warningAmber : COLORS.secondaryText,
+                        }}
+                      >
+                        {JOB_STATUS_LABELS[job.status] ?? job.status}
+                      </Text>
+                      <Text style={{ fontSize: 13, color: COLORS.secondaryText }}>
+                        {new Date(job.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </Text>
+                    </View>
+
+                    {/* Review Required badge — contractor marked done, agent needs to confirm */}
+                    {job.contractor_completed_at !== null && (
+                      <View
+                        style={{
+                          alignSelf: 'flex-start',
+                          backgroundColor: COLORS.warningBg,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 9999,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.warningText }}>
+                          Needs your review
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
                 ))}
               </ScrollView>
             )}

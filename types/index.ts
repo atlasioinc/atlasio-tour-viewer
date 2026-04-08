@@ -688,6 +688,35 @@ export interface ProProfileData {
 }
 
 // ─────────────────────────────────────────────
+// AGENT ACTIVE JOBS
+// Returned by rpc_get_agent_active_jobs — S135b
+// ─────────────────────────────────────────────
+
+export interface AgentActiveJob {
+  id: string;
+  title: string;
+  job_type: 'repair' | 'photography' | 'staging';
+  status: 'awarded' | 'in_progress' | 'pending_completion';
+  address: string;
+  due_date: string;
+  is_urgent: boolean;
+  budget_min: number | null;
+  budget_max: number | null;
+  budget_range: string | null;
+  trades: string[] | null;
+  contractor_completed_at: string | null;
+  created_at: string;
+  contractor: {
+    id: string;
+    name: string;
+    avatar_color: string;
+    company: string | null;
+    rating: number | null;
+    vouch_count: number | null;
+  } | null;
+}
+
+// ─────────────────────────────────────────────
 // NAVIGATION PARAM TYPES
 // Centralized — imported by all Stack navigators
 // ─────────────────────────────────────────────

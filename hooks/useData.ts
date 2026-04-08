@@ -23,7 +23,7 @@
 //   @backend: Supabase tables + RPCs referenced throughout
 // ─────────────────────────────────────────────
 //
-// HOOK CATALOG (59 hooks, 14 sections):
+// HOOK CATALOG (60 hooks, 14 sections):
 //   QUERY KEYS           — centralized cache keys for invalidation
 //   PROFILE (5)          — useMyProfile, useProfile, useUpdateProfile,
 //                          useConnectionStatus, useProfileVouches
@@ -81,6 +81,7 @@ import type {
   InboxThread,
   ThreadMessage,
   ClosedDeal,
+  AgentActiveJob,
 } from '../types';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 
@@ -2476,6 +2477,79 @@ const MOCK_AGENT_ACTIVE_DEALS: AgentActiveDeal[] = [
   },
 ];
 
+// @demo mock active jobs for HomeTabAgent — replace with live hook when USE_MOCK_DATA: false
+const MOCK_AGENT_ACTIVE_JOBS: AgentActiveJob[] = [
+  {
+    id: 'aj-mock-001',
+    title: 'Kitchen Faucet Replacement',
+    job_type: 'repair',
+    status: 'in_progress',
+    address: '2847 Larimer St, Denver, CO',
+    due_date: '2026-04-18',
+    is_urgent: false,
+    budget_min: 200,
+    budget_max: 400,
+    budget_range: '$200–$400',
+    trades: ['plumbing'],
+    contractor_completed_at: null,
+    created_at: new Date().toISOString(),
+    contractor: {
+      id: 'mock-contractor-001',
+      name: 'Marcus Johnson',
+      avatar_color: '#4F7942',
+      company: 'Johnson Plumbing',
+      rating: 4.8,
+      vouch_count: 12,
+    },
+  },
+  {
+    id: 'aj-mock-002',
+    title: 'Interior Paint — Master Bedroom',
+    job_type: 'repair',
+    status: 'pending_completion',
+    address: '1540 Blake St, Denver, CO',
+    due_date: '2026-04-14',
+    is_urgent: true,
+    budget_min: 600,
+    budget_max: 900,
+    budget_range: '$600–$900',
+    trades: ['painting'],
+    contractor_completed_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    contractor: {
+      id: 'mock-contractor-002',
+      name: 'Sarah Chen',
+      avatar_color: '#7B5EA7',
+      company: null,
+      rating: 4.9,
+      vouch_count: 8,
+    },
+  },
+  {
+    id: 'aj-mock-003',
+    title: 'Pre-Listing Photography',
+    job_type: 'photography',
+    status: 'awarded',
+    address: '4821 Maple Ridge Dr, Denver, CO',
+    due_date: '2026-04-22',
+    is_urgent: false,
+    budget_min: 350,
+    budget_max: 500,
+    budget_range: '$350–$500',
+    trades: null,
+    contractor_completed_at: null,
+    created_at: new Date().toISOString(),
+    contractor: {
+      id: 'mock-contractor-003',
+      name: 'Rivera Photography',
+      avatar_color: '#C0392B',
+      company: 'Rivera Photography',
+      rating: 5.0,
+      vouch_count: 22,
+    },
+  },
+];
+
 // ─── useAgentDeals ────────────────────────────────────────────
 // STATUS: mock
 // PURPOSE: Full pipeline of agent's active deals for AgentDealsScreen.
@@ -2657,6 +2731,33 @@ export function useAgentActiveDeals(transactionId?: string) {
         return MOCK_AGENT_ACTIVE_DEALS;
       }
     },
+  });
+}
+
+// ─── useAgentActiveJobs ──────────────────────────────────────
+// STATUS: wired (with mock fallback)
+// @backend rpc_get_agent_active_jobs() — deployed S135b
+// Returns active jobs (awarded/in_progress/pending_completion) for the agent
+// All job types: repair, photography, staging
+// Sorted by due_date ASC (most urgent first)
+// Mock fallback: MOCK_AGENT_ACTIVE_JOBS (3 jobs) — demo must never show empty Home tab
+
+export function useAgentActiveJobs() {
+  return useQuery<AgentActiveJob[]>({
+    queryKey: ['agent_active_jobs'],
+    queryFn: async () => {
+      if (FEATURE_FLAGS.USE_MOCK_DATA) return MOCK_AGENT_ACTIVE_JOBS;
+      try {
+        const { data, error } = await supabase.rpc('rpc_get_agent_active_jobs');
+        if (error || !data?.success) throw error;
+        return (data.jobs ?? []) as AgentActiveJob[];
+      } catch (e) {
+        console.warn('[useAgentActiveJobs] rpc_get_agent_active_jobs failed, using mock:', e);
+        // @demo hardcoded — mock fallback preserves demo app
+        return MOCK_AGENT_ACTIVE_JOBS;
+      }
+    },
+    staleTime: 30_000,
   });
 }
 
