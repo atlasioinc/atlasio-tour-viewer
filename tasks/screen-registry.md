@@ -467,7 +467,7 @@
 **Role:** Agent + Partner (shared)
 **Nav Type:** Tab root (Inbox tab)
 **Feature Flag:** None
-**Wiring:** ✅ Live (useInboxThreads → rpc_get_inbox_threads, avatar_url wired S133 via shared Avatar)
+**Wiring:** ✅ Live (useInboxThreads → rpc_get_inbox_threads, avatar_url wired S133 via shared Avatar, @cleanup resolved S134)
 
 **What's on this screen:**
 - VerificationBanner (amber, role/level-aware)
@@ -493,7 +493,7 @@
 **Role:** All roles
 **Nav Type:** Pushed screen (InboxStack — NOT fullScreenModal, swipe-back enabled)
 **Feature Flag:** None
-**Wiring:** ✅ Live (useThreadMessages + useSendMessage)
+**Wiring:** ✅ Live (useThreadMessages + useSendMessage, Avatar wired S134 — shared component, 3 instances: size 40+36+64, initials fallback)
 
 **What's on this screen:**
 - Header: contact name + role + address (2-line header)
@@ -519,7 +519,7 @@
 **Role:** All roles
 **Nav Type:** Pushed screen (InboxStack)
 **Feature Flag:** None
-**Wiring:** ✅ Live (useChatRecipients → real connections)
+**Wiring:** ✅ Live (useChatRecipients → real connections, Avatar wired S134 — shared component, size 48, initials fallback)
 
 **What's on this screen:**
 - Recipient search from connections

@@ -249,9 +249,7 @@ const SWIPE_ACTION_WIDTH = 80;
 // AVATAR COMPONENTS
 // @backend rpc_get_inbox_threads — other_member now includes avatar_url (S133)
 // Avatar component wired — SingleAvatar removed from this file
-// @cleanup SingleAvatar still exists as an inline component in:
-// NewMessageScreen.tsx, CreateDealChat.tsx, ChatScreen.tsx, SquadSlotPicker.tsx
-// Replace all with shared Avatar component in a future cleanup session.
+// @cleanup resolved S134 — SingleAvatar eliminated from all remaining files
 // GroupAvatar uses 2x2 grid — not compatible with shared Avatar; keep as-is
 // ─────────────────────────────────────────────
 

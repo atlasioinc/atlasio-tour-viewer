@@ -29,6 +29,7 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
+import { Avatar } from './shared';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -102,23 +103,6 @@ const DEAL_CONTACTS: Contact[] = [
 ];
 
 // ─────────────────────────────────────────────
-// AVATAR
-// ─────────────────────────────────────────────
-
-const SingleAvatar: React.FC<{ color: string; name: string; size?: number }> = ({
-  color,
-  name,
-  size = 40,
-}) => {
-  const initials = name.split(' ').slice(0, 2).map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
 // CONTACT ROW (for search results)
 // ─────────────────────────────────────────────
 
@@ -140,7 +124,7 @@ const ContactRow: React.FC<{
       opacity: pressed ? 0.9 : 1,
     })}
   >
-    <SingleAvatar color={contact.avatarColor} name={contact.name} size={40} />
+    <Avatar uri={null} name={contact.name} color={contact.avatarColor} size={40} />
     <View style={{ flex: 1 }}>
       <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }} numberOfLines={1}>
         {contact.name}
@@ -547,7 +531,7 @@ const CreateDealChat: React.FC = () => {
                         gap: 8,
                       }}
                     >
-                      <SingleAvatar color={p.avatarColor} name={p.name} size={28} />
+                      <Avatar uri={null} name={p.name} color={p.avatarColor} size={28} />
                       <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.darkText, lineHeight: 18 }}>
                         {p.name}
                       </Text>

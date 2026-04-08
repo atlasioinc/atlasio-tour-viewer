@@ -1039,7 +1039,13 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 64 (+1), Hooks: 65 (unchanged), Feature Flags: 11 (LIVE_PROFILE_HOOKS flipped true)
 - **tsc:** 0
 
-### S134 — Next Objectives
-- SingleAvatar cleanup pass (NewMessageScreen, CreateDealChat, ChatScreen, SquadSlotPicker → shared Avatar)
-- Active Repairs live data wiring (HomeTabAgent)
+### S134 — SingleAvatar Cleanup (April 8, 2026)
+- **Files modified (4):** `components/NewMessageScreen.tsx` (SingleAvatar replaced with shared Avatar, size 48), `components/CreateDealChat.tsx` (SingleAvatar replaced with shared Avatar, 2 instances: size 40 + 28), `components/ChatScreen.tsx` (SingleAvatar replaced with shared Avatar, 3 instances: size 40 + 36 + 64), `components/SquadSlotPicker.tsx` (SingleAvatar replaced with shared Avatar, size 48)
+- **Also updated:** `components/InboxList.tsx` (@cleanup comment resolved)
+- **Key decisions:** SingleAvatar inline component fully eliminated from codebase. Shared Avatar is now the sole avatar implementation across all files. No `interactive` prop exists on Avatar — non-interactive by default when no `onPress` passed.
+- **Metrics:** RPCs: 64 (unchanged), Hooks: 65 (unchanged), Feature Flags: 11 (unchanged)
+- **tsc:** 0
+
+### S135 — Next Objectives
+- Active Repairs live data wiring (HomeTabAgent — last major mock section visible in demo)
 - ProProfile: wire years_experience from profileStats into UI

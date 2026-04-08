@@ -30,6 +30,7 @@ import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
 import { useChatRecipients } from '../hooks/useData';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { Avatar } from './shared';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -87,23 +88,6 @@ const SUGGESTED_CONTACTS: SuggestedContact[] = [
 ];
 
 // ─────────────────────────────────────────────
-// AVATAR
-// ─────────────────────────────────────────────
-
-const SingleAvatar: React.FC<{ color: string; name: string; size?: number }> = ({
-  color,
-  name,
-  size = 48,
-}) => {
-  const initials = name.split(' ').slice(0, 2).map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
 // CONTACT ROW
 // ─────────────────────────────────────────────
 
@@ -125,7 +109,7 @@ const ContactRow: React.FC<{
       opacity: pressed ? 0.9 : 1,
     })}
   >
-    <SingleAvatar color={contact.avatarColor} name={contact.name} />
+    <Avatar uri={null} name={contact.name} color={contact.avatarColor} size={48} />
     <View style={{ flex: 1 }}>
       <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.darkText, lineHeight: 24 }} numberOfLines={1}>
         {contact.name}

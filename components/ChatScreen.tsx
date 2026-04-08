@@ -49,6 +49,7 @@ import { useMessages, useSendMessage, useMarkThreadRead, useCreateThread, useThr
 import { useRealtimeMessages } from '../hooks/useRealtime';
 import { adaptMessageToBubble } from '../lib/typeAdapters';
 import { supabase } from '../lib/supabase';
+import { Avatar } from './shared';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -182,23 +183,6 @@ const MOCK_MESSAGES: Message[] = [
 ];
 
 // ─────────────────────────────────────────────
-// AVATAR
-// ─────────────────────────────────────────────
-
-const SingleAvatar: React.FC<{ color: string; name: string; size?: number }> = ({
-  color,
-  name,
-  size = 36,
-}) => {
-  const initials = name.split(' ').slice(0, 2).map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
 // ADD-CONTACT ROW
 // ─────────────────────────────────────────────
 
@@ -220,7 +204,7 @@ const AddContactRow: React.FC<{
       opacity: pressed ? 0.9 : 1,
     })}
   >
-    <SingleAvatar color={contact.avatarColor} name={contact.name} size={40} />
+    <Avatar uri={null} name={contact.name} color={contact.avatarColor} size={40} />
     <View style={{ flex: 1 }}>
       <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }} numberOfLines={1}>
         {contact.name}
@@ -543,7 +527,12 @@ const ChatScreen: React.FC = () => {
               >
                 <BackIcon />
               </Pressable>
-              <SingleAvatar color={recipients[0]?.avatarColor || '#C0C0C0'} name={recipients[0]?.name || '?'} size={36} />
+              <Avatar
+                uri={null}
+                name={recipients[0]?.name || '?'}
+                color={recipients[0]?.avatarColor || '#C0C0C0'}
+                size={36}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, lineHeight: 22 }} numberOfLines={1}>
                   {recipients.length === 1 ? recipients[0]?.name : `${recipients[0]?.name} + ${recipients.length - 1}`}
@@ -718,7 +707,7 @@ const ChatScreen: React.FC = () => {
           <View style={{ flex: 1, backgroundColor: COLORS.screenBg }}>
             <View style={{ paddingTop: 40, alignItems: 'center', gap: 8 }}>
               {recipients.length > 0 && (
-                <SingleAvatar color={recipients[0].avatarColor} name={recipients[0].name} size={64} />
+                <Avatar uri={null} name={recipients[0].name} color={recipients[0].avatarColor} size={64} />
               )}
               <View style={{ alignItems: 'center', gap: 4 }}>
                 <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24, textAlign: 'center' }}>

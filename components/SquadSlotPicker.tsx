@@ -25,6 +25,7 @@ import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useConnectedPros } from '../hooks/useData';
 import { adaptConnectionToSquadCandidate } from '../lib/typeAdapters';
 import SearchField from './SearchField';
+import { Avatar } from './shared';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -123,39 +124,6 @@ const ROLE_DISPLAY_LABELS: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────
-// AVATAR
-// ─────────────────────────────────────────────
-
-const SingleAvatar: React.FC<{ color: string; name: string; size?: number }> = ({
-  color,
-  name,
-  size = 48,
-}) => {
-  const initials = name
-    .split(' ')
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFFFFF' }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
 // CONTACT ROW — Single pro in the list
 // Shows avatar, name, company, rating + vouches
 // ─────────────────────────────────────────────
@@ -178,7 +146,7 @@ const ProRow: React.FC<{
       opacity: pressed ? 0.9 : 1,
     })}
   >
-    <SingleAvatar color={pro.avatarColor} name={pro.name} />
+    <Avatar uri={null} name={pro.name} color={pro.avatarColor} size={48} />
     <View style={{ flex: 1 }}>
       <Text
         style={{ fontSize: 16, fontWeight: '500', color: COLORS.darkText, lineHeight: 24 }}
