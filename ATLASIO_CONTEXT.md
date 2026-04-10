@@ -1087,9 +1087,27 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 65, Hooks: 67 (+1), Feature Flags: 11 (unchanged)
 - **tsc:** 0 | **Lint:** 0 new warnings
 
-### S138 — Next Objectives
+### S139 — Spring Press Rollout + DealClosedCelebration Animation Restore (April 10, 2026)
+- **Files modified (5):** `components/VouchFeedSection.tsx`, `components/AgentDealsScreen.tsx`, `components/NetworkTab.tsx`, `components/DealClosedCelebrationScreen.tsx`, `tasks/screen-registry.md`
+- **Phase A — Spring Press Rollout (S139a):** Applied scale(0.97) bounciness 6 spring press pattern (established S137a) to 5 surfaces:
+  - VouchFeedSection vouch cards (made cards tappable → recipient profile)
+  - AgentDealsScreen deal pipeline cards (replaced opacity press feedback)
+  - AgentDealsScreen filter chips (extracted FilterChip component, scale 0.95, bounciness 4)
+  - NetworkTab connection request cards (tactile feedback only, no-op onPress)
+  - NetworkTab NetworkProCard (replaced opacity press feedback)
+- **Phase B — DealClosedCelebration Animation Restore (S139b):** Restored 3 animations using core RN Animated only (no Reanimated, no react-native-animatable):
+  - Trophy bounce entrance (Animated.spring, bounciness 14)
+  - Confetti burst (12 Animated.View dots, Animated.stagger 40ms, radial pattern)
+  - Shareable deal card fade-in (opacity + translateY, 400ms delay)
+- **Key decisions:** NetworkTab ProCards use inline `NetworkProCard` component (not FindTab's ProCard) — spring press applied directly. Connection request cards wrapped with tactile-only spring press (Accept/Decline buttons remain primary interaction). No animation libraries removed (react-native-animatable and react-native-confetti-cannon were already removed in S126). react-native-view-shot kept for share card capture.
+- **No new hooks, screens, or tokens added.**
+- **Metrics:** Hooks: 67 (unchanged) · Screens: unchanged · COLORS: 123 (unchanged)
+- **Feature flags:** No changes (all remain at demo defaults)
+- **tsc:** 0 | **Lint:** 0 new warnings
+
+### S139 — Next Objectives
 - Demo Playbook rewrite (Claude Chat — no Claude Code needed)
 - Token audit: add `COLORS.topBarBorder`, `COLORS.onPrimary`, rgba overlay tokens
-- Roll spring press pattern to Active Deals cards and ProCards (FindTab)
 - ProProfile: wire years_experience from profileStats into UI
 - Wire `errorToast.showError()` into live hook onError callbacks as hooks go live
+- Spring press remaining: FindTab ProCards (if not already done in S137b)

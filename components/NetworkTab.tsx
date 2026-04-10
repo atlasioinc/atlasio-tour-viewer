@@ -1,3 +1,7 @@
+// What: Network tab — view and manage professional connections
+// Who: Agent and partner roles (role branch inside)
+// Where: Bottom tab → NetworkTab
+
 // NetworkTab.tsx
 // ═══════════════════════════════════════════════════════════════
 // Network Tab — Agent View (1073 lines)
@@ -242,16 +246,40 @@ const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }
 // Squad toggle removed — squad management on HomeTab
 // ─────────────────────────────────────────────
 
+// Spring press: scale(0.97) bounciness 6 — established S137a, rolled out S139a
+// useNativeDriver: true — runs on UI thread, no JS jank
 const NetworkProCard: React.FC<{
   contact: NetworkContact;
   onMessage: (contact: NetworkContact) => void;
   onInviteToJob?: (contact: NetworkContact) => void;
   onViewProfile: (contact: NetworkContact) => void;
   isContractor?: boolean;
-}> = ({ contact, onMessage, onInviteToJob, onViewProfile, isContractor = false }) => (
+}> = ({ contact, onMessage, onInviteToJob, onViewProfile, isContractor = false }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  return (
+  <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
   <Pressable
+    onPressIn={handlePressIn}
+    onPressOut={handlePressOut}
     onPress={() => onViewProfile(contact)}
-    style={({ pressed }) => ({
+    style={{
       width: '100%',
       padding: 16,
       backgroundColor: COLORS.background,
@@ -264,8 +292,7 @@ const NetworkProCard: React.FC<{
       shadowRadius: 3,
       elevation: 2,
       gap: 16,
-      opacity: pressed ? 0.95 : 1,
-    })}
+    }}
   >
     {/* Top row: Avatar + Info */}
     <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
@@ -314,7 +341,9 @@ const NetworkProCard: React.FC<{
       </Text>
     </Pressable>
   </Pressable>
-);
+  </Animated.View>
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -503,6 +532,166 @@ const NetworkSkeleton = () => (
     {[0, 1, 2, 3].map(i => <ConnectionCardSkeleton key={i} />)}
   </View>
 );
+
+// ─────────────────────────────────────────────
+// CONNECTION REQUEST CARD — Spring press: scale(0.97) bounciness 6 — established S137a, rolled out S139a
+// useNativeDriver: true — runs on UI thread, no JS jank
+// ─────────────────────────────────────────────
+
+interface ConnectionRequestCardProps {
+  request: ConnectionRequest;
+  index: number;
+  onAccept: (id: string) => void;
+  onDecline: (id: string) => void;
+}
+
+const ConnectionRequestCard: React.FC<ConnectionRequestCardProps> = ({ request, index, onAccept, onDecline }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={() => {}}
+      >
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            borderTopWidth: index === 0 ? 0.68 : 0,
+            borderBottomWidth: 0.68,
+            borderColor: COLORS.border,
+          }}
+        >
+          {/* Sender info row */}
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 9999,
+                backgroundColor: request.avatarColor,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#FFFFFF' }}>
+                {request.name.split(' ').map((n) => n[0]).join('').substring(0, 2)}
+              </Text>
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: COLORS.darkText,
+                  lineHeight: 20,
+                }}
+                numberOfLines={1}
+              >
+                {request.name}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '400',
+                  color: COLORS.secondaryText,
+                  lineHeight: 16,
+                }}
+                numberOfLines={1}
+              >
+                {request.role} · {request.company}
+              </Text>
+              {request.mutualConnections > 0 && (
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '400',
+                    color: COLORS.lightText,
+                    lineHeight: 16,
+                  }}
+                >
+                  {request.mutualConnections} mutual connection{request.mutualConnections !== 1 ? 's' : ''}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Optional note */}
+          {request.note && (
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '400',
+                color: COLORS.bodyText,
+                lineHeight: 18,
+                marginBottom: 12,
+              }}
+              numberOfLines={2}
+            >
+              {"\u201C"}{request.note}{"\u201D"}
+            </Text>
+          )}
+
+          {/* Accept / Decline buttons */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable
+              onPress={() => onDecline(request.id)}
+              style={({ pressed }) => ({
+                flex: 1,
+                height: 36,
+                borderRadius: 8,
+                borderWidth: 1.35,
+                borderColor: '#D1D5DC',
+                backgroundColor: COLORS.background,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.5 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.bodyText, lineHeight: 18 }}>
+                Decline
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => onAccept(request.id)}
+              style={({ pressed }) => ({
+                flex: 1,
+                height: 36,
+                borderRadius: 8,
+                backgroundColor: COLORS.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '500', color: '#FFFFFF', lineHeight: 18 }}>
+                Accept
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -1043,124 +1232,13 @@ const AgentNetworkView: React.FC = () => {
               showsVerticalScrollIndicator={false}
             >
               {connectionRequests.map((request, index) => (
-                <View
+                <ConnectionRequestCard
                   key={request.id}
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    borderTopWidth: index === 0 ? 0.68 : 0,
-                    borderBottomWidth: 0.68,
-                    borderColor: COLORS.border,
-                  }}
-                >
-                  {/* Sender info row */}
-                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
-                    <View
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 9999,
-                        backgroundColor: request.avatarColor,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: '#FFFFFF' }}>
-                        {request.name.split(' ').map((n) => n[0]).join('').substring(0, 2)}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: '500',
-                          color: COLORS.darkText,
-                          lineHeight: 20,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {request.name}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: '400',
-                          color: COLORS.secondaryText,
-                          lineHeight: 16,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {request.role} · {request.company}
-                      </Text>
-                      {request.mutualConnections > 0 && (
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontWeight: '400',
-                            color: COLORS.lightText,
-                            lineHeight: 16,
-                          }}
-                        >
-                          {request.mutualConnections} mutual connection{request.mutualConnections !== 1 ? 's' : ''}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* Optional note */}
-                  {request.note && (
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: '400',
-                        color: COLORS.bodyText,
-                        lineHeight: 18,
-                        marginBottom: 12,
-                      }}
-                      numberOfLines={2}
-                    >
-                      {"\u201C"}{request.note}{"\u201D"}
-                    </Text>
-                  )}
-
-                  {/* Accept / Decline buttons */}
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Pressable
-                      onPress={() => handleDeclineRequest(request.id)}
-                      style={({ pressed }) => ({
-                        flex: 1,
-                        height: 36,
-                        borderRadius: 8,
-                        borderWidth: 1.35,
-                        borderColor: '#D1D5DC',
-                        backgroundColor: COLORS.background,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: pressed ? 0.5 : 1,
-                      })}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.bodyText, lineHeight: 18 }}>
-                        Decline
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleAcceptRequest(request.id)}
-                      style={({ pressed }) => ({
-                        flex: 1,
-                        height: 36,
-                        borderRadius: 8,
-                        backgroundColor: COLORS.primary,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: pressed ? 0.7 : 1,
-                      })}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: '500', color: '#FFFFFF', lineHeight: 18 }}>
-                        Accept
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
+                  request={request}
+                  index={index}
+                  onAccept={handleAcceptRequest}
+                  onDecline={handleDeclineRequest}
+                />
               ))}
             </ScrollView>
           </View>

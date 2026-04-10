@@ -1,3 +1,7 @@
+// What: Agent deals pipeline — full deal list with filter chips
+// Who: Agent role — views all active deals with status indicators
+// Where: HomeStack → AgentDealsScreen (push from "View all deals →")
+
 // AgentDealsScreen.tsx
 // ═══════════════════════════════════════════════════════════════
 // Agent Deals Pipeline — Full deal list with filter chips (S66)
@@ -18,7 +22,7 @@
 // deal tap → navigation.push('AgentDealDetail', { jobId })
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -95,6 +99,64 @@ function getDealAccentStatus(deal: AgentActiveDeal): 'red' | 'amber' | 'green' |
   return highest as 'red' | 'amber' | 'green' | 'gray';
 }
 
+// ─────────────────────────────────────────────
+// FILTER CHIP — Spring press: scale(0.95) bounciness 4 — established S137a, rolled out S139a
+// useNativeDriver: true — runs on UI thread, no JS jank
+// ─────────────────────────────────────────────
+
+interface FilterChipProps {
+  filterKey: DealFilter;
+  label: string;
+  isActive: boolean;
+  onPress: (key: DealFilter) => void;
+}
+
+const FilterChip: React.FC<FilterChipProps> = ({ filterKey, label, isActive, onPress }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={() => onPress(filterKey)}
+        style={{
+          paddingHorizontal: 14,
+          paddingVertical: 7,
+          backgroundColor: isActive ? COLORS.primary : COLORS.chipBg,
+          borderRadius: DIMENSIONS.pillRadius,
+        }}
+      >
+        <Text
+          style={{
+            ...TYPOGRAPHY.bodyM,
+            fontWeight: isActive ? '500' : '400',
+            color: isActive ? COLORS.background : COLORS.statText,
+          }}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -169,39 +231,21 @@ const AgentDealsScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
         >
-          {FILTER_OPTIONS.map(({ key, label }) => {
-            const isActive = activeFilter === key;
-            return (
-              <Pressable
-                key={key}
-                onPress={() => {
-                  if (key === 'closed') {
-                    // Closed chip navigates to ClosedDealsScreen
-                    navigation.push('ClosedDeals');
-                    return;
-                  }
-                  setActiveFilter(key);
-                }}
-                style={({ pressed }) => ({
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
-                  backgroundColor: isActive ? COLORS.primary : COLORS.chipBg,
-                  borderRadius: DIMENSIONS.pillRadius,
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Text
-                  style={{
-                    ...TYPOGRAPHY.bodyM,
-                    fontWeight: isActive ? '500' : '400',
-                    color: isActive ? COLORS.background : COLORS.statText,
-                  }}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {FILTER_OPTIONS.map(({ key, label }) => (
+            <FilterChip
+              key={key}
+              filterKey={key}
+              label={label}
+              isActive={activeFilter === key}
+              onPress={(k) => {
+                if (k === 'closed') {
+                  navigation.push('ClosedDeals');
+                  return;
+                }
+                setActiveFilter(k);
+              }}
+            />
+          ))}
         </ScrollView>
       </View>
 
@@ -260,10 +304,33 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onPress }) => {
     ? new Date(deal.closing_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null;
 
+  // Spring press: scale(0.97) bounciness 6 — established S137a, rolled out S139a
+  // useNativeDriver: true — runs on UI thread, no JS jank
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
   return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
     <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         borderRadius: DIMENSIONS.cardRadius,
         borderWidth: DIMENSIONS.cardBorderWidth,
@@ -272,8 +339,7 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onPress }) => {
         marginBottom: 10,
         ...SHADOWS.card,
         overflow: 'hidden',
-        opacity: pressed ? 0.9 : 1,
-      })}
+      }}
     >
       {/* Left accent bar */}
       <View
@@ -358,6 +424,7 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onPress }) => {
         )}
       </View>
     </Pressable>
+    </Animated.View>
   );
 };
 

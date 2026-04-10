@@ -1,3 +1,7 @@
+// What: Vouch activity feed for agent home dashboard — shows recent vouches across network
+// Who: Agent role
+// Where: HomeTabAgent → VouchFeedSection (embedded section)
+
 /**
  * VouchFeedSection.tsx (795 lines)
  *
@@ -31,13 +35,14 @@
  * to ProProfileData without a separate lookup.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
   StyleSheet,
+  Animated,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
@@ -223,62 +228,90 @@ const VouchCard: React.FC<VouchCardProps> = React.memo(function VouchCard({ item
   // Display the recipient's trade if contractor, otherwise role
   const recipientLabel = recipient.trade || recipient.role;
 
+  // Spring press: scale(0.97) bounciness 6 — established S137a, rolled out S139a
+  // useNativeDriver: true — runs on UI thread, no JS jank
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
   return (
-    <View style={styles.card}>
-      {/* Action text + timestamp */}
-      <View style={styles.cardTop}>
-        <Text style={styles.actionText} numberOfLines={2}>
-          <Text
-            style={styles.voucherName}
-            onPress={() => onPressProfile(voucher)}
-          >
-            {voucher.name}
-          </Text>
-          <Text style={styles.actionVerb}> vouched for </Text>
-          <Text
-            style={styles.recipientName}
-            onPress={() => onPressProfile(recipient)}
-          >
-            {recipient.name}
-          </Text>
-          {recipient.is_verified && <Text> </Text>}
-          {recipient.is_verified && <VerifiedBadge />}
-        </Text>
-        <Text style={styles.timestamp}>{timeAgo}</Text>
-      </View>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={() => onPressProfile(recipient)}
+      >
+        <View style={styles.card}>
+          {/* Action text + timestamp */}
+          <View style={styles.cardTop}>
+            <Text style={styles.actionText} numberOfLines={2}>
+              <Text
+                style={styles.voucherName}
+                onPress={() => onPressProfile(voucher)}
+              >
+                {voucher.name}
+              </Text>
+              <Text style={styles.actionVerb}> vouched for </Text>
+              <Text
+                style={styles.recipientName}
+                onPress={() => onPressProfile(recipient)}
+              >
+                {recipient.name}
+              </Text>
+              {recipient.is_verified && <Text> </Text>}
+              {recipient.is_verified && <VerifiedBadge />}
+            </Text>
+            <Text style={styles.timestamp}>{timeAgo}</Text>
+          </View>
 
-      {/* Meta row: role/trade · company */}
-      <View style={styles.metaRow}>
-        <Text style={styles.recipientRole}>{recipientLabel}</Text>
-        {recipient.company ? (
-          <>
-            <Text style={styles.metaDot}> · </Text>
-            <Text style={styles.metaCompany}>{recipient.company}</Text>
-          </>
-        ) : null}
-      </View>
+          {/* Meta row: role/trade · company */}
+          <View style={styles.metaRow}>
+            <Text style={styles.recipientRole}>{recipientLabel}</Text>
+            {recipient.company ? (
+              <>
+                <Text style={styles.metaDot}> · </Text>
+                <Text style={styles.metaCompany}>{recipient.company}</Text>
+              </>
+            ) : null}
+          </View>
 
-      {/* Comment — only shown if present (hybrid display) */}
-      {comment ? (
-        <View style={styles.commentContainer}>
-          <QuoteIcon />
-          <Text style={styles.commentText} numberOfLines={3}>
-            {comment}
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Tags — shown if present */}
-      {tags.length > 0 ? (
-        <View style={styles.tagsRow}>
-          {tags.slice(0, 3).map((tag, idx) => (
-            <View key={idx} style={styles.tagPill}>
-              <Text style={styles.tagText}>{tag}</Text>
+          {/* Comment — only shown if present (hybrid display) */}
+          {comment ? (
+            <View style={styles.commentContainer}>
+              <QuoteIcon />
+              <Text style={styles.commentText} numberOfLines={3}>
+                {comment}
+              </Text>
             </View>
-          ))}
+          ) : null}
+
+          {/* Tags — shown if present */}
+          {tags.length > 0 ? (
+            <View style={styles.tagsRow}>
+              {tags.slice(0, 3).map((tag, idx) => (
+                <View key={idx} style={styles.tagPill}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
-      ) : null}
-    </View>
+      </Pressable>
+    </Animated.View>
   );
 });
 

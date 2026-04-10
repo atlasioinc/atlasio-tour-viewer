@@ -208,7 +208,7 @@
 **Wiring:** 🔴 Mock (useMarkDealClosed mock 800ms)
 
 **What's on this screen:**
-- Confetti cannon (removed S126 due to RN 0.83 Bridgeless crash — restore S140 using core RN Animated)
+- Confetti burst (12 animated dots, core RN Animated — restored S139b, replaces react-native-confetti-cannon removed S126)
 - Trophy emoji + "Congratulations!" + "You closed the deal."
 - ShareableClosedDealCard (address, buyer, price, date)
 - "Share Your Win" CTA (view-shot capture → Share.share())
@@ -1167,7 +1167,7 @@ Before building PaymentSettingsScreen, confirm:
 | Screen | @demo Item | @backend Target |
 |---|---|---|
 | HomeTabAgent | Subtitle "Y jobs posted" only — active deals count deferred | rpc_get_agent_dashboard_stats |
-| DealClosedCelebrationScreen | Animations removed (S126) | Restore S140 using core RN Animated |
+| DealClosedCelebrationScreen | Animations restored S139b — core RN Animated (trophy bounce, confetti burst, card fade-in) | rpc_mark_deal_closed (DEAL_CREATION_ENABLED) |
 | ClosedDealsScreen | 3 mock deals | rpc_get_closed_deals (S-PHASE2-01) |
 | JobTrackerTab | 9 mock jobs | rpc_get_contractor_jobs (S130) |
 | ContractorHomeTab | Earnings/market stats, progress bars | rpc_get_contractor_earnings, rpc_get_market_data |
