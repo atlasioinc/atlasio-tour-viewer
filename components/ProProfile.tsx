@@ -27,7 +27,6 @@ import {
   ScrollView,
   StatusBar,
   Share,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
@@ -35,7 +34,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useProfile, useConnectionStatus, useProfileVouches, useProfileStats, useSendConnectionRequest } from '../hooks/useData';
-import { Avatar, VerificationBadge, VerificationBanner } from './shared';
+import { Avatar, VerificationBadge, VerificationBanner, SkeletonBlock } from './shared';
 import type { VerificationLevel } from '../types';
 import { mapProfileToProProfileData } from './proProfileHelpers';
 import PortfolioGallery from './PortfolioGallery';
@@ -488,8 +487,15 @@ const ProProfile: React.FC = () => {
           SCROLLABLE CONTENT
           ══════════════════════════════════════════ */}
       {isLoading && !passedProfile?.bio ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 }}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={{ padding: 16, alignItems: 'center', gap: 12, paddingTop: 32 }}>
+          <SkeletonBlock width={DIMENSIONS.avatarHero} height={DIMENSIONS.avatarHero} borderRadius={DIMENSIONS.avatarHero / 2} />
+          <SkeletonBlock width={160} height={20} borderRadius={8} />
+          <SkeletonBlock width={100} height={14} borderRadius={6} />
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+            {[0, 1, 2].map(i => (
+              <SkeletonBlock key={i} width={80} height={48} borderRadius={10} />
+            ))}
+          </View>
         </View>
       ) : (
       <ScrollView

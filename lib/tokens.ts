@@ -152,6 +152,10 @@ export const COLORS = {
   dangerText: '#DC2626',         // Rate lock danger state — added S62
   dangerBg: '#FEF2F2',          // Rate lock urgent banner background — added S62
   dangerBorder: '#FECACA',      // Rate lock urgent banner border — added S62
+
+  // ── Skeleton Loaders (S138) ──
+  skeletonBase: '#E8ECEF',                        // light gray base for skeleton blocks
+  skeletonShimmer: 'rgba(255, 255, 255, 0.55)' as const,  // moving light sweep overlay
 } as const;
 
 // ─────────────────────────────────────────────

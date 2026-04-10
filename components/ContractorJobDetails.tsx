@@ -44,6 +44,7 @@ import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
 import { useRespondToCounter, useStartJob } from '../hooks/useData';
 import { CounterButton, DangerButton } from './Button';
+import { SkeletonBlock } from './shared';
 
 // ─────────────────────────────────────────────
 // ROUTE PARAMS
@@ -458,6 +459,20 @@ const JOB_ID_TO_STATE_INDEX: Record<string, number> = {
   aj2: 3,  // MOCK_JOB_AWARDED
   aj3: 5,  // MOCK_JOB_PENDING_CONFIRMATION
 };
+
+// ─────────────────────────────────────────────
+// SKELETON LOADERS — shimmer placeholders matching header dimensions (S138)
+// ─────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const JobDetailHeaderSkeleton = () => (
+  <View style={{ padding: 16, gap: 10 }}>
+    <SkeletonBlock width={80} height={24} borderRadius={9999} />
+    <SkeletonBlock width="85%" height={22} borderRadius={8} />
+    <SkeletonBlock width="60%" height={16} borderRadius={6} />
+    <SkeletonBlock width="100%" height={80} borderRadius={14} style={{ marginTop: 8 }} />
+  </View>
+);
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT

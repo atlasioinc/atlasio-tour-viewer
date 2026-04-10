@@ -46,7 +46,7 @@ import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useConnections, useConnectionRequests as useConnectionRequestsHook, useInboxThreads } from '../hooks/useData';
 import { adaptConnectionToNetworkContact, adaptConnectionToRequest } from '../lib/typeAdapters';
-import { VerificationBanner } from './shared';
+import { VerificationBanner, SkeletonBlock } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 import { useDemoRole } from '../lib/demoRoleContext';
 import { usePartnerAcceptedConnections } from '../features/partners/hooks/usePartnerData';
@@ -483,6 +483,27 @@ const PartnerNetworkView: React.FC = () => {
   );
 };
 
+// ─────────────────────────────────────────────
+// SKELETON LOADERS — shimmer placeholders matching connection card dimensions (S138)
+// ─────────────────────────────────────────────
+
+const ConnectionCardSkeleton = () => (
+  <View style={{ flexDirection: 'row', padding: 16, gap: 12, alignItems: 'center' }}>
+    <SkeletonBlock width={40} height={40} borderRadius={9999} />
+    <View style={{ flex: 1, gap: 8 }}>
+      <SkeletonBlock width="55%" height={15} borderRadius={6} />
+      <SkeletonBlock width="40%" height={12} borderRadius={6} />
+    </View>
+    <SkeletonBlock width={72} height={32} borderRadius={8} />
+  </View>
+);
+
+const NetworkSkeleton = () => (
+  <View style={{ paddingTop: 16 }}>
+    {[0, 1, 2, 3].map(i => <ConnectionCardSkeleton key={i} />)}
+  </View>
+);
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -521,7 +542,7 @@ const AgentNetworkView: React.FC = () => {
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>(MOCK_CONNECTION_REQUESTS);
 
   // ── Live data hooks (keep cache warm) ──
-  const { data: liveContacts } = useConnections();
+  const { data: liveContacts, isLoading: isLoadingContacts } = useConnections();
   const { data: liveRequests } = useConnectionRequestsHook();
 
   useEffect(() => {
@@ -841,6 +862,8 @@ const AgentNetworkView: React.FC = () => {
               </View>
             </View>
           ))
+        ) : isLoadingContacts && contacts.length === 0 ? (
+          <NetworkSkeleton />
         ) : contacts.length === 0 && searchText.length === 0 ? (
           /* ── True Empty State — No connections yet ── */
           /* @demo Replace contacts.length check with real connections count from useConnections() */

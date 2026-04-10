@@ -49,7 +49,7 @@ import { COLORS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useFindPros, useRecommendedPros, useTrendingPros } from '../hooks/useData';
 import { adaptProfileToProCard } from '../lib/typeAdapters';
-import { Avatar, VerificationBadge } from './shared';
+import { Avatar, VerificationBadge, SkeletonBlock } from './shared';
 import { DisplayTag } from './DisplayTag';
 import type { VerificationLevel } from '../types';
 
@@ -343,6 +343,57 @@ const FilterChip: React.FC<{ label: string; isActive: boolean; onPress: () => vo
   </Pressable>
 );
 
+// ─────────────────────────────────────────────
+// SKELETON LOADERS — shimmer placeholders matching ProCard dimensions (S138)
+// ─────────────────────────────────────────────
+
+const ProCardSkeleton = () => (
+  <View style={{ flexDirection: 'row', padding: 16, gap: 12, alignItems: 'center' }}>
+    <SkeletonBlock width={56} height={56} borderRadius={9999} />
+    <View style={{ flex: 1, gap: 8 }}>
+      <SkeletonBlock width="70%" height={15} borderRadius={6} />
+      <SkeletonBlock width="50%" height={13} borderRadius={6} />
+      <SkeletonBlock width="90%" height={12} borderRadius={6} />
+    </View>
+  </View>
+);
+
+const ProCardSkeletonRow = () => (
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}
+  >
+    {[0, 1].map(i => (
+      <View key={i} style={{
+        width: 325,
+        borderRadius: 14,
+        borderWidth: 0.68,
+        borderColor: COLORS.cardBorder,
+        backgroundColor: COLORS.background,
+        padding: 16,
+        gap: 16,
+      }}>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          <SkeletonBlock width={56} height={56} borderRadius={9999} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <SkeletonBlock width="65%" height={14} borderRadius={6} />
+            <SkeletonBlock width="45%" height={12} borderRadius={6} />
+          </View>
+        </View>
+        <SkeletonBlock width="80%" height={14} borderRadius={6} />
+        <SkeletonBlock width={100} height={28} borderRadius={8} />
+      </View>
+    ))}
+  </ScrollView>
+);
+
+const FindTabSearchSkeleton = () => (
+  <View style={{ paddingHorizontal: 16, gap: 12, paddingTop: 16 }}>
+    {[0, 1, 2].map(i => <ProCardSkeleton key={i} />)}
+  </View>
+);
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -358,9 +409,9 @@ const FindTab: React.FC = () => {
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
 
   // ── Live data hooks (keep cache warm) ──
-  const { data: livePros } = useFindPros(searchText, activeRole, selectedSort);
-  const { data: liveRecommended } = useRecommendedPros();
-  const { data: liveTrending } = useTrendingPros();
+  const { data: livePros, isLoading: isLoadingPros } = useFindPros(searchText, activeRole, selectedSort);
+  const { data: liveRecommended, isLoading: isLoadingRecommended } = useRecommendedPros();
+  const { data: liveTrending, isLoading: isLoadingTrending } = useTrendingPros();
 
   const recommendedPros = FEATURE_FLAGS.USE_MOCK_DATA
     ? RECOMMENDED_PROS
@@ -548,6 +599,7 @@ const FindTab: React.FC = () => {
                 <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>Recommended for You</Text>
                 <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>Based on your squad gaps and recent jobs</Text>
               </View>
+              {isLoadingRecommended ? <ProCardSkeletonRow /> : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}>
                 {recommendedPros.map((pro) => (
                   <ProCardComponent key={pro.id} pro={pro} width={325}
@@ -555,12 +607,14 @@ const FindTab: React.FC = () => {
                     onInviteToJob={() => openInviteModal(pro)} onRequestConnect={() => openConnectModal(pro)} />
                 ))}
               </ScrollView>
+              )}
             </View>
             <View style={{ gap: 12 }}>
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>Trending This Week</Text>
                 <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>Most vouched pros in the last 7 days</Text>
               </View>
+              {isLoadingTrending ? <ProCardSkeletonRow /> : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}>
                 {trendingPros.map((pro) => (
                   <ProCardComponent key={`trending-${pro.id}`} pro={pro} width={325}
@@ -568,6 +622,7 @@ const FindTab: React.FC = () => {
                     onInviteToJob={() => openInviteModal(pro)} onRequestConnect={() => openConnectModal(pro)} />
                 ))}
               </ScrollView>
+              )}
             </View>
           </View>
         ) : (
@@ -576,7 +631,7 @@ const FindTab: React.FC = () => {
               <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>{`All Pros (${sortedPros.length})`}</Text>
             </View>
             <View style={{ paddingHorizontal: 16, gap: 12 }}>
-              {sortedPros.length > 0 ? (
+              {isLoadingPros ? <FindTabSearchSkeleton /> : sortedPros.length > 0 ? (
                 sortedPros.map((pro) => (
                   <ProCardComponent key={pro.id} pro={pro}
                     onPress={() => navigation.navigate('ProProfile', { profile: mapFindProToProfile(pro) })}

@@ -38,7 +38,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useChatThreads, useInboxThreads, useArchiveThread } from '../hooks/useData';
 import { adaptChatThreadToLocal, adaptInboxThreadToLocal } from '../lib/typeAdapters';
-import { Avatar, VerificationBanner } from './shared';
+import { Avatar, VerificationBanner, SkeletonBlock } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Enable LayoutAnimation on Android
@@ -463,6 +463,27 @@ const SwipeableThreadRow: React.FC<{
   );
 };
 
+// ─────────────────────────────────────────────
+// SKELETON LOADERS — shimmer placeholders matching thread row dimensions (S138)
+// ─────────────────────────────────────────────
+
+const ThreadRowSkeleton = () => (
+  <View style={{ flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 16, gap: 12, alignItems: 'center' }}>
+    <SkeletonBlock width={48} height={48} borderRadius={9999} />
+    <View style={{ flex: 1, gap: 8 }}>
+      <SkeletonBlock width="50%" height={14} borderRadius={6} />
+      <SkeletonBlock width="80%" height={12} borderRadius={6} />
+    </View>
+    <SkeletonBlock width={32} height={10} borderRadius={4} />
+  </View>
+);
+
+const InboxSkeleton = () => (
+  <View>
+    {[0, 1, 2, 3].map(i => <ThreadRowSkeleton key={i} />)}
+  </View>
+);
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════
@@ -482,7 +503,7 @@ const InboxList: React.FC = () => {
   // ── Live data hooks ──
   // @backend rpc_get_inbox_threads() — no params, auth.uid()
   // Returns threads with other_member profile + unread_count
-  const { data: inboxThreads, refetch: refetchInbox, isRefetching: isInboxRefetching } = useInboxThreads();
+  const { data: inboxThreads, refetch: refetchInbox, isRefetching: isInboxRefetching, isLoading: isLoadingInbox } = useInboxThreads();
   const [isManualRefresh, setIsManualRefresh] = useState(false);
 
   // Reset manual refresh flag when background refetch completes
@@ -634,7 +655,9 @@ const InboxList: React.FC = () => {
               />
             </View>
           )}
-          {threads.length === 0 && searchText.length === 0 ? (
+          {isLoadingInbox && threads.length === 0 ? (
+            <InboxSkeleton />
+          ) : threads.length === 0 && searchText.length === 0 ? (
             /* ── True Empty State — No conversations yet ── */
             /* @demo Replace threads.length check with real thread count from useChatThreads() */
             <View style={{ paddingTop: 80, paddingBottom: 48, paddingHorizontal: 32, alignItems: 'center', gap: 16 }}>

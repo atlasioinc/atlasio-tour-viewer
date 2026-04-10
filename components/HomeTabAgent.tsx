@@ -31,7 +31,6 @@ import {
   Animated,
   Dimensions,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -45,7 +44,8 @@ import { COLORS, SHADOWS } from '../lib/tokens';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { useMyProfile, useAgentActiveDeals, useAgentActiveJobs } from '../hooks/useData';
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
-import { VerificationBanner } from './shared/VerificationBanner';
+import { VerificationBanner, SkeletonBlock, ErrorToast } from './shared';
+import { useErrorToast } from '../hooks/useErrorToast';
 import { CardButton } from './Button';
 import QuickActionsRow from './QuickActionsRow';
 import { useVerificationGate } from '../hooks/useVerificationGate';
@@ -279,6 +279,62 @@ const JOB_STATUS_LABELS: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────
+// SKELETON LOADERS — shimmer placeholders matching real card dimensions (S138)
+// ─────────────────────────────────────────────
+
+const ActiveDealsSkeletonRow = () => (
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 12 }}
+  >
+    {[0, 1].map(i => (
+      <View key={i} style={{
+        width: 180,
+        borderRadius: 14,
+        borderWidth: 0.68,
+        borderColor: COLORS.cardBorder,
+        backgroundColor: COLORS.background,
+        padding: 12,
+        gap: 8,
+      }}>
+        <SkeletonBlock width="100%" height={14} borderRadius={6} />
+        <SkeletonBlock width="60%" height={12} borderRadius={6} />
+        <View style={{ flexDirection: 'row', marginTop: 4, gap: 4 }}>
+          {[0, 1, 2].map(j => (
+            <SkeletonBlock key={j} width={28} height={28} borderRadius={9999} />
+          ))}
+        </View>
+      </View>
+    ))}
+  </ScrollView>
+);
+
+const ActiveJobsSkeletonRow = () => (
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingVertical: 4 }}
+  >
+    {[0, 1].map(i => (
+      <View key={i} style={{
+        width: 325,
+        borderRadius: 14,
+        borderWidth: 0.68,
+        borderColor: COLORS.cardBorder,
+        backgroundColor: COLORS.background,
+        padding: 16,
+        gap: 8,
+      }}>
+        <SkeletonBlock width="70%" height={16} borderRadius={6} />
+        <SkeletonBlock width="50%" height={13} borderRadius={6} />
+        <SkeletonBlock width={100} height={28} borderRadius={14} />
+      </View>
+    ))}
+  </ScrollView>
+);
+
+// ─────────────────────────────────────────────
 // ACTIVE JOB CARD — inline component for per-card spring press animation
 // @demo Active Jobs cards — powered by MOCK_AGENT_ACTIVE_JOBS when USE_MOCK_DATA: true
 // @backend rpc_get_agent_active_jobs() — deployed S135b
@@ -419,13 +475,16 @@ const HomeTabAgent: React.FC = () => {
 
   // @backend rpc_get_agent_active_jobs() — deployed S135b
   // @demo MOCK_AGENT_ACTIVE_JOBS in hooks/useData.ts when USE_MOCK_DATA: true
-  const { data: activeJobs = [], isLoading: isLoadingJobs } = useAgentActiveJobs();
+  const { data: activeJobs = [], isLoading: isLoadingJobs, refetch: refetchJobs } = useAgentActiveJobs();
 
   // ── Active Deals (S63) ──
   // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }
   // NOTE: will migrate to transaction_id in S64 when transactions table exists
-  const { data: activeDeals } = useAgentActiveDeals();
+  const { data: activeDeals, isLoading: isLoadingDeals, refetch: refetchDeals } = useAgentActiveDeals();
   const hasActiveDeals = (activeDeals?.length ?? 0) > 0;
+
+  // ── Error toast (S138) ──
+  const errorToast = useErrorToast();
 
   // ── Time-based greeting ──
   const hour = new Date().getHours();
@@ -972,7 +1031,7 @@ const HomeTabAgent: React.FC = () => {
             @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }
             NOTE: will migrate to transaction_id in S64 when transactions table exists
             ──────────────────────────────────────────────────────────── */}
-        {hasActiveDeals && (
+        {(hasActiveDeals || isLoadingDeals) && (
           <View style={{
             paddingTop: 24, paddingBottom: 16,
             backgroundColor: COLORS.background,
@@ -998,7 +1057,8 @@ const HomeTabAgent: React.FC = () => {
               )}
             </View>
 
-            {/* Deal cards — horizontal scroll */}
+            {/* Deal cards — loading skeleton or horizontal scroll (S138) */}
+            {isLoadingDeals ? <ActiveDealsSkeletonRow /> : (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -1080,6 +1140,7 @@ const HomeTabAgent: React.FC = () => {
                 );
               })}
             </ScrollView>
+            )}
 
             {/* View all deals link → AgentDealsScreen (wired S66) */}
             <Pressable
@@ -1237,14 +1298,8 @@ const HomeTabAgent: React.FC = () => {
               )}
             </View>
 
-            {/* Loading state */}
-            {isLoadingJobs && (
-              <ActivityIndicator
-                size="small"
-                color={COLORS.primary}
-                style={{ marginVertical: 16 }}
-              />
-            )}
+            {/* Loading skeleton (S138) */}
+            {isLoadingJobs && <ActiveJobsSkeletonRow />}
 
             {/* Empty state */}
             {!isLoadingJobs && (!hasActiveRepair || activeJobs.length === 0) && (
@@ -1466,6 +1521,15 @@ const HomeTabAgent: React.FC = () => {
           </Pressable>
         </Animated.View>
       </Modal>
+
+      {/* Error toast (S138) — errorToast.showError('msg') from error handlers */}
+      {errorToast.errorMessage ? (
+        <ErrorToast
+          message={errorToast.errorMessage}
+          onDismiss={errorToast.dismissError}
+          onRetry={() => { refetchJobs(); refetchDeals(); }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 };

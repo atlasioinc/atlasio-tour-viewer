@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
+import { SkeletonBlock } from './shared';
 
 // ─────────────────────────────────────────────
 // NAVIGATION TYPES
@@ -444,6 +445,37 @@ const JobCard: React.FC<{ job: TrackerJob; onPress: () => void }> = ({ job, onPr
     </Pressable>
   );
 };
+
+// ─────────────────────────────────────────────
+// SKELETON LOADERS — shimmer placeholders matching job card dimensions (S138)
+// ─────────────────────────────────────────────
+
+const JobCardSkeleton = () => (
+  <View style={{
+    marginHorizontal: 16,
+    padding: 14,
+    borderRadius: DIMENSIONS.cardRadius,
+    borderWidth: DIMENSIONS.cardBorderWidth,
+    borderColor: COLORS.cardBorder,
+    backgroundColor: COLORS.background,
+    gap: 8,
+  }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <SkeletonBlock width="60%" height={16} borderRadius={6} />
+      <SkeletonBlock width={70} height={24} borderRadius={12} />
+    </View>
+    <SkeletonBlock width="40%" height={13} borderRadius={6} />
+    <SkeletonBlock width={90} height={13} borderRadius={6} />
+  </View>
+);
+
+// JobTrackerSkeleton — use as ListEmptyComponent when useContractorJobs() is wired
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const JobTrackerSkeleton = () => (
+  <View style={{ gap: 12, paddingTop: 12 }}>
+    {[0, 1, 2].map(i => <JobCardSkeleton key={i} />)}
+  </View>
+);
 
 // ─────────────────────────────────────────────
 // MAIN COMPONENT

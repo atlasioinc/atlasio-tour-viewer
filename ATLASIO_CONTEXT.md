@@ -1077,8 +1077,19 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 65, Hooks: 66, Feature Flags: 11 (all unchanged)
 - **tsc:** 0
 
-### S137b — Next Objectives
+### S138 — Shimmer Skeleton Loaders + Error Toast System (April 10, 2026)
+- **Files created (3):** `components/shared/SkeletonBlock.tsx`, `components/shared/ErrorToast.tsx`, `hooks/useErrorToast.ts`
+- **Files modified (8):** `lib/tokens.ts`, `components/shared/index.ts`, `components/HomeTabAgent.tsx`, `components/FindTab.tsx`, `components/ProProfile.tsx`, `components/InboxList.tsx`, `components/ContractorJobDetails.tsx`, `components/NetworkTab.tsx`, `components/JobTrackerTab.tsx`
+- **Key decisions:** Shimmer via `Animated.timing` translateX (no LinearGradient, no third-party libraries). `SkeletonBlock` is the single shared primitive — all screen-specific skeletons are built from it inline. `ErrorToast` uses spring slide-up entrance + 4s auto-dismiss with optional retry button. `useErrorToast` is a simple useState hook wired at screen level (not inside useData.ts). Skeleton dimensions match real card dimensions from code. Screens with mock data only (ContractorJobDetails, JobTrackerTab) have skeletons pre-built and ready for when live hooks are wired. `ActivityIndicator` removed from HomeTabAgent (Active Jobs) and ProProfile.
+- **New tokens (2):** `COLORS.skeletonBase` (#E8ECEF), `COLORS.skeletonShimmer` (rgba(255,255,255,0.55))
+- **New shared components (2):** `SkeletonBlock`, `ErrorToast`
+- **New hooks (1):** `useErrorToast`
+- **Metrics:** RPCs: 65, Hooks: 67 (+1), Feature Flags: 11 (unchanged)
+- **tsc:** 0 | **Lint:** 0 new warnings
+
+### S138 — Next Objectives
 - Demo Playbook rewrite (Claude Chat — no Claude Code needed)
 - Token audit: add `COLORS.topBarBorder`, `COLORS.onPrimary`, rgba overlay tokens
 - Roll spring press pattern to Active Deals cards and ProCards (FindTab)
 - ProProfile: wire years_experience from profileStats into UI
+- Wire `errorToast.showError()` into live hook onError callbacks as hooks go live
