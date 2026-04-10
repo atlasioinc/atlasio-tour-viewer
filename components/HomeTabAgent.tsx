@@ -463,7 +463,7 @@ const HomeTabAgent: React.FC = () => {
           paddingBottom: 12,
           backgroundColor: COLORS.background,
           borderBottomWidth: 0.69,
-          borderBottomColor: '#8DB0FF',
+          borderBottomColor: '#8DB0FF', // @tokens — no exact match. Add COLORS.topBarBorder: '#8DB0FF' in token audit session
           gap: 10,
         }}
       >
@@ -530,7 +530,7 @@ const HomeTabAgent: React.FC = () => {
               style={{
                 fontSize: 12,
                 fontWeight: '400',
-                color: '#FFFFFF',
+                color: COLORS.background,
                 lineHeight: 16,
               }}
             >
@@ -594,7 +594,7 @@ const HomeTabAgent: React.FC = () => {
               style={{
                 fontSize: 14,
                 fontWeight: '600',
-                color: !isFilled ? '#FFFFFF' : COLORS.primary,
+                color: !isFilled ? COLORS.background : COLORS.primary,
               }}
             >
               Empty
@@ -621,7 +621,7 @@ const HomeTabAgent: React.FC = () => {
               style={{
                 fontSize: 14,
                 fontWeight: '600',
-                color: isFilled ? '#FFFFFF' : COLORS.primary,
+                color: isFilled ? COLORS.background : COLORS.primary,
               }}
             >
               Filled
@@ -743,7 +743,7 @@ const HomeTabAgent: React.FC = () => {
                             ? COLORS.primary
                             : COLORS.squadCircle,
                       borderWidth: member ? 2 : 0,
-                      borderColor: member ? 'rgba(0, 61, 195, 0.15)' : 'transparent',
+                      borderColor: member ? 'rgba(0, 61, 195, 0.15)' : 'transparent', // @tokens — iconTintBg is 0.10 opacity, different. Add dedicated token in token audit session
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -753,7 +753,7 @@ const HomeTabAgent: React.FC = () => {
                         style={{
                           fontSize: 20,
                           fontWeight: '600',
-                          color: '#FFFFFF',
+                          color: COLORS.background,
                         }}
                       >
                         {member.name
@@ -776,7 +776,7 @@ const HomeTabAgent: React.FC = () => {
                         <PlusIcon size={16} color={COLORS.bodyText} />
                       </View>
                     ) : (
-                      <PlusIcon size={24} color="#FFFFFF" />
+                      <PlusIcon size={24} color={COLORS.background} />
                     )}
                   </View>
                   {member ? (
@@ -1274,7 +1274,7 @@ const HomeTabAgent: React.FC = () => {
         <Animated.View
           style={{
             ...({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const),
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            backgroundColor: 'rgba(0, 0, 0, 0.4)', // @tokens — between overlayLight (0.3) and overlayDark (0.5). Add dedicated token in token audit session
             opacity: roleBackdropAnim,
           }}
         >
@@ -1310,7 +1310,7 @@ const HomeTabAgent: React.FC = () => {
                   width: 36,
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: '#D1D5DC',
+                  backgroundColor: COLORS.inputBorder,
                 }}
               />
             </View>
@@ -1355,7 +1355,7 @@ const HomeTabAgent: React.FC = () => {
                   width: 32,
                   height: 32,
                   borderRadius: 9999,
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: COLORS.chipBg,
                   alignItems: 'center',
                   justifyContent: 'center',
                   opacity: pressed ? 0.5 : 1,
@@ -1382,7 +1382,7 @@ const HomeTabAgent: React.FC = () => {
                     paddingVertical: 14,
                     borderTopWidth: 0.68,
                     borderTopColor: COLORS.border,
-                    backgroundColor: pressed ? '#F9FAFB' : COLORS.background,
+                    backgroundColor: pressed ? COLORS.filterBg : COLORS.background,
                   })}
                 >
                   <Text

@@ -1058,6 +1058,14 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 65 (+1 rpc_get_agent_active_jobs), Hooks: 66 (+1 useAgentActiveJobs), Feature Flags: 11 (unchanged)
 - **tsc:** 0
 
-### S136 — Next Objectives
+### S136 — HomeTabAgent Inline Hex Cleanup (April 10, 2026)
+- **Files modified (1):** `components/HomeTabAgent.tsx`
+- **Key decisions:** Pure hex cleanup pass — 8 inline hex values replaced with COLORS tokens (top bar badge, demo toggle, squad avatars/icons, role picker modal). 3 rgba/hex values flagged with `@tokens` comments (no exact token match): `#8DB0FF` (top bar border), `rgba(0,61,195,0.15)` (avatar tint, iconTintBg is different opacity), `rgba(0,0,0,0.4)` (backdrop, between overlayLight/overlayDark). 1 avatar data hex (`#A8C5DA`) left as-is — data value, not a design token. No layout, logic, or spacing changes.
+- **Metrics:** RPCs: 65, Hooks: 66, Feature Flags: 11 (all unchanged)
+- **tsc:** 0
+
+### S137 — Next Objectives
+- Demo Playbook rewrite (Claude Chat — no Claude Code needed)
+- Token audit session: add COLORS.topBarBorder (`#8DB0FF`), dedicated rgba overlay tokens
 - ProProfile: wire years_experience from profileStats into UI
 - HomeTabAgent: Active Jobs card tap → job detail screen (verify navigation works with AgentActiveJob shape)
