@@ -1064,8 +1064,15 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 65, Hooks: 66, Feature Flags: 11 (all unchanged)
 - **tsc:** 0
 
-### S137 — Next Objectives
+### S137a — AgentJobDetailScreen + Active Jobs Card Tap + Spring Press (April 10, 2026)
+- **Files created (1):** `components/AgentJobDetailScreen.tsx`
+- **Files modified (2):** `components/HomeStack.tsx`, `components/HomeTabAgent.tsx`
+- **Key decisions:** New `AgentJobDetailScreen` (not adapting RepairJobDetails — clean agent/contractor separation). Route `AgentJobDetail: { jobId: string }` in HomeStack. Card tap fixed: `RepairJobDetails as any` → `AgentJobDetail` with `jobId`. `navigation.push()` used (not navigate) — lessons.md rule. Spring press microinteraction established: `scale(0.97)`, bounciness 6, speed 40/50. `ActiveJobCard` extracted as inline component for correct `useRef` scoping per card. Screen entrance: fade + slide-up 12px, 280ms, `useNativeDriver: true`. Status pulsing dot: `Animated.loop` on `in_progress` status. `handleConfirmComplete`: @demo Alert for now.
+- **Metrics:** Screens: +1 (AgentJobDetailScreen). RPCs: 65, Hooks: 66, Feature Flags: 11 (unchanged)
+- **tsc:** 0
+
+### S137b — Next Objectives
 - Demo Playbook rewrite (Claude Chat — no Claude Code needed)
-- Token audit session: add COLORS.topBarBorder (`#8DB0FF`), dedicated rgba overlay tokens
+- Token audit: add `COLORS.topBarBorder`, `COLORS.onPrimary`, rgba overlay tokens
+- Roll spring press pattern to Active Deals cards and ProCards (FindTab)
 - ProProfile: wire years_experience from profileStats into UI
-- HomeTabAgent: Active Jobs card tap → job detail screen (verify navigation works with AgentActiveJob shape)

@@ -278,6 +278,129 @@ const JOB_STATUS_LABELS: Record<string, string> = {
   pending_completion: 'Review Required',
 };
 
+// ─────────────────────────────────────────────
+// ACTIVE JOB CARD — inline component for per-card spring press animation
+// @demo Active Jobs cards — powered by MOCK_AGENT_ACTIVE_JOBS when USE_MOCK_DATA: true
+// @backend rpc_get_agent_active_jobs() — deployed S135b
+// Press animation: scale(0.97) spring — established pattern for all cards in app
+// ─────────────────────────────────────────────
+
+const ActiveJobCard: React.FC<{ job: AgentActiveJob; onPress: () => void }> = ({
+  job,
+  onPress,
+}) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 6,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={onPress}
+        style={{
+          width: 325,
+          borderRadius: 14,
+          borderWidth: 0.68,
+          borderColor: COLORS.cardBorder,
+          backgroundColor: COLORS.background,
+          padding: 16,
+          gap: 8,
+          ...SHADOWS.card,
+        }}
+      >
+        {/* Urgent badge */}
+        {job.is_urgent && (
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: COLORS.urgentBg,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 9999,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.urgentText }}>
+              Urgent
+            </Text>
+          </View>
+        )}
+
+        {/* Title */}
+        <Text
+          numberOfLines={1}
+          style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}
+        >
+          {job.title}
+        </Text>
+
+        {/* Address */}
+        <Text
+          numberOfLines={1}
+          style={{ fontSize: 14, color: COLORS.secondaryText }}
+        >
+          {job.address}
+        </Text>
+
+        {/* Contractor name */}
+        <Text style={{ fontSize: 14, color: COLORS.bodyText }}>
+          {job.contractor?.name ?? 'Contractor'}
+        </Text>
+
+        {/* Status + Due date row */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '500',
+              color: job.status === 'pending_completion' ? COLORS.warningAmber : COLORS.secondaryText,
+            }}
+          >
+            {JOB_STATUS_LABELS[job.status] ?? job.status}
+          </Text>
+          <Text style={{ fontSize: 13, color: COLORS.secondaryText }}>
+            {new Date(job.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </Text>
+        </View>
+
+        {/* Review Required badge — contractor marked done, agent needs to confirm */}
+        {job.contractor_completed_at !== null && (
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: COLORS.warningBg,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 9999,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.warningText }}>
+              Needs your review
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -1145,92 +1268,11 @@ const HomeTabAgent: React.FC = () => {
                 contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingVertical: 4 }}
               >
                 {activeJobs.map((job: AgentActiveJob) => (
-                  <Pressable
+                  <ActiveJobCard
                     key={job.id}
-                    onPress={() => navigation.navigate('RepairJobDetails', { job: job as any })}
-                    style={({ pressed }) => ({
-                      width: 325,
-                      borderRadius: 14,
-                      borderWidth: 0.68,
-                      borderColor: COLORS.cardBorder,
-                      backgroundColor: COLORS.background,
-                      padding: 16,
-                      gap: 8,
-                      ...SHADOWS.card,
-                      opacity: pressed ? 0.8 : 1,
-                    })}
-                  >
-                    {/* Urgent badge */}
-                    {job.is_urgent && (
-                      <View
-                        style={{
-                          alignSelf: 'flex-start',
-                          backgroundColor: COLORS.urgentBg,
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
-                          borderRadius: 9999,
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.urgentText }}>
-                          Urgent
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Title */}
-                    <Text
-                      numberOfLines={1}
-                      style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}
-                    >
-                      {job.title}
-                    </Text>
-
-                    {/* Address */}
-                    <Text
-                      numberOfLines={1}
-                      style={{ fontSize: 14, color: COLORS.secondaryText }}
-                    >
-                      {job.address}
-                    </Text>
-
-                    {/* Contractor name */}
-                    <Text style={{ fontSize: 14, color: COLORS.bodyText }}>
-                      {job.contractor?.name ?? 'Contractor'}
-                    </Text>
-
-                    {/* Status + Due date row */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: '500',
-                          color: job.status === 'pending_completion' ? COLORS.warningAmber : COLORS.secondaryText,
-                        }}
-                      >
-                        {JOB_STATUS_LABELS[job.status] ?? job.status}
-                      </Text>
-                      <Text style={{ fontSize: 13, color: COLORS.secondaryText }}>
-                        {new Date(job.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </Text>
-                    </View>
-
-                    {/* Review Required badge — contractor marked done, agent needs to confirm */}
-                    {job.contractor_completed_at !== null && (
-                      <View
-                        style={{
-                          alignSelf: 'flex-start',
-                          backgroundColor: COLORS.warningBg,
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          borderRadius: 9999,
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.warningText }}>
-                          Needs your review
-                        </Text>
-                      </View>
-                    )}
-                  </Pressable>
+                    job={job}
+                    onPress={() => navigation.push('AgentJobDetail', { jobId: job.id })}
+                  />
                 ))}
               </ScrollView>
             )}

@@ -32,6 +32,7 @@ import NeighborhoodMatchScreen from './NeighborhoodMatchScreen';
 import CategoryMapScreen from './CategoryMapScreen';
 import AddressComparisonScreen from './AddressComparisonScreen';
 import AgentDealDetailScreen from './AgentDealDetailScreen';
+import AgentJobDetailScreen from './AgentJobDetailScreen';
 import EditDealScreen from './EditDealScreen';
 import AgentDealsScreen from './AgentDealsScreen';
 import DealClosedCelebrationScreen from './DealClosedCelebrationScreen';
@@ -118,6 +119,7 @@ export type HomeStackParamList = {
     };
   };
   ClosedDeals: undefined;
+  AgentJobDetail: { jobId: string };
   AgentDealDetail: {
     jobId: string;
     transactionId?: string; // S88: optional — used for Realtime channel subscription
@@ -233,6 +235,11 @@ const HomeStack: React.FC = () => (
       name="EditDeal"
       component={EditDealScreen}
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', headerShown: false }}
+    />
+    <Stack.Screen
+      name="AgentJobDetail"
+      component={AgentJobDetailScreen}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="AgentDealDetail"

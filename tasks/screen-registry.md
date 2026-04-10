@@ -72,7 +72,7 @@
 - Closing Squad section (squad slot row → SquadSlotPicker)
 - "Send to Client" button (→ SendSquadScreen, appears when any slot filled)
 - QuickActionsRow (4 cards: Photo Bids, Stage to Sell, Repair Bids, Fast-Close Lender)
-- Active Jobs horizontal scroll (job cards → RepairJobDetails) — live via rpc_get_agent_active_jobs (S135b)
+- Active Jobs horizontal scroll (job cards → AgentJobDetailScreen) — live via rpc_get_agent_active_jobs (S135b)
 - VouchFeedSection (feed of recent vouches)
 
 **Entry Points:**
@@ -121,6 +121,28 @@
 - ← Back chevron → HomeTabAgent
 
 **@backend:** rpc_get_agent_deals() — NOT YET DEPLOYED. Wire when DEAL_CREATION_ENABLED: true.
+
+---
+
+#### AgentJobDetailScreen
+**File:** `components/AgentJobDetailScreen.tsx`
+**Role:** Agent only
+**Nav Type:** Pushed screen (HomeStack, headerShown: false)
+**Feature Flag:** None
+
+**What's on this screen:**
+- Status card with pulsing dot (in_progress), amber review block (pending_completion)
+- Contractor card (avatar, name, company)
+- Job details card (address, type, due date, budget)
+- "Confirm Job Complete" CTA (pending_completion only — @demo Alert for now)
+
+**Entry Points:**
+- HomeTabAgent → Active Jobs card tap → `navigation.push('AgentJobDetail', { jobId })`
+
+**Exit Points:**
+- ← Back chevron → goBack()
+
+**Wiring:** Reads from `useAgentActiveJobs` cache by jobId. CTA is @demo — wire `rpc_confirm_job_complete` when ready.
 
 ---
 
@@ -1073,6 +1095,7 @@ RootNavigator
     │
     ├── HomeTab (HomeStack)
     │   ├── HomeTabAgent / ContractorHomeTab / HomeTabPartner [root]
+    │   ├── AgentJobDetailScreen [push]
     │   ├── AgentDealDetailScreen [push]
     │   ├── AgentDealsScreen [push]
     │   ├── DealCreation (DealCreationSheet) [fullScreenModal]
