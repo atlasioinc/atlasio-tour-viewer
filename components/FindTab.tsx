@@ -45,7 +45,7 @@ import type { FindStackParamList } from './FindStack';
 import { mapFindProToProfile } from './proProfileHelpers';
 import SearchField from './SearchField';
 import RequestConnectModal from './RequestConnectModal';
-import { COLORS } from '../lib/tokens';
+import { COLORS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useFindPros, useRecommendedPros, useTrendingPros } from '../hooks/useData';
 import { adaptProfileToProCard } from '../lib/typeAdapters';
@@ -256,7 +256,7 @@ const ProCardComponent: React.FC<{
 
   return (
   <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.95 : 1 })}>
-  <View style={{ width: width || '100%', padding: 16, backgroundColor: COLORS.background, borderRadius: 14, borderWidth: 0.68, borderColor: COLORS.cardBorder, shadowColor: '#000000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2, gap: 16 }}>
+  <View style={{ width: width || '100%', padding: 16, backgroundColor: COLORS.background, borderRadius: 14, borderWidth: 0.68, borderColor: COLORS.cardBorder, ...SHADOWS.card, gap: 16 }}>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <View style={{ flexDirection: 'row', gap: 16, flex: 1 }}>
         {/* @backend profiles.avatar_url — flows through adaptProfileToProCard (S133) */}
@@ -324,7 +324,7 @@ const ProCardComponent: React.FC<{
       )}
       <Pressable onPress={(e) => { e.stopPropagation(); onRequestConnect?.(); }}
         style={({ pressed }) => ({ flex: isJobEligible ? undefined : 1, height: 36, paddingHorizontal: 16, backgroundColor: COLORS.primary, borderRadius: 8, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: '#FFFFFF', lineHeight: 20, textAlign: 'center' }}>Request to Connect</Text>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.background, lineHeight: 20, textAlign: 'center' }}>Request to Connect</Text>
       </Pressable>
     </View>
   </View>
@@ -501,7 +501,7 @@ const FindTab: React.FC = () => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, gap: 8, paddingRight: 16 }}>
           {ROLE_PILLS.map((pill) => (
             <Pressable key={pill} onPress={() => setActiveRole(pill)} style={{ paddingHorizontal: 16, paddingVertical: 7, borderRadius: 9999, backgroundColor: activeRole === pill ? COLORS.primary : COLORS.background, borderWidth: activeRole === pill ? 0 : 0.69, borderColor: COLORS.border }}>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: activeRole === pill ? '#FFFFFF' : COLORS.bodyText, lineHeight: 20, textAlign: 'center' }}>{pill}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: activeRole === pill ? COLORS.background : COLORS.bodyText, lineHeight: 20, textAlign: 'center' }}>{pill}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -512,7 +512,7 @@ const FindTab: React.FC = () => {
             <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.primary, lineHeight: 20 }}>{showFilters ? 'Hide filters' : 'Show filters'}</Text>
             {activeFilterCount > 0 && (
               <View style={{ width: 20, height: 20, borderRadius: 9999, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>{activeFilterCount}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.background }}>{activeFilterCount}</Text>
               </View>
             )}
           </Pressable>
@@ -546,7 +546,7 @@ const FindTab: React.FC = () => {
             <View style={{ gap: 12 }}>
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>Recommended for You</Text>
-                <Text style={{ fontSize: 14, fontWeight: '400', color: '#666666', lineHeight: 20 }}>Based on your squad gaps and recent jobs</Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>Based on your squad gaps and recent jobs</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}>
                 {recommendedPros.map((pro) => (
@@ -559,7 +559,7 @@ const FindTab: React.FC = () => {
             <View style={{ gap: 12 }}>
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>Trending This Week</Text>
-                <Text style={{ fontSize: 14, fontWeight: '400', color: '#666666', lineHeight: 20 }}>Most vouched pros in the last 7 days</Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>Most vouched pros in the last 7 days</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}>
                 {trendingPros.map((pro) => (
@@ -595,7 +595,7 @@ const FindTab: React.FC = () => {
 
       {/* ── Sort Modal ── */}
       <Modal visible={showSortDropdown} transparent animationType="fade" onRequestClose={() => setShowSortDropdown(false)}>
-        <Pressable onPress={() => setShowSortDropdown(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
+        <Pressable onPress={() => setShowSortDropdown(false)} style={{ flex: 1, backgroundColor: COLORS.overlayLight, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
           <View style={{ width: '100%', maxWidth: 280, backgroundColor: COLORS.background, borderRadius: 14, overflow: 'hidden' }}>
             <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
               <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20 }}>Sort by</Text>

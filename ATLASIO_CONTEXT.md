@@ -1071,6 +1071,12 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** Screens: +1 (AgentJobDetailScreen). RPCs: 65, Hooks: 66, Feature Flags: 11 (unchanged)
 - **tsc:** 0
 
+### S137a-T4 — FindTab Inline Hex Cleanup (April 10, 2026)
+- **Files modified (1):** `components/FindTab.tsx`
+- **Key decisions:** 7 inline hex/rgba values replaced with tokens: 3x `#FFFFFF` → `COLORS.background`, 2x `#666666` → `COLORS.secondaryText`, `rgba(0,0,0,0.3)` → `COLORS.overlayLight`, inline shadow props → `...SHADOWS.card` spread. Added `SHADOWS` to import. Avatar data hex values (16 `avatarColor` entries) left as-is — data values, not design tokens.
+- **Metrics:** RPCs: 65, Hooks: 66, Feature Flags: 11 (all unchanged)
+- **tsc:** 0
+
 ### S137b — Next Objectives
 - Demo Playbook rewrite (Claude Chat — no Claude Code needed)
 - Token audit: add `COLORS.topBarBorder`, `COLORS.onPrimary`, rgba overlay tokens
