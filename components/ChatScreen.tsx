@@ -262,6 +262,7 @@ const ChatScreen: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
   const [attachments, setAttachments] = useState<{ type: 'photo' | 'document'; uri: string; name: string }[]>([]);
   const [messages, setMessages] = useState<Message[]>(FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_MESSAGES : []);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(!!initialThreadId); // true when opening existing thread
 
   // ── FlatList layout flash prevention (S108d) ──
@@ -396,12 +397,19 @@ const ChatScreen: React.FC = () => {
     }
   }, [messages]);
 
-  // Scroll to latest when keyboard opens (S108g)
+  // Scroll to latest when keyboard opens + track height for dynamic paddingBottom (S108g, S139)
   useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     });
-    return () => sub.remove();
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   // ── Handlers ──
@@ -689,7 +697,7 @@ const ChatScreen: React.FC = () => {
             ref={scrollViewRef}
             showsVerticalScrollIndicator={false}
             style={{ flex: 1, backgroundColor: COLORS.screenBg, opacity: showMessages ? 1 : 0 }}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, gap: 16 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 16, gap: 16 }}
             keyboardShouldPersistTaps="handled"
             onContentSizeChange={() => {
               if (!isInitialLayoutDone.current && messages.length > 0) {
