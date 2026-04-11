@@ -24,6 +24,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   StatusBar,
   Platform,
@@ -34,11 +35,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AnimatedProgressBar from './AnimatedProgressBar';
+import { supabase } from '../lib/supabase';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS (extracted from Figma)
 // Centralised so any rebrand is a single-file change.
 // ─────────────────────────────────────────────
+// @tokens: OnboardingScreen1 uses local COLORS — migrate to lib/tokens.ts in a future cleanup session
 const COLORS = {
   primary: '#003DC3',
   primaryEnd: '#0052FF',
@@ -377,7 +380,7 @@ const OnboardingScreen1: React.FC<Props> = ({ navigation }) => {
               maxWidth: 362,
               paddingHorizontal: 16,
               paddingTop: 16,
-              paddingBottom: 0,
+              paddingBottom: 16,
               overflow: 'hidden',
             }}
           >
@@ -410,6 +413,21 @@ const OnboardingScreen1: React.FC<Props> = ({ navigation }) => {
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
+
+            {/* Sign in escape hatch — signs out to trigger auth state → LoginScreen */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 12, gap: 4 }}>
+              <Text style={{ fontSize: 14, color: COLORS.bodyText }}>
+                Already have an account?
+              </Text>
+              <Pressable
+                onPress={() => supabase.auth.signOut()}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.primary }}>
+                  Sign in
+                </Text>
+              </Pressable>
+            </View>
           </BlurView>
         </View>
       </View>

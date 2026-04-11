@@ -7,7 +7,7 @@
 // No rebuild required.
 //
 // Before ANY investor demo: verify USE_MOCK_DATA = true,
-// LIVE_ONBOARDING = false, all LIVE_* hooks = false.
+// all LIVE_* hooks = false (except LIVE_ONBOARDING + LIVE_CONTRACTOR_HOOKS which are permanent).
 //
 // Flags:
 //   USE_MOCK_DATA           — true: hooks return mock data (demo mode)
@@ -38,7 +38,7 @@
 
 export const FEATURE_FLAGS = {
   USE_MOCK_DATA:            true,           // @demo — true = demo mode, false = live Supabase
-  LIVE_ONBOARDING:          false,  // true = call rpc_complete_onboarding
+  LIVE_ONBOARDING:          true,   // permanent since S140d — rpc_complete_onboarding deployed + verified
   LIVE_CONTRACTOR_HOOKS:    true,   // true = contractor hooks call live RPCs (permanent since S36)
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
   LIVE_INSURANCE_HOOKS:     false,  // true = InsuranceUploadScreen uses real picker + storage (S47)
