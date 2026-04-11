@@ -236,6 +236,8 @@ const HomeStack: React.FC = () => (
       component={EditDealScreen}
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', headerShown: false }}
     />
+    {/* @cleanup: AgentJobDetail route deferred — entry point restored to RepairJobDetails in S140a
+        Remove this route in a future cleanup session if confirmed unused */}
     <Stack.Screen
       name="AgentJobDetail"
       component={AgentJobDetailScreen}

@@ -721,6 +721,9 @@ export interface AgentActiveJob {
 // Centralized — imported by all Stack navigators
 // ─────────────────────────────────────────────
 
+// @bug: duplicate HomeStackParamList — types/index.ts:724 conflicts with HomeStack.tsx:57
+// The canonical definition is in HomeStack.tsx. This copy is stale and should be
+// removed or unified in a future cleanup session.
 export type HomeStackParamList = {
   HomeMain: undefined;
   RepairJobDetails: { jobId: string };   // fetch on mount
