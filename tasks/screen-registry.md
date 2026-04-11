@@ -72,7 +72,7 @@
 - Closing Squad section (squad slot row → SquadSlotPicker)
 - "Send to Client" button (→ SendSquadScreen, appears when any slot filled)
 - QuickActionsRow (4 cards: Photo Bids, Stage to Sell, Repair Bids, Fast-Close Lender)
-- Active Jobs horizontal scroll (job cards → AgentJobDetailScreen) — live via rpc_get_agent_active_jobs (S135b)
+- Active Jobs horizontal scroll (job cards → RepairJobDetails) — live via rpc_get_agent_active_jobs (S135b), nav restored from AgentJobDetailScreen in S140a
 - VouchFeedSection (feed of recent vouches)
 
 **Entry Points:**
@@ -129,6 +129,7 @@
 **Role:** Agent only
 **Nav Type:** Pushed screen (HomeStack, headerShown: false)
 **Feature Flag:** None
+**Status:** @cleanup — entry point restored to RepairJobDetails in S140a. Route remains registered but has no active navigation path. Remove in a future cleanup session if confirmed unused.
 
 **What's on this screen:**
 - Status card with pulsing dot (in_progress), amber review block (pending_completion)
@@ -137,7 +138,7 @@
 - "Confirm Job Complete" CTA (pending_completion only — @demo Alert for now)
 
 **Entry Points:**
-- HomeTabAgent → Active Jobs card tap → `navigation.push('AgentJobDetail', { jobId })`
+- ~~HomeTabAgent → Active Jobs card tap → `navigation.push('AgentJobDetail', { jobId })`~~ (removed S140a, now routes to RepairJobDetails)
 
 **Exit Points:**
 - ← Back chevron → goBack()

@@ -1105,9 +1105,19 @@ Located in `components/shared/index.ts` (barrel export):
 - **Feature flags:** No changes (all remain at demo defaults)
 - **tsc:** 0 | **Lint:** 0 new warnings
 
-### S139 — Next Objectives
+### S140 — Active Jobs Nav Restore + ChatScreen Keyboard Fix (April 11, 2026)
+- **S140a — Nav Rewire:** Restored Active Jobs card tap from AgentJobDetailScreen back to RepairJobDetails (4-step timeline + completion flow). Stubbed missing Job fields with @demo markers (overwritten by useJob() on mount). Added @cleanup comment on orphaned AgentJobDetail route in HomeStack. Added @bug comment on duplicate HomeStackParamList in types/index.ts.
+- **S140b — ChatScreen Keyboard Fix v2:** Reverted S139-hotfix dynamic paddingBottom on ChatScreen ScrollView. Root cause: KAV behavior='padding' already handles keyboard offset, S139-hotfix double-counted by adding keyboardHeight+16 to contentContainerStyle. Restored static paddingBottom: 16, kept scrollToEnd on keyboardDidShow.
+- **Expo patch bumps:** expo 55.0.9→55.0.14, expo-blur, expo-document-picker, expo-haptics, expo-image-picker, expo-linear-gradient, expo-linking, expo-secure-store, expo-status-bar
+- **Files modified (4):** `components/HomeTabAgent.tsx`, `components/HomeStack.tsx`, `components/ChatScreen.tsx`, `types/index.ts`
+- **Metrics:** RPCs: 65, Hooks: 66, Feature Flags: 11 (all unchanged)
+- **tsc:** 0 | **Lint:** 0 new warnings
+
+### S140 — Next Objectives
 - Demo Playbook rewrite (Claude Chat — no Claude Code needed)
 - Token audit: add `COLORS.topBarBorder`, `COLORS.onPrimary`, rgba overlay tokens
 - ProProfile: wire years_experience from profileStats into UI
 - Wire `errorToast.showError()` into live hook onError callbacks as hooks go live
 - Spring press remaining: FindTab ProCards (if not already done in S137b)
+- Cleanup: remove AgentJobDetailScreen + route if confirmed fully unused
+- Cleanup: unify duplicate HomeStackParamList (types/index.ts vs HomeStack.tsx)
