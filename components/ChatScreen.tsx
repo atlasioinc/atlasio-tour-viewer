@@ -28,7 +28,6 @@ import {
   Image,
   StatusBar,
   KeyboardAvoidingView,
-  Platform,
   Alert,
   ActivityIndicator,
   Keyboard,
@@ -511,8 +510,7 @@ const ChatScreen: React.FC = () => {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 48 : 0}
+        behavior="height"
       >
         {/* ══════════════════════════════════════════
             HEADER — Two modes
