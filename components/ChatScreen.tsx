@@ -261,6 +261,7 @@ const ChatScreen: React.FC = () => {
   const [showAttach, setShowAttach] = useState(false);
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
   const [attachments, setAttachments] = useState<{ type: 'photo' | 'document'; uri: string; name: string }[]>([]);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [messages, setMessages] = useState<Message[]>(FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_MESSAGES : []);
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(!!initialThreadId); // true when opening existing thread
 
@@ -396,13 +397,18 @@ const ChatScreen: React.FC = () => {
     }
   }, [messages]);
 
-  // Scroll to latest when keyboard opens (S108g)
+  // Scroll to latest when keyboard opens + track visibility for conditional insets (S108g, S140e)
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
     });
     return () => {
       showSub.remove();
+      hideSub.remove();
     };
   }, []);
 
@@ -795,7 +801,7 @@ const ChatScreen: React.FC = () => {
             </ScrollView>
           )}
 
-          <View style={{ paddingBottom: insets.bottom }}>
+          <View style={{ paddingBottom: keyboardVisible ? 0 : insets.bottom }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Pressable
                 onPress={() => setShowAttach(true)}
