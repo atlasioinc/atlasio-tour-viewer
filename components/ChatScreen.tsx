@@ -33,7 +33,7 @@ import {
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
@@ -223,7 +223,6 @@ const AddContactRow: React.FC<{
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<ChatScreenRouteProp>();
-  const insets = useSafeAreaInsets();
   const { threadId: initialThreadId, recipientId, contactName, contactCompany, contactRole, contactAvatarColor, dealAddress } = route.params;
 
   // ── Active thread ID — starts from route param, set after rpc_create_thread on first send ──
@@ -261,7 +260,6 @@ const ChatScreen: React.FC = () => {
   const [showAttach, setShowAttach] = useState(false);
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
   const [attachments, setAttachments] = useState<{ type: 'photo' | 'document'; uri: string; name: string }[]>([]);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [messages, setMessages] = useState<Message[]>(FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_MESSAGES : []);
   const [hasSentFirstMessage, setHasSentFirstMessage] = useState(!!initialThreadId); // true when opening existing thread
 
@@ -397,18 +395,13 @@ const ChatScreen: React.FC = () => {
     }
   }, [messages]);
 
-  // Scroll to latest when keyboard opens + track visibility for conditional insets (S108g, S140e)
+  // Scroll to latest when keyboard opens (S108g)
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true);
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
     });
     return () => {
       showSub.remove();
-      hideSub.remove();
     };
   }, []);
 
@@ -519,7 +512,7 @@ const ChatScreen: React.FC = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 48 + insets.top : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 48 : 0}
       >
         {/* ══════════════════════════════════════════
             HEADER — Two modes
@@ -736,6 +729,7 @@ const ChatScreen: React.FC = () => {
         {/* ══════════════════════════════════════════
             MESSAGE INPUT BAR
             ══════════════════════════════════════════ */}
+        <SafeAreaView edges={['bottom']} style={{ backgroundColor: COLORS.background }}>
         <View
           style={{
             backgroundColor: COLORS.background,
@@ -801,8 +795,7 @@ const ChatScreen: React.FC = () => {
             </ScrollView>
           )}
 
-          <View style={{ paddingBottom: keyboardVisible ? 0 : insets.bottom }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Pressable
                 onPress={() => setShowAttach(true)}
                 hitSlop={8}
@@ -834,9 +827,9 @@ const ChatScreen: React.FC = () => {
             >
               <SendIcon />
             </Pressable>
-            </View>
           </View>
         </View>
+        </SafeAreaView>
       </KeyboardAvoidingView>
 
       <AttachSheet
