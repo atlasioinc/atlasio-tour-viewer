@@ -114,7 +114,7 @@ const ContractorHomeStackScreen: React.FC = () => (
     <ContractorHomeStackNav.Screen
       name="ChatScreen"
       component={ChatScreen}
-      options={{ headerShown: false }}
+      options={{ presentation: 'fullScreenModal', headerShown: false }}
     />
   </ContractorHomeStackNav.Navigator>
 );
@@ -142,7 +142,7 @@ const ContractorJobsStackScreen: React.FC = () => (
     <ContractorJobsStackNav.Screen
       name="ChatScreen"
       component={ChatScreen}
-      options={{ headerShown: false }}
+      options={{ presentation: 'fullScreenModal', headerShown: false }}
     />
   </ContractorJobsStackNav.Navigator>
 );
