@@ -27,6 +27,8 @@ import {
   ScrollView,
   Image,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
   ActivityIndicator,
   Keyboard,
@@ -507,7 +509,11 @@ const ChatScreen: React.FC = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         {/* ══════════════════════════════════════════
             HEADER — Two modes
             ══════════════════════════════════════════ */}
@@ -723,13 +729,13 @@ const ChatScreen: React.FC = () => {
         {/* ══════════════════════════════════════════
             MESSAGE INPUT BAR
             ══════════════════════════════════════════ */}
-        <SafeAreaView edges={['bottom']} style={{ backgroundColor: COLORS.background }}>
         <View
           style={{
             backgroundColor: COLORS.background,
             borderTopWidth: 0.68,
             borderTopColor: COLORS.border,
             paddingTop: 8,
+            paddingBottom: 8,
             paddingHorizontal: 16,
           }}
         >
@@ -789,7 +795,7 @@ const ChatScreen: React.FC = () => {
             </ScrollView>
           )}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <SafeAreaView edges={['bottom']} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Pressable
                 onPress={() => setShowAttach(true)}
                 hitSlop={8}
@@ -821,10 +827,9 @@ const ChatScreen: React.FC = () => {
             >
               <SendIcon />
             </Pressable>
-          </View>
+          </SafeAreaView>
         </View>
-        </SafeAreaView>
-      </View>
+      </KeyboardAvoidingView>
 
       <AttachSheet
         visible={showAttach}
