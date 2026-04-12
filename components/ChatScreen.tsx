@@ -27,7 +27,6 @@ import {
   ScrollView,
   Image,
   StatusBar,
-  KeyboardAvoidingView,
   Alert,
   ActivityIndicator,
   Keyboard,
@@ -508,10 +507,7 @@ const ChatScreen: React.FC = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="height"
-      >
+      <View style={{ flex: 1 }}>
         {/* ══════════════════════════════════════════
             HEADER — Two modes
             ══════════════════════════════════════════ */}
@@ -828,7 +824,7 @@ const ChatScreen: React.FC = () => {
           </View>
         </View>
         </SafeAreaView>
-      </KeyboardAvoidingView>
+      </View>
 
       <AttachSheet
         visible={showAttach}
