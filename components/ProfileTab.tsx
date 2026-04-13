@@ -168,6 +168,7 @@ const MOCK_CONTRACTOR_PROFILE = {
   license_number: 'CO-PLM-2847',
   license_state: 'CO',
   license_verified: true, // @demo hardcoded — strongest demo state
+  license_status: 'verified' as const, // @demo hardcoded — matches license_verified
   insurance_uploaded: true,
   insurance_status: 'approved' as const, // @demo hardcoded — strongest demo state
   insurance_expiry: '12/2026', // @demo hardcoded — 9 months from now
@@ -240,7 +241,9 @@ const ProfileTab: React.FC = () => {
   const profileHeadline = mockSource?.headline ?? liveProfile?.headline ?? null;
   const profileLicensed = liveProfile?.licensed ?? '';
   const verificationLevel = mockSource?.verification_level ?? liveProfile?.verification_level ?? 'none';
-  const licenseVerified = (mockSource as any)?.license_verified ?? liveProfile?.license_verified ?? false;
+  const licenseStatus = (mockSource as any)?.license_status ?? (liveProfile as any)?.license_status ?? 'unverified';
+  const licenseVerified = licenseStatus === 'verified';
+  const licensePending = licenseStatus === 'pending';
   const insuranceStatus = (mockSource as any)?.insurance_status ?? (liveProfile as any)?.insurance_status ?? 'none';
   const insuranceExpiry = (mockSource as any)?.insurance_expiry ?? (liveProfile as any)?.insurance_expiry ?? '';
   const insuranceDocName = (liveProfile as any)?.insurance_doc_name ?? 'Certificate of Insurance';
@@ -581,7 +584,7 @@ const ProfileTab: React.FC = () => {
           >
             <ShieldIcon
               size={20}
-              color={licenseVerified ? COLORS.successGreen : COLORS.secondaryText}
+              color={licenseVerified ? COLORS.successGreen : licensePending ? COLORS.counterAmber : COLORS.secondaryText}
             />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: '500', color: COLORS.darkText }}>
@@ -596,7 +599,9 @@ const ProfileTab: React.FC = () => {
                       : 'Not added · Tap to add'
                   : licenseVerified
                     ? 'CO License · Verified'
-                    : 'Not added · Tap to verify'}
+                    : licensePending
+                      ? 'CO License · Pending Review'
+                      : 'Not added · Tap to verify'}
               </Text>
             </View>
             <ChevronRightIcon size={16} color={COLORS.secondaryText} />
