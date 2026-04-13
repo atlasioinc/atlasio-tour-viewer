@@ -233,40 +233,62 @@ interface ClientToolCardProps {
   onPress: () => void;
 }
 
-const ClientToolCard = ({ icon, title, subtitle, onPress }: ClientToolCardProps) => (
-  <Pressable
-    onPress={onPress}
-    style={({ pressed }) => ({
-      marginHorizontal: 16,
-      backgroundColor: COLORS.background,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: COLORS.border,
-      padding: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      opacity: pressed ? 0.7 : 1,
-    })}
-  >
-    <View style={{
-      width: 40, height: 40, borderRadius: 10,
-      backgroundColor: COLORS.tagBg,
-      alignItems: 'center', justifyContent: 'center',
-    }}>
-      {icon}
-    </View>
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, marginBottom: 2 }}>
-        {title}
-      </Text>
-      <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20 }}>
-        {subtitle}
-      </Text>
-    </View>
-    <ChevronRightIcon size={16} color={COLORS.lightText} />
-  </Pressable>
-);
+const ClientToolCard = ({ icon, title, subtitle, onPress }: ClientToolCardProps) => {
+  // Separate ref name to avoid collision with other scaleAnims elsewhere in this file
+  const pressScaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(pressScaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(pressScaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  return (
+    <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+      <Animated.View
+        style={{
+          marginHorizontal: 16,
+          backgroundColor: COLORS.background,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: COLORS.border,
+          padding: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          transform: [{ scale: pressScaleAnim }],
+        }}
+      >
+        <View style={{
+          width: 40, height: 40, borderRadius: 10,
+          backgroundColor: COLORS.tagBg,
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          {icon}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, marginBottom: 2 }}>
+            {title}
+          </Text>
+          <Text style={{ fontSize: 14, color: COLORS.secondaryText, lineHeight: 20 }}>
+            {subtitle}
+          </Text>
+        </View>
+        <ChevronRightIcon size={16} color={COLORS.lightText} />
+      </Animated.View>
+    </Pressable>
+  );
+};
 
 // ─────────────────────────────────────────────
 // JOB STATUS DISPLAY MAP — agent-facing labels

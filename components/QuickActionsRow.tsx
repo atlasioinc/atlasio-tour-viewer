@@ -26,13 +26,14 @@
 // Dependencies: COLORS from lib/tokens.ts, react-native-svg for icons
 // ═══════════════════════════════════════════════════════════════
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useNavigation, CommonActions } from '@react-navigation/native';
@@ -110,6 +111,28 @@ const StarMiniIcon: React.FC<{ color?: string }> = ({ color = '#FFB900' }) => (
 const QuickActionsRow: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { canPostJob } = useVerificationGate();
+
+  // Spring press animation — one Animated.Value per card
+  // 4 = number of action cards — update if cards array changes
+  const scaleAnims = useRef<Animated.Value[]>(
+    Array.from({ length: 4 }, () => new Animated.Value(1)),
+  ).current;
+
+  const handlePressIn = (index: number) => {
+    Animated.spring(scaleAnims[index], {
+      toValue: 0.97,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  const handlePressOut = (index: number) => {
+    Animated.spring(scaleAnims[index], {
+      toValue: 1,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
 
   // ── Verification gate — blocks job posting for unverified users ──
 
@@ -233,22 +256,26 @@ const QuickActionsRow: React.FC = () => {
           gap: 12,
         }}
       >
-        {cards.map((card) => (
+        {cards.map((card, index) => (
           <Pressable
             key={card.id}
             onPress={card.onPress}
-            style={({ pressed }) => ({
-              width: 148,
-              paddingVertical: 16,
-              paddingHorizontal: 14,
-              borderRadius: 14,
-              backgroundColor: COLORS.background,
-              borderWidth: 0.68,
-              borderColor: '#F3F4F6',
-              ...SHADOWS.card,
-              opacity: pressed ? 0.85 : 1,
-            })}
+            onPressIn={() => handlePressIn(index)}
+            onPressOut={() => handlePressOut(index)}
           >
+            <Animated.View
+              style={{
+                width: 148,
+                paddingVertical: 16,
+                paddingHorizontal: 14,
+                borderRadius: 14,
+                backgroundColor: COLORS.background,
+                borderWidth: 0.68,
+                borderColor: '#F3F4F6',
+                ...SHADOWS.card,
+                transform: [{ scale: scaleAnims[index] }],
+              }}
+            >
             {/* Icon circle */}
             <View
               style={{
@@ -293,6 +320,7 @@ const QuickActionsRow: React.FC = () => {
                 </Text>
               )}
             </View>
+            </Animated.View>
           </Pressable>
         ))}
       </ScrollView>

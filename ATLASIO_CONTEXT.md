@@ -1121,3 +1121,23 @@ Located in `components/shared/index.ts` (barrel export):
 - Spring press remaining: FindTab ProCards (if not already done in S137b)
 - Cleanup: remove AgentJobDetailScreen + route if confirmed fully unused
 - Cleanup: unify duplicate HomeStackParamList (types/index.ts vs HomeStack.tsx)
+
+### S142 — Spring Press: QuickActionsRow, Neighborhood Card, FindTab ProCards (April 13, 2026)
+- **QuickActionsRow:** Applied scale(0.97) spring press to all 4 action cards. Array-of-refs pattern (`scaleAnims[index]`, `Array.from({ length: 4 }, ...)` — hardcoded to card count). Moved visual card styling from Pressable to inner `Animated.View`; removed pre-existing `opacity: pressed ? 0.85 : 1` press feedback (now handled by scale).
+- **HomeTabAgent ClientToolCard:** Converted the local `ClientToolCard` component (used by the "Neighborhood Match" card → ClientLifestyleScreen) from arrow-expression to function body with spring press. Used `pressScaleAnim` ref name to avoid collision with pre-existing `scaleAnim` at line 348 (unrelated Active Jobs card animation). Removed pre-existing `opacity: pressed ? 0.7 : 1`.
+- **FindTab ProCardComponent:** Added per-instance `scaleAnim` via `useRef` inside the function component (one ref per card, not array-of-refs since each card is its own React instance). Wrapped outer card visual in `Animated.View`. Inner Invite/Connect CTAs (lines 320/325) left untouched per spec. Removed pre-existing `opacity: pressed ? 0.95 : 1`.
+- **Pattern adherence:** `toValue: 0.97`, `bounciness: 6`, `useNativeDriver: true` on every spring call — matches S139 exactly.
+- **Key decisions:**
+  - QuickActionsRow card count hardcoded to 4 with inline comment (cards array has 4 entries; update comment if that changes).
+  - FindTab skipped array-of-refs because `ProCardComponent` is a function component re-instantiated per list item — local `useRef` gives one ref per instance naturally.
+  - `ClientToolCard` turned out to be a local component (not shared across files), so no scope expansion required.
+- **Files modified (3):** `components/QuickActionsRow.tsx`, `components/HomeTabAgent.tsx`, `components/FindTab.tsx`
+- **Metrics:** RPCs: 65, Hooks: 66, Edge Functions: 11, Feature Flags: 11 (all unchanged)
+- **tsc:** 0 | **Lint:** 0 new warnings (3 pre-existing unused-var warnings unrelated)
+
+### S143 — Next Objectives
+- Screen Registry audit: full codebase sweep, orphan detection (unreferenced screens/routes)
+- Demo Playbook rewrite (Claude Chat — carried from S140)
+- Token audit: add `COLORS.topBarBorder`, `COLORS.onPrimary`, rgba overlay tokens (carried)
+- Cleanup: remove AgentJobDetailScreen + route if confirmed fully unused (carried)
+- Cleanup: unify duplicate HomeStackParamList (types/index.ts vs HomeStack.tsx) (carried)

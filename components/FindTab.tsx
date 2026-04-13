@@ -22,7 +22,7 @@
 // @backend useTrendingPros (wired) — trending by vouch count
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ import {
   TouchableOpacity,
   LayoutAnimation,
   UIManager,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -254,9 +255,28 @@ const ProCardComponent: React.FC<{
 }> = ({ pro, width, onPress, onRequestConnect, onInviteToJob }) => {
   const isJobEligible = JOB_ELIGIBLE_ROLES.some((r) => r.toLowerCase() === pro.role.toLowerCase());
 
+  // Spring press animation — one ref per card instance
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      bounciness: 6,
+    }).start();
+  };
+
   return (
-  <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.95 : 1 })}>
-  <View style={{ width: width || '100%', padding: 16, backgroundColor: COLORS.background, borderRadius: 14, borderWidth: 0.68, borderColor: COLORS.cardBorder, ...SHADOWS.card, gap: 16 }}>
+  <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+  <Animated.View style={{ width: width || '100%', padding: 16, backgroundColor: COLORS.background, borderRadius: 14, borderWidth: 0.68, borderColor: COLORS.cardBorder, ...SHADOWS.card, gap: 16, transform: [{ scale: scaleAnim }] }}>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <View style={{ flexDirection: 'row', gap: 16, flex: 1 }}>
         {/* @backend profiles.avatar_url — flows through adaptProfileToProCard (S133) */}
@@ -327,7 +347,7 @@ const ProCardComponent: React.FC<{
         <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.background, lineHeight: 20, textAlign: 'center' }}>Request to Connect</Text>
       </Pressable>
     </View>
-  </View>
+  </Animated.View>
   </Pressable>
   );
 };
