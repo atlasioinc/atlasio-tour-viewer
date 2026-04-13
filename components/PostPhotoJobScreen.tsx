@@ -44,8 +44,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../lib/tokens';
 import { useCreateJob } from '../hooks/useData';
+import { AddressAutocompleteInput } from './shared';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -97,11 +99,11 @@ const CheckIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
   </Svg>
 );
 
-const CameraIcon: React.FC = () => (
+const CameraIcon: React.FC<{ color?: string }> = ({ color = COLORS.primary }) => (
   <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
     <Path
       d="M3.33 6.67C3.33 5.75 4.08 5 5 5H6.18C6.58 5 6.95 4.79 7.15 4.45L7.85 3.22C8.05 2.88 8.42 2.67 8.82 2.67H11.18C11.58 2.67 11.95 2.88 12.15 3.22L12.85 4.45C13.05 4.79 13.42 5 13.82 5H15C15.92 5 16.67 5.75 16.67 6.67V14.17C16.67 15.08 15.92 15.83 15 15.83H5C4.08 15.83 3.33 15.08 3.33 14.17V6.67Z"
-      stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+      stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
     />
   </Svg>
 );
@@ -117,7 +119,8 @@ const PostPhotoJobScreen: React.FC = () => {
   // ── Form state ──
   const [address, setAddress] = useState('');
   const [sqft, setSqft] = useState('');
-  const [dateNeeded, setDateNeeded] = useState('');
+  const [dateNeeded, setDateNeeded] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedPackages, setSelectedPackages] = useState<Set<string>>(new Set(['photos']));
   const [turnaround, setTurnaround] = useState('next_day');
   const [notes, setNotes] = useState('');
@@ -141,7 +144,7 @@ const PostPhotoJobScreen: React.FC = () => {
     });
   }, []);
 
-  const isFormValid = address.trim().length > 0 && dateNeeded.trim().length > 0 && selectedPackages.size > 0;
+  const isFormValid = address.trim().length > 0 && dateNeeded !== null && selectedPackages.size > 0;
 
   // @backend WIRED: rpc_create_job({ p_job_type: 'photography', p_title, p_address,
   //   p_due_date, p_service_packages, p_turnaround_preference, p_description })
@@ -158,7 +161,7 @@ const PostPhotoJobScreen: React.FC = () => {
         // Business rule: title displays on contractor job cards and tracker
         p_title: 'Photography Job',
         p_address: address.trim(),
-        p_due_date: dateNeeded.trim(),
+        p_due_date: dateNeeded ? dateNeeded.toISOString().split('T')[0] : '',
         p_service_packages: Array.from(selectedPackages),
         p_turnaround_preference: turnaround || undefined,
         p_description: notes.trim() || undefined,
@@ -279,12 +282,12 @@ const PostPhotoJobScreen: React.FC = () => {
               width: 28,
               height: 28,
               borderRadius: 14,
-              backgroundColor: '#1A6B3C',
+              backgroundColor: COLORS.jobGreen,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <CameraIcon />
+            <CameraIcon color={COLORS.onPrimary} />
           </View>
           <Text style={{ fontSize: 17, fontWeight: '600', color: COLORS.darkText }}>
             Post Photo Job
@@ -304,18 +307,65 @@ const PostPhotoJobScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Property Address */}
+          {/* Property Address — Google Places autocomplete (S144) */}
           {renderSectionHeader('Property Address *')}
-          {renderInput(address, setAddress, '123 Main St, Denver, CO 80202')}
+          <AddressAutocompleteInput
+            value={address}
+            onSelect={setAddress}
+            placeholder="123 Main St, Denver, CO 80202"
+          />
 
           {/* Square Footage */}
           {renderSectionHeader('Approx. Square Footage')}
           {renderInput(sqft, setSqft, '2,400', { keyboardType: 'numeric' })}
 
-          {/* Date Needed */}
+          {/* Date Needed — native DateTimePicker (S144) */}
           {renderSectionHeader('Date Needed *')}
-          {renderInput(dateNeeded, setDateNeeded, 'MM/DD/YYYY')}
-          {/* 🔌 Wire to: DateTimePicker or calendar modal. For MVP, text input with validation. */}
+          <Pressable
+            onPress={() => setShowDatePicker(!showDatePicker)}
+            style={{
+              backgroundColor: COLORS.inputBackground,
+              borderWidth: 0.68,
+              borderColor: dateNeeded ? COLORS.inputActiveBorder : COLORS.border,
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              justifyContent: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '400',
+                color: dateNeeded ? COLORS.darkText : COLORS.bodyText,
+                lineHeight: 20,
+              }}
+            >
+              {dateNeeded
+                ? dateNeeded.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : 'Select date'}
+            </Text>
+          </Pressable>
+          {showDatePicker && (
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <DateTimePicker
+                value={dateNeeded || new Date(Date.now() + 7 * 86400000)}
+                mode="date"
+                display="inline"
+                themeVariant="light"
+                minimumDate={new Date()}
+                onChange={(event, date) => {
+                  if (Platform.OS === 'android') setShowDatePicker(false);
+                  if (event.type === 'set' && date) {
+                    setDateNeeded(date);
+                    if (Platform.OS === 'ios') setShowDatePicker(false);
+                  } else if (event.type === 'dismissed') {
+                    setShowDatePicker(false);
+                  }
+                }}
+              />
+            </View>
+          )}
 
           {/* Service Packages — multi-select chips */}
           {renderSectionHeader('Service Packages *')}

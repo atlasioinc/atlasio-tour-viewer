@@ -125,6 +125,10 @@ export const COLORS = {
   cardPurpleBorder: '#E9D4FF',
   cardPurpleIcon: '#9810FA',
 
+  // ── Job Category Icon Circles (header badges on Post*JobScreen) ──
+  jobGreen: '#1A6B3C',           // PostPhotoJobScreen header icon circle (S144)
+  jobPurple: '#7C3AED',          // PostStagingJobScreen header icon circle (S144)
+
   // ── Celebration ──
   confettiBlue: '#60A5FA',       // light blue — confetti cannon accent (S123)
 

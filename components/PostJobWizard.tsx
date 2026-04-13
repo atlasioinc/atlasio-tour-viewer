@@ -32,7 +32,7 @@
 // PATTERN MATCHES: EditRepairJob, CreateDealChat, OnboardingScreen1
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
-  TextInput,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,8 +54,8 @@ import InfoBanner from './InfoBanner';
 import FormField from './FormField';
 import InviteContractorsModal from './InviteContractorsModal';
 import type { NetworkContractor } from './InviteContractorsModal';
-import { COLORS, SHADOWS } from '../lib/tokens';
-import { GOOGLE_MAPS_API_KEY } from '../lib/config';
+import { AddressAutocompleteInput } from './shared';
+import { COLORS } from '../lib/tokens';
 import { useCreateJob, useInviteContractors } from '../hooks/useData';
 
 // Simple progress bar matching Figma header spec (4px track, no label)
@@ -176,28 +175,6 @@ const CheckCircleIcon: React.FC = () => (
     <Path d="M22 32L28 38L42 24" stroke={COLORS.background} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
-
-// Pin icon for address autocomplete suggestions — matches DealCreationSheet
-const PinIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-    <Path
-      d="M8 1.33C5.42 1.33 3.33 3.42 3.33 6C3.33 9.5 8 14.67 8 14.67C8 14.67 12.67 9.5 12.67 6C12.67 3.42 10.58 1.33 8 1.33Z"
-      stroke={COLORS.bodyText}
-      strokeWidth={1.33}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
-// ─────────────────────────────────────────────
-// AUTOCOMPLETE TYPES
-// ─────────────────────────────────────────────
-
-interface PlaceSuggestion {
-  placeId: string;
-  description: string;
-}
 
 // Users icon: 1.67px #003DC3 (Figma invite toggle)
 const UsersIcon: React.FC = () => (
@@ -340,75 +317,6 @@ interface StepProps {
 const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // ── Google Places Autocomplete state (local to StepBasics — matches DealCreationSheet) ──
-  const [addressQuery, setAddressQuery] = useState(form.propertyAddress);
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for loading indicator
-  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
-  const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // @backend Google Places (New) API — autocomplete endpoint
-  // @demo Falls back silently on API failure — address can still be typed manually
-  const fetchAutocompleteSuggestions = async (input: string) => {
-    setIsFetchingSuggestions(true);
-    try {
-      const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        },
-        body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
-      });
-      const data = await response.json();
-      const mapped = (data.suggestions ?? [])
-        .map((s: any) => ({
-          placeId: s.placePrediction?.placeId ?? '',
-          description: s.placePrediction?.text?.text ?? '',
-        }))
-        .filter((s: PlaceSuggestion) => s.placeId && s.description);
-      setSuggestions(mapped);
-    } catch {
-      console.warn('[PostJobWizard] Autocomplete failed');
-      setSuggestions([]);
-    } finally {
-      setIsFetchingSuggestions(false);
-    }
-  };
-
-  const handleAddressTextChange = (text: string) => {
-    setAddressQuery(text);
-    setForm((p) => ({ ...p, propertyAddress: '' })); // clear confirmed selection while typing
-
-    if (autocompleteTimerRef.current) clearTimeout(autocompleteTimerRef.current);
-
-    if (text.length < 3) {
-      setSuggestions([]);
-      setShowAutocomplete(false);
-      return;
-    }
-
-    setShowAutocomplete(true);
-    autocompleteTimerRef.current = setTimeout(() => {
-      fetchAutocompleteSuggestions(text);
-    }, 400);
-  };
-
-  const handleSuggestionSelect = (description: string) => {
-    setAddressQuery(description);
-    setForm((p) => ({ ...p, propertyAddress: description }));
-    setSuggestions([]);
-    setShowAutocomplete(false);
-  };
-
-  // Cleanup autocomplete timer
-  useEffect(() => {
-    return () => {
-      if (autocompleteTimerRef.current) clearTimeout(autocompleteTimerRef.current);
-    };
-  }, []);
-
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -426,51 +334,16 @@ const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
         error={showErrors && form.jobTitle.trim().length === 0 ? 'Job title is required' : undefined}
       />
 
-      {/* ── Property Address — Google Places autocomplete (matches DealCreationSheet) ── */}
+      {/* ── Property Address — Google Places autocomplete (shared component S144) ── */}
       <View style={{ gap: 8 }}>
         <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
           Property Address <Text style={{ color: '#FB2C36' }}>*</Text>
         </Text>
-        <View style={{ position: 'relative', zIndex: 99 }}>
-          <TextInput
-            value={addressQuery}
-            onChangeText={handleAddressTextChange}
-            placeholder="Search address..."
-            placeholderTextColor={COLORS.bodyText}
-            style={{
-              backgroundColor: COLORS.inputBackground,
-              borderWidth: 0.68,
-              borderColor: addressQuery.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
-              borderRadius: 10,
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-              fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20,
-            }}
-          />
-
-          {/* Autocomplete dropdown */}
-          {showAutocomplete && suggestions.length > 0 && (
-            <View style={{
-              position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
-              backgroundColor: COLORS.background,
-              borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
-              ...SHADOWS.card,
-            }}>
-              {suggestions.map((s) => (
-                <Pressable
-                  key={s.placeId}
-                  onPress={() => handleSuggestionSelect(s.description)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 14 }}
-                >
-                  <PinIcon />
-                  <Text style={{ fontSize: 14, color: COLORS.darkText, flex: 1 }} numberOfLines={1}>
-                    {s.description}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
+        <AddressAutocompleteInput
+          value={form.propertyAddress}
+          onSelect={(address) => setForm((p) => ({ ...p, propertyAddress: address }))}
+          placeholder="Search address..."
+        />
         {showErrors && form.propertyAddress.trim().length === 0 && (
           <Text style={{ fontSize: 12, fontWeight: '400', color: '#FB2C36', lineHeight: 16 }}>
             Property address is required

@@ -44,8 +44,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Line } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../lib/tokens';
 import { useCreateJob } from '../hooks/useData';
+import { AddressAutocompleteInput } from './shared';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -108,10 +110,10 @@ const PlusIcon: React.FC = () => (
   </Svg>
 );
 
-const ChairIcon: React.FC = () => (
+const ChairIcon: React.FC<{ color?: string }> = ({ color = COLORS.primary }) => (
   <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Path d="M5 11.67V5C5 3.62 6.12 2.5 7.5 2.5H12.5C13.88 2.5 15 3.62 15 5V11.67" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" />
-    <Path d="M3.33 11.67H16.67V14.17C16.67 15.08 15.92 15.83 15 15.83H5C4.08 15.83 3.33 15.08 3.33 14.17V11.67Z" stroke={COLORS.primary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M5 11.67V5C5 3.62 6.12 2.5 7.5 2.5H12.5C13.88 2.5 15 3.62 15 5V11.67" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+    <Path d="M3.33 11.67H16.67V14.17C16.67 15.08 15.92 15.83 15 15.83H5C4.08 15.83 3.33 15.08 3.33 14.17V11.67Z" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -130,6 +132,8 @@ const PostStagingJobScreen: React.FC = () => {
   const [roomsCount, setRoomsCount] = useState(3);
   const [selectedScopes, setSelectedScopes] = useState<Set<string>>(new Set(['full']));
   const [timeline, setTimeline] = useState('1_week');
+  const [specificDate, setSpecificDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   // @backend WIRED: useCreateJob → rpc_create_job({ p_job_type: 'staging', ... })
@@ -172,9 +176,9 @@ const PostStagingJobScreen: React.FC = () => {
         // Business rule: title displays on contractor job cards and tracker
         p_title: 'Staging Job',
         p_address: address.trim(),
-        // @demo p_due_date receives timeline key (e.g. '1_week') — not an ISO date string
-        // Replace with a proper date picker before launch
-        p_due_date: timeline,
+        // @demo specificDate overrides timeline when set — confirm RPC behavior post-launch
+        // When specificDate is null, the timeline key (e.g. '1_week') is sent as before
+        p_due_date: specificDate ? specificDate.toISOString().split('T')[0] : timeline,
         p_staging_scope: Array.from(selectedScopes),
         p_sqft: sqft ? parseInt(sqft, 10) : undefined,
         p_occupied_or_vacant: isOccupied ? 'occupied' : 'vacant',
@@ -297,12 +301,12 @@ const PostStagingJobScreen: React.FC = () => {
               width: 28,
               height: 28,
               borderRadius: 14,
-              backgroundColor: '#7C3AED',
+              backgroundColor: COLORS.jobPurple,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <ChairIcon />
+            <ChairIcon color={COLORS.onPrimary} />
           </View>
           <Text style={{ fontSize: 17, fontWeight: '600', color: COLORS.darkText }}>
             Post Staging Job
@@ -321,9 +325,13 @@ const PostStagingJobScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Property Address */}
+          {/* Property Address — Google Places autocomplete (S144) */}
           {renderSectionHeader('Property Address *')}
-          {renderInput(address, setAddress, '123 Main St, Denver, CO 80202')}
+          <AddressAutocompleteInput
+            value={address}
+            onSelect={setAddress}
+            placeholder="123 Main St, Denver, CO 80202"
+          />
 
           {/* Square Footage */}
           {renderSectionHeader('Approx. Square Footage')}
@@ -512,6 +520,54 @@ const PostStagingJobScreen: React.FC = () => {
               );
             })}
           </View>
+
+          {/* Specific Date (optional) — native DateTimePicker (S144) */}
+          {renderSectionHeader('Specific Date (optional)')}
+          <Pressable
+            onPress={() => setShowDatePicker(!showDatePicker)}
+            style={{
+              backgroundColor: COLORS.inputBackground,
+              borderWidth: 0.68,
+              borderColor: specificDate ? COLORS.inputActiveBorder : COLORS.border,
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              justifyContent: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '400',
+                color: specificDate ? COLORS.darkText : COLORS.bodyText,
+                lineHeight: 20,
+              }}
+            >
+              {specificDate
+                ? specificDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : 'Select a date (optional)'}
+            </Text>
+          </Pressable>
+          {showDatePicker && (
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <DateTimePicker
+                value={specificDate || new Date(Date.now() + 7 * 86400000)}
+                mode="date"
+                display="inline"
+                themeVariant="light"
+                minimumDate={new Date()}
+                onChange={(event, date) => {
+                  if (Platform.OS === 'android') setShowDatePicker(false);
+                  if (event.type === 'set' && date) {
+                    setSpecificDate(date);
+                    if (Platform.OS === 'ios') setShowDatePicker(false);
+                  } else if (event.type === 'dismissed') {
+                    setShowDatePicker(false);
+                  }
+                }}
+              />
+            </View>
+          )}
 
           {/* Special Instructions */}
           {renderSectionHeader('Special Instructions')}
