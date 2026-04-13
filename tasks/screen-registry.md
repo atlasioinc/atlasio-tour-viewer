@@ -592,7 +592,7 @@
 
 **What's on this screen:**
 - Gear icon top-right → SettingsScreen
-- Z1 Hero: Avatar component (120px, photo upload + camera overlay), name, role/trade pill, company, service area
+- Z1 Hero: Avatar component (120px, photo upload + camera overlay), name, role/trade pill + service area pill inline (S143), company + license line
 - Z2 Trust Bar: rating + vouch count (tappable own profile → VouchesBottomSheet)
 - Z3 Credentials: iOS Settings-style tappable rows
   - Agent: License row → VerificationScreen
@@ -647,15 +647,16 @@
 **Role:** All roles (role-conditional fields)
 **Nav Type:** Pushed screen (ProfileStack)
 **Feature Flag:** None
-**Wiring:** ✅ Live (headline, service area, languages — wired S119b/c, role-aware avatar helper text S135a)
+**Wiring:** ✅ Live (headline, service area, languages — wired S119b/c, role-aware avatar helper text S135a, RPC-based save S143)
 
 **What's on this screen:**
 - Role-conditional fields: agent (agency, headline, service area, languages, license read-only); contractor (trades, insurance, service area); partner (company, specialties)
-- Headline max 45 chars, company max 25 chars
+- Headline max 50 chars (S143, was 45), company max 25 chars
 - Service area: Google Places autocomplete
 - Languages: multi-select
-- Bio: hidden (deferred)
+- Bio: hidden + excluded from save (S143 — prevents mock bio overwriting real Supabase bio)
 - License: read-only row + "Update →" link to VerificationScreen
+- Save: calls `rpc_update_profile` via `useUpdateProfile` (S143); errors surface to UI (no silent fallback)
 
 **Entry Points:**
 - ProfileTab → "Edit Profile" button
