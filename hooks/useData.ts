@@ -239,28 +239,31 @@ export const useProfile = (profileId: string) => {
  * Update current user's profile
  * Accepts Partial<Profile> — only send changed fields
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (RPC, no fallback — S143)
+// @backend rpc_update_profile — see sql/schema.sql
 export const useUpdateProfile = () => {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: async (updates: Partial<Profile>): Promise<Profile> => {
       try {
-        const userId = await getCurrentUserId();
-        if (!userId) throw new Error('Not authenticated');
-        const { data, error } = await supabase
-          .from('profiles')
-          .update(updates)
-          .eq('id', userId)
-          .select()
-          .single();
+        const { error } = await supabase.rpc('rpc_update_profile', {
+          p_name:         updates.name         ?? null,
+          p_headline:     updates.headline     ?? null,
+          p_company:      updates.company      ?? null,
+          p_service_area: updates.service_area ?? null,
+          p_specialties:  updates.specialties  ?? null,
+          p_languages:    updates.languages    ?? null,
+          p_trade:        updates.trade        ?? null,
+          p_trades:       updates.trades?.length ? updates.trades : null,
+          p_is_visible:   updates.is_visible   ?? null,
+        });
         if (error) throw error;
-        return data as Profile;
-      } catch (err) {
-        console.warn('[useUpdateProfile] Supabase failed, using mock fallback', err);
-        // TODO: [PRODUCTION] Remove mock fallback
         const current = qc.getQueryData<Profile>(queryKeys.myProfile);
-        return { ...current, ...updates } as Profile;
+        return { ...(current ?? {}), ...updates } as Profile;
+      } catch (err) {
+        console.error('[useUpdateProfile] Failed:', err);
+        throw err;
       }
     },
     onSuccess: (data) => {

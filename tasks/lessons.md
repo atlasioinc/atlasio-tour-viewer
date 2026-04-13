@@ -109,6 +109,15 @@ the snake_case slot role against the display string — exact mismatch → empty
 Pattern: any `adaptX()` function that produces a `role` field consumed by a filter or
 hook must use `conn.profile.role` (snake_case), not `conn.profile.display_role`.
 
+## Known Latent Bug — Contractor Trades Save (S143)
+
+- `profiles.trades` column is `trades_enum[]` in Postgres
+- `TRADE_OPTIONS` in `EditProfileScreen.tsx` uses display labels (`Electrician`, `Plumber`, `Roofer`, `Painter`, `Landscaper`, `Driveway/Paving`) that do NOT match enum values (`Electrical`, `Plumbing`, `Roofing`, `Painting`, `Landscaping / Drainage`, `Driveway / Paving`)
+- Contractor profile save silently fails on `trades` field — enum cast error used to be swallowed by mock fallback; post-S143 will now throw the error to the user
+- Agent saves are unaffected (`trades` sent as `null` for agents via `EditProfileScreen.handleSave`)
+- Fix: dedicated session to rename `TRADE_OPTIONS` to match enum values exactly, or build a UI label → enum value mapping layer
+- Ticket: ATL-CONTRACTOR-TRADES (see Notion Sprint Board)
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

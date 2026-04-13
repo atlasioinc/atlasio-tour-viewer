@@ -354,7 +354,7 @@ const EditProfileScreen: React.FC = () => {
   // ── Pre-fill form from live profile when available ──
   const [hasPreFilled, setHasPreFilled] = useState(false);
   useEffect(() => {
-    if (!FEATURE_FLAGS.USE_MOCK_DATA && myProfile && !hasPreFilled) {
+    if (FEATURE_FLAGS.LIVE_PROFILE_HOOKS && myProfile && !hasPreFilled) {
       setForm((prev) => ({
         ...prev,
         fullName: myProfile.name || prev.fullName,
@@ -421,17 +421,19 @@ const EditProfileScreen: React.FC = () => {
     try {
       await updateProfile.mutateAsync({
         name: form.fullName.trim(),
-        headline: form.headline.trim() || null, // @backend profiles.headline — max 45 chars
-        bio: form.bio.trim(),
+        headline: form.headline.trim() || null, // @backend profiles.headline — max 50 chars
+        // bio field hidden — omitted to avoid overwriting real Supabase bio
+        // @demo restore bio param here when bio field is re-enabled in UI
         company: form.company.trim(),
         // license_number managed in VerificationScreen — not saved from EditProfile
         service_area: form.serviceArea.trim() || null,
         specialties: form.specialties,
-        languages: form.languages, // @backend profiles.languages text[] (S119c)
+        languages: form.languages, // @backend profiles.languages text[] (S143)
         trade: form.primaryTrade || null,
+        // @backend sends null (not []) so COALESCE preserves existing trades row value
         trades: form.primaryTrade
           ? [form.primaryTrade as any, ...form.secondaryTrades]
-          : [],
+          : null as any,
         is_visible: form.availability,
       });
       navigation.goBack();
@@ -556,10 +558,10 @@ const EditProfileScreen: React.FC = () => {
         <FormField
           label="Headline"
           value={form.headline}
-          onChangeText={(text) => updateField('headline', text.slice(0, 45))}
+          onChangeText={(text) => updateField('headline', text.slice(0, 50))}
           placeholder="Professional tagline (e.g., 'Fast closings, no surprises')"
-          maxLength={45}
-          helperText="45 chars max — one punchy line agents remember"
+          maxLength={50}
+          helperText="50 chars max — one punchy line agents remember"
         />
 
         <FormField

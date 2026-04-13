@@ -231,6 +231,11 @@ const ProfileTab: React.FC = () => {
   const profileAvatarColor = mockSource?.avatar_color ?? liveProfile?.avatar_color ?? COLORS.primary;
   const profileRole = mockSource?.role ?? liveProfile?.role ?? 'agent';
   const profileDisplayRole = mockSource?.display_role ?? liveProfile?.display_role ?? ROLE_DISPLAY[profileRole] ?? 'Professional';
+  // S143: safe-cased role label — guarantees capitalization when display_role is null and profileRole is a raw DB value
+  const roleLabel = mockSource?.display_role
+    ?? liveProfile?.display_role
+    ?? ROLE_DISPLAY[profileRole]
+    ?? (profileRole.charAt(0).toUpperCase() + profileRole.slice(1));
   const profileTrade = (mockSource as any)?.trade ?? liveProfile?.trade ?? null;
   const profileHeadline = mockSource?.headline ?? liveProfile?.headline ?? null;
   const profileLicensed = liveProfile?.licensed ?? '';
@@ -421,23 +426,45 @@ const ProfileTab: React.FC = () => {
             <VerificationBadge level={verificationLevel} />
           </View>
 
-          {/* Role pill */}
-          <View
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              backgroundColor: COLORS.tagBg,
-              borderRadius: DIMENSIONS.pillRadius,
-            }}
-          >
-            <Text style={{ ...TYPOGRAPHY.bodyM, fontWeight: '500', color: COLORS.primary }}>
-              {profileTrade || profileDisplayRole}
-            </Text>
+          {/* Role + Service Area pills (S143) */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+          }}>
+            <View
+              style={{
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                backgroundColor: COLORS.tagBg,
+                borderRadius: DIMENSIONS.pillRadius,
+              }}
+            >
+              <Text style={{ ...TYPOGRAPHY.bodyM, fontWeight: '500', color: COLORS.primary }}>
+                {profileTrade || roleLabel}
+              </Text>
+            </View>
+            {!!profileServiceArea && (
+              <View
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  backgroundColor: COLORS.tagBg,
+                  borderRadius: DIMENSIONS.pillRadius,
+                }}
+              >
+                <Text style={{ ...TYPOGRAPHY.bodyM, fontWeight: '500', color: COLORS.primary }}>
+                  {profileServiceArea}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {/* Company + Service Area */}
+          {/* Company + License (service area moved to pill row above — S143) */}
           <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.bodyText, textAlign: 'center' }}>
-            {[profileCompany, profileLicensed].filter(Boolean).join(' · ')}{profileServiceArea ? `\n${profileServiceArea}` : ''}
+            {[profileCompany, profileLicensed].filter(Boolean).join(' · ')}
           </Text>
 
           {/* Headline (all roles, conditional on profile.headline existing) */}

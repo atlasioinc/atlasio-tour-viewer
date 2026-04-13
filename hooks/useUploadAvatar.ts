@@ -6,6 +6,7 @@
 import { useState, useCallback } from 'react';
 import { ActionSheetIOS, Alert, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -140,15 +141,17 @@ export const useUploadAvatar = () => {
         throw new Error('Not authenticated');
       }
 
-      // @backend fetch image blob from local URI
-      const response = await fetch(pickedUri);
-      const blob = await response.blob();
+      // @backend read image as base64 via FileSystem — reliable on iOS SDK 54 (S143)
+      const base64 = await FileSystem.readAsStringAsync(pickedUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const arrayBuffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 
       // @backend supabase.storage.from('avatars').upload — upsert avatar
       const storagePath = `${user.id}/avatar.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(storagePath, blob, {
+        .upload(storagePath, arrayBuffer, {
           contentType: 'image/jpeg',
           upsert: true,
         });

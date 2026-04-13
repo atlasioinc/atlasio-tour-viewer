@@ -30,7 +30,14 @@
     },
     "plugins": [
       "@react-native-community/datetimepicker",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Atlasio needs access to your photo library to update your profile photo.",
+          "cameraPermission": "Atlasio needs access to your camera to take a profile photo."
+        }
+      ]
     ]
   }
 }

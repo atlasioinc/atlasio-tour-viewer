@@ -2189,7 +2189,53 @@ BEGIN
 END;
 $$;
 
+-- ── S143: Profile save fix — languages column, headline CHECK, rpc_update_profile ──
+
+-- S143: Add missing languages column
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS languages TEXT[] NOT NULL DEFAULT '{}';
+
+-- S143: Update headline CHECK constraint from 35 → 50 chars
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_headline_check;
+ALTER TABLE profiles ADD CONSTRAINT profiles_headline_check
+  CHECK (char_length(headline) <= 50);
+
+-- S143: rpc_update_profile — secures profile writes, enables array field persistence
+CREATE OR REPLACE FUNCTION rpc_update_profile(
+  p_name         TEXT            DEFAULT NULL,
+  p_headline     TEXT            DEFAULT NULL,
+  p_company      TEXT            DEFAULT NULL,
+  p_service_area TEXT            DEFAULT NULL,
+  p_specialties  TEXT[]          DEFAULT NULL,
+  p_languages    TEXT[]          DEFAULT NULL,
+  p_trade        TEXT            DEFAULT NULL,
+  p_trades       trades_enum[]   DEFAULT NULL,
+  p_is_visible   BOOLEAN         DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE profiles
+  SET
+    name         = COALESCE(p_name, name),
+    headline     = COALESCE(p_headline, headline),
+    company      = COALESCE(p_company, company),
+    service_area = COALESCE(p_service_area, service_area),
+    specialties  = COALESCE(p_specialties, specialties),
+    languages    = COALESCE(p_languages, languages),
+    trade        = COALESCE(p_trade, trade),
+    trades       = COALESCE(p_trades, trades),
+    is_visible   = COALESCE(p_is_visible, is_visible)
+  WHERE id = auth.uid();
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION rpc_update_profile TO authenticated;
+
 -- ═════════════════════════════════════════════════════════════
 -- DONE
 -- Last verified against live Supabase: March 26, 2026 (S116b)
+-- S143 appended April 13, 2026 — run SQL block manually in Supabase SQL Editor
 -- ═════════════════════════════════════════════════════════════
