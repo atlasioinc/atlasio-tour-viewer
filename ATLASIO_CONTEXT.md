@@ -1183,15 +1183,16 @@ Located in `components/shared/index.ts` (barrel export):
 
 ### S145b — Avatar Initials Standardization (April 13, 2026)
 - **Root cause:** Initials logic was inlined across 22+ components with inconsistent rules. Some used first char only, some first-of-first + first-of-last, some uppercased, some didn't, some crashed on empty strings. Same user rendered as `T`, `TG`, or `Tg` depending on the screen.
-- **Fix — components/shared/Avatar.tsx:** `getInitials()` helper now always returns a 2-char uppercase string from the first two whitespace-separated tokens. Single-word names return `first[0] + first[1]` (or just `first[0]` for 1-char). Empty/undefined returns `'?'`.
-- **Callsite migration:** Removed inline initials helpers and local `AvatarPlaceholder` components from 22 files. Each callsite now renders `<Avatar name={...} size={...} color={...} />` using the shared component. Net: -477 lines / +121 lines.
-- **Files modified (22):** `AgentDealDetailScreen`, `AgentDealsScreen`, `ContractorHomeTab`, `ContractorInboxList`, `ContractorJobDetails`, `HomeTabAgent`, `InviteToJobModal`, `JobCompletionScreen`, `JobTrackerTab`, `MessageBubble`, `NetworkTab`, `NotificationsTab`, `PostJobWizard`, `ProProfile`, `RepairChatScreen`, `RepairJobDetails`, `RequestConnectModal`, `SendSquadScreen`, `VouchPromptModal`, `features/partners/DealCreationSheet`, `features/partners/HomeTabPartner`, `components/shared/Avatar`
+- **Fix — components/shared/Avatar.tsx:** Replaced inline `initial = name.charAt(0).toUpperCase()` (1-char, no null guard) with an inline 2-char formula: `(name ?? '').split(' ').filter(Boolean).slice(0,2).map(n => n[0]!.toUpperCase()).join('') || '?'`. Also replaced hard-coded `'#FFFFFF'` text color with `COLORS.onPrimary`. Component API unchanged — `uri`, `name`, `size`, `color`, `onPress`, `showCameraOverlay`, `isUploading` all preserved.
+- **Callsite migration:** Deleted 14 local `AvatarPlaceholder` / `ModalAvatar` / `SenderAvatar` helper components and replaced ~20 inline/helper callsites with the shared `<Avatar>`. Net: -477 lines / +121 lines across S145b+c combined.
+- **Files modified (21 consumer files + Avatar.tsx):** `AgentDealDetailScreen`, `AgentDealsScreen`, `ContractorHomeTab`, `ContractorInboxList`, `ContractorJobDetails`, `HomeTabAgent`, `InviteToJobModal`, `JobCompletionScreen`, `JobTrackerTab`, `MessageBubble`, `NetworkTab`, `NotificationsTab`, `PostJobWizard`, `ProProfile`, `RepairChatScreen`, `RepairJobDetails`, `RequestConnectModal`, `SendSquadScreen`, `VouchPromptModal`, `features/partners/DealCreationSheet`, `features/partners/HomeTabPartner`, `components/shared/Avatar`
 - **Key decisions:**
   - Shared component owns the rule — no per-screen overrides. One source of truth for initials across the whole app.
-  - 2-char minimum even for single-word names — `"Madonna"` renders `MA` not `M`, matching iOS Contacts pattern.
+  - Multi-word names render 2 chars uppercase (`"Tony Giap"` → `TG`). Single-word names render 1 char (`"Madonna"` → `M`) because the formula takes the first character of each of the first two whitespace-separated tokens — one token in, one char out. Acceptable because it eliminates the prior inconsistency; all call sites now render the same output for the same input.
   - `'?'` fallback for empty/undefined — never crash, never render whitespace.
-- **Metrics unchanged:** Shared Components count stays (Avatar already existed, internal helper update only).
-- **tsc:** 0 errors
+  - **Two deviations where shared `<Avatar>` could not be used directly:** `SendSquadScreen.tsx` (64px squad hero has a 1.35px `COLORS.accentBlue` border) and `HomeTabAgent.tsx` line ~955 (squad slot avatars have a conditional 2px `rgba(0,61,195,0.15)` border and share their container with a PlusIcon for empty slots). In both cases the helper/inline View was kept, but the initials formula was rewritten in place to match the shared Avatar's output exactly, so the standardization goal still holds.
+- **Metrics unchanged:** Shared Components count stays (Avatar already existed, formula + token update only).
+- **tsc:** 0 errors | **lint:** 0 new warnings (3 pre-existing on main)
 
 ### S145c — Restore Swipe-Back Gesture on 9 Screens (April 13, 2026)
 - **Root cause:** Native-stack screens with `headerShown: false` lose iOS swipe-back unless `gestureEnabled: true` is set explicitly. 9 screens had custom back chevrons but no way to swipe back — users had to aim for the chevron on every screen.
@@ -1212,7 +1213,6 @@ Located in `components/shared/index.ts` (barrel export):
 - **Verify profile save end-to-end on device** after Tony executes the S143 SQL. Test: edit headline 36–50 chars, change languages, change service area, hit Save, force-close app, verify values persisted.
 - **Verify job posting flows on device** — post a photo job with the new autocomplete + date picker, post a staging job with specificDate set, post a staging job with only timeline chip, confirm RPC accepts all three shapes.
 - **Contractor trades enum fix** — rename `TRADE_OPTIONS` in `EditProfileScreen.tsx` to match `trades_enum` values (`Electrical` not `Electrician`, etc.), or build a UI→enum mapping layer. `ATL-CONTRACTOR-TRADES` in `tasks/lessons.md`.
-- **Sync CLAUDE.md metrics header** — line 35 still says "RPCs: 33" from S55. Drift since then. Bump to match ATLASIO_CONTEXT.md header (66 post-S143).
 - **AddressAutocompleteInput consolidation opportunities** — `AddressComparisonScreen.tsx`, `ClientLifestyleScreen.tsx`, `EditProfileScreen.tsx`, `DealCreationSheet.tsx` still have their own inline Google Places autocomplete implementations. Migrate each to `<AddressAutocompleteInput>` where the UX matches (some may need dropdown positioning tweaks).
 - Screen Registry audit: full codebase sweep, orphan detection (unreferenced screens/routes) (carried)
 - Demo Playbook rewrite (Claude Chat — carried from S140)

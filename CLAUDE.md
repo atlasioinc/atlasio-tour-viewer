@@ -31,13 +31,13 @@
 
 ---
 
-## Current Metrics (updated S55 — March 15, 2026)
-- **RPCs:** 33
-- **Hooks:** 58
-- **Feature Flags:** 11
+## Current Metrics (updated S145c — April 13, 2026)
+- **RPCs:** 66
+- **Hooks:** 65
+- **Feature Flags:** 11 (9 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts)
 - **Edge Functions:** 11
-- **Storage Buckets:** 6
-- **Screens:** 3 new (ClientLifestyleScreen, NeighborhoodMatchScreen, CategoryMapScreen)
+- **Storage Buckets:** 7
+- **Shared Components:** includes AddressAutocompleteInput (S144) + standardized Avatar (S145b)
 - **tsc:** 0 errors
 
 When adding new RPCs, hooks, or Edge Functions — increment the count in this file and in the session commit message.
