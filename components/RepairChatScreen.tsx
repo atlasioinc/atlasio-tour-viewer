@@ -43,6 +43,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
 import type { HomeStackParamList } from './HomeStack';
 import { COLORS } from '../lib/tokens';
+import { Avatar } from './shared';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -127,38 +128,6 @@ const SendIcon: React.FC<{ active: boolean }> = ({ active }) => (
 );
 
 // ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({
-  name,
-  color,
-  size = 32,
-}) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFFFFF' }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
 // CONTEXT TIP BANNER
 // Privacy & usage reminder shown at top of chat
 // ─────────────────────────────────────────────
@@ -237,7 +206,7 @@ const MessageBubble: React.FC<{ message: ChatMessage; senderName: string; sender
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, marginBottom: 12, gap: 8 }}>
-      <AvatarPlaceholder name={senderName} color={senderColor} size={28} />
+      <Avatar name={senderName} color={senderColor} size={28} />
       <View style={{ flex: 1 }}>
         <View
           style={{
@@ -393,7 +362,7 @@ const RepairChatScreen: React.FC = () => {
               pointerEvents: 'none',
             }}
           >
-            <AvatarPlaceholder name={bidderName} color={bidderAvatarColor} size={32} />
+            <Avatar name={bidderName} color={bidderAvatarColor} size={32} />
             <Text
               style={{
                 fontSize: 16,

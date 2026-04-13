@@ -33,6 +33,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
+import { Avatar } from './shared';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -115,38 +116,6 @@ const CheckboxIcon: React.FC<{ checked: boolean }> = ({ checked }) => (
     )}
   </Svg>
 );
-
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{
-  name: string;
-  color: string;
-  size?: number;
-}> = ({ name, color, size = 56 }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.32, fontWeight: '600', color: '#FFFFFF' }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────
 // RATING LABELS
@@ -384,7 +353,7 @@ const VouchPromptModal: React.FC<VouchPromptModalProps> = ({
                   gap: 8,
                 }}
               >
-                <AvatarPlaceholder
+                <Avatar
                   name={recipientAvatar.name}
                   color={recipientAvatar.color}
                   size={64}

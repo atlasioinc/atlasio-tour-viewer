@@ -29,7 +29,13 @@ const Avatar: React.FC<AvatarProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   const hasImage = !!uri && !imageError;
-  const initial = (name ?? '').charAt(0).toUpperCase() || '?';
+  const initials =
+    (name ?? '')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]!.toUpperCase())
+      .join('') || '?';
 
   const avatarContent = (
     <View style={{ width: size, height: size, position: 'relative' }}>
@@ -55,8 +61,8 @@ const Avatar: React.FC<AvatarProps> = ({
             justifyContent: 'center',
           }}
         >
-          <Text style={{ fontSize: size * 0.38, fontWeight: '600', color: '#FFFFFF' }}>
-            {initial}
+          <Text style={{ fontSize: size * 0.38, fontWeight: '600', color: COLORS.onPrimary }}>
+            {initials}
           </Text>
         </View>
       )}

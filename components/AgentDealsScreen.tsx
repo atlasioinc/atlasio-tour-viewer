@@ -29,6 +29,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
+import { Avatar } from './shared';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { useAgentDeals } from '../hooks/useData';
 import { getSlotStatusDot, isMilestoneStale } from '../features/partners/lib/dealMilestones';
@@ -372,20 +373,11 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onPress }) => {
             const dot = getSlotStatusDot(partner, partner.partner_role);
             return (
               <View key={partner.partner_id} style={{ position: 'relative' }}>
-                <View
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: DIMENSIONS.pillRadius,
-                    backgroundColor: partner.partner_avatar_color ?? COLORS.secondaryText,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.background }}>
-                    {(partner.name ?? '').charAt(0)}
-                  </Text>
-                </View>
+                <Avatar
+                  name={partner.name ?? ''}
+                  color={partner.partner_avatar_color ?? COLORS.secondaryText}
+                  size={28}
+                />
                 {/* Status dot — bottom-right on avatar */}
                 <View
                   style={{

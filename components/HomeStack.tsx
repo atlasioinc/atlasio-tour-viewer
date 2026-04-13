@@ -168,8 +168,8 @@ const HomeStack: React.FC = () => (
         animation: 'slide_from_bottom',
       }}
     />
-    <Stack.Screen name="Notifications" component={NotificationsTab} />
-    <Stack.Screen name="ProProfile" component={ProProfile} />
+    <Stack.Screen name="Notifications" component={NotificationsTab} options={{ gestureEnabled: true }} />
+    <Stack.Screen name="ProProfile" component={ProProfile} options={{ gestureEnabled: true }} />
     <Stack.Screen
       name="PostJobWizard"
       component={PostJobWizard}
@@ -219,13 +219,13 @@ const HomeStack: React.FC = () => (
         headerShown: false,
       }}
     />
-    <Stack.Screen name="AgentDealsScreen" component={AgentDealsScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="AgentDealsScreen" component={AgentDealsScreen} options={{ headerShown: false, gestureEnabled: true }} />
     <Stack.Screen
       name="DealClosedCelebration"
       component={DealClosedCelebrationScreen}
       options={{ presentation: 'fullScreenModal', headerShown: false }}
     />
-    <Stack.Screen name="ClosedDeals" component={ClosedDealsScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="ClosedDeals" component={ClosedDealsScreen} options={{ headerShown: false, gestureEnabled: true }} />
     <Stack.Screen
       name="DealCreation"
       component={DealCreationSheet}
@@ -241,12 +241,12 @@ const HomeStack: React.FC = () => (
     <Stack.Screen
       name="AgentJobDetail"
       component={AgentJobDetailScreen}
-      options={{ headerShown: false }}
+      options={{ headerShown: false, gestureEnabled: true }}
     />
     <Stack.Screen
       name="AgentDealDetail"
       component={AgentDealDetailScreen}
-      options={{ headerShown: false }}
+      options={{ headerShown: false, gestureEnabled: true }}
     />
     <Stack.Screen
       name="CategoryMapScreen"

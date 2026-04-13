@@ -176,11 +176,13 @@ const AvatarPlaceholder: React.FC<{
   color: string;
   size?: number;
 }> = ({ name, color, size = 64 }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
+  const initials =
+    (name ?? '')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]!.toUpperCase())
+      .join('') || '?';
   return (
     <View
       style={{
@@ -194,7 +196,7 @@ const AvatarPlaceholder: React.FC<{
         borderColor: COLORS.accentBlue,
       }}
     >
-      <Text style={{ fontSize: size * 0.32, fontWeight: '600', color: '#FFFFFF' }}>
+      <Text style={{ fontSize: size * 0.32, fontWeight: '600', color: COLORS.onPrimary }}>
         {initials}
       </Text>
     </View>

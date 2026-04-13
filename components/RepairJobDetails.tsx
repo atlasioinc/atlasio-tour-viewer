@@ -53,7 +53,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useJob, useJobBids } from '../hooks/useData';
 import { useRealtimeBids } from '../hooks/useRealtime';
-import { VerificationBanner } from './shared';
+import { Avatar, VerificationBanner } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Which bid action modal is currently visible
@@ -277,19 +277,6 @@ const JobStatusTimeline: React.FC<{
 );
 
 // ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({ name, color, size = 52 }) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.3, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
 // PHOTO PLACEHOLDER
 // ─────────────────────────────────────────────
 
@@ -360,7 +347,7 @@ const BidCard: React.FC<{
   >
     {/* Header: Avatar + Name/Company/Rating + Message Icon */}
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <AvatarPlaceholder name={bid.name} color={bid.avatar_color} size={52} />
+      <Avatar name={bid.name} color={bid.avatar_color} size={52} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.headingText, lineHeight: 24 }}>
           {bid.name}
@@ -1432,7 +1419,7 @@ const RepairJobDetails: React.FC = () => {
 
             <View style={{ padding: 24, gap: 16 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <AvatarPlaceholder name={selectedBid?.name || ''} color={selectedBid?.avatar_color || '#CCC'} size={56} />
+                <Avatar name={selectedBid?.name || ''} color={selectedBid?.avatar_color || '#CCC'} size={56} />
                 <View style={{ flex: 1, gap: 0 }}>
                   <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText, lineHeight: 24 }}>
                     {selectedBid?.name}
@@ -1789,7 +1776,7 @@ const RepairJobDetails: React.FC = () => {
                   borderRadius: 10,
                 }}
               >
-                <AvatarPlaceholder name={selectedBid?.name || ''} color={selectedBid?.avatar_color || '#CCC'} size={40} />
+                <Avatar name={selectedBid?.name || ''} color={selectedBid?.avatar_color || '#CCC'} size={40} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.headingText, lineHeight: 20 }}>
                     {selectedBid?.name}

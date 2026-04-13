@@ -30,6 +30,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
+import { Avatar } from './shared';
 import { COLORS, DIMENSIONS, SPACING } from '../lib/tokens';
 import FormField from './FormField';
 import { useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard, useUpdateClosingDetails, useGenerateClientToken, useCloseTransaction, useCancelTransaction } from '../hooks/useData';
@@ -422,16 +423,11 @@ const AgentDealDetailScreen: React.FC = () => {
               <View style={{ paddingHorizontal: 16 }}>
                 {/* ── 1. Partner Header Row ── */}
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {/* Avatar */}
-                  <View style={{
-                    width: 36, height: 36, borderRadius: 9999,
-                    backgroundColor: partner.partner_avatar_color ?? COLORS.secondaryText,
-                    alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>
-                      {(partner.name ?? '').charAt(0)}
-                    </Text>
-                  </View>
+                  <Avatar
+                    name={partner.name ?? ''}
+                    color={partner.partner_avatar_color ?? COLORS.secondaryText}
+                    size={36}
+                  />
 
                   {/* Name + role */}
                   <View style={{ flex: 1, marginLeft: SPACING.lg }}>

@@ -54,7 +54,7 @@ import InfoBanner from './InfoBanner';
 import FormField from './FormField';
 import InviteContractorsModal from './InviteContractorsModal';
 import type { NetworkContractor } from './InviteContractorsModal';
-import { AddressAutocompleteInput } from './shared';
+import { Avatar, AddressAutocompleteInput } from './shared';
 import { COLORS } from '../lib/tokens';
 import { useCreateJob, useInviteContractors } from '../hooks/useData';
 
@@ -610,25 +610,17 @@ const StepDetails: React.FC<StepProps> = ({ form, setForm, showErrors, onInviteT
         {/* ── Selected pros avatar row ── */}
         {form.inviteSpecificPros && selectedInvitedContractors.length > 0 && (
           <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
-            {selectedInvitedContractors.map((c) => {
-              const initials = c.name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-              return (
-                <View key={c.id} style={{ alignItems: 'center', width: 52 }}>
-                  <View style={{
-                    width: 40, height: 40, borderRadius: 9999,
-                    backgroundColor: c.avatarColor, alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>{initials}</Text>
-                  </View>
-                  <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.darkText, textAlign: 'center', marginTop: 4 }} numberOfLines={1}>
-                    {c.name.split(' ')[0]}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: COLORS.secondaryText, textAlign: 'center' }} numberOfLines={1}>
-                    {c.trades[0]}
-                  </Text>
-                </View>
-              );
-            })}
+            {selectedInvitedContractors.map((c) => (
+              <View key={c.id} style={{ alignItems: 'center', width: 52 }}>
+                <Avatar name={c.name} color={c.avatarColor} size={40} />
+                <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.darkText, textAlign: 'center', marginTop: 4 }} numberOfLines={1}>
+                  {c.name.split(' ')[0]}
+                </Text>
+                <Text style={{ fontSize: 12, color: COLORS.secondaryText, textAlign: 'center' }} numberOfLines={1}>
+                  {c.trades[0]}
+                </Text>
+              </View>
+            ))}
           </View>
         )}
       </View>
@@ -739,25 +731,17 @@ const StepReview: React.FC<{ form: PostJobFormData; selectedInvitedContractors?:
               <Text style={{ fontSize: 16, fontWeight: '600', color: '#1C1C1E', lineHeight: 24 }}>Invite Specific Pros</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
-              {selectedInvitedContractors.map((c) => {
-                const initials = c.name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-                return (
-                  <View key={c.id} style={{ alignItems: 'center', width: 52 }}>
-                    <View style={{
-                      width: 40, height: 40, borderRadius: 9999,
-                      backgroundColor: c.avatarColor, alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>{initials}</Text>
-                    </View>
-                    <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.darkText, textAlign: 'center', marginTop: 4 }} numberOfLines={1}>
-                      {c.name.split(' ')[0]}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: COLORS.secondaryText, textAlign: 'center' }} numberOfLines={1}>
-                      {c.trades[0]}
-                    </Text>
-                  </View>
-                );
-              })}
+              {selectedInvitedContractors.map((c) => (
+                <View key={c.id} style={{ alignItems: 'center', width: 52 }}>
+                  <Avatar name={c.name} color={c.avatarColor} size={40} />
+                  <Text style={{ fontSize: 13, fontWeight: '500', color: COLORS.darkText, textAlign: 'center', marginTop: 4 }} numberOfLines={1}>
+                    {c.name.split(' ')[0]}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: COLORS.secondaryText, textAlign: 'center' }} numberOfLines={1}>
+                    {c.trades[0]}
+                  </Text>
+                </View>
+              ))}
             </View>
           </View>
         )}

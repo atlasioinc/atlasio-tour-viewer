@@ -30,6 +30,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../../../lib/tokens';
+import { Avatar } from '../../../components/shared';
 import { FEATURE_FLAGS } from '../../../lib/featureFlags';
 import ActiveDealCard from './ActiveDealCard';
 import {
@@ -346,19 +347,12 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                         ...SHADOWS.card,
                       }}
                     >
-                      {/* Avatar initials */}
-                      <View style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: DIMENSIONS.pillRadius,
-                        backgroundColor: item.requester_avatar_color,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: SPACING.md,
-                      }}>
-                        <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background }}>
-                          {(item.requester_name ?? '').split(' ').map(n => n[0]).join('')}
-                        </Text>
+                      <View style={{ marginBottom: SPACING.md }}>
+                        <Avatar
+                          name={item.requester_name ?? ''}
+                          color={item.requester_avatar_color}
+                          size={44}
+                        />
                       </View>
 
                       <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText }}>{item.requester_name}</Text>
@@ -643,18 +637,7 @@ const HomeTabPartner: React.FC<HomeTabPartnerProps> = ({ partnerRole = 'Mortgage
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
-                  <View style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: DIMENSIONS.pillRadius,
-                    backgroundColor: vouch.avatarColor,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.background }}>
-                      {(vouch.name ?? '').split(' ').map(n => n[0]).join('')}
-                    </Text>
-                  </View>
+                  <Avatar name={vouch.name ?? ''} color={vouch.avatarColor} size={32} />
                   <View style={{ marginLeft: SPACING.md }}>
                     <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText }}>{vouch.name}</Text>
                     <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText }}>{vouch.role}</Text>

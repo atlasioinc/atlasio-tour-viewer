@@ -24,7 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
-import { SkeletonBlock } from './shared';
+import { Avatar, SkeletonBlock } from './shared';
 
 // ─────────────────────────────────────────────
 // NAVIGATION TYPES
@@ -289,32 +289,6 @@ const EMPTY_STATE_CONFIG: Record<FilterOption, { icon: React.ReactNode; headline
   completed: { icon: <CheckCircleIcon />, headline: 'No completed jobs',     body: 'Finished jobs will appear here.' },
 };
 
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size: number }> = ({ name, color, size }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {/* Fixed minimum — size * 0.38 resolves to ~9pt which is illegible */}
-      <Text style={{ fontSize: Math.max(10, size * 0.38), fontWeight: '600', color: COLORS.background }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
-
 // ─────────────────────────────────────────────
 // JOB CARD
 // ─────────────────────────────────────────────
@@ -423,7 +397,7 @@ const JobCard: React.FC<{ job: TrackerJob; onPress: () => void }> = ({ job, onPr
         {/* Agent + Due date row */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <AvatarPlaceholder name={job.agentName} color={job.agentAvatar} size={24} />
+            <Avatar name={job.agentName} color={job.agentAvatar} size={24} />
             <Text style={{ ...TYPOGRAPHY.bodyS, color: COLORS.secondaryText }}>
               {job.agentName}
             </Text>

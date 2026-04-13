@@ -28,6 +28,7 @@ import type { HomeStackParamList } from './HomeStack';
 import type { Job, BidWithProfile } from '../types';
 import { MOCK_REPAIR_JOBS } from './RepairJobsData';
 import { COLORS } from '../lib/tokens';
+import { Avatar } from './shared';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useNotifications as useNotificationsHook } from '../hooks/useData';
 import { adaptNotificationToLocal } from '../lib/typeAdapters';
@@ -139,19 +140,6 @@ const BackIcon: React.FC = () => (
     <Path d="M15 18L9 12L15 6" stroke={COLORS.headingText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
-
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({ name, color, size = 48 }) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.3, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────
 // ICON CIRCLE — gray background with type icon
@@ -540,7 +528,7 @@ const NotificationsTab: React.FC = () => {
       >
         {/* Icon / Avatar */}
         {isConnectionRequest && item.avatar_name ? (
-          <AvatarPlaceholder name={item.avatar_name} color={item.avatar_color || '#A8C5DA'} />
+          <Avatar name={item.avatar_name} color={item.avatar_color || '#A8C5DA'} size={48} />
         ) : (
           <IconCircle type={item.type} />
         )}

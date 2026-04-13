@@ -50,7 +50,7 @@ import { COLORS, SPACING, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useConnections, useConnectionRequests as useConnectionRequestsHook, useInboxThreads } from '../hooks/useData';
 import { adaptConnectionToNetworkContact, adaptConnectionToRequest } from '../lib/typeAdapters';
-import { VerificationBanner, SkeletonBlock } from './shared';
+import { Avatar, VerificationBanner, SkeletonBlock } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 import { useDemoRole } from '../lib/demoRoleContext';
 import { usePartnerAcceptedConnections } from '../features/partners/hooks/usePartnerData';
@@ -222,19 +222,6 @@ const CONTRACTORS: NetworkContact[] = [
 const ALL_CONTACTS = [...PARTNERS, ...CONTRACTORS];
 
 // ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({ name, color, size = 56 }) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.32, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────
 // CONNECTION REQUEST CARD (Session 16)
 // ─────────────────────────────────────────────
 // Horizontal scroll card for incoming connection requests.
@@ -297,7 +284,7 @@ const NetworkProCard: React.FC<{
     {/* Top row: Avatar + Info */}
     <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
       <View style={{ flexDirection: 'row', gap: 16, flex: 1 }}>
-        <AvatarPlaceholder name={contact.name} color={contact.avatarColor} />
+        <Avatar name={contact.name} color={contact.avatarColor} size={56} />
         <View style={{ gap: 4, flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }} numberOfLines={1}>
             {contact.name}
@@ -436,7 +423,6 @@ const PartnerNetworkView: React.FC = () => {
 
             <View style={{ paddingHorizontal: SPACING.xl, gap: SPACING.lg }}>
               {agentList.map(conn => {
-                const initials = (conn.agent_name ?? '').split(' ').map(n => (n[0] ?? '')).join('').substring(0, 2);
                 const dealCount = conn.deal_count ?? 0;
 
                 return (
@@ -453,16 +439,11 @@ const PartnerNetworkView: React.FC = () => {
                   >
                     {/* Agent info row */}
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      {/* Avatar */}
-                      <View style={{
-                        width: 40, height: 40, borderRadius: DIMENSIONS.pillRadius,
-                        backgroundColor: conn.agent_avatar_color ?? '#999999',
-                        alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.background }}>
-                          {initials}
-                        </Text>
-                      </View>
+                      <Avatar
+                        name={conn.agent_name ?? ''}
+                        color={conn.agent_avatar_color ?? '#999999'}
+                        size={40}
+                      />
 
                       {/* Name + company */}
                       <View style={{ flex: 1, marginLeft: SPACING.lg }}>
@@ -582,20 +563,7 @@ const ConnectionRequestCard: React.FC<ConnectionRequestCardProps> = ({ request, 
         >
           {/* Sender info row */}
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 9999,
-                backgroundColor: request.avatarColor,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#FFFFFF' }}>
-                {request.name.split(' ').map((n) => n[0]).join('').substring(0, 2)}
-              </Text>
-            </View>
+            <Avatar name={request.name} color={request.avatarColor} size={44} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text
                 style={{

@@ -45,6 +45,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Swipeable } from 'react-native-gesture-handler';
 import { COLORS, DIMENSIONS, TYPOGRAPHY } from '../lib/tokens';
+import { Avatar } from './shared';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -104,38 +105,6 @@ const TrashIcon: React.FC = () => (
     />
   </Svg>
 );
-
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{
-  name: string;
-  color: string;
-  size?: number;
-}> = ({ name, color, size = 48 }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFFFFF' }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────
 // STATUS BADGE
@@ -370,7 +339,7 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onPress, isPast = false }
   >
     {/* Avatar */}
     <View style={{ position: 'relative' }}>
-      <AvatarPlaceholder name={thread.agentName} color={thread.agentAvatar} size={48} />
+      <Avatar name={thread.agentName} color={thread.agentAvatar} size={48} />
       {/* Unread dot */}
       {thread.unreadCount > 0 && (
         <View

@@ -44,7 +44,7 @@ import { COLORS, SHADOWS } from '../lib/tokens';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { useMyProfile, useAgentActiveDeals, useAgentActiveJobs } from '../hooks/useData';
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
-import { VerificationBanner, SkeletonBlock, ErrorToast } from './shared';
+import { Avatar, VerificationBanner, SkeletonBlock, ErrorToast } from './shared';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { CardButton } from './Button';
 import QuickActionsRow from './QuickActionsRow';
@@ -957,14 +957,15 @@ const HomeTabAgent: React.FC = () => {
                         style={{
                           fontSize: 20,
                           fontWeight: '600',
-                          color: COLORS.background,
+                          color: COLORS.onPrimary,
                         }}
                       >
-                        {member.name
+                        {(member.name ?? '')
                           .split(' ')
-                          .map((n: string) => n[0])
-                          .join('')
-                          .substring(0, 2)}
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((n: string) => n[0]!.toUpperCase())
+                          .join('') || '?'}
                       </Text>
                     ) : !slot.isAddNew ? (
                       <View
@@ -1125,15 +1126,11 @@ const HomeTabAgent: React.FC = () => {
                         const dot = getSlotStatusDot(partner, partner.partner_role);
                         return (
                           <View key={partner.partner_id ?? `partner-${idx}`} style={{ position: 'relative' }}>
-                            <View style={{
-                              width: 28, height: 28, borderRadius: 9999,
-                              backgroundColor: partner.partner_avatar_color ?? COLORS.secondaryText,
-                              alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.background }}>
-                                {(partner.name ?? '').charAt(0)}
-                              </Text>
-                            </View>
+                            <Avatar
+                              name={partner.name ?? ''}
+                              color={partner.partner_avatar_color ?? COLORS.secondaryText}
+                              size={28}
+                            />
                             {/* Status dot — bottom-right on avatar */}
                             <View style={{
                               position: 'absolute', bottom: -1, right: -1,

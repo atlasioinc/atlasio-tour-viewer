@@ -43,6 +43,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
+import { Avatar } from './shared';
 import VouchPromptModal from './VouchPromptModal';
 import { useMarkJobComplete, useConfirmJobComplete } from '../hooks/useData';
 
@@ -253,38 +254,6 @@ const ImagePlaceholderIcon: React.FC = () => (
     <Path d="M4 22L11 15L16 20L20 16L28 24" stroke={COLORS.lightText} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
-
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER (matches existing pattern)
-// ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{
-  name: string;
-  color: string;
-  size?: number;
-}> = ({ name, color, size = 48 }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.32, fontWeight: '600', color: '#FFFFFF' }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────
 // STATUS TIMELINE
@@ -866,7 +835,7 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
                   gap: 10,
                 }}
               >
-                <AvatarPlaceholder
+                <Avatar
                   name={job.awardedBid.contractorName}
                   color={job.awardedBid.contractorAvatar}
                   size={40}

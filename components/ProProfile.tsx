@@ -238,7 +238,6 @@ const LightningStatIcon: React.FC = () => (
 // ─────────────────────────────────────────────
 
 const VouchCard: React.FC<{ vouch: VouchEntry }> = ({ vouch }) => {
-  const initial = vouch.name.charAt(0).toUpperCase();
   return (
     <View
       style={{
@@ -250,20 +249,7 @@ const VouchCard: React.FC<{ vouch: VouchEntry }> = ({ vouch }) => {
         gap: 12,
       }}
     >
-      <View
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 9999,
-          backgroundColor: vouch.avatarColor || COLORS.primary,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text style={{ fontSize: 12, fontWeight: '400', color: '#FFFFFF', lineHeight: 16 }}>
-          {initial}
-        </Text>
-      </View>
+      <Avatar name={vouch.name} color={vouch.avatarColor || COLORS.primary} size={32} />
       <View style={{ flex: 1, gap: 4 }}>
         <Text style={{ ...TYPOGRAPHY.bodyMBold, color: COLORS.darkText }}>
           {vouch.name}

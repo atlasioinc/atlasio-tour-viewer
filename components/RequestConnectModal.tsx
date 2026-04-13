@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
+import { Avatar } from './shared';
 
 // ─────────────────────────────────────────────
 // PROPS
@@ -47,34 +48,6 @@ const CloseIcon: React.FC = () => (
     <Line x1={15} y1={5} x2={5} y2={15} stroke="#99A1AF" strokeWidth={1.67} strokeLinecap="round" />
   </Svg>
 );
-
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER
-// ─────────────────────────────────────────────
-
-const ModalAvatar: React.FC<{ name: string; color: string }> = ({ name, color }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: 56,
-        height: 56,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.background }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -194,7 +167,7 @@ const RequestConnectModal: React.FC<RequestConnectModalProps> = ({
                   borderBottomColor: COLORS.cardBorder,
                 }}
               >
-                <ModalAvatar name={name} color={avatarColor} />
+                <Avatar name={name} color={avatarColor} size={56} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text
                     style={{

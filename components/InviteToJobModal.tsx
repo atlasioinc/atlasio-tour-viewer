@@ -27,6 +27,7 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SearchField from './SearchField';
 import ConfirmationModal from './ConfirmationModal';
+import { Avatar } from './shared';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS (Figma-exact)
@@ -162,19 +163,6 @@ const SheetCloseIcon: React.FC = () => (
     <Path d="M5 5L15 15M15 5L5 15" stroke="#4A5565" strokeWidth={1.67} strokeLinecap="round" />
   </Svg>
 );
-
-// ─────────────────────────────────────────────
-// AVATAR PLACEHOLDER (shared pattern)
-// ─────────────────────────────────────────────
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({ name, color, size = 44 }) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  const fontSize = size * 0.35;
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize, fontWeight: '600', color: '#FFFFFF', lineHeight: fontSize * 1.5 }}>{initials}</Text>
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────
 // STATUS PILL — Figma-exact colors per status
@@ -461,7 +449,7 @@ const InviteToJobModal: React.FC<InviteToJobModalProps> = ({
             {/* Contractor identity card */}
             <View style={{ marginHorizontal: 20, backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <AvatarPlaceholder name={contractor.name} color={contractor.avatarColor} size={44} />
+                <Avatar name={contractor.name} color={contractor.avatarColor} size={44} />
                 <View style={{ gap: 0 }}>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>{contractor.name}</Text>
                   <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
@@ -562,7 +550,7 @@ const InviteToJobModal: React.FC<InviteToJobModalProps> = ({
 
               {/* Row 2: Contractor mini-avatar + name */}
               <View style={{ height: 40, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 8 }}>
-                <AvatarPlaceholder name={contractor.name} color={contractor.avatarColor} size={28} />
+                <Avatar name={contractor.name} color={contractor.avatarColor} size={28} />
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.bodyText, lineHeight: 20 }}>
                   {`Inviting ${contractor.name}`}
                 </Text>

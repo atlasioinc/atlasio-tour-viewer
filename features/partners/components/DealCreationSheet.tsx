@@ -38,6 +38,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, SHADOWS } from '../../../lib/tokens';
+import { Avatar } from '../../../components/shared';
 import { GOOGLE_MAPS_API_KEY } from '../../../lib/config';
 import { useCreateTransaction, useAgentPartnerConnections } from '../../../hooks/useData';
 
@@ -564,16 +565,7 @@ export default function DealCreationSheet() {
                     paddingVertical: 10, opacity: pressed ? 0.7 : 1,
                   })}
                 >
-                  {/* Avatar */}
-                  <View style={{
-                    width: 28, height: 28, borderRadius: 9999,
-                    backgroundColor: partner.avatar_color,
-                    alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.background }}>
-                      {partner.name.charAt(0)}
-                    </Text>
-                  </View>
+                  <Avatar name={partner.name} color={partner.avatar_color} size={28} />
 
                   {/* Name + role */}
                   <View style={{ flex: 1, marginLeft: 10 }}>

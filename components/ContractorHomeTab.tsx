@@ -52,6 +52,7 @@ import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { useMyProfile } from '../hooks/useData';
 import { DisplayTag } from './DisplayTag';
 import { CardButton } from './Button';
+import { Avatar } from './shared';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -193,34 +194,6 @@ const LightningIcon: React.FC = () => (
 // ─────────────────────────────────────────────
 // AVATAR PLACEHOLDER
 // ─────────────────────────────────────────────
-
-const AvatarPlaceholder: React.FC<{
-  name: string;
-  color: string;
-  size?: number;
-}> = ({ name, color, size = 40 }) => {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2);
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 9999,
-        backgroundColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFFFFF' }}>
-        {initials}
-      </Text>
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────
 // FEE TIER BADGE
@@ -558,7 +531,7 @@ const ActiveWorkCard: React.FC<{ job: ActiveJob; onPress: () => void }> = ({ job
 
       {/* Agent info */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <AvatarPlaceholder name={job.agentName} color={job.agentAvatar} size={32} />
+        <Avatar name={job.agentName} color={job.agentAvatar} size={32} />
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
@@ -647,7 +620,7 @@ const JobInviteCard: React.FC<{
 
     {/* Row 7: Agent info */}
     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: invite.note ? 8 : 0 }}>
-      <AvatarPlaceholder name={invite.agentName} color={invite.agentAvatar} size={24} />
+      <Avatar name={invite.agentName} color={invite.agentAvatar} size={24} />
       <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 8 }} numberOfLines={1}>
         {invite.agentName}
       </Text>

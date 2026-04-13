@@ -16,6 +16,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { COLORS } from '../lib/tokens';
+import { Avatar } from './shared';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -38,19 +39,6 @@ interface MessageBubbleProps {
   message: Message;
   showSender?: boolean;
 }
-
-// ─────────────────────────────────────────────
-// SENDER AVATAR (40px for deal chats)
-// ─────────────────────────────────────────────
-
-const SenderAvatar: React.FC<{ name: string; color: string }> = ({ name, color }) => {
-  const initials = name.split(' ').slice(0, 2).map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: 40, height: 40, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 14, fontWeight: '500', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
-};
 
 // ═══════════════════════════════════════════════════════════════
 // COMPONENT
@@ -96,7 +84,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, showSender = fal
     return (
       <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'flex-end', gap: 12 }}>
         {senderAvatarColor && senderName && (
-          <SenderAvatar name={senderName} color={senderAvatarColor} />
+          <Avatar name={senderName} color={senderAvatarColor} size={40} />
         )}
 
         <View style={{ flex: 1, maxWidth: 271, gap: 4 }}>

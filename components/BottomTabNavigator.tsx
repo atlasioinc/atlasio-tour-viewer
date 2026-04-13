@@ -152,7 +152,7 @@ const ContractorInboxStackNav = createNativeStackNavigator();
 const ContractorInboxStackScreen: React.FC = () => (
   <ContractorInboxStackNav.Navigator screenOptions={{ headerShown: false }}>
     <ContractorInboxStackNav.Screen name="ContractorInboxMain" component={ContractorInboxList} />
-    <ContractorInboxStackNav.Screen name="ChatScreen" component={ChatScreen} />
+    <ContractorInboxStackNav.Screen name="ChatScreen" component={ChatScreen} options={{ gestureEnabled: true }} />
   </ContractorInboxStackNav.Navigator>
 );
 

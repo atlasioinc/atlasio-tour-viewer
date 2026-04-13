@@ -44,7 +44,7 @@ import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
 import { useRespondToCounter, useStartJob } from '../hooks/useData';
 import { CounterButton, DangerButton } from './Button';
-import { SkeletonBlock } from './shared';
+import { Avatar, SkeletonBlock } from './shared';
 
 // ─────────────────────────────────────────────
 // ROUTE PARAMS
@@ -143,15 +143,6 @@ const CameraIcon: React.FC<{ width?: number; height?: number; color?: string }> 
 
 const centsToDisplay = (cents: number): string => {
   return `$${(cents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-};
-
-const AvatarPlaceholder: React.FC<{ name: string; color: string; size?: number }> = ({ name, color, size = 40 }) => {
-  const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 9999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-    </View>
-  );
 };
 
 // =============================================================================
@@ -1231,7 +1222,7 @@ const ContractorJobDetails: React.FC = () => {
               ...SHADOWS.card,
             }}
           >
-            <AvatarPlaceholder name={job.agent.name} color={job.agent.avatarColor} size={40} />
+            <Avatar name={job.agent.name} color={job.agent.avatarColor} size={40} />
             <View style={{ flex: 1, marginLeft: 12, gap: 2 }}>
               <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
                 {job.agent.name}

@@ -60,7 +60,7 @@ const ProfileStack: React.FC = () => (
         animation: 'slide_from_bottom',
       }}
     />
-    <Stack.Screen name="Settings" component={SettingsScreen} />
+    <Stack.Screen name="Settings" component={SettingsScreen} options={{ gestureEnabled: true }} />
     <Stack.Screen
       name="Verification"
       component={VerificationScreen}
@@ -86,7 +86,7 @@ const ProfileStack: React.FC = () => (
         animation: 'slide_from_bottom',
       }}
     />
-    <Stack.Screen name="PaymentSettings" component={PaymentSettingsScreen} />
+    <Stack.Screen name="PaymentSettings" component={PaymentSettingsScreen} options={{ gestureEnabled: true }} />
   </Stack.Navigator>
 );
 
