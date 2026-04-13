@@ -31,15 +31,16 @@
 
 ---
 
-## Current Metrics (updated S143 — April 13, 2026)
+## Current Metrics (updated S144 — April 13, 2026)
 - **RPCs:** 66 (+1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 65 (unchanged S143; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+- **Hooks:** 65 (unchanged S144; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
+- **Shared Components:** +1 S144 (AddressAutocompleteInput — Google Places autocomplete extracted from PostJobWizard)
 - **Storage Buckets:** 7
 - **Tables:** 22+ (schema.sql documents 22 as of S93; messaging tables predate tracking)
-- **COLORS tokens:** 123
+- **COLORS tokens:** 125 (+2 S144: jobGreen, jobPurple)
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
 
@@ -1154,12 +1155,32 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics:** RPCs: 65 → 66, Hooks: 65, Edge Functions: 11, Feature Flags: 11 (all unchanged)
 - **tsc:** 0 errors | **Lint:** 0 errors (3 pre-existing unused-var warnings in ContractorHomeTab/PostPhotoJobScreen/PostStagingJobScreen — untouched)
 
-### S144 — Next Objectives
+### S144 — Address Autocomplete + Date Picker on Job Screens, Icon Color Fix, Extract AddressAutocompleteInput (April 13, 2026)
+- **Fix 1 — components/shared/AddressAutocompleteInput.tsx (NEW):** Extracted the Google Places (New) autocomplete pattern from PostJobWizard into a reusable shared component. Self-contained state (query, suggestions, showAutocomplete, debounced timer). Calls POST `places.googleapis.com/v1/places:autocomplete` with `X-Goog-Api-Key: GOOGLE_MAPS_API_KEY`. 400ms debounce, 3-char minimum. Matches existing input styling via `COLORS.inputBackground`/`inputActiveBorder`. Props: `value`, `onSelect`, `placeholder`, optional `label`.
+- **Fix 2 — components/shared/index.ts:** Added `AddressAutocompleteInput` barrel export.
+- **Fix 3 — components/PostJobWizard.tsx:** Replaced ~90 lines of inline autocomplete state, `fetchAutocompleteSuggestions`, handlers, and JSX with `<AddressAutocompleteInput>`. Removed now-unused `TextInput`, `useRef`, `useEffect`, `SHADOWS`, `GOOGLE_MAPS_API_KEY`, inline `PinIcon`, and local `PlaceSuggestion` type. Date picker unchanged (already correct).
+- **Fix 4 — components/PostPhotoJobScreen.tsx:** Address TextInput replaced with `<AddressAutocompleteInput>`. `dateNeeded: string` → `Date | null` + `showDatePicker` state. Added inline `DateTimePicker` with `display="inline"`, `themeVariant="light"`, `minimumDate={new Date()}`, iOS/Android event handling matching PostJobWizard. `p_due_date` now sent as `toISOString().split('T')[0]` (YYYY-MM-DD) matching PostJobWizard convention. Header circle: `'#1A6B3C'` → `COLORS.jobGreen`. `CameraIcon` gains optional `color` prop (default `COLORS.primary`); header passes `COLORS.onPrimary` (white) for contrast.
+- **Fix 5 — components/PostStagingJobScreen.tsx:** Address TextInput replaced with `<AddressAutocompleteInput>`. **Timeline chips kept unchanged.** Added optional `specificDate: Date | null` state + `DateTimePicker` section below timeline chips ("Specific Date (optional)"). `p_due_date` sends `specificDate.toISOString().split('T')[0]` when set, otherwise falls back to existing timeline key. Header circle: `'#7C3AED'` → `COLORS.jobPurple`. `ChairIcon` gains optional `color` prop (default `COLORS.primary`); header passes `COLORS.onPrimary`.
+- **Fix 6 — lib/tokens.ts:** Added `jobGreen: '#1A6B3C'` and `jobPurple: '#7C3AED'` under new "Job Category Icon Circles" section. No more inline hex in Post*JobScreen headers.
+- **Files created:** `components/shared/AddressAutocompleteInput.tsx`
+- **Files modified:** `components/PostJobWizard.tsx`, `components/PostPhotoJobScreen.tsx`, `components/PostStagingJobScreen.tsx`, `components/shared/index.ts`, `lib/tokens.ts`
+- **Key decisions:**
+  - Extract-on-second-use: PostJobWizard had the correct inline implementation; extraction was deferred until PhotoJob and StagingJob needed it (this session).
+  - StagingJob keeps timeline chips + adds optional specific-date override rather than replacing them — business rule preserves the coarse-grained option.
+  - Icon color prop defaults to `COLORS.primary` (blue) so existing usage in any other screen is unaffected; headers explicitly pass `COLORS.onPrimary` for colored-background contrast.
+  - Date RPC format: `YYYY-MM-DD` string (matches PostJobWizard). `Date.toISOString().split('T')[0]` rather than new Date utilities.
+- **Metrics:** Shared Components +1 (AddressAutocompleteInput). COLORS tokens 123 → 125 (+2: jobGreen, jobPurple). Screens unchanged. RPCs/Hooks/Edge Functions/Feature Flags unchanged.
+- **tsc:** 0 errors | **Lint:** 0 errors (3 pre-existing unused-var warnings unchanged)
+- **No backend/schema changes** — pure frontend refactor and UI fix.
+
+### S145 — Next Objectives
 - **Verify profile save end-to-end on device** after Tony executes the S143 SQL. Test: edit headline 36–50 chars, change languages, change service area, hit Save, force-close app, verify values persisted.
+- **Verify job posting flows on device** — post a photo job with the new autocomplete + date picker, post a staging job with specificDate set, post a staging job with only timeline chip, confirm RPC accepts all three shapes.
 - **Contractor trades enum fix** — rename `TRADE_OPTIONS` in `EditProfileScreen.tsx` to match `trades_enum` values (`Electrical` not `Electrician`, etc.), or build a UI→enum mapping layer. `ATL-CONTRACTOR-TRADES` in `tasks/lessons.md`.
 - **Sync CLAUDE.md metrics header** — line 35 still says "RPCs: 33" from S55. Drift since then. Bump to match ATLASIO_CONTEXT.md header (66 post-S143).
+- **AddressAutocompleteInput consolidation opportunities** — `AddressComparisonScreen.tsx`, `ClientLifestyleScreen.tsx`, `EditProfileScreen.tsx`, `DealCreationSheet.tsx` still have their own inline Google Places autocomplete implementations. Migrate each to `<AddressAutocompleteInput>` where the UX matches (some may need dropdown positioning tweaks).
 - Screen Registry audit: full codebase sweep, orphan detection (unreferenced screens/routes) (carried)
 - Demo Playbook rewrite (Claude Chat — carried from S140)
-- Token audit: add `COLORS.topBarBorder`, `COLORS.onPrimary`, rgba overlay tokens (carried)
+- Token audit: add `COLORS.topBarBorder`, rgba overlay tokens (carried — `onPrimary` already exists)
 - Cleanup: remove AgentJobDetailScreen + route if confirmed fully unused (carried)
 - Cleanup: unify duplicate HomeStackParamList (types/index.ts vs HomeStack.tsx) (carried)

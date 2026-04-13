@@ -328,7 +328,7 @@
 **Wiring:** ✅ Live (rpc_create_job wired S89)
 
 **What's on this screen:**
-- Single-screen form: address, sqft, date, service packages (chips), turnaround (pills), notes
+- Single-screen form: address (Google Places autocomplete S144), sqft, date (native DateTimePicker S144), service packages (chips), turnaround (pills), notes
 - Submit CTA
 
 **Entry Points:**
@@ -339,6 +339,7 @@
 - ← X → goBack()
 
 **@demo:** p_title auto-generated as 'Photography Job' — add TextInput before launch. sqft not sent (no RPC param).
+**S144:** address now uses shared `<AddressAutocompleteInput>`. `dateNeeded` is `Date | null`, sent as `YYYY-MM-DD`. Header icon color fixed (CameraIcon accepts `color` prop, circle uses `COLORS.jobGreen`, icon uses `COLORS.onPrimary`).
 
 ---
 
@@ -350,7 +351,7 @@
 **Wiring:** ✅ Live (rpc_create_job wired S89)
 
 **What's on this screen:**
-- Single-screen form: address, sqft, occupied/vacant toggle, room count stepper, staging scope, timeline pills, notes
+- Single-screen form: address (Google Places autocomplete S144), sqft, occupied/vacant toggle, room count stepper, staging scope, timeline pills, optional specific date (native DateTimePicker S144), notes
 - Submit CTA
 
 **Entry Points:**
@@ -360,7 +361,8 @@
 - → RepairJobDetails on success
 - ← X → goBack()
 
-**@demo:** p_title auto-generated as 'Staging Job'. p_due_date receives timeline key not ISO date.
+**@demo:** p_title auto-generated as 'Staging Job'. When `specificDate` is null, `p_due_date` still receives the timeline key (e.g. '1_week') rather than an ISO date — confirm RPC behavior post-launch.
+**S144:** address now uses shared `<AddressAutocompleteInput>`. Added optional `specificDate: Date | null` with native DateTimePicker below timeline chips; when set, sent as `YYYY-MM-DD`. Header icon color fixed (ChairIcon accepts `color` prop, circle uses `COLORS.jobPurple`, icon uses `COLORS.onPrimary`).
 
 ---
 
@@ -1177,8 +1179,8 @@ Before building PaymentSettingsScreen, confirm:
 | SendSquadScreen | 1500ms mock send | send-squad-email + send-squad-sms Edge Functions |
 | AgentDealsScreen | All deals mock | rpc_get_agent_deals (S130) |
 | ClientLifestyleScreen | All scores mock | LIVE_NEIGHBORHOOD_HOOKS (places API) |
-| PostPhotoJobScreen | p_title auto-generated, sqft not sent | Add title TextInput, add sqft param |
-| PostStagingJobScreen | p_due_date is timeline key not ISO | Replace with DatePicker |
+| PostPhotoJobScreen | p_title auto-generated, sqft not sent | Add title TextInput, add sqft param (date + address resolved S144) |
+| PostStagingJobScreen | p_due_date is timeline key when specificDate not set | S144 added optional specific-date override; decide whether timeline should become display-only |
 | InboxList | Pin/Mute backend | rpc_pin_thread, rpc_mute_thread |
 | ContractorInboxList | Thread delete | rpc_delete_chat_thread |
 
