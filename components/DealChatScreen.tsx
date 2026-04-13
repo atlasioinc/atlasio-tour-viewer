@@ -24,6 +24,7 @@ import {
   ScrollView,
   Image,
   StatusBar,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Modal,
@@ -32,7 +33,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import type { InboxStackParamList } from './InboxStack';
@@ -73,15 +74,6 @@ const DocumentPreviewIcon: React.FC = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke={COLORS.secondaryText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     <Path d="M14 2V8H20" stroke={COLORS.secondaryText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-const CalendarIcon: React.FC = () => (
-  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Rect x={2.5} y={3.33} width={15} height={15} rx={1.67} stroke={COLORS.secondaryText} strokeWidth={1.67} />
-    <Path d="M13.33 1.67V5" stroke={COLORS.secondaryText} strokeWidth={1.67} strokeLinecap="round" />
-    <Path d="M6.67 1.67V5" stroke={COLORS.secondaryText} strokeWidth={1.67} strokeLinecap="round" />
-    <Path d="M2.5 8.33H17.5" stroke={COLORS.secondaryText} strokeWidth={1.67} strokeLinecap="round" />
   </Svg>
 );
 
@@ -202,20 +194,16 @@ const DealChatScreen: React.FC = () => {
 
   // Editable deal details
   const [currentDealName, setCurrentDealName] = useState(dealName);
-  const [currentAddress, setCurrentAddress] = useState(propertyAddress);
-  const [currentClosingDate, setCurrentClosingDate] = useState(closingDate);
+  const [currentAddress] = useState(propertyAddress);
+  const [currentClosingDate] = useState(closingDate);
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editDealName, setEditDealName] = useState(currentDealName);
-  const [editAddress, setEditAddress] = useState(currentAddress);
-  const [editClosingDate, setEditClosingDate] = useState(currentClosingDate);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const openEditModal = () => {
     setEditDealName(currentDealName);
-    setEditAddress(currentAddress);
-    setEditClosingDate(currentClosingDate);
     setShowEditModal(true);
     Animated.spring(slideAnim, { toValue: 1, tension: 65, friction: 11, useNativeDriver: true }).start();
   };
@@ -229,9 +217,7 @@ const DealChatScreen: React.FC = () => {
   const handleSaveEdit = () => {
     if (editDealName.trim().length === 0) return;
     setCurrentDealName(editDealName.trim());
-    setCurrentAddress(editAddress.trim());
-    setCurrentClosingDate(editClosingDate.trim());
-    console.log('Deal details updated:', { dealName: editDealName.trim(), address: editAddress.trim(), closingDate: editClosingDate.trim() });
+    console.log('Deal details updated:', { dealName: editDealName.trim() });
     closeEditModal();
   };
 
@@ -267,6 +253,16 @@ const DealChatScreen: React.FC = () => {
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages]);
 
+  // Scroll to latest when keyboard opens (S108g pattern)
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+    return () => {
+      showSub.remove();
+    };
+  }, []);
+
   const handleSend = () => {
     if (messageText.trim().length === 0 && attachments.length === 0) return;
     const newMessage: Message = {
@@ -283,11 +279,6 @@ const DealChatScreen: React.FC = () => {
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
-
-  // Build info bar text
-  const infoBarParts: string[] = [];
-  if (currentAddress) infoBarParts.push(currentAddress);
-  if (currentClosingDate) infoBarParts.push(`Closing: ${currentClosingDate}`);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -330,24 +321,25 @@ const DealChatScreen: React.FC = () => {
         </View>
 
         {/* ══════════════════════════════════════════
-            INFO BAR — Property + Closing Date
+            INFO BAR — Property + Closing Date (stacked)
             ══════════════════════════════════════════ */}
-        {infoBarParts.length > 0 && (
-          <View
-            style={{
-              backgroundColor: COLORS.primary,
-              height: 44,
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexDirection: 'row',
-              gap: 8,
-            }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '400', color: '#FFFFFF', lineHeight: 20 }}>
-              {infoBarParts.join('  •  ')}
+        <View
+          style={{
+            backgroundColor: COLORS.primary,
+            paddingVertical: 10,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.onPrimary, textAlign: 'center' }}>
+            {currentAddress || 'Deal Chat'}
+          </Text>
+          {currentClosingDate ? (
+            <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.onPrimary, textAlign: 'center', opacity: 0.85, marginTop: 2 }}>
+              Closing {currentClosingDate}
             </Text>
-          </View>
-        )}
+          ) : null}
+        </View>
 
         {/* ══════════════════════════════════════════
             CHAT BODY
@@ -382,7 +374,7 @@ const DealChatScreen: React.FC = () => {
             backgroundColor: COLORS.background,
             borderTopWidth: 0.68,
             borderTopColor: COLORS.border,
-            paddingTop: 12,
+            paddingTop: 8,
             paddingBottom: 8,
             paddingHorizontal: 24,
           }}
@@ -428,6 +420,7 @@ const DealChatScreen: React.FC = () => {
 
             <View style={{ flex: 1, height: 45, paddingHorizontal: 16, borderRadius: 9999, borderWidth: 0.68, borderColor: COLORS.inputBorder, justifyContent: 'center' }}>
               <TextInput
+                autoFocus
                 value={messageText}
                 onChangeText={setMessageText}
                 placeholder="Type a message..."
@@ -486,129 +479,116 @@ const DealChatScreen: React.FC = () => {
                 backgroundColor: COLORS.background,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
-                paddingBottom: 40,
               }}
             >
-              {/* Handle bar */}
-              <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
-                <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DC' }} />
-              </View>
-
-              {/* Header row */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 16 }}>
-                <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>
-                  Edit Deal Details
-                </Text>
-                <Pressable
-                  onPress={closeEditModal}
-                  hitSlop={12}
-                  style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 9999, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
-                >
-                  <CloseIcon />
-                </Pressable>
-              </View>
-
-              {/* Form fields */}
-              <View style={{ paddingHorizontal: 24, gap: 20 }}>
-                {/* Deal / Chat Name */}
-                <View style={{ gap: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
-                    Deal/Chat Name <Text style={{ color: '#FB2C36' }}>*</Text>
-                  </Text>
-                  <View
-                    style={{
-                      height: 45,
-                      paddingHorizontal: 16,
-                      backgroundColor: COLORS.background,
-                      borderRadius: 10,
-                      borderWidth: 0.68,
-                      borderColor: editDealName.trim().length === 0 ? '#FB2C36' : COLORS.border,
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <TextInput
-                      value={editDealName}
-                      onChangeText={setEditDealName}
-                      placeholder="e.g., 123 Main St – Smith Buyer"
-                      placeholderTextColor="rgba(10, 10, 10, 0.35)"
-                      style={{ fontSize: 14, fontWeight: '400', color: COLORS.darkText }}
-                    />
-                  </View>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={0}
+              >
+                {/* Handle bar */}
+                <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
+                  <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.inputBorder }} />
                 </View>
 
-                {/* Property Address */}
-                <View style={{ gap: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
-                    Property Address
+                {/* Header row */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 16 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>
+                    Deal Details
                   </Text>
-                  <View
-                    style={{
-                      height: 45,
+                  <Pressable
+                    onPress={closeEditModal}
+                    hitSlop={12}
+                    style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 9999, backgroundColor: COLORS.chipBg, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
+                  >
+                    <CloseIcon />
+                  </Pressable>
+                </View>
+
+                {/* Form fields */}
+                <View style={{ paddingHorizontal: 24, gap: 20, paddingBottom: 40 }}>
+                  {/* Deal / Chat Name — editable */}
+                  <View style={{ gap: 8 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
+                      Deal/Chat Name <Text style={{ color: COLORS.errorRed }}>*</Text>
+                    </Text>
+                    <View
+                      style={{
+                        height: 45,
+                        paddingHorizontal: 16,
+                        backgroundColor: COLORS.background,
+                        borderRadius: 10,
+                        borderWidth: 0.68,
+                        borderColor: editDealName.trim().length === 0 ? COLORS.errorRed : COLORS.border,
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <TextInput
+                        value={editDealName}
+                        onChangeText={setEditDealName}
+                        placeholder="e.g., 123 Main St – Smith Buyer"
+                        placeholderTextColor={COLORS.placeholderText}
+                        style={{ fontSize: 14, fontWeight: '400', color: COLORS.darkText }}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Property Address — read-only info row */}
+                  <View style={{ gap: 6 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
+                      Property Address
+                    </Text>
+                    <View style={{
+                      paddingVertical: 12,
                       paddingHorizontal: 16,
-                      backgroundColor: COLORS.background,
+                      backgroundColor: COLORS.filterBg,
                       borderRadius: 10,
                       borderWidth: 0.68,
                       borderColor: COLORS.border,
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <TextInput
-                      value={editAddress}
-                      onChangeText={setEditAddress}
-                      placeholder="e.g., 123 Main Street, City, State 12345"
-                      placeholderTextColor="#99A1AF"
-                      style={{ fontSize: 14, fontWeight: '400', color: COLORS.darkText }}
-                    />
+                    }}>
+                      <Text style={{ fontSize: 15, color: currentAddress ? COLORS.darkText : COLORS.secondaryText }}>
+                        {currentAddress || 'Not set'}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                {/* Closing Date */}
-                <View style={{ gap: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
-                    Closing Date
-                  </Text>
-                  <View
-                    style={{
-                      height: 45,
+                  {/* Closing Date — read-only info row */}
+                  <View style={{ gap: 6 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
+                      Closing Date
+                    </Text>
+                    <View style={{
+                      paddingVertical: 12,
                       paddingHorizontal: 16,
-                      backgroundColor: COLORS.background,
+                      backgroundColor: COLORS.filterBg,
                       borderRadius: 10,
                       borderWidth: 0.68,
                       borderColor: COLORS.border,
-                      flexDirection: 'row',
+                    }}>
+                      <Text style={{ fontSize: 15, color: currentClosingDate ? COLORS.darkText : COLORS.secondaryText }}>
+                        {currentClosingDate || 'Not set'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Save button */}
+                  <Pressable
+                    onPress={handleSaveEdit}
+                    style={({ pressed }) => ({
+                      height: 50,
+                      backgroundColor: editDealName.trim().length > 0 ? COLORS.primary : COLORS.chipBg,
+                      borderRadius: 9999,
                       alignItems: 'center',
-                    }}
+                      justifyContent: 'center',
+                      marginTop: 4,
+                      opacity: pressed && editDealName.trim().length > 0 ? 0.85 : 1,
+                    })}
                   >
-                    <TextInput
-                      value={editClosingDate}
-                      onChangeText={setEditClosingDate}
-                      placeholder="MM/DD/YYYY"
-                      placeholderTextColor="#99A1AF"
-                      style={{ flex: 1, fontSize: 14, fontWeight: '400', color: COLORS.darkText }}
-                      keyboardType="numbers-and-punctuation"
-                    />
-                    <CalendarIcon />
-                  </View>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: editDealName.trim().length > 0 ? COLORS.onPrimary : COLORS.lightText, lineHeight: 24 }}>
+                      Save
+                    </Text>
+                  </Pressable>
                 </View>
-
-                {/* Save button */}
-                <Pressable
-                  onPress={handleSaveEdit}
-                  style={({ pressed }) => ({
-                    height: 50,
-                    backgroundColor: editDealName.trim().length > 0 ? COLORS.primary : '#E5E7EB',
-                    borderRadius: 9999,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginTop: 4,
-                    opacity: pressed && editDealName.trim().length > 0 ? 0.85 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: editDealName.trim().length > 0 ? '#FFFFFF' : '#99A1AF', lineHeight: 24 }}>
-                    Save Changes
-                  </Text>
-                </Pressable>
-              </View>
+              </KeyboardAvoidingView>
             </Pressable>
           </Animated.View>
         </Pressable>

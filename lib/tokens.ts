@@ -30,6 +30,7 @@ export const COLORS = {
   // ── Brand ──
   primary: '#003DC3',
   accentBlue: '#155DFC',
+  onPrimary: '#FFFFFF',      // white text on primary-colored surfaces (S141a)
 
   // ── Backgrounds ──
   background: '#FFFFFF',
