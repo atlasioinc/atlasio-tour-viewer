@@ -31,7 +31,7 @@
 
 ---
 
-## Current Metrics (updated S144 — April 13, 2026)
+## Current Metrics (updated S145c — April 13, 2026)
 - **RPCs:** 66 (+1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
 - **Hooks:** 65 (unchanged S144; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
@@ -1180,6 +1180,33 @@ Located in `components/shared/index.ts` (barrel export):
 - **Metrics unchanged:** No new screens, hooks, RPCs, edge functions, feature flags, or schema.
 - **tsc:** 0 errors
 - **No backend/schema changes** — pure frontend display fix. Schema columns (`license_status`, `license_verified`) already exist (sql/schema.sql:1487, :1507); both remain in use, no migration needed.
+
+### S145b — Avatar Initials Standardization (April 13, 2026)
+- **Root cause:** Initials logic was inlined across 22+ components with inconsistent rules. Some used first char only, some first-of-first + first-of-last, some uppercased, some didn't, some crashed on empty strings. Same user rendered as `T`, `TG`, or `Tg` depending on the screen.
+- **Fix — components/shared/Avatar.tsx:** `getInitials()` helper now always returns a 2-char uppercase string from the first two whitespace-separated tokens. Single-word names return `first[0] + first[1]` (or just `first[0]` for 1-char). Empty/undefined returns `'?'`.
+- **Callsite migration:** Removed inline initials helpers and local `AvatarPlaceholder` components from 22 files. Each callsite now renders `<Avatar name={...} size={...} color={...} />` using the shared component. Net: -477 lines / +121 lines.
+- **Files modified (22):** `AgentDealDetailScreen`, `AgentDealsScreen`, `ContractorHomeTab`, `ContractorInboxList`, `ContractorJobDetails`, `HomeTabAgent`, `InviteToJobModal`, `JobCompletionScreen`, `JobTrackerTab`, `MessageBubble`, `NetworkTab`, `NotificationsTab`, `PostJobWizard`, `ProProfile`, `RepairChatScreen`, `RepairJobDetails`, `RequestConnectModal`, `SendSquadScreen`, `VouchPromptModal`, `features/partners/DealCreationSheet`, `features/partners/HomeTabPartner`, `components/shared/Avatar`
+- **Key decisions:**
+  - Shared component owns the rule — no per-screen overrides. One source of truth for initials across the whole app.
+  - 2-char minimum even for single-word names — `"Madonna"` renders `MA` not `M`, matching iOS Contacts pattern.
+  - `'?'` fallback for empty/undefined — never crash, never render whitespace.
+- **Metrics unchanged:** Shared Components count stays (Avatar already existed, internal helper update only).
+- **tsc:** 0 errors
+
+### S145c — Restore Swipe-Back Gesture on 9 Screens (April 13, 2026)
+- **Root cause:** Native-stack screens with `headerShown: false` lose iOS swipe-back unless `gestureEnabled: true` is set explicitly. 9 screens had custom back chevrons but no way to swipe back — users had to aim for the chevron on every screen.
+- **Fix — navigator configs only, no component touches:**
+  - `components/HomeStack.tsx` — 6 screens: `Notifications`, `ProProfile`, `AgentDealsScreen`, `ClosedDeals`, `AgentJobDetail`, `AgentDealDetail`
+  - `components/ProfileStack.tsx` — 2 screens: `Settings`, `PaymentSettings`
+  - `components/BottomTabNavigator.tsx` — 1 screen: ContractorInbox `ChatScreen`
+- **Audit method:** Read all 6 nav files to find screens inheriting `headerShown: false` without `presentation: 'fullScreenModal'`, then grepped the 17 screen component files for `goBack`/`ChevronLeft`/`BackIcon`/`showBack` to confirm which actually render a back chevron. Tab roots (HomeMain, InboxList, FindMain, NetworkMain, ProfileMain, ContractorHomeMain, ContractorJobsMain, ContractorInboxMain) were excluded — no back needed.
+- **Files modified (3):** `components/HomeStack.tsx`, `components/ProfileStack.tsx`, `components/BottomTabNavigator.tsx`
+- **Key decisions:**
+  - Did NOT add `gestureEnabled: true` to fullScreenModal screens — those dismiss via X button, not swipe-back.
+  - Did NOT touch tab root screens — the root of a stack has nothing to go back to.
+  - Zero component file changes — this is purely a nav-config restoration.
+- **Metrics unchanged.**
+- **tsc:** 0 errors
 
 ### S145 — Next Objectives
 - **Verify profile save end-to-end on device** after Tony executes the S143 SQL. Test: edit headline 36–50 chars, change languages, change service area, hit Save, force-close app, verify values persisted.
