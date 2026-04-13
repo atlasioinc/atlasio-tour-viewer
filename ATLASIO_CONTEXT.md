@@ -1173,6 +1173,14 @@ Located in `components/shared/index.ts` (barrel export):
 - **tsc:** 0 errors | **Lint:** 0 errors (3 pre-existing unused-var warnings unchanged)
 - **No backend/schema changes** — pure frontend refactor and UI fix.
 
+### S145a — ProfileTab License Pending State (April 13, 2026)
+- **Fix — components/ProfileTab.tsx:** Credentials card License row now reflects `profiles.license_status` (the column `rpc_submit_license_verification` actually writes to), not just the legacy `license_verified` boolean. Derived `licenseStatus` reads from `mockSource?.license_status ?? liveProfile?.license_status ?? 'unverified'`, then `licenseVerified = licenseStatus === 'verified'` and `licensePending = licenseStatus === 'pending'`. Agent license row now renders "CO License · Pending Review" with an amber `COLORS.counterAmber` ShieldIcon when pending — previously the agent path fell through to "Not added · Tap to verify" because it only knew about the boolean. Contractor branch unchanged in behavior. `MOCK_CONTRACTOR_PROFILE` gains `license_status: 'verified' as const` alongside `license_verified: true` so the contractor demo state stays "strongest".
+- **Why:** ProfileTab and VerificationScreen were reading two different columns. After a user submitted via `rpc_submit_license_verification`, `license_status='pending'` but `license_verified=false` — VerificationScreen showed "Pending Review" while ProfileTab told the agent "Not added · Tap to verify". Same user, two contradictory states.
+- **Files modified:** `components/ProfileTab.tsx`
+- **Metrics unchanged:** No new screens, hooks, RPCs, edge functions, feature flags, or schema.
+- **tsc:** 0 errors
+- **No backend/schema changes** — pure frontend display fix. Schema columns (`license_status`, `license_verified`) already exist (sql/schema.sql:1487, :1507); both remain in use, no migration needed.
+
 ### S145 — Next Objectives
 - **Verify profile save end-to-end on device** after Tony executes the S143 SQL. Test: edit headline 36–50 chars, change languages, change service area, hit Save, force-close app, verify values persisted.
 - **Verify job posting flows on device** — post a photo job with the new autocomplete + date picker, post a staging job with specificDate set, post a staging job with only timeline chip, confirm RPC accepts all three shapes.
