@@ -40,9 +40,36 @@
 - **Shared Components:** +1 S144 (AddressAutocompleteInput); +1 S147 (PhotoLightbox — full-screen photo viewer extracted from ContractorJobDetails)
 - **Storage Buckets:** 7
 - **Tables:** 22+ (schema.sql documents 22 as of S93; messaging tables predate tracking)
-- **COLORS tokens:** 125 (+2 S144: jobGreen, jobPurple)
+- **COLORS tokens:** 141 (+16 S148b: category color palette for CategoryMapScreen)
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
+
+---
+
+## S148b — Neighborhood Intelligence: Map Redesign (April 14, 2026)
+
+**Card:** ATL-NEIGHBORHOOD-MAP → ✅ Done
+
+**Files modified:**
+- `lib/tokens.ts` — added 16 `categoryXxx` color tokens (all/coffee/yoga/parks/walkability/gym/grocery/transit/bike/air_quality/dining/schools/healthcare/pet_friendly/nightlife/other).
+- `lib/neighborhoodScoring.ts` — added `CATEGORY_DISPLAY` constant (chip/map visual layer). `CATEGORY_META` untouched.
+- `components/HomeStack.tsx` — widened `CategoryMapScreen` params as a **superset**: new optional `initialCategory`, `allResults`, `radiusMi` alongside the original legacy fields. Backwards-compatible with `AddressComparisonScreen`.
+- `components/CategoryMapScreen.tsx` — full redesign (883 lines). Detects mode via `route.params.allResults`:
+  - **Multi-category mode** (from NeighborhoodMatchScreen): filter chip bar (horizontal scroll, all + per-category), animated custom POI pins (category color + emoji bubble + tail), auto-fit camera (debounced 100ms), place preview bottom sheet with drag-to-dismiss PanResponder, backdrop dismiss, and "Open in Maps" platform deep link (`maps:` iOS / `geo:` Android).
+  - **Legacy single-category mode** (from AddressComparisonScreen): preserved unchanged so existing comparison-card map chips still work.
+- `components/NeighborhoodMatchScreen.tsx` — three additions:
+  1. Primary "View All on Map" CTA above the Nearby list (passes full `categoryScores` + `pois`).
+  2. Per-category "See on map" rows now navigate with `initialCategory: cat.category` + full `allResults` — the category arrives pre-selected.
+  3. Score ring **shimmer sweep**: `LinearGradient` overlay on the ring, single 800ms fire after the score animation completes **if `compositeScore >= 80`**. Uses `expo-linear-gradient` (confirmed already in `package.json` ~55.0.13). Celebration effect — no dependency added.
+
+**Key decisions:**
+- **Param shape is additive, not replacing.** The spec asked for `{ initialCategory, allResults, address, radiusMi }` but also forbade modifying `AddressComparisonScreen`. Since ACS passes per-entry `lat/lng` + per-category POI slices, a hard replacement would have broken it. Resolved with a discriminated-style superset: new fields are optional, old fields remain. `CategoryMapScreen` dispatches on presence of `allResults`.
+- **POI key strategy.** `POIResult` has no `id` field — used `${category}-${name}-${lat}-${lng}` for React keys and per-pin animation maps.
+- **`CATEGORY_DISPLAY` vs `CATEGORY_META`.** Kept both. `CATEGORY_META` stays the score/label source of truth; `CATEGORY_DISPLAY` is a chip/map-only visual layer with shorter labels ("Parks" not "Parks & Nature") and distinct colors tuned for chip contrast on white.
+- **No shared `Button` component exists.** "View All on Map" uses an inline primary `Pressable` matching app conventions (48pt height, radius 12, `COLORS.primary` bg, `COLORS.onPrimary` text).
+- **Haptics on chip toggle** via `expo-haptics` `ImpactFeedbackStyle.Light` — already in deps.
+
+**Verification:** `npx tsc --noEmit` → 0 errors. `npx expo lint` → 0 new warnings on touched files. Feature flags unchanged (`LIVE_NEIGHBORHOOD_HOOKS: false`).
 
 ---
 

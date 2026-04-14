@@ -1037,7 +1037,8 @@
 
 **Exit Points:**
 - → AddressComparisonScreen ("Compare Addresses") — fullScreenModal
-- → CategoryMapScreen (map chip per POI category)
+- → CategoryMapScreen — **"View All on Map" primary CTA** (S148b) with `initialCategory: 'all'` + full `allResults`
+- → CategoryMapScreen — per-category "See on map" row (S148b) with `initialCategory: cat.category` + full `allResults`
 - ← Back
 
 ---
@@ -1057,8 +1058,51 @@
 
 **Exit Points:**
 - → ClientLifestyleScreen ("← Edit priorities") — navigate with initialPriorities param
-- → CategoryMapScreen (map chip)
+- → CategoryMapScreen (map chip — legacy single-category mode, preserved in S148b)
 - ← X → goBack()
+
+---
+
+#### CategoryMapScreen *(redesigned S148b)*
+**File:** `components/CategoryMapScreen.tsx`
+**Role:** Agent only
+**Nav Type:** fullScreenModal (slide_from_bottom)
+**Feature Flag:** LIVE_NEIGHBORHOOD_HOOKS (data source)
+**Wiring:** 🔴 Mock data (via useNeighborhoodAnalysis)
+
+**Two modes — dispatched on `route.params.allResults` presence:**
+
+**Multi-category mode (S148b redesign — from NeighborhoodMatchScreen):**
+- Full-screen MapView with color-coded animated POI pins (custom bubble + tail markers)
+- Horizontal filter chip bar pinned to bottom — "All" + one chip per category
+- Tap chip to toggle category visibility (with haptic + spring press + auto-fit camera)
+- Tap pin → place preview bottom sheet (name, distance, rating, "Open in Maps" deep link)
+- Sheet dismisses on backdrop tap, drag-down (>60px), or tapping another pin
+- Pre-selected category when entering from a specific "See on map" row
+
+**Legacy single-category mode (preserved for AddressComparisonScreen compat):**
+- Single-category map with address + POI pins + summary bar, as in pre-S148b
+
+**Params shape (superset):**
+```ts
+{
+  // Legacy fields (required for both modes)
+  category, label, emoji, pois, addressLat, addressLng, address,
+  // S148b multi-category fields (optional — triggers redesign when present)
+  initialCategory?: LifestyleCategory | 'all',
+  allResults?: { categoryScores, pois },
+  radiusMi?: RadiusMi,
+}
+```
+
+**Entry Points:**
+- NeighborhoodMatchScreen → "View All on Map" primary CTA (S148b) → multi-category mode
+- NeighborhoodMatchScreen → per-category "See on map" row (S148b) → multi-category mode, pre-selected
+- AddressComparisonScreen → per-entry category map chip → legacy single-category mode
+
+**Exit Points:**
+- External: iOS `maps:` / Android `geo:` deep link via `Linking.openURL` for turn-by-turn
+- ← Back → goBack()
 
 ---
 

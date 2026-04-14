@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle as SvgCircle, Path } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -89,6 +90,8 @@ const NeighborhoodMatchScreen: React.FC = () => {
 
   const scoreAnim = useRef(new Animated.Value(0)).current;
   const barAnims = useRef<Animated.Value[]>([]).current;
+  // S148b — score ring shimmer sweep (fires once on compositeScore >= 80)
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   // ── Trigger analysis on mount ──
   useEffect(() => {
@@ -113,13 +116,24 @@ const NeighborhoodMatchScreen: React.FC = () => {
     scoreAnim.setValue(0);
     barAnims.forEach(av => av.setValue(0));
 
-    // Score ring animation
+    // Score ring animation — on completion, fire the shimmer sweep if score is high
+    shimmerAnim.setValue(0);
     Animated.timing(scoreAnim, {
       toValue: analysis.compositeScore,
       duration: 800,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
-    }).start();
+    }).start(({ finished }) => {
+      if (finished && analysis.compositeScore >= 80) {
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 800,
+          delay: 200,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }).start();
+      }
+    });
 
     // Bar animations — staggered
     analysis.categoryScores.forEach((cat, i) => {
@@ -131,7 +145,7 @@ const NeighborhoodMatchScreen: React.FC = () => {
         useNativeDriver: false,
       }).start();
     });
-  }, [analysis, scoreAnim, barAnims]);
+  }, [analysis, scoreAnim, barAnims, shimmerAnim]);
 
   const scoreColor = analysis ? getScoreColor(analysis.compositeScore) : COLORS.primary;
 
@@ -237,6 +251,28 @@ const NeighborhoodMatchScreen: React.FC = () => {
                   transform="rotate(-90, 80, 80)"
                 />
               </Svg>
+              {/* S148b — shimmer sweep (high-score celebration, single play) */}
+              <Animated.View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  width: 160,
+                  height: 160,
+                  borderRadius: 80,
+                  overflow: 'hidden',
+                  opacity: shimmerAnim.interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: [0, 0.7, 0],
+                  }),
+                }}
+              >
+                <LinearGradient
+                  colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.4)', 'rgba(255,255,255,0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{ flex: 1 }}
+                />
+              </Animated.View>
               {/* Score number overlay */}
               <View style={{
                 position: 'absolute', alignItems: 'center', justifyContent: 'center',
@@ -362,6 +398,41 @@ const NeighborhoodMatchScreen: React.FC = () => {
               Nearby
             </Text>
 
+            {/* S148b — "View All on Map" primary CTA */}
+            {/* @backend — passes full categoryResults from useNeighborhoodAnalysis */}
+            <Pressable
+              onPress={() => navigation.navigate('CategoryMapScreen', {
+                // New multi-category params
+                initialCategory: 'all',
+                allResults: {
+                  categoryScores: analysis.categoryScores,
+                  pois: analysis.pois,
+                },
+                radiusMi,
+                // Legacy fields (still in the param type — filled with first-category defaults)
+                category: analysis.categoryScores[0]?.category ?? 'coffee',
+                label: analysis.categoryScores[0]?.label ?? '',
+                emoji: analysis.categoryScores[0]?.emoji ?? '',
+                pois: analysis.pois,
+                addressLat: analysis.lat,
+                addressLng: analysis.lng,
+                address: analysis.address,
+              })}
+              style={({ pressed }) => ({
+                height: 48,
+                borderRadius: 12,
+                backgroundColor: COLORS.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.85 : 1,
+                marginBottom: 16,
+              })}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.onPrimary }}>
+                View All on Map
+              </Text>
+            </Pressable>
+
             {analysis.categoryScores
               .filter(cat => (cat.poiCount ?? 0) > 0)
               .map(cat => (
@@ -384,10 +455,19 @@ const NeighborhoodMatchScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  {/* See on map */}
+                  {/* See on map — S148b: opens redesigned map with this category pre-selected */}
+                  {/* @backend — passes full categoryResults from useNeighborhoodAnalysis */}
                   <Pressable
                     onPress={() => {
                       navigation.navigate('CategoryMapScreen', {
+                        // S148b multi-category shape — arrives with this category pre-selected
+                        initialCategory: cat.category,
+                        allResults: {
+                          categoryScores: analysis.categoryScores,
+                          pois: analysis.pois,
+                        },
+                        radiusMi,
+                        // Legacy fields retained for param type compatibility
                         category: cat.category,
                         label: getCategoryLabel(cat.category, cat.label),
                         emoji: cat.emoji,

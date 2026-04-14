@@ -158,6 +158,25 @@ export const COLORS = {
   dangerBg: '#FEF2F2',          // Rate lock urgent banner background — added S62
   dangerBorder: '#FECACA',      // Rate lock urgent banner border — added S62
 
+  // ── Neighborhood Intelligence — Category Colors (S148b) ──
+  // @design — colors chosen for contrast on white chip backgrounds and map readability
+  categoryAll: '#003DC3',       // brand blue — reserved for "All" chip
+  categoryCoffee: '#7B4F2E',
+  categoryYoga: '#5C8A6B',
+  categoryParks: '#2D7A3A',
+  categoryWalkability: '#4A6FA5',
+  categoryGym: '#2E5FA3',
+  categoryGrocery: '#1A8C7A',
+  categoryTransit: '#4A4A6A',
+  categoryBike: '#C0622B',
+  categoryAirQuality: '#3A9BC1',
+  categoryDining: '#C0392B',
+  categorySchools: '#6B3FA0',
+  categoryHealthcare: '#E84040',
+  categoryPetFriendly: '#C07A2B',
+  categoryNightlife: '#5B2D8E',
+  categoryOther: '#6B7280',
+
   // ── Skeleton Loaders (S138) ──
   skeletonBase: '#E8ECEF',                        // light gray base for skeleton blocks
   skeletonShimmer: 'rgba(255, 255, 255, 0.55)' as const,  // moving light sweep overlay

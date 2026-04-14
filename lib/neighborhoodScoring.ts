@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { LifestylePriority, CategoryScore, NeighborhoodAnalysis, POIResult, LifestyleCategory } from '../types/neighborhood';
+import { COLORS } from './tokens';
 
 const WEIGHTS: Record<string, number> = { must_have: 1.0, nice_to_have: 0.5 };
 
@@ -27,6 +28,30 @@ export const CATEGORY_META: Record<LifestyleCategory, { label: string; emoji: st
   pet_friendly:{ label: 'Pet-Friendly',  emoji: '🐾', googlePlacesTypes: ['dog_park', 'veterinary_care', 'pet_store'] }, // 70% US pet ownership
   nightlife:   { label: 'Nightlife',     emoji: '🎉', googlePlacesTypes: ['bar', 'night_club', 'movie_theater'] },   // younger buyers + "18-hour city" signal
   other:       { label: 'Other',         emoji: '✏️', googlePlacesTypes: ['point_of_interest'] },                    // broad fallback — customLabel travels in LifestylePriority
+};
+
+// @demo S148b — chip/map visual layer for CategoryMapScreen
+// Short labels + distinct colors tuned for chip-row width and marker readability.
+// Extends (does not replace) CATEGORY_META, which remains the source of truth
+// for the score-list UI on NeighborhoodMatchScreen.
+// @design — colors chosen for contrast on white chip backgrounds and map readability
+export const CATEGORY_DISPLAY: Record<LifestyleCategory | 'all', { color: string; emoji: string; label: string }> = {
+  all:          { color: COLORS.categoryAll,          emoji: '🗺️', label: 'All' },
+  coffee:       { color: COLORS.categoryCoffee,       emoji: '☕', label: 'Coffee' },
+  yoga:         { color: COLORS.categoryYoga,         emoji: '🧘', label: 'Yoga' },
+  parks:        { color: COLORS.categoryParks,        emoji: '🌳', label: 'Parks' },
+  walkability:  { color: COLORS.categoryWalkability,  emoji: '🚶', label: 'Walkability' },
+  gym:          { color: COLORS.categoryGym,          emoji: '🏋️', label: 'Gym' },
+  grocery:      { color: COLORS.categoryGrocery,      emoji: '🛒', label: 'Grocery' },
+  transit:      { color: COLORS.categoryTransit,      emoji: '🚇', label: 'Transit' },
+  bike:         { color: COLORS.categoryBike,         emoji: '🚴', label: 'Bike' },
+  air_quality:  { color: COLORS.categoryAirQuality,   emoji: '🌬️', label: 'Air Quality' },
+  dining:       { color: COLORS.categoryDining,       emoji: '🍽️', label: 'Dining' },
+  schools:      { color: COLORS.categorySchools,      emoji: '🎓', label: 'Schools' },
+  healthcare:   { color: COLORS.categoryHealthcare,   emoji: '🏥', label: 'Healthcare' },
+  pet_friendly: { color: COLORS.categoryPetFriendly,  emoji: '🐾', label: 'Pet Friendly' },
+  nightlife:    { color: COLORS.categoryNightlife,    emoji: '🌙', label: 'Nightlife' },
+  other:        { color: COLORS.categoryOther,        emoji: '📍', label: 'Other' },
 };
 
 // @backend S60: deterministic hash for LifestylePriority[] cache key

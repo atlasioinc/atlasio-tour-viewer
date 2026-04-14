@@ -38,7 +38,7 @@ import AgentDealsScreen from './AgentDealsScreen';
 import DealClosedCelebrationScreen from './DealClosedCelebrationScreen';
 import ClosedDealsScreen from './ClosedDealsScreen';
 import DealCreationSheet from '../features/partners/components/DealCreationSheet';
-import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis, RadiusMi } from '../types/neighborhood';
+import type { LifestylePriority, LifestyleCategory, POIResult, NeighborhoodAnalysis, RadiusMi, CategoryScore } from '../types/neighborhood';
 import type { AgentActiveDeal } from '../features/partners/types/partner.types';
 
 // ─────────────────────────────────────────────
@@ -93,6 +93,7 @@ export type HomeStackParamList = {
     radiusMi: RadiusMi;   // S61: search radius (0.5 | 1 | 2)
   };
   CategoryMapScreen: {
+    // Legacy single-category shape (AddressComparisonScreen still uses this)
     category: LifestyleCategory;
     label: string;
     emoji: string;
@@ -100,6 +101,15 @@ export type HomeStackParamList = {
     addressLat: number;
     addressLng: number;
     address: string;
+    // S148b — multi-category exploration shape (optional, additive)
+    // When present, CategoryMapScreen renders the redesigned interactive map.
+    // When absent, renders the legacy single-category UI for backwards compat.
+    initialCategory?: LifestyleCategory | 'all';
+    allResults?: {
+      categoryScores: CategoryScore[];
+      pois: POIResult[];
+    };
+    radiusMi?: RadiusMi;
   };
   AgentDealsScreen: { initialFilter?: 'closed' } | undefined;
   DealCreation: undefined;
