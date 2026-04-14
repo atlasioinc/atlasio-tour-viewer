@@ -31,13 +31,13 @@
 
 ---
 
-## Current Metrics (updated S145c — April 13, 2026)
+## Current Metrics (updated S147 — April 14, 2026)
 - **RPCs:** 66
 - **Hooks:** 65
 - **Feature Flags:** 11 (9 in featureFlags.ts + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts)
 - **Edge Functions:** 11
 - **Storage Buckets:** 7
-- **Shared Components:** includes AddressAutocompleteInput (S144) + standardized Avatar (S145b)
+- **Shared Components (components/shared/):** Avatar (S145b), VerificationBadge, VerificationBanner, SkeletonBlock, ErrorToast, AddressAutocompleteInput (S144), PhotoLightbox (S147)
 - **tsc:** 0 errors
 
 When adding new RPCs, hooks, or Edge Functions — increment the count in this file and in the session commit message.
@@ -494,13 +494,21 @@ Before writing a single line of code on any new screen or flow:
 ---
 
 ## Shared Components (always reuse — never recreate inline)
-Located in `components/shared/index.ts` (barrel export):
-- `Button` — 6 variants: Primary, Secondary, Danger, Counter + 2 more
-- `ScreenHeader`
-- `DisplayTag` — 6 variants including ghost (use for unverified/empty CTAs)
+
+Barrel export at `components/shared/index.ts`:
+- `Avatar` — standardized initials + image avatar (S145b)
 - `VerificationBadge` — 3 states, 2 sizes
 - `VerificationBanner` — amber, role/level-aware, returns null if verified
-- `PortfolioGallery` — reuse unchanged, never rebuild inline
+- `SkeletonBlock` — loading placeholder
+- `ErrorToast` — error surfacing component
+- `AddressAutocompleteInput` — Google Places autocomplete (S144)
+- `PhotoLightbox` — full-screen paged photo viewer (S147), used by RepairJobDetails + ContractorJobDetails
+
+Additional shared components still at `components/*.tsx` (not yet migrated into `components/shared/`):
+- `Button` — 6 variants: Primary, Secondary, Danger, Counter + 2 more (`components/Button.tsx`)
+- `ScreenHeader` (`components/ScreenHeader.tsx`)
+- `DisplayTag` — 6 variants including ghost (`components/DisplayTag.tsx`)
+- `PortfolioGallery` (`components/PortfolioGallery.tsx`)
 
 ---
 
