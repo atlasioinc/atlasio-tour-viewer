@@ -47,7 +47,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../lib/tokens';
 import { useCreateJob } from '../hooks/useData';
-import { AddressAutocompleteInput } from './shared';
+import { AddressAutocompleteInput, SuccessToast } from './shared';
+import { useSuccessToast } from '../hooks/useSuccessToast';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -136,6 +137,8 @@ const PostStagingJobScreen: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // @ux success feedback — SuccessToast wired S149b
+  const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
   // @backend WIRED: useCreateJob → rpc_create_job({ p_job_type: 'staging', ... })
   const createJob = useCreateJob();
 
@@ -188,20 +191,9 @@ const PostStagingJobScreen: React.FC = () => {
 
       setIsSubmitting(false);
 
-      Alert.alert(
-        'Job Posted!',
-        'Stagers in your area will start bidding shortly.',
-        [
-          {
-            text: 'View Job',
-            onPress: () => {
-              // @backend navigation.push('RepairJobDetails', { jobId }) once detail screen supports staging jobs
-              // @demo For now, just go back
-              navigation.goBack();
-            },
-          },
-        ]
-      );
+      // @ux success feedback — SuccessToast wired S149b (replaces Alert.alert; nav delayed 400ms so toast is visible)
+      showSuccess('Staging job posted successfully');
+      setTimeout(() => navigation.goBack(), 400);
     } catch (err) {
       // @demo fallback — remove when LIVE flag is permanent
       console.warn('[PostStagingJobScreen] createJob failed, falling back to mock:', err);
@@ -638,6 +630,9 @@ const PostStagingJobScreen: React.FC = () => {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      {successMessage ? (
+        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
+      ) : null}
     </View>
   );
 };

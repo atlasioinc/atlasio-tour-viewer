@@ -37,7 +37,8 @@ import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 import { useMyProfile, useUpdateProfile } from '../hooks/useData';
 import { useUploadAvatar } from '../hooks/useUploadAvatar';
-import { Avatar } from './shared';
+import { Avatar, SuccessToast } from './shared';
+import { useSuccessToast } from '../hooks/useSuccessToast';
 import FormField from './FormField';
 import { ChipGroup, SingleSelectChipGroup } from './SelectableChip';
 // @backend Bidirectional trade label ↔ trades_enum map — save/load translation for contractor profiles (S148a)
@@ -292,6 +293,8 @@ const EditProfileScreen: React.FC = () => {
   const { data: myProfile } = useMyProfile();
   const updateProfile = useUpdateProfile();
   const { pickAndUpload, isUploading: isAvatarUploading } = useUploadAvatar();
+  // @ux success feedback — SuccessToast wired S149b (profile save + avatar upload/remove)
+  const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
 
   // ── Form State ──
   const [form, setForm] = useState<FormData>(() => getMockData(role));
@@ -465,7 +468,9 @@ const EditProfileScreen: React.FC = () => {
         trades: tradesForDB as any,
         is_visible: form.availability,
       });
-      navigation.goBack();
+      // @ux success feedback — SuccessToast wired S149b (toast then nav after 400ms)
+      showSuccess('Profile saved');
+      setTimeout(() => navigation.goBack(), 400);
     } catch {
       Alert.alert('Error', 'Failed to save profile. Please try again.');
     }
@@ -556,11 +561,11 @@ const EditProfileScreen: React.FC = () => {
             name={form.fullName || 'User'}
             size={DIMENSIONS.avatarProfile}
             color={myProfile?.avatar_color ?? COLORS.primary}
-            onPress={() => pickAndUpload(myProfile?.avatar_url)}
+            onPress={() => pickAndUpload(myProfile?.avatar_url, () => showSuccess('Photo updated'))}
             showCameraOverlay={true}
             isUploading={isAvatarUploading}
           />
-          <Pressable onPress={() => pickAndUpload(myProfile?.avatar_url)}>
+          <Pressable onPress={() => pickAndUpload(myProfile?.avatar_url, () => showSuccess('Photo updated'))}>
             <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20 }}>
               Change Photo
             </Text>
@@ -819,6 +824,9 @@ const EditProfileScreen: React.FC = () => {
         )}
 
       </ScrollView>
+      {successMessage ? (
+        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
+      ) : null}
     </View>
   );
 };

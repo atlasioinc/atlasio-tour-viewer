@@ -30,7 +30,8 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
-import { Avatar } from './shared';
+import { Avatar, SuccessToast } from './shared';
+import { useSuccessToast } from '../hooks/useSuccessToast';
 import { COLORS, DIMENSIONS, SPACING } from '../lib/tokens';
 import FormField from './FormField';
 import { useAgentActiveDeals, useAgentDismissDealAlert, useRealtimeDealBoard, useUpdateClosingDetails, useGenerateClientToken, useCloseTransaction, useCancelTransaction } from '../hooks/useData';
@@ -147,6 +148,8 @@ const AgentDealDetailScreen: React.FC = () => {
   // @backend useGenerateClientToken — rpc_generate_client_token(p_transaction_id, p_notify_phone)
   // @demo Falls back to 'mock-transaction-001' when transactionId is undefined
   const generateToken = useGenerateClientToken();
+  // @ux success feedback — SuccessToast wired S149b
+  const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [notifyPhone, setNotifyPhone] = useState('');
   const [smsSent, setSmsSent] = useState(false);
@@ -241,6 +244,8 @@ const AgentDealDetailScreen: React.FC = () => {
         url: result.url,
         message: 'Track your closing progress: ' + result.url,
       });
+      // @ux success feedback — SuccessToast wired S149b (Share.share doesn't return success/cancel reliably; toast confirms link generation)
+      showSuccess('Link ready to share');
     } catch (err: any) {
       console.error('[AgentDealDetailScreen] handleShare error:', err);
       Alert.alert('Unable to share', err?.message ?? 'Failed to generate sharing link.');
@@ -803,6 +808,9 @@ const AgentDealDetailScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
+      {successMessage ? (
+        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
+      ) : null}
     </SafeAreaView>
   );
 };

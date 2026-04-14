@@ -47,7 +47,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../lib/tokens';
 import { useCreateJob } from '../hooks/useData';
-import { AddressAutocompleteInput } from './shared';
+import { AddressAutocompleteInput, SuccessToast } from './shared';
+import { useSuccessToast } from '../hooks/useSuccessToast';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -125,6 +126,8 @@ const PostPhotoJobScreen: React.FC = () => {
   const [turnaround, setTurnaround] = useState('next_day');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // @ux success feedback — SuccessToast wired S149b
+  const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
   // @backend WIRED: useCreateJob → rpc_create_job({ p_job_type: 'photography', ... })
   const createJob = useCreateJob();
 
@@ -169,20 +172,9 @@ const PostPhotoJobScreen: React.FC = () => {
 
       setIsSubmitting(false);
 
-      Alert.alert(
-        'Job Posted!',
-        'Photographers in your area will start bidding shortly.',
-        [
-          {
-            text: 'View Job',
-            onPress: () => {
-              // @backend navigation.push('RepairJobDetails', { jobId }) once detail screen supports photo jobs
-              // @demo For now, just go back
-              navigation.goBack();
-            },
-          },
-        ]
-      );
+      // @ux success feedback — SuccessToast wired S149b (replaces Alert.alert; nav delayed 400ms so toast is visible)
+      showSuccess('Photo job posted successfully');
+      setTimeout(() => navigation.goBack(), 400);
     } catch (err) {
       // @demo fallback — remove when LIVE flag is permanent
       console.warn('[PostPhotoJobScreen] createJob failed, falling back to mock:', err);
@@ -511,6 +503,9 @@ const PostPhotoJobScreen: React.FC = () => {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      {successMessage ? (
+        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
+      ) : null}
     </View>
   );
 };

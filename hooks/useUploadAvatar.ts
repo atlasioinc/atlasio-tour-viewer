@@ -37,7 +37,13 @@ export const useUploadAvatar = () => {
     return result;
   }, []);
 
-  const pickAndUpload = useCallback(async (currentAvatarUrl?: string | null) => {
+  // S149b: optional onSuccess callback fires after a successful upload OR remove,
+  // used by EditProfileScreen to surface the SuccessToast. Failure path remains
+  // the in-hook Alert.alert (S146 fix) — onSuccess is not called on failure.
+  const pickAndUpload = useCallback(async (
+    currentAvatarUrl?: string | null,
+    onSuccess?: () => void,
+  ) => {
     setError(null);
     const hasPhoto = !!currentAvatarUrl;
 
@@ -119,6 +125,7 @@ export const useUploadAvatar = () => {
           avatar_url: null,
         }));
         queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+        onSuccess?.();
       } catch (err: any) {
         const message = err?.message || 'Failed to remove photo';
         setError(message);
@@ -196,6 +203,7 @@ export const useUploadAvatar = () => {
         avatar_url: publicUrl,
       }));
       queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+      onSuccess?.();
     } catch (err: any) {
       const message = err?.message || 'Failed to upload photo';
       setError(message);
