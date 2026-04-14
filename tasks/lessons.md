@@ -127,6 +127,22 @@ that may write to trades_enum columns. Same mismatch pattern as ATL-CONTRACTOR-T
 Audit and apply mapping layer (import from `lib/tradesMap.ts`) in a dedicated session
 before production launch.
 
+## RULE — `components/shared/index.ts` is NOT the full shared-component list (added S148b, April 14 2026)
+
+Before claiming "no shared X component exists," check BOTH:
+1. `components/shared/index.ts` (barrel — Avatar, Verification*, Skeleton, PhotoLightbox, ErrorToast, AddressAutocompleteInput)
+2. `components/*.tsx` at root — these are still shared, just not barrel-exported yet:
+   - `components/Button.tsx` — primary/secondary/danger/counter variants (the real one)
+   - `components/ScreenHeader.tsx`
+   - `components/DisplayTag.tsx`
+   - `components/PortfolioGallery.tsx`
+
+CLAUDE.md Shared Components section (line ~496) is the source of truth — read it before concluding a shared component doesn't exist.
+
+**S148b cost:** "View All on Map" CTA on `NeighborhoodMatchScreen.tsx` was built with an inline styled `Pressable` because I only checked the barrel. `Button` from `components/Button.tsx` should have been imported instead. Minor deviation, flagged in the session report, not worth a retroactive fix but worth preventing next time.
+
+Pattern: when a spec says "use shared Button", `grep -l "export.*Button" components/ lib/` first.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —
