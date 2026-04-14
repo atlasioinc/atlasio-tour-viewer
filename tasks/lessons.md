@@ -109,14 +109,23 @@ the snake_case slot role against the display string — exact mismatch → empty
 Pattern: any `adaptX()` function that produces a `role` field consumed by a filter or
 hook must use `conn.profile.role` (snake_case), not `conn.profile.display_role`.
 
-## Known Latent Bug — Contractor Trades Save (S143)
+## ✅ RESOLVED — Contractor Trades Save — ATL-CONTRACTOR-TRADES (S148a, April 14 2026)
 
-- `profiles.trades` column is `trades_enum[]` in Postgres
-- `TRADE_OPTIONS` in `EditProfileScreen.tsx` uses display labels (`Electrician`, `Plumber`, `Roofer`, `Painter`, `Landscaper`, `Driveway/Paving`) that do NOT match enum values (`Electrical`, `Plumbing`, `Roofing`, `Painting`, `Landscaping / Drainage`, `Driveway / Paving`)
-- Contractor profile save silently fails on `trades` field — enum cast error used to be swallowed by mock fallback; post-S143 will now throw the error to the user
-- Agent saves are unaffected (`trades` sent as `null` for agents via `EditProfileScreen.handleSave`)
-- Fix: dedicated session to rename `TRADE_OPTIONS` to match enum values exactly, or build a UI label → enum value mapping layer
-- Ticket: ATL-CONTRACTOR-TRADES (see Notion Sprint Board)
+- Root cause confirmed: `TRADE_OPTIONS` in `EditProfileScreen.tsx` used UI display labels that did not match `trades_enum` values in Postgres.
+- Fix (Option C — bidirectional mapping layer):
+  - New shared file `lib/tradesMap.ts` exports `TRADE_LABEL_TO_ENUM` + `TRADE_ENUM_TO_LABEL`.
+  - `EditProfileScreen.tsx handleSave` translates UI labels → DB enum values before the `useUpdateProfile` mutation.
+  - `EditProfileScreen.tsx` pre-fill `useEffect` reverse-maps DB enum values → UI labels so chip selection state matches `TRADE_OPTIONS`.
+  - `ProfileTab.tsx` Z1 hero trade pill reverse-maps `profileTrade` (was rendering raw DB enum values, e.g. `Plumbing`, now renders `Plumber`).
+- Agent flow unchanged — `trades` still sent as `null` for agents.
+- Verified `General Contractor` and `HVAC` are identity mappings against `sql/schema.sql:109–123` (trades_enum).
+
+## Known Latent Bug — ATL-CONTRACTOR-TRADES-2 (deferred, logged S148a)
+
+EditRepairJob.tsx and PostJobWizard.tsx both declare independent TRADE_OPTIONS arrays
+that may write to trades_enum columns. Same mismatch pattern as ATL-CONTRACTOR-TRADES.
+Audit and apply mapping layer (import from `lib/tradesMap.ts`) in a dedicated session
+before production launch.
 
 ## Known terminal warning — not a bug
 

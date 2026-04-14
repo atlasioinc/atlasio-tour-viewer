@@ -40,6 +40,8 @@ import { useUploadAvatar } from '../hooks/useUploadAvatar';
 import { Avatar } from './shared';
 import FormField from './FormField';
 import { ChipGroup, SingleSelectChipGroup } from './SelectableChip';
+// @backend Bidirectional trade label ↔ trades_enum map — save/load translation for contractor profiles (S148a)
+import { TRADE_LABEL_TO_ENUM, TRADE_ENUM_TO_LABEL } from '../lib/tradesMap';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -254,6 +256,18 @@ const ToggleRow: React.FC<{
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
+//
+// Trades save/load cycle (contractor role only — agent sends null):
+//   1. Mock/live profile load → useEffect pre-fill → DB enum values
+//      reverse-mapped via TRADE_ENUM_TO_LABEL so chip-selection state
+//      matches TRADE_OPTIONS labels exactly.
+//   2. User toggles chips → form.primaryTrade + form.secondaryTrades
+//      hold UI labels only (never DB enum values).
+//   3. handleSave → UI labels translated to DB enum values via
+//      TRADE_LABEL_TO_ENUM before the useUpdateProfile mutation fires.
+//      Unmapped labels pass through unchanged (Postgres will reject
+//      them, surfacing the bug instead of silently dropping it).
+//   4. Agent flow unaffected — primaryTrade stays '' and trades is null.
 // ═══════════════════════════════════════════════════════════════
 
 const EditProfileScreen: React.FC = () => {
@@ -365,8 +379,13 @@ const EditProfileScreen: React.FC = () => {
         serviceArea: myProfile.service_area || prev.serviceArea,  // also synced to serviceAreaQuery below
         specialties: myProfile.specialties?.length ? myProfile.specialties : prev.specialties,
         languages: myProfile.languages?.length ? myProfile.languages : prev.languages,
-        primaryTrade: myProfile.trade || prev.primaryTrade,
-        secondaryTrades: myProfile.trades?.length > 1 ? myProfile.trades.slice(1) : prev.secondaryTrades,
+        // @backend reverse-map DB enum values → UI labels so chip selection state matches TRADE_OPTIONS (S148a)
+        primaryTrade: myProfile.trade
+          ? (TRADE_ENUM_TO_LABEL[myProfile.trade] ?? myProfile.trade)
+          : prev.primaryTrade,
+        secondaryTrades: myProfile.trades?.length > 1
+          ? myProfile.trades.slice(1).map((enumVal: string) => TRADE_ENUM_TO_LABEL[enumVal] ?? enumVal)
+          : prev.secondaryTrades,
       }));
       setHasPreFilled(true);
       if (myProfile.service_area) setServiceAreaQuery(myProfile.service_area);
@@ -418,6 +437,17 @@ const EditProfileScreen: React.FC = () => {
       Alert.alert('Missing Required Fields', 'Please fill in all required fields before saving.');
       return;
     }
+    // @backend translate UI labels → trades_enum DB values before RPC call (S148a)
+    // @demo form.primaryTrade / form.secondaryTrades hold UI labels; these two consts hold DB enum values
+    const primaryTradeDB = form.primaryTrade
+      ? (TRADE_LABEL_TO_ENUM[form.primaryTrade] ?? form.primaryTrade)
+      : null;
+    const tradesForDB = form.primaryTrade
+      ? [form.primaryTrade, ...form.secondaryTrades].map(
+          (label) => TRADE_LABEL_TO_ENUM[label] ?? label
+        )
+      : null;
+
     try {
       await updateProfile.mutateAsync({
         name: form.fullName.trim(),
@@ -429,11 +459,10 @@ const EditProfileScreen: React.FC = () => {
         service_area: form.serviceArea.trim() || null,
         specialties: form.specialties,
         languages: form.languages, // @backend profiles.languages text[] (S143)
-        trade: form.primaryTrade || null,
-        // @backend sends null (not []) so COALESCE preserves existing trades row value
-        trades: form.primaryTrade
-          ? [form.primaryTrade as any, ...form.secondaryTrades]
-          : null as any,
+        // @backend profiles.trade — single trades_enum value, null for agents
+        trade: primaryTradeDB,
+        // @backend profiles.trades — trades_enum[], null (not []) so COALESCE preserves existing row value
+        trades: tradesForDB as any,
         is_visible: form.availability,
       });
       navigation.goBack();

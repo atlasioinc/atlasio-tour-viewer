@@ -40,6 +40,8 @@ import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMyProfile, useProfileVouches } from '../hooks/useData';
+// @backend Reverse trades_enum → UI label map for Z1 hero trade pill (S148a)
+import { TRADE_ENUM_TO_LABEL } from '../lib/tradesMap';
 import { useUploadAvatar } from '../hooks/useUploadAvatar';
 import { Avatar, VerificationBanner, VerificationBadge } from './shared';
 import { DisplayTag } from './DisplayTag';
@@ -235,7 +237,11 @@ const ProfileTab: React.FC = () => {
   const profileDisplayRole = ROLE_DISPLAY[profileRole] ?? 'Professional';
   const roleLabel = ROLE_DISPLAY[profileRole]
     ?? (profileRole.charAt(0).toUpperCase() + profileRole.slice(1));
-  const profileTrade = (mockSource as any)?.trade ?? liveProfile?.trade ?? null;
+  // @backend profiles.trade holds a trades_enum DB value — reverse-map to UI label for display (S148a)
+  const profileTradeRaw = (mockSource as any)?.trade ?? liveProfile?.trade ?? null;
+  const profileTrade = profileTradeRaw
+    ? (TRADE_ENUM_TO_LABEL[profileTradeRaw] ?? profileTradeRaw)
+    : null;
   const profileHeadline = mockSource?.headline ?? liveProfile?.headline ?? null;
   const profileLicensed = liveProfile?.licensed ?? '';
   const verificationLevel = mockSource?.verification_level ?? liveProfile?.verification_level ?? 'none';

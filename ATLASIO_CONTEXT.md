@@ -1270,6 +1270,45 @@ Seven bugs surfaced from TestFlight Build 27 QA. Root-caused and fixed in one pa
 - **Metrics unchanged** — no new RPCs, hooks, edge functions, feature flags, or shared components.
 - **tsc:** 0 errors | **Lint:** 0 errors (3 pre-existing unused-var warnings unchanged)
 
+---
+
+## S148a — ATL-CONTRACTOR-TRADES Mapping Layer Fix (April 14, 2026)
+
+**Scope:** Bidirectional mapping layer between `TRADE_OPTIONS` UI labels and `trades_enum` DB values. Resolves the latent contractor trades save bug flagged in S143 without schema changes or RPC changes.
+
+**Files created:**
+- **`lib/tradesMap.ts`** (new, 45 lines) — exports `TRADE_LABEL_TO_ENUM` and derived `TRADE_ENUM_TO_LABEL`. Source of truth for all trade translations. Verified against `sql/schema.sql:109–123` trades_enum definition.
+
+**Files modified:**
+- **`components/EditProfileScreen.tsx`** — imported maps; added state-flow comment block above main component; pre-fill `useEffect` now reverse-maps `myProfile.trade` + `myProfile.trades` DB enum values → UI labels so chip selection state matches `TRADE_OPTIONS`; `handleSave` now forward-maps UI labels → DB enum values via two local consts (`primaryTradeDB`, `tradesForDB`) before the `useUpdateProfile` mutation fires. Mock data left untouched.
+- **`components/ProfileTab.tsx`** — imported `TRADE_ENUM_TO_LABEL`; Z1 hero trade pill now reverse-maps `profileTrade` (was rendering raw DB enum values like `Plumbing`, now renders `Plumber`). Applies to both mock and live profile paths.
+- **`tasks/lessons.md`** — marked `ATL-CONTRACTOR-TRADES` as resolved; logged new deferred `ATL-CONTRACTOR-TRADES-2` covering `EditRepairJob.tsx` + `PostJobWizard.tsx` which declare their own independent `TRADE_OPTIONS` arrays.
+
+**Final `TRADE_LABEL_TO_ENUM` map (8 entries, verified against schema.sql trades_enum):**
+| UI Label | DB Enum Value | Type |
+|---|---|---|
+| `Electrician` | `Electrical` | mismatch |
+| `Plumber` | `Plumbing` | mismatch |
+| `Roofer` | `Roofing` | mismatch |
+| `General Contractor` | `General Contractor` | identity ✓ |
+| `HVAC` | `HVAC` | identity ✓ |
+| `Painter` | `Painting` | mismatch |
+| `Landscaper` | `Landscaping / Drainage` | mismatch |
+| `Driveway/Paving` | `Driveway / Paving` | mismatch |
+
+**Key decisions:**
+- Option C (bidirectional mapping) chosen over renaming `TRADE_OPTIONS` — keeps UI labels human-readable and DB values correct.
+- Shared `lib/tradesMap.ts` chosen over inline duplication in `ProfileTab.tsx` — future-proofs the eventual `ATL-CONTRACTOR-TRADES-2` migration of `EditRepairJob.tsx` + `PostJobWizard.tsx`.
+- Scope held tight: did NOT touch `EditRepairJob.tsx`, `PostJobWizard.tsx`, or `ContractorTradeStep.tsx` even though they have similar latent bugs — logged as `ATL-CONTRACTOR-TRADES-2` for a dedicated follow-up session.
+- Agent flow unaffected — `trades` still sent as `null` for agents via the existing `form.primaryTrade ? ... : null` guard.
+- `General Contractor` and `HVAC` verified as literal identity mappings in `sql/schema.sql:110` and `:119`.
+
+**Metrics unchanged** — no new RPCs, hooks, edge functions, feature flags, or shared components. One new lib file (`lib/tradesMap.ts`).
+
+**tsc:** 0 errors | **Lint:** 0 errors (3 pre-existing unused-var warnings unchanged)
+
+---
+
 ### S146 — Next Objectives
 - **TestFlight Build 28 QA** — verify all 7 fixes on device, especially Bug 4 autocomplete tappability (zIndex may still fail on iOS ScrollView — fall back to Modal if so) and Bug 7 keyboard sheet interaction
 - **Bug 2 investigation** — on device: edit profile, save languages + specialties, force-close app, reopen EditProfile, verify pre-fill populates. If not, run SQL to confirm DB row actually has populated arrays.
