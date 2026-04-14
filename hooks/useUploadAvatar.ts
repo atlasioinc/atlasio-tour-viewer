@@ -113,7 +113,12 @@ export const useUploadAvatar = () => {
           console.log('[useUploadAvatar] storage delete failed (non-critical):', storageError.message);
         }
 
-        queryClient.invalidateQueries({ queryKey: ['my_profile'] });
+        // S146a: optimistic clear + invalidate with correct key ['profile', 'me']
+        queryClient.setQueryData(['profile', 'me'], (old: any) => ({
+          ...old,
+          avatar_url: null,
+        }));
+        queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
       } catch (err: any) {
         const message = err?.message || 'Failed to remove photo';
         setError(message);
@@ -183,8 +188,14 @@ export const useUploadAvatar = () => {
         .eq('id', user.id);
       if (updateError) throw updateError;
 
-      // Invalidate profile cache so UI refreshes
-      queryClient.invalidateQueries({ queryKey: ['my_profile'] });
+      // S146a: correct cache key is ['profile', 'me'] (queryKeys.myProfile),
+      // not ['my_profile']. Optimistic setQueryData updates UI immediately,
+      // invalidate triggers a background refetch to confirm from DB.
+      queryClient.setQueryData(['profile', 'me'], (old: any) => ({
+        ...old,
+        avatar_url: publicUrl,
+      }));
+      queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
     } catch (err: any) {
       const message = err?.message || 'Failed to upload photo';
       setError(message);
