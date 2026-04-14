@@ -43,9 +43,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
-import { Avatar } from './shared';
+import { Avatar, SuccessToast } from './shared';
+import { useSuccessToast } from '../hooks/useSuccessToast';
 import VouchPromptModal from './VouchPromptModal';
-import { useMarkJobComplete, useConfirmJobComplete } from '../hooks/useData';
+import { useMarkJobComplete, useConfirmJobComplete, useContractorEarnings } from '../hooks/useData';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -455,6 +456,15 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
   // ── Live mutation hooks ──
   const markJobComplete = useMarkJobComplete();
   const confirmJobComplete = useConfirmJobComplete();
+  // @ux success feedback — SuccessToast wired S149b (vouch submit only)
+  // Aliased to avoid collision with the local showSuccess overlay state above (line 448).
+  const { successMessage, showSuccess: showSuccessToast, clearSuccess } = useSuccessToast();
+  // S150: contractor earnings — used for the enhanced completion view stat tick.
+  // @backend useContractorEarnings → rpc_get_contractor_earnings (already wired S31)
+  const { data: contractorEarnings } = useContractorEarnings();
+  // S150: vouch card dismissal — "Maybe Later" collapses the card back to the
+  // original secondary CTA row without firing the vouch flow.
+  const [vouchCardDismissed, setVouchCardDismissed] = useState(false);
 
   // ── Role derived from route param ──
   const activeIsContractor = !isAgent;
@@ -692,9 +702,11 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
     (data: { rating: number; comment: string; tags: string[]; isVouch: boolean; isAnonymous?: boolean }) => {
       console.log('Vouch submitted:', data);
       setShowVouchModal(false);
+      // @ux success feedback — SuccessToast wired S149b
+      showSuccessToast('Vouch sent — thanks for sharing your experience');
       // @backend TODO: create review + vouch rows via TanStack mutation
     },
-    []
+    [showSuccessToast]
   );
 
   // ── Helpers ──
@@ -1386,6 +1398,129 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
                 gap: 10,
               }}
             >
+              {/* ─── S150: Contractor-only earnings + jobs tick ─────────
+                  Shows the $X,XXX earned for this job plus the contractor's
+                  lifetime jobs_completed count. Count-up animation was
+                  intentionally omitted (blast-radius control) — values
+                  render static at mount.
+                  @backend job.awardedBid.amount — currently dollars, not cents,
+                           per this screen's local AwardedBid type (line 57–65).
+                           When live data lands, align with Supabase Job.bids
+                           where bid.amount is cents and adjust accordingly.
+                  @backend contractorEarnings.jobs_completed — already wired via
+                           useContractorEarnings → rpc_get_contractor_earnings (S31)
+              */}
+              {activeIsContractor && (
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    gap: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 32,
+                      fontWeight: '700',
+                      color: COLORS.successGreen,
+                      lineHeight: 38,
+                    }}
+                  >
+                    {`$${job.awardedBid.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })} earned`}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '500',
+                      color: COLORS.secondaryText,
+                      lineHeight: 20,
+                    }}
+                  >
+                    {/* @demo jobs_completed — falls back to 0 when the RPC is
+                        unavailable; real number updates when the mutation
+                        query invalidation refreshes the earnings query. */}
+                    {`Jobs completed: ${contractorEarnings?.jobs_completed ?? 0}`}
+                  </Text>
+                </View>
+              )}
+
+              {/* ─── S150: Vouch prompt card (contractor-only, above primary CTA)
+                  Replaces the original secondary "Leave a Review" button when
+                  the contractor has not yet dismissed the card. "Maybe Later"
+                  collapses back to a plain Done button (no separate review
+                  button — keeps the post-dismiss view clean).
+              */}
+              {activeIsContractor && !vouchCardDismissed && !showVouchModal && (
+                <View
+                  style={{
+                    backgroundColor: COLORS.emptyStateFill,
+                    borderWidth: 0.68,
+                    borderColor: COLORS.primary,
+                    borderRadius: 14,
+                    padding: 16,
+                    gap: 10,
+                    marginBottom: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '600',
+                      color: COLORS.darkText,
+                      lineHeight: 22,
+                    }}
+                  >
+                    ⭐  Complete the loop
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '400',
+                      color: COLORS.secondaryText,
+                      lineHeight: 20,
+                    }}
+                  >
+                    {`Leave a vouch for ${job.agent.name} and strengthen your reputation.`}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                    <Pressable
+                      onPress={() => setShowVouchModal(true)}
+                      style={({ pressed }) => ({
+                        flex: 1,
+                        height: 40,
+                        backgroundColor: COLORS.primary,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: pressed ? 0.85 : 1,
+                      })}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#FFFFFF', lineHeight: 20 }}>
+                        Vouch Now
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setVouchCardDismissed(true)}
+                      style={({ pressed }) => ({
+                        flex: 1,
+                        height: 40,
+                        backgroundColor: COLORS.background,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: COLORS.border,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: pressed ? 0.6 : 1,
+                      })}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.bodyText, lineHeight: 20 }}>
+                        Maybe Later
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
               <Pressable
                 onPress={() => navigation.goBack()}
                 style={({ pressed }) => ({
@@ -1401,7 +1536,9 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
                   Done
                 </Text>
               </Pressable>
-              {!showVouchModal && (
+              {/* Agent view keeps the original "Leave a Review" secondary button;
+                  contractor view uses the vouch card above instead. */}
+              {activeIsAgent && !showVouchModal && (
                 <Pressable
                   onPress={() => setShowVouchModal(true)}
                   style={({ pressed }) => ({
@@ -1497,6 +1634,9 @@ const JobCompletionScreen: React.FC<JobCompletionScreenProps> = ({ navigation, r
         onSubmitVouch={handleVouchSubmit}
         showAnonymityOption={activeIsContractor}
       />
+      {successMessage ? (
+        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
+      ) : null}
     </SafeAreaView>
   );
 };

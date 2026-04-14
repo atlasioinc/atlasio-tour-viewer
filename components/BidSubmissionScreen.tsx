@@ -36,8 +36,18 @@ import Svg, { Path } from 'react-native-svg';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, DIMENSIONS } from '../lib/tokens';
 import { useSubmitBid } from '../hooks/useData';
+import { SuccessToast, MomentBanner } from './shared';
+import { useSuccessToast } from '../hooks/useSuccessToast';
+import { useMomentBanner } from '../hooks/useMomentBanner';
+
+// @demo first-bid flag — Profile has no bids_count field yet, so we gate
+// the first-bid MomentBanner on an AsyncStorage key. Replace with
+// `profile.bids_count === 0` when the backend adds the field.
+// @backend: future profile.bids_count (see hooks/useMomentBanner.ts header)
+const FIRST_BID_SHOWN_KEY = 'atlasio_first_bid_shown';
 
 // ─────────────────────────────────────────────
 // ROUTE PARAMS
@@ -106,6 +116,10 @@ const BidSubmissionScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { jobId, prefillAmount, prefillTimeline, prefillNotes, isEdit } = route.params;
   const submitBid = useSubmitBid();
+  // @ux success feedback — SuccessToast wired S149b
+  const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
+  // @ux first-bid Tier 2 delight — MomentBanner wired S150 (branches with SuccessToast)
+  const { bannerConfig, showBanner, clearBanner } = useMomentBanner();
 
   // ── Form state ──
   const [amountText, setAmountText] = useState(() =>
@@ -152,12 +166,31 @@ const BidSubmissionScreen: React.FC = () => {
         notes,
       },
       {
-        onSuccess: () => {
-          Alert.alert(
-            isEdit ? 'Bid Updated' : 'Bid Submitted',
-            isEdit ? 'Your bid has been updated.' : 'Your bid has been submitted to the agent.',
-            [{ text: 'OK', onPress: () => navigation.goBack() }],
-          );
+        onSuccess: async () => {
+          // @ux S150: on a contractor's very first bid ever, show a Tier 2
+          // MomentBanner instead of the standard SuccessToast. The two NEVER
+          // fire simultaneously — this if/else guarantees it.
+          // Gate uses AsyncStorage until Profile.bids_count exists.
+          if (!isEdit) {
+            try {
+              const alreadyShown = await AsyncStorage.getItem(FIRST_BID_SHOWN_KEY);
+              if (!alreadyShown) {
+                showBanner({
+                  icon: '🎯',
+                  message: 'First bid submitted — good luck!',
+                  accentColor: COLORS.primary,
+                });
+                await AsyncStorage.setItem(FIRST_BID_SHOWN_KEY, '1');
+                setTimeout(() => navigation.goBack(), 400);
+                return;
+              }
+            } catch {
+              // fall through to SuccessToast on AsyncStorage error
+            }
+          }
+          // Regular path — SuccessToast (wired S149b)
+          showSuccess(isEdit ? 'Bid updated' : 'Bid submitted');
+          setTimeout(() => navigation.goBack(), 400);
         },
         onError: () => {
           Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -410,6 +443,16 @@ const BidSubmissionScreen: React.FC = () => {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      {successMessage ? (
+        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
+      ) : null}
+      <MomentBanner
+        visible={bannerConfig !== null}
+        icon={bannerConfig?.icon ?? ''}
+        message={bannerConfig?.message ?? ''}
+        accentColor={bannerConfig?.accentColor}
+        onDismiss={clearBanner}
+      />
     </View>
   );
 };

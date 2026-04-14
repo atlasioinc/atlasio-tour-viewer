@@ -21,7 +21,7 @@
 // @backend RPC: rpc_respond_to_counter_offer (useRespondToCounter — already wired S30)
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import {
   StatusBar,
   Alert,
   Image,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -42,7 +43,7 @@ import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
 import { useRespondToCounter, useStartJob } from '../hooks/useData';
 import { CounterButton, DangerButton } from './Button';
-import { Avatar, PhotoLightbox, SkeletonBlock } from './shared';
+import { Avatar, PhotoLightbox, SkeletonBlock, CelebrationScreen } from './shared';
 
 // ─────────────────────────────────────────────
 // ROUTE PARAMS
@@ -481,6 +482,32 @@ const ContractorJobDetails: React.FC = () => {
   const isAwarded = job.jobStatus === 'awarded';
   const isInProgress = job.jobStatus === 'in_progress';
   const isPendingCompletion = job.jobStatus === 'pending_completion';
+
+  // ─── D1: Bid Accepted / Job Won celebration (S150) ──────────────────
+  // Tier 1 delight moment — fires once when `job.myBid.status === 'accepted'`
+  // becomes true. Uses a ref-gated useState so the modal doesn't re-fire on
+  // re-renders or when the contractor cycles through demo states.
+  // @demo detection — status derived from mock DEMO_STATES; in production the
+  // same field (`myBid.status`) comes from useContractorJobDetails(jobId).
+  const [showJobWonCelebration, setShowJobWonCelebration] = useState(false);
+  const hasShownJobWonRef = useRef(false);
+  useEffect(() => {
+    if (isAccepted && !hasShownJobWonRef.current) {
+      hasShownJobWonRef.current = true;
+      setShowJobWonCelebration(true);
+    }
+  }, [isAccepted]);
+  const handleMessageAgent = () => {
+    setShowJobWonCelebration(false);
+    // @demo navigate to messaging thread — wire to actual thread route when
+    // contractor→agent messaging is unified across stacks. For now we dismiss
+    // the modal and no-op on navigation: the MessagesStack isn't always
+    // reachable from within ContractorHomeStack/ContractorJobsStack, so a
+    // blind `navigation.navigate('Messages')` would throw at runtime.
+    // @backend: when the unified thread route lands, replace this with
+    //   navigation.dispatch(CommonActions.navigate({ name: 'MessagesTab',
+    //     params: { screen: 'Thread', params: { threadId: job.threadId } } }))
+  };
 
   // ── Counter-offer handlers ──
   // @backend All 3 use useRespondToCounter → rpc_respond_to_counter_offer
@@ -1275,6 +1302,26 @@ const ContractorJobDetails: React.FC = () => {
         initialIndex={lightboxIndex}
         onClose={() => setLightboxVisible(false)}
       />
+
+      {/* ── D1: Bid Accepted / Job Won celebration (S150) ── */}
+      <Modal
+        visible={showJobWonCelebration}
+        transparent={false}
+        animationType="fade"
+        onRequestClose={() => setShowJobWonCelebration(false)}
+      >
+        <CelebrationScreen
+          icon={<Text style={{ fontSize: 48 }}>🔨</Text>}
+          headline="You got the job!"
+          subtext="Get in touch with the agent to confirm next steps."
+          ctaLabel="View Job Details"
+          onCta={() => setShowJobWonCelebration(false)}
+          secondaryCta="Message Agent"
+          onSecondaryCta={handleMessageAgent}
+          showConfetti
+          accentColor={COLORS.primary}
+        />
+      </Modal>
     </View>
   );
 };

@@ -46,6 +46,148 @@
 
 ---
 
+## S150 — Delight System: CelebrationScreen + MomentBanner + 7 Moments (April 14, 2026)
+
+**Card:** ATL-DELIGHT-SYSTEM → ✅ Done
+
+**Files created (3):**
+- `components/shared/CelebrationScreen.tsx` (~290 lines) — Tier 1 full-screen delight component. Props: `icon, headline, subtext, ctaLabel, onCta, secondaryCta?, onSecondaryCta?, showConfetti?, accentColor?, ctaLoading?`. Replicates DealClosedCelebrationScreen confetti exactly: 12 dots, 30° radial burst, `Animated.stagger(40)`, spring `bounciness: 4, speed: 8`, opacity 1→0 timing 600ms delay 200. Entrance sequence: icon springs at 200ms (`bounciness: 14, speed: 6`), headline fades + translates at 350ms, subtext at 450ms, primary CTA at 550ms, secondary CTA at 600ms. Core RN `Animated` only, `useNativeDriver: true` throughout. `ctaLoading` threads to `PrimaryButton.loading` for async mutations.
+- `components/shared/MomentBanner.tsx` (~130 lines) — Tier 2 slide-down banner. Absolute top positioning, zIndex 9998 (below SuccessToast 9999 — the two never fire simultaneously by design). Slide-in spring (`bounciness: 4, speed: 14`), auto-dismiss 2500ms, slide-out timing 250ms `Easing.in(Easing.ease)`. `pointerEvents: 'none'` — zero-friction, no dismiss button, no tap target. Props: `icon, message, visible, onDismiss, accentColor?`. Timer cleanup on unmount or visible-flip.
+- `hooks/useMomentBanner.ts` (~55 lines) — state hook mirroring `useSuccessToast`: `{ bannerConfig, showBanner, clearBanner }`. NOT in barrel (per spec). Header documents the first-bid AsyncStorage pattern used in BidSubmissionScreen.
+
+**Files modified (9):**
+- `components/shared/index.ts` — exported `CelebrationScreen`, `MomentBanner`, and both prop types. `useMomentBanner` intentionally excluded (not in barrel, same as `useSuccessToast`).
+- `components/BidSubmissionScreen.tsx` — **E1 Tier 2**: first-bid Banner. Gates on AsyncStorage key `atlasio_first_bid_shown`. On `submitBid.onSuccess`, if `!isEdit` AND key unset, fires `MomentBanner` with `🎯 First bid submitted — good luck!` AND sets the key; otherwise falls through to the existing S149b `SuccessToast`. The two never fire simultaneously (if/else branch guarantees it). `@demo`/`@backend` markers on the AsyncStorage fallback — replace with `profile.bids_count === 0` check when the field lands.
+- `components/ContractorJobDetails.tsx` — **D1 Tier 1**: bid-accepted celebration Modal. `useRef hasShownJobWonRef` + `useEffect([isAccepted])` guard ensures it fires once. Renders `<Modal transparent={false} animationType="fade">` wrapping `<CelebrationScreen>` with `🔨` icon, headline "You got the job!", primary CTA "View Job Details", secondary "Message Agent", `showConfetti: true`. `handleMessageAgent` dismisses the modal and leaves navigation as a documented `@backend` TODO (prevents crashes when `Messages` route isn't registered in the current contractor stack).
+- `components/HomeTabAgent.tsx` — **E2 Tier 2**: closing-squad-complete Banner. `useRef prevFilledCountRef` captures previous count; fires `🤝 Your closing squad is complete!` on the `< totalSlots → === totalSlots` transition only. Doesn't fire on mount or re-entry.
+- `components/VerificationScreen.tsx` — **E3a Tier 2**: license-submitted Banner. Replaces the existing `Alert.alert('License Submitted'...)` in both LIVE_VERIFICATION_HOOKS paths (live + mock) with `MomentBanner` firing `🛡️ License submitted for review` (accent `successGreen`). Copy intentionally says "submitted for review" — never overclaims verified status.
+- `components/InsuranceUploadScreen.tsx` — **E3b Tier 2**: insurance-submitted Banner (retargeted from VerificationScreen since S54 removed the insurance section there). `showBanner` fires `✅ Insurance submitted for review` right before `setSubmitted(true)`. Renders atop the existing "Submitted for Review" confirmation view as a brief flourish.
+- `components/RepairJobDetails.tsx` — **E4 Tier 2**: first-bid-received Banner (agent side). `useRef prevBidsCountRef` tracks `bids.length`; fires `📬 Your first bid just came in!` on the `0 → 1` edge only. Works with both mock and live data paths (via existing `setJob` composite).
+- `components/JobCompletionScreen.tsx` — contractor completed state enhancements (agent view untouched): (a) **earnings display** (line ~1429) — `$X,XXX earned` 32pt/700/successGreen, reads `job.awardedBid.amount`. Static render — count-up animation deferred to S151 (requires `useNativeDriver: false` + Animated listener, flagged for dedicated work); (b) **jobs completed stat** (line ~1442) — `Jobs completed: X` from new `useContractorEarnings()` hook, 14pt/500/secondaryText; (c) **vouch prompt card** — elevated from bottom button to a bordered `emptyStateFill` card above the primary CTA with `[Vouch Now] [Maybe Later]`. `vouchCardDismissed` state collapses the card when user picks Maybe Later. Gated on `activeIsContractor && !vouchCardDismissed && !showVouchModal`. (d) **Share CTA promotion NOT applied** — this file has no existing share flow, no `react-native-view-shot` import, no trophy animation. Flagged for S151 with exact line refs: `JobCompletionScreen.tsx:1515–1528` for the Done → "Share your win" swap, pattern reference `components/ShareableClosedDealCard.tsx`.
+- `features/partners/components/PartnerDealsScreen.tsx` — **E5 Tier 2**: all-milestones-complete Banner. `useRef firedMilestoneDealsRef: Set<string>` keyed by `deal.job_id` guards against re-firing on re-entry. For each deal in `allDeals`, if `milestones.every(m => m.status === 'complete')` AND the deal isn't in the set, fires `🎉 All milestones complete — great work!` (accent `successGreen`) and adds the deal to the set. `break` after the first firing ensures only one banner per effect cycle. Set is session-scoped — fresh app session resets it.
+
+**Key decisions:**
+- **D2 (onboarding complete) downscoped** — the original `OnboardingComplete.tsx` is already a role-branded celebration with animated progress bar, Atlasio brand header, 3 role-specific benefit cards, and a BlurView + LinearGradient CTA. Replacing it with `CelebrationScreen` would have lost polish without a UX gain. The file was tentatively swapped during the build, then **restored to HEAD state** after review. `CelebrationScreen` remains available for future Tier 1 moments.
+- **6 of 7 moments shipped as wired** (D1 + E1 + E2 + E3a + E3b + E4 + E5). D2 intentionally preserved original visual — the CelebrationScreen primitive is still net-new value.
+- **No count-up animation** on JobCompletionScreen earnings — blast-radius control on a 1513-line role-branched file. Static render only. Exact implementation path documented for S151: needs `useNativeDriver: false` and an Animated listener to tick a React state, which diverges from the rest of S150's pure-transform animations.
+- **`ContractorJobDetails.handleMessageAgent` defensive fix applied in review** — the initial version called `navigation.navigate('Messages')` which would throw if `Messages` isn't registered in the current contractor stack (ContractorHomeStack / ContractorJobsStack). Replaced with modal-dismiss-only + `@backend` TODO.
+- **`ctaLoading` prop added to CelebrationScreen post-review** — threads through to `PrimaryButton.loading`. Not currently consumed (D1 doesn't need it, D2 reverted), but available for any future async-CTA Tier 1 consumer.
+- **No new tokens** — all colors map to existing `COLORS.primary`, `successGreen`, `emptyStateFill`, `border`, `darkText`, `secondaryText`, plus `SHADOWS.card`.
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **0 new errors/warnings** (7 pre-existing warnings unchanged: CategoryMapScreen useMemo deps ×3, ContractorHomeTab `CURRENT_CONTRACTOR` unused, InsuranceUploadScreen `showBanner` dep ×0 — fixed during build, PostPhotoJobScreen + PostStagingJobScreen `jobId` unused)
+- Feature flags unchanged (demo defaults preserved)
+- `DealClosedCelebrationScreen.tsx` untouched
+- `JobCompletionScreen.tsx` agent view untouched
+- `OnboardingComplete.tsx` zero net delta vs HEAD
+
+**Shared Components (components/shared/):** Avatar, VerificationBadge, VerificationBanner, SkeletonBlock, ErrorToast, AddressAutocompleteInput, PhotoLightbox, EmptyState (S149a), SuccessToast (S149b), **CelebrationScreen (S150)**, **MomentBanner (S150)**.
+
+**Hooks:** **+1 useMomentBanner** (mirrors useSuccessToast). Total hooks: 66 → 67.
+
+**COLORS tokens:** 110 (unchanged — S150 reuses existing palette).
+
+---
+
+### S150 — Next Objectives (S151 targets)
+- **JobCompletionScreen share CTA** — add `react-native-view-shot` import, create a `ShareableJobCompletionCard` (pattern: `components/ShareableClosedDealCard.tsx`), wire `handleShareWin` with `captureRef`, replace the Done button at `JobCompletionScreen.tsx:1515–1528` with `<PrimaryButton label="Share your win" ...>` and demote Done to secondary.
+- **JobCompletionScreen earnings count-up** — add `Animated.Value(0)` for earnings, `Animated.timing` on `jobStatus === 'completed'` transition with `useNativeDriver: false`, `addListener` to tick a `displayEarnings` state, replace the static text at `JobCompletionScreen.tsx:1429`. Clean up listener on unmount.
+- **OnboardingComplete D2 hybrid consideration** — if user signal indicates the Tier 1 celebration moment is still desired, wire `CelebrationScreen` as a brief Modal overlay BETWEEN "tap CTA" and "navigate to MainApp" (preserving the existing onboarding visual underneath).
+- **Deferred from review:** `InsuranceUploadScreen` MomentBanner cosmetically overlaps the "Insurance Upload" header title during the 2.5s dismiss window — reposition banner to `top: insets.top + 48` or accept as-is.
+- **QA focus for Build 39:** all 7 moment triggers on device (first-bid AsyncStorage key, squad-complete ref edge detection, license/insurance submission, first bid received on agent job, all milestones complete on partner deal). `atlasio_first_bid_shown` must be manually cleared to re-test the first-bid banner.
+- **Docs follow-up:** add `tasks/screen-registry.md` entries for `CelebrationScreen` + `MomentBanner` + all 9 modified screens. Add `tasks/lessons.md` entry for "ref-gated once-only effect pattern for celebration triggers" (reusable).
+
+---
+
+## S149b — SuccessToast: Shared Component + Action Sweep (April 14, 2026)
+
+**Card:** ATL-SUCCESS-TOAST → ✅ Done
+
+**Files created (2):**
+- `components/shared/SuccessToast.tsx` (~155 lines) — visual component: light green surface (`COLORS.successToastBg`), 1px border, 4px left accent bar (`COLORS.successGreen`), 18×18 inline checkmark circle SVG, message text (14pt/500), 44×44 manual dismiss `×`. Spring entrance (translateY 100→0, `bounciness: 6, speed: 14`). Auto-dismiss 3000ms with 200ms fade-out. Positioned `bottom: insets.bottom + 32, left: 24, right: 24`. Companion to `ErrorToast.tsx` — mirrors the architectural pattern (default export, useEffect + setTimeout fade), but visuals are intentionally distinct per the S149b spec's visual section. The "mirror exactly" line in the spec is for the architecture, not the appearance — documented in the file header.
+- `hooks/useSuccessToast.ts` (~36 lines) — state hook: `{ successMessage, showSuccess, clearSuccess }`. Mirrors `useErrorToast.ts` exactly (single string state, useCallback show/clear pair). NOT in any barrel — imported directly by screens.
+
+**Files modified (12):**
+- `lib/tokens.ts` — added `// ── Success Toast (S149b) ──` section with 3 tokens: `successToastBg: '#F0FDF4'`, `successToastBorder: '#BBF7D0'`, `successToastText: '#15803D'`. Reused existing `COLORS.successGreen ('#16A34A')` for accent bar + check icon — did NOT add a new `success` token. **COLORS token count: 107 → 110.**
+- `components/shared/index.ts` — added `export { default as SuccessToast } from './SuccessToast';`. Hook NOT in barrel per spec.
+- `hooks/useUploadAvatar.ts` — added optional `onSuccess?: () => void` parameter to `pickAndUpload(currentAvatarUrl, onSuccess)`. Fires after successful upload AND successful remove (both code paths). Failure path unchanged — `Alert.alert('Upload Failed', message)` from the S146 fix is preserved exactly. Minimal-blast: hook still returns the same shape.
+- `components/PostPhotoJobScreen.tsx` — replaced try-branch `Alert.alert('Job Posted!')` with `showSuccess('Photo job posted successfully')` + `setTimeout(navigation.goBack, 400)`. Catch fallback Alert untouched per user directive (option c).
+- `components/PostStagingJobScreen.tsx` — same pattern: try-branch toast + 400ms nav delay, catch fallback Alert untouched.
+- `components/BidSubmissionScreen.tsx` — replaced `Alert.alert(isEdit ? 'Bid Updated' : 'Bid Submitted', ...)` in `submitBid.mutate(...).onSuccess` with toast `'Bid updated'` / `'Bid submitted'` (`isEdit`-aware) + 400ms nav delay. `onError` Alert untouched.
+- `components/EditProfileScreen.tsx` — TWO wirings: (a) `useUpdateProfile` onSuccess — toast `'Profile saved'` + 400ms nav delay, error Alert preserved; (b) avatar — `pickAndUpload(currentAvatarUrl, () => showSuccess('Photo updated'))` at both `Avatar onPress` and "Change Photo" Pressable. Avatar failure Alert (S146 fix) untouched.
+- `components/ProProfile.tsx` — added `showSuccess('Request sent')` to `handleSendConnect` after the existing `setConnectSent(true)` + modal close. The owned mutation path. `useSendConnectionRequest` mutation otherwise unchanged.
+- `components/FindTab.tsx` — also wired `showSuccess('Request sent')` into `handleSendConnect`. **Note:** FindTab's connection handler is currently a `console.log` stub; the real mutation lives in ProProfile. Added the toast anyway because FindTab's modal is the user-facing surface — users who tap "Send" expect feedback. Marked `@demo connection mutation is stubbed in FindTab — real mutation lives in ProProfile.handleSendConnect`.
+- `components/AgentDealDetailScreen.tsx` — added `showSuccess('Link ready to share')` immediately after the awaited `Share.share(...)` call in `handleShare`. Wording deviates from the spec's `'Link copied to clipboard'` because the actual UX is `Share.share` (native iOS share sheet), NOT a clipboard copy. Per approved deviation (b), kept Share.share unchanged. Failure Alert untouched.
+- `components/JobCompletionScreen.tsx` — added `showSuccess('Vouch sent — thanks for sharing your experience')` to `handleVouchSubmit`. Hook destructured with alias: `showSuccess: showSuccessToast` to avoid collision with the existing local `showSuccess` overlay state at line 448 (a totally separate "success overlay" animation system used for revision/confirmation flows). The `showSuccessOverlay` system was NOT touched — toast is additive, scoped to the vouch path only. Audit confirmed no `DealClosedCelebrationScreen` transition fires from this screen, so no animation conflict.
+
+**Skipped (with reason):**
+- **PostJobWizard.tsx** — already has a dedicated full-screen success view (`renderSuccessView` at line 905) using the DealCreationSheet pattern from S80. Per the spec's "do not add a toast on top of dedicated confirmation UI" rule, did NOT wire. The in-place success view is stronger feedback than a toast and intentionally requires user tap to navigate. Flagged here for visibility — no action needed.
+
+**Spec deviations (all approved before build):**
+1. **(a) "Mirror ErrorToast exactly" vs visual spec contradiction** — followed the visual spec (light surface, border, accent bar, icon, manual dismiss, safe-area positioning, 3000ms, spring `bounciness: 6 speed: 14`). The "mirror" rule applies to architecture, not visuals. Documented in `SuccessToast.tsx` file header.
+2. **(b) Action #8 wording** — `'Link ready to share'` instead of `'Link copied to clipboard'` because the actual UX is `Share.share`, not Clipboard. `Share.share` left unchanged.
+3. **(c) PostPhoto/PostStaging catch fallback Alerts** — left untouched. Worth noting these are actually mock success fallbacks (not error paths) — they fire `Alert.alert('Job Posted!')` even when the RPC fails, to keep the demo unbreakable. Inconsistent UX with the try-branch toast; flagged for a follow-up cleanup (consolidate to toast in both paths once `LIVE_*` flags are permanent).
+4. **(d) FindTab wiring** — wired even though the mutation is stubbed (lives in ProProfile). User-facing surface needs feedback regardless.
+5. **(e) Avatar wiring approach** — chose to add an optional `onSuccess` callback parameter to `pickAndUpload` (cleanest minimal-blast option). Alternative was a `useEffect` watching `isUploading` falling edge, which is fragile. Failure Alert (S146) preserved.
+6. **`successGreen` token already exists** — reused the existing `COLORS.successGreen ('#16A34A')` from `lib/tokens.ts:75` for the accent bar + checkmark fill. Did NOT add a new `success` token (would have been a duplicate).
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **0 errors**, 6 pre-existing warnings (CategoryMapScreen useMemo deps ×3, ContractorHomeTab `CURRENT_CONTRACTOR` unused, PostPhotoJobScreen + PostStagingJobScreen `jobId` unused — all pre-existing, none introduced by S149b).
+- Feature flags unchanged (demo defaults preserved).
+- Avatar failure `Alert.alert` (S146 fix) confirmed still fires on upload error.
+- All 8 wired toasts use the same shared `<SuccessToast>` component — no per-screen variants.
+
+**Shared Components (components/shared/):** Avatar, VerificationBadge, VerificationBanner, SkeletonBlock, ErrorToast, AddressAutocompleteInput, PhotoLightbox, EmptyState (S149a), **SuccessToast (S149b)**.
+
+**Hooks:** **+1 useSuccessToast** (mirrors useErrorToast). Total hooks: 65 → 66.
+
+**COLORS tokens:** 107 → 110 (+3).
+
+---
+
+## S149a — Empty States: Shared Component + Full Sweep (April 14, 2026)
+
+**Card:** ATL-EMPTY-STATES → ✅ Done
+
+**Files created (2):**
+- `components/shared/EmptyState.tsx` (~150 lines) — public component: `EmptyStateProps` interface (`illustration`, `title`, `body`, `ctaLabel?`, `onCta?`, `style?`), illustration switch, layout (160×160 illustration → 17pt title → 14pt body → optional 14pt CTA, all centered, paddingHorizontal:32 paddingVertical:48, flex:1).
+- `components/shared/EmptyStateIllustrations.tsx` (~290 lines) — 10 named SVG illustrations (`InboxIllustration`, `FindIllustration`, `NetworkIllustration`, `JobTrackerIllustration`, `ContractorHomeIllustration`, `AgentDealsIllustration`, `NotificationsIllustration`, `JobBidsIllustration`, `VouchFeedIllustration`, `ProfileVouchesIllustration`). All use 160×160 viewBox, strokeWidth 1.5, round caps/joins, palette of `EMPTY_PALETTE` (primary/fill/mid/white). Internal file — NOT exported from barrel.
+
+**Files modified (12):**
+- `lib/tokens.ts` — added `// ── Empty States (S149a) ──` section under `COLORS` with two new tokens: `emptyStateFill: '#EBF0FF'`, `emptyStateMid: '#C7D4FF'`. **COLORS token count: 105 → 107.**
+- `components/shared/index.ts` — barrel exports `EmptyState` (default) plus type re-exports `EmptyStateProps` and `EmptyStateIllustration`. `EmptyStateIllustrations` intentionally NOT exported.
+- `components/InboxList.tsx` — replaced custom "Start a conversation" empty UI inside the `threads.length === 0 && searchText.length === 0` branch with `<EmptyState illustration="inbox" title="No messages yet" body="Conversations with pros appear here." ctaLabel="Find pros" />` → CTA dispatches `CommonActions.navigate({ name: 'Find' })`.
+- `components/FindTab.tsx` — replaced inline "No pros found" mini-empty with `<EmptyState illustration="find" />`. Already gated on `isSearching` (existing `searchText.length > 0 || activeRole !== 'All'` condition), so the empty state only shows after a search/filter is applied. CTA = local handler that calls `setSearchText('')` + `clearAllFilters()`.
+- `components/NetworkTab.tsx` — replaced the main contacts empty state (the `contacts.length === 0 && searchText.length === 0` branch in agent/contractor mode) with `<EmptyState illustration="network" />`. CTA dispatches `CommonActions.navigate({ name: 'Find', params: { screen: 'FindMain' } })`. Two other in-file empty states (partner-mode "Your Agents" empty at line ~397, and the "no search matches" empty at line ~1063) intentionally left untouched as they are different sub-zones — flagged for follow-up.
+- `components/JobTrackerTab.tsx` — replaced inline `ListEmptyComponent` View block with `<EmptyState illustration="job_tracker" />`. **Per-filter copy preserved** by keeping `EMPTY_STATE_CONFIG` keyed by `FilterOption` (only `headline`/`body` per filter; `icon` field removed). Deleted 5 unused inline icon components (`ClipboardIcon`, `EnvelopeIcon`, `PaperPlaneIcon`, `HammerIcon`, `CheckCircleIcon`). CTA = "Browse open jobs" → contractor `Home` tab.
+- `components/ContractorHomeTab.tsx` — wrapped sections from Stripe banner through Market Pulse in a `!isFilled ? <EmptyState illustration="contractor_home" /> : <>...</>` conditional. When the demo "Empty" toggle is selected, ALL 5 section-level empty chips are replaced by ONE shared `<EmptyState>` (title `"You're all set"`, body `"No active jobs right now. New matches will appear here."`, CTA `"Browse open jobs"` → `Jobs` tab). `@demo — pull-down empty toggle can be removed when live hooks are wired` marker added. The 5 inline `EmptyStateCallout` section chips kept for the case when individual sections are empty inside a partially-filled state.
+- `components/AgentDealsScreen.tsx` — replaced inline empty View with `<EmptyState illustration="agent_deals" />`. **Imports `DEAL_CREATION_ENABLED` from `lib/config.ts`** (NOT `lib/featureFlags.ts` — see Spec Deviations below). CTA `"Create a deal"` only rendered when `activeFilter === 'all' && DEAL_CREATION_ENABLED` — currently false at MVP launch. Body copy varies per filter (`'all'` / `'needs_attention'` / `'closing_soon'`). Removed unused `emptySubtitle` const.
+- `components/NotificationsTab.tsx` — replaced `renderEmptyState` body with `<EmptyState illustration="notifications" title="You're all caught up" body="No new notifications right now." />`. No CTA per spec.
+- `components/RepairJobDetails.tsx` — added a new bids-empty branch inside the existing Bids Section: `effectiveJobStatus === 'open' && sortedBids.length === 0` renders `<EmptyState illustration="job_bids" title="No bids yet" />`, otherwise renders `sortedBids.map(...)`. No CTA — informational only. Status gate ensures awarded/completed jobs continue to show their own status UI.
+- `components/VouchFeedSection.tsx` — deleted local `EmptyState` component (renamed to ensure no shadowing). Imported shared `EmptyState` from `./shared` and `useDemoRole` from `lib/demoRoleContext`. Role-branched CTA: `demoRole === 'contractor'` shows `"Find work"`, `demoRole === 'agent'` shows no CTA. Inline comment explains the business rule (contractors earn vouches by completing jobs; agents don't get vouched the same way).
+- `components/ProfileTab.tsx` — replaced the inline "No vouches yet" Text inside `VouchesBottomSheet` with `<EmptyState illustration="profile_vouches" title="No vouches received" body="Vouches from collaborators show here after completing jobs together." />`. No CTA. Style override `{ flex: 0, paddingVertical: 32 }` so the empty state fits inside the bottom-sheet ScrollView (avoids `flex:1` collapsing inside a scroll container).
+
+**Spec deviations (flagged for review, none blocking):**
+1. **`DEAL_CREATION_ENABLED` source:** spec named `lib/featureFlags.ts`, but the real flag lives in `lib/config.ts` alongside `PARTNER_TRACK_ENABLED`. Used the existing convention.
+2. **JobTrackerTab per-filter copy:** spec gave one global copy block, but the screen already has filter-specific copy (`'No invitations'`, `'No bids sent'`, etc.) which is better UX. Kept the per-filter copy and used the same `job_tracker` illustration for all filters.
+3. **`contractor_home` copy:** updated per user feedback to `title="You're all set"`, `body="No active jobs right now. New matches will appear here."` (spec originally said `"All clear"`).
+4. **NetworkTab partial-replacement:** only the main contacts empty state was wired. The partner-mode "Your Agents" empty (line ~397) and the search-no-matches empty (line ~1063) were left as-is per minimal-blast-radius rule. Both are different sub-zones and would need separate decisions on illustration/copy.
+5. **ContractorHomeTab full takeover:** rather than replacing each of the 5 section-level `EmptyStateCallout` chips (which are visually scoped to small section cards), I added a top-level `!isFilled` conditional that swaps all sections for one shared `<EmptyState>`. This matches the spec intent ("Empty state replaces the 'empty' pull-down toggle"). The section-level chips remain in place for partial-empty states.
+6. **`style` prop usage:** four screens pass `style={{ flex: 0, paddingVertical: 32 }}` because the shared component's default `flex: 1` collapses inside ScrollView containers (RepairJobDetails bids, VouchFeedSection, ProfileTab vouches, and inside ContractorHomeTab the takeover uses `<View style={{ minHeight: 480 }}>` instead).
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **0 errors**, 6 pre-existing warnings (CategoryMapScreen useMemo deps ×3, ContractorHomeTab `CURRENT_CONTRACTOR` unused, PostPhotoJobScreen + PostStagingJobScreen `jobId` unused — all pre-existing, none introduced by S149a).
+- Feature flags unchanged (demo defaults preserved). `DEAL_CREATION_ENABLED: false` confirmed.
+
+**Shared Components (components/shared/):** Avatar, VerificationBadge, VerificationBanner, SkeletonBlock, ErrorToast, AddressAutocompleteInput, PhotoLightbox, **EmptyState (S149a)**.
+
+**COLORS tokens:** 105 → 107 (+2).
+
+---
+
 ## S148b — Neighborhood Intelligence: Map Redesign (April 14, 2026)
 
 **Card:** ATL-NEIGHBORHOOD-MAP → ✅ Done

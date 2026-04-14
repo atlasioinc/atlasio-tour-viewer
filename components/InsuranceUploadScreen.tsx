@@ -40,6 +40,8 @@ import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useUploadInsuranceDocument } from '../hooks/useData';
 import { PrimaryButton } from './Button';
+import { MomentBanner } from './shared';
+import { useMomentBanner } from '../hooks/useMomentBanner';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -166,6 +168,8 @@ const InsuranceUploadScreen: React.FC = () => {
   const route = useRoute<RouteProp<ProfileStackParamList, 'InsuranceUpload'>>();
   const insets = useSafeAreaInsets();
   const uploadMutation = useUploadInsuranceDocument();
+  // @ux S150 — E3b insurance submitted Tier 2 delight
+  const { bannerConfig, showBanner, clearBanner } = useMomentBanner();
 
   // If opened from ProfileTab with pending_review status, show submitted state
   const openedAsPending = route.params?.status === 'pending_review';
@@ -290,13 +294,22 @@ const InsuranceUploadScreen: React.FC = () => {
         });
         await new Promise((resolve) => setTimeout(resolve, 1200));
       }
+      // ─── E3b: Insurance submitted Tier 2 delight (S150) ────────────
+      // Banner shows briefly on top of the existing confirmation view —
+      // a quiet flourish atop the already-present "Submitted for Review"
+      // screen. Copy says "submitted for review", never "verified".
+      showBanner({
+        icon: '✅',
+        message: 'Insurance submitted for review',
+        accentColor: COLORS.successGreen,
+      });
       setSubmitted(true);
     } catch {
       setSubmitError('Failed to upload insurance document. Please try again.');
     } finally {
       setSubmitting(false);
     }
-  }, [selectedFile, expiryMonth, expiryYear, uploadMutation]);
+  }, [selectedFile, expiryMonth, expiryYear, uploadMutation, showBanner]);
 
   // ─────────────────────────────────────────────
   // NAVIGATION
@@ -371,6 +384,14 @@ const InsuranceUploadScreen: React.FC = () => {
             <PrimaryButton label="Back to Profile" onPress={handleBackToProfile} />
           </View>
         </View>
+        {/* E3b: Insurance submitted banner (S150) — brief flourish atop confirmation */}
+        <MomentBanner
+          visible={bannerConfig !== null}
+          icon={bannerConfig?.icon ?? ''}
+          message={bannerConfig?.message ?? ''}
+          accentColor={bannerConfig?.accentColor}
+          onDismiss={clearBanner}
+        />
       </View>
     );
   }

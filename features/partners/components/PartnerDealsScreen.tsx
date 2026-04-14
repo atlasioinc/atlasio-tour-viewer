@@ -12,7 +12,7 @@
 // useUpdateMilestoneStatus() → optimistic cycle on milestone tap
 // usePostDealAlert() → fires on composer Send tap
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, DIMENSIONS } from '../../../lib/tokens';
 import { isMilestoneStale } from '../lib/dealMilestones';
+import { MomentBanner } from '../../../components/shared';
+import { useMomentBanner } from '../../../hooks/useMomentBanner';
 import ActiveDealCard from './ActiveDealCard';
 import {
   usePartnerActiveDeals,
@@ -58,6 +60,33 @@ const PartnerDealsScreen: React.FC<PartnerDealsScreenProps> = ({ partnerRole = '
   const updateMilestone = useUpdateMilestoneStatus();
   const postAlert = usePostDealAlert();
   const dismissAlert = useDismissDealAlert();
+
+  // ─── E5: All milestones complete Tier 2 delight (S150) ─────────────
+  // Fires when the final milestone on a deal transitions to 'complete'.
+  // Tracking is ONCE PER DEAL PER SESSION — a Set<string> ref keyed by
+  // deal.job_id guards against re-firing on re-entry into an already-
+  // complete deal. The set is intentionally not persisted; a fresh
+  // app session resets it so returning users still see the delight.
+  // @demo milestone data comes from usePartnerActiveDeals mock shape.
+  const { bannerConfig, showBanner, clearBanner } = useMomentBanner();
+  const firedMilestoneDealsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const deal of allDeals) {
+      const milestones = deal.milestones ?? [];
+      if (milestones.length === 0) continue;
+      const allComplete = milestones.every((m) => m.status === 'complete');
+      if (allComplete && !firedMilestoneDealsRef.current.has(deal.job_id)) {
+        firedMilestoneDealsRef.current.add(deal.job_id);
+        showBanner({
+          icon: '🎉',
+          message: 'All milestones complete — great work!',
+          accentColor: COLORS.successGreen,
+        });
+        // Only fire for the first matching deal in a given effect cycle
+        break;
+      }
+    }
+  }, [allDeals, showBanner]);
 
   // ── Derived data ──
   const now = useMemo(() => new Date(), []);
@@ -291,6 +320,15 @@ const PartnerDealsScreen: React.FC<PartnerDealsScreenProps> = ({ partnerRole = '
           </View>
         )}
       </ScrollView>
+
+      {/* E5: All milestones complete banner (S150) */}
+      <MomentBanner
+        visible={bannerConfig !== null}
+        icon={bannerConfig?.icon ?? ''}
+        message={bannerConfig?.message ?? ''}
+        accentColor={bannerConfig?.accentColor}
+        onDismiss={clearBanner}
+      />
     </SafeAreaView>
   );
 };

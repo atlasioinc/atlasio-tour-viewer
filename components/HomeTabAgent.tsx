@@ -44,8 +44,9 @@ import { COLORS, SHADOWS } from '../lib/tokens';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { useMyProfile, useAgentActiveDeals, useAgentActiveJobs } from '../hooks/useData';
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
-import { Avatar, VerificationBanner, SkeletonBlock, ErrorToast } from './shared';
+import { Avatar, VerificationBanner, SkeletonBlock, ErrorToast, MomentBanner } from './shared';
 import { useErrorToast } from '../hooks/useErrorToast';
+import { useMomentBanner } from '../hooks/useMomentBanner';
 import { CardButton } from './Button';
 import QuickActionsRow from './QuickActionsRow';
 import { useVerificationGate } from '../hooks/useVerificationGate';
@@ -577,6 +578,27 @@ const HomeTabAgent: React.FC = () => {
   const filledCount = Object.keys(squadMembers).length;
   const totalSlots = SQUAD_SLOTS.filter((s) => !s.isAddNew).length + additionalSlots.length;
   const hasAnyFilled = filledCount > 0;
+
+  // ─── E2: Closing squad assembled Tier 2 delight (S150) ─────────────
+  // Fires when filledCount transitions from < totalSlots to === totalSlots.
+  // Uses a ref to capture the previous count so we only fire on the
+  // transition — not every re-render once the squad is already full.
+  // @demo detection — squadMembers is local state in demo mode; in
+  // production this would observe the squad hook's derived allFilled flag.
+  const { bannerConfig, showBanner, clearBanner } = useMomentBanner();
+  const prevFilledCountRef = useRef(filledCount);
+  useEffect(() => {
+    const wasFull = prevFilledCountRef.current >= totalSlots && totalSlots > 0;
+    const isFull = filledCount >= totalSlots && totalSlots > 0;
+    if (isFull && !wasFull) {
+      showBanner({
+        icon: '🤝',
+        message: 'Your closing squad is complete!',
+        accentColor: COLORS.primary,
+      });
+    }
+    prevFilledCountRef.current = filledCount;
+  }, [filledCount, totalSlots, showBanner]);
 
   // Combine default + additional slots; filled sort left, empty right, "Add" always last
   const roleSlots = [
@@ -1576,6 +1598,15 @@ const HomeTabAgent: React.FC = () => {
           onRetry={() => { refetchJobs(); refetchDeals(); }}
         />
       ) : null}
+
+      {/* E2: Closing squad complete banner (S150) */}
+      <MomentBanner
+        visible={bannerConfig !== null}
+        icon={bannerConfig?.icon ?? ''}
+        message={bannerConfig?.message ?? ''}
+        accentColor={bannerConfig?.accentColor}
+        onDismiss={clearBanner}
+      />
     </SafeAreaView>
   );
 };

@@ -54,7 +54,8 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useJob, useJobBids } from '../hooks/useData';
 import { useRealtimeBids } from '../hooks/useRealtime';
-import { Avatar, PhotoLightbox, VerificationBanner } from './shared';
+import { Avatar, PhotoLightbox, VerificationBanner, EmptyState, MomentBanner } from './shared';
+import { useMomentBanner } from '../hooks/useMomentBanner';
 import { DisplayTag } from './DisplayTag';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
@@ -552,6 +553,30 @@ const RepairJobDetails: React.FC = () => {
   }, [liveJob, liveBids]);
 
   const bids = job.bids as BidWithProfile[];
+
+  // ─── E4: First bid received Tier 2 delight (S150) ──────────────────
+  // Fires when the agent's job receives its very first bid — i.e. when
+  // bids.length transitions from 0 to 1. Uses a ref to capture the
+  // previous count so it only fires on the 0→1 edge, not on every
+  // subsequent re-render.
+  // @demo bids observed via setJob/liveBids composite — works with both
+  // mock and live data paths.
+  const {
+    bannerConfig: firstBidBannerConfig,
+    showBanner: showFirstBidBanner,
+    clearBanner: clearFirstBidBanner,
+  } = useMomentBanner();
+  const prevBidsCountRef = useRef(bids.length);
+  useEffect(() => {
+    if (prevBidsCountRef.current === 0 && bids.length === 1) {
+      showFirstBidBanner({
+        icon: '📬',
+        message: 'Your first bid just came in!',
+        accentColor: COLORS.primary,
+      });
+    }
+    prevBidsCountRef.current = bids.length;
+  }, [bids.length, showFirstBidBanner]);
   const sortedBids = [...bids].sort((a, b) => {
     switch (selectedSort) {
       case 'Lowest Price':
@@ -1216,16 +1241,26 @@ const RepairJobDetails: React.FC = () => {
             </Pressable>
           </View>
 
-          {sortedBids.map((bid) => (
-            <BidCard
-              key={bid.id}
-              bid={bid}
-              onAccept={() => openBidAction('accept', bid)}
-              onCounter={() => openBidAction('counter', bid)}
-              onReject={() => openBidAction('reject', bid)}
-              onMessage={() => handleOpenRepairChat(bid)}
+          {effectiveJobStatus === 'open' && sortedBids.length === 0 ? (
+            /* ── Empty State — S149a — only when job is still open and has no bids ── */
+            <EmptyState
+              illustration="job_bids"
+              title="No bids yet"
+              body="Your job is live. Bids will appear here once contractors respond."
+              style={{ flex: 0, paddingVertical: 32 }}
             />
-          ))}
+          ) : (
+            sortedBids.map((bid) => (
+              <BidCard
+                key={bid.id}
+                bid={bid}
+                onAccept={() => openBidAction('accept', bid)}
+                onCounter={() => openBidAction('counter', bid)}
+                onReject={() => openBidAction('reject', bid)}
+                onMessage={() => handleOpenRepairChat(bid)}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -1930,6 +1965,15 @@ const RepairJobDetails: React.FC = () => {
         photos={displayPhotos}
         initialIndex={lightboxIndex}
         onClose={() => setLightboxVisible(false)}
+      />
+
+      {/* E4: First bid received banner (S150) */}
+      <MomentBanner
+        visible={firstBidBannerConfig !== null}
+        icon={firstBidBannerConfig?.icon ?? ''}
+        message={firstBidBannerConfig?.message ?? ''}
+        accentColor={firstBidBannerConfig?.accentColor}
+        onDismiss={clearFirstBidBanner}
       />
     </View>
   );

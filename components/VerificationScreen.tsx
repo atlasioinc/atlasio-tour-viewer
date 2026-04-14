@@ -39,6 +39,8 @@ import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMyProfile, useSubmitLicenseVerification } from '../hooks/useData';
+import { MomentBanner } from './shared';
+import { useMomentBanner } from '../hooks/useMomentBanner';
 import FormField from './FormField';
 import type { ProfileStackParamList } from './ProfileStack';
 
@@ -267,6 +269,12 @@ const VerificationScreen: React.FC = () => {
   // LICENSE SAVE HANDLER
   // ─────────────────────────────────────────────
 
+  // ─── E3a: License submitted Tier 2 delight (S150) ───────────────────
+  // Shared MomentBanner hook — fires "License submitted for review" after
+  // a successful submission (both live + mock paths). Copy intentionally
+  // says "submitted for review" not "verified" — we don't overclaim status.
+  const { bannerConfig, showBanner, clearBanner } = useMomentBanner();
+
   const handleLicenseSave = useCallback(async () => {
     if (!licenseNumber.trim()) {
       Alert.alert('License Number Required', 'Please enter your license number.');
@@ -285,22 +293,30 @@ const VerificationScreen: React.FC = () => {
           Alert.alert('Error', result.message);
           return;
         }
-        Alert.alert('License Submitted', 'Your license has been submitted for verification.');
+        showBanner({
+          icon: '🛡️',
+          message: 'License submitted for review',
+          accentColor: COLORS.successGreen,
+        });
       } else {
-        // @demo — console.log payload + mock success Alert
+        // @demo — console.log payload + mock success banner
         console.log('[VerificationScreen] handleLicenseSave (mock)', {
           licenseNumber: licenseNumber.trim(),
           licenseState: licenseState.toUpperCase(),
         });
         await new Promise((r) => setTimeout(r, 500));
-        Alert.alert('License Saved', 'Your license number has been saved. Verification is pending.');
+        showBanner({
+          icon: '🛡️',
+          message: 'License submitted for review',
+          accentColor: COLORS.successGreen,
+        });
       }
     } catch {
       Alert.alert('Error', 'Failed to save license. Please try again.');
     } finally {
       setLicenseSaving(false);
     }
-  }, [licenseNumber, licenseState, submitLicense]);
+  }, [licenseNumber, licenseState, submitLicense, showBanner]);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: insets.top }}>
@@ -587,6 +603,15 @@ const VerificationScreen: React.FC = () => {
           />
         </Animated.View>
       </Modal>
+
+      {/* ── E3a: License submitted Tier 2 banner (S150) ── */}
+      <MomentBanner
+        visible={bannerConfig !== null}
+        icon={bannerConfig?.icon ?? ''}
+        message={bannerConfig?.message ?? ''}
+        accentColor={bannerConfig?.accentColor}
+        onDismiss={clearBanner}
+      />
     </View>
   );
 };
