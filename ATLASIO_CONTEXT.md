@@ -31,7 +31,7 @@
 
 ---
 
-## Current Metrics (updated S145c — April 13, 2026)
+## Current Metrics (updated S146 — April 13, 2026)
 - **RPCs:** 66 (+1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
 - **Hooks:** 65 (unchanged S144; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
@@ -1208,6 +1208,31 @@ Located in `components/shared/index.ts` (barrel export):
   - Zero component file changes — this is purely a nav-config restoration.
 - **Metrics unchanged.**
 - **tsc:** 0 errors
+
+### S146 — QA Bug Fixes from Build 27 (April 13, 2026)
+Seven bugs surfaced from TestFlight Build 27 QA. Root-caused and fixed in one pass.
+
+- **Bug 1 — components/ProfileTab.tsx:** Role pill rendered lowercase `'agent'` because `liveProfile.display_role` DB column returned the raw enum value (not the display string) and won the `??` fallback chain before `ROLE_DISPLAY[profileRole]` fired. Dropped `display_role` from both `profileDisplayRole` and `roleLabel` derivation chains. Both now use `ROLE_DISPLAY[profileRole]` as the authoritative display source. DB column is considered unreliable and is no longer read for display purposes.
+- **Bug 3 — hooks/useUploadAvatar.ts:** Avatar upload was failing silently because (a) the outer catch block only set local `error` state that the caller didn't render, and (b) the 3-step pipeline (FileSystem read → base64 decode → storage upload) had no per-step error identification. Added inner try/catch around each step with tagged error messages (`FileSystem read failed: …`, `Base64 decode failed: …`, `Storage upload failed: …`), added `Alert.alert('Upload Failed', message)` in the outer catch so failures surface on-device. Also renamed `'Change Photo'` → `'Take Photo'` in both the iOS ActionSheet with-photo branch and the Android Alert options (the no-photo branches already said "Take Photo"). Android Alert title for existing-photo case renamed `'Change Photo'` → `'Update Photo'` to keep semantics clear.
+- **Bug 4 — components/shared/AddressAutocompleteInput.tsx:** Dropdown rows were untappable inside ScrollView on iOS. Bumped all three stacking contexts (outer wrapper, inner relative wrapper, absolute dropdown View) from `zIndex: 99` to `zIndex: 1000` with matching `elevation: 1000` for Android. Elevation placed AFTER `...SHADOWS.card` spread on the dropdown to avoid the shadow preset overwriting it (caught by tsc TS2783). Consumer screens (PostPhotoJobScreen, PostStagingJobScreen, PostJobWizard) already had `keyboardShouldPersistTaps="handled"` — no consumer changes.
+- **Bug 5 — components/EditProfileScreen.tsx:** Headline cap reverted 50 → 45 chars. Three spots updated: `slice(0, 45)` in onChangeText, `maxLength={45}`, and helperText `"45 chars max"`. SQL executed separately in Supabase SQL Editor: `ALTER TABLE profiles DROP CONSTRAINT profiles_headline_check; ALTER TABLE profiles ADD CONSTRAINT profiles_headline_check CHECK (char_length(headline) <= 45);`
+- **Bug 6 — components/InboxStack.tsx:** `DealChatScreen` converted from `presentation: 'fullScreenModal'` (slide from bottom) to a pushed screen with `options={{ gestureEnabled: true }}`. `headerShown: false` inherits from Stack.Navigator screenOptions. Restores swipe-back-from-edge on iOS. Animation now slides from right matching the rest of InboxStack.
+- **Bug 7 — components/DealChatScreen.tsx:** Deal Details edit modal sheet input was hidden behind keyboard. Root cause: `<KeyboardAvoidingView>` was nested *inside* the sheet's inner Pressable, so `behavior="padding"` had nothing to push against — the animated bottom-aligned sheet couldn't extend upward. Restructured: KAV now wraps the entire `<Pressable backdrop>` as the outermost Modal child with `flex: 1`. Keyboard now pushes the whole bottom-aligned sheet upward. Inner KAV removed. `translateY` spring animation (600→0) preserved.
+- **Bug 2 — skipped:** Languages/Specialties/ServiceArea pre-fill reportedly not working. Investigation proved there is no code bug. `hooks/useData.ts:164` uses `supabase.from('profiles').select('*')` which returns all columns. `types/index.ts:168-169` declares both `languages: string[]` and `specialties: string[]`. The pre-fill `useEffect` in `EditProfileScreen.tsx:366-367` only overwrites `prev` when fetched arrays are non-empty — if DB rows genuinely have empty `languages`/`specialties` (default `'{}'`), the pre-fill is a no-op by design. Recommended on-device diagnosis: run `SELECT languages, specialties FROM profiles WHERE id = '<your-id>'` in Supabase SQL editor before assuming the hook is broken.
+- **Key decisions:**
+  - ProfileTab `display_role` removal is a hard break from the DB column. If partner roles ever need custom display labels, add them to the `ROLE_DISPLAY` map in `components/ProfileTab.tsx` rather than relying on the DB column.
+  - Avatar upload errors now surface via `Alert.alert` in addition to `setError()`. This violates the "never add UI side effects in a hook" purist rule but is justified because the original silent failure meant the caller component had to opt-in to rendering the error, which wasn't happening.
+  - AddressAutocompleteInput zIndex bump is the lightweight fix. If device testing shows the dropdown rows are still untappable, the next step is moving the dropdown into a `<Modal transparent>` overlay (more complex, better stacking guarantees).
+  - DealChatScreen fullScreenModal → pushed conversion changes the transition animation. Modal entry points that relied on modal-specific dismiss behavior (none confirmed in code) may need adjustment.
+- **Files modified (6):** `components/ProfileTab.tsx`, `hooks/useUploadAvatar.ts`, `components/shared/AddressAutocompleteInput.tsx`, `components/EditProfileScreen.tsx`, `components/InboxStack.tsx`, `components/DealChatScreen.tsx`
+- **SQL executed in Supabase SQL Editor:** headline constraint revert 50 → 45 chars
+- **Metrics unchanged** — no new RPCs, hooks, edge functions, feature flags, or shared components.
+- **tsc:** 0 errors | **Lint:** 0 errors (3 pre-existing unused-var warnings unchanged)
+
+### S146 — Next Objectives
+- **TestFlight Build 28 QA** — verify all 7 fixes on device, especially Bug 4 autocomplete tappability (zIndex may still fail on iOS ScrollView — fall back to Modal if so) and Bug 7 keyboard sheet interaction
+- **Bug 2 investigation** — on device: edit profile, save languages + specialties, force-close app, reopen EditProfile, verify pre-fill populates. If not, run SQL to confirm DB row actually has populated arrays.
+- **Rollover from S145:** Carried next objectives from S145 still open (profile save E2E verification, job posting flows E2E, contractor trades enum fix ATL-CONTRACTOR-TRADES, CLAUDE.md metrics sync already done S145c, AddressAutocompleteInput consolidation into 4 other screens, Screen Registry audit, Demo Playbook rewrite, cleanup AgentJobDetailScreen + duplicate HomeStackParamList)
 
 ### S145 — Next Objectives
 - **Verify profile save end-to-end on device** after Tony executes the S143 SQL. Test: edit headline 36–50 chars, change languages, change service area, hit Save, force-close app, verify values persisted.
