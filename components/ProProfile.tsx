@@ -33,7 +33,7 @@ import { useNavigation, useRoute, CommonActions } from '@react-navigation/native
 import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useProfile, useConnectionStatus, useProfileVouches, useProfileStats, useSendConnectionRequest } from '../hooks/useData';
+import { useProfile, useConnectionStatus, useProfileVouches, useProfileStats, useSendConnectionRequest, useInboxThreads } from '../hooks/useData';
 import { Avatar, VerificationBadge, VerificationBanner, SkeletonBlock, SuccessToast } from './shared';
 import { useSuccessToast } from '../hooks/useSuccessToast';
 import type { VerificationLevel } from '../types';
@@ -383,6 +383,26 @@ const ProProfile: React.FC = () => {
     setInviteModalVisible(true);
   };
 
+  // @demo S151 — client-side thread lookup; swap for rpc_get_thread_by_participant if added
+  // @backend useInboxThreads → rpc_get_inbox_threads; filters type='one_to_one' by other_member.user_id
+  const { data: inboxThreads } = useInboxThreads();
+  const handleMessagePress = () => {
+    const existing = (inboxThreads ?? []).find(
+      (t) => t.type === 'one_to_one' && t.other_member?.user_id === resolvedProfileId,
+    );
+    (navigation as any).navigate('Inbox', {
+      screen: 'ChatScreen',
+      params: {
+        threadId: existing?.thread_id,
+        recipientId: existing ? undefined : resolvedProfileId,
+        contactName: name,
+        contactCompany: company,
+        contactRole: role || trade,
+        contactAvatarColor: avatarColor,
+      },
+    });
+  };
+
   // Roles that participate in the job bidding flow
   const JOB_ELIGIBLE_ROLES = ['Contractor', 'Home Stager', 'Real Estate Photographer'];
   const isJobEligible = JOB_ELIGIBLE_ROLES.some(
@@ -647,8 +667,10 @@ const ProProfile: React.FC = () => {
               </View>
             ) : (
               <View style={{ gap: 16, alignSelf: 'stretch' }}>
-                {/* Top button: "Invite to Job" for job-eligible roles, "Message" for partners */}
-                {isJobEligible ? (
+                {/* Top button: "Invite to Job" (job-eligible roles only).
+                    S151 — secondary "Message" CTA for partners removed; primary CTA below
+                    handles messaging when connected. */}
+                {isJobEligible && (
                   <Pressable
                     onPress={handleInviteToJob}
                     style={({ pressed }) => ({
@@ -667,34 +689,13 @@ const ProProfile: React.FC = () => {
                       Invite to Job
                     </Text>
                   </Pressable>
-                ) : (
-                  is_connected && (
-                    <Pressable
-                      onPress={() => console.log('Navigate to chat with:', name)}
-                      style={({ pressed }) => ({
-                        height: DIMENSIONS.buttonModalHeight,
-                        paddingHorizontal: 16,
-                        backgroundColor: COLORS.background,
-                        borderRadius: DIMENSIONS.buttonRadius,
-                        borderWidth: 0.69,
-                        borderColor: COLORS.primary,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: pressed ? 0.85 : 1,
-                      })}
-                    >
-                      <Text style={{ ...TYPOGRAPHY.bodyMBold, color: COLORS.primary, textAlign: 'center' }}>
-                        Message
-                      </Text>
-                    </Pressable>
-                  )
                 )}
 
-                {/* Bottom button: "Message" / "Request Pending" / "Request to Connect" */}
+                {/* Primary CTA: "Message" / "Request Pending" / "Request to Connect" */}
                 <Pressable
                   onPress={() =>
                     is_connected
-                      ? console.log('Navigate to chat with:', name)
+                      ? handleMessagePress()
                       : (connectionPending || connectSent)
                         ? undefined
                         : handleRequestConnect()

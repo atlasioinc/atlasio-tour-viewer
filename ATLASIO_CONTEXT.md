@@ -46,6 +46,48 @@
 
 ---
 
+## S151 — Build 39 QA Fixes (April 14, 2026)
+
+**Card:** ATL-QA-BUILD39 → ✅ Done
+
+**Files modified:**
+- `components/CategoryMapScreen.tsx` — Bug 8a. Replaced `SafeAreaView edges={['top']}` wrapper on the multi-category header overlay with a plain `View` + `paddingTop: insets.top + 8`. The `SafeAreaView`-as-absolute-overlay pattern was unreliable; explicit inset math fixes the notch clipping.
+- `components/PostStagingJobScreen.tsx` — Bug 3. Date field label `"Specific Date (optional)"` → `"Date Needed *"`, placeholder `"Select a date (optional)"` → `"Select date"`. Matches PostPhotoJobScreen copy.
+- `components/InboxStack.tsx` — Bug 5. Removed `presentation: 'fullScreenModal'` from ChatScreen screen options; added `gestureEnabled: true`. Swipe-back now works. Matches S146 DealChatScreen precedent.
+- `components/NewMessageScreen.tsx` — Bug 6. Replaced left-chevron `BackIcon` with right-aligned `CloseIcon` (X). Header row now: `[title flex:1 left-aligned][44×44 X right]`. 44×44 Pressable touch target preserved.
+- `components/CreateDealChat.tsx` — Bug 6 sibling. Same X-on-right pattern applied — it's the second bottom-sheet modal in InboxStack and had the same chevron issue.
+- `components/HomeTabAgent.tsx` — Bug 1 + Bug 8b. Removed `hasActiveRepair` state entirely (was a demo scaffolding toggle defaulting `false`). Now derived: `hasActiveRepair = !isLoadingJobs && !isFetchingJobs && activeJobs.length > 0`. Empty/Filled dev toggle no longer writes to it (kept for other `isFilled`-gated sections). Root cause: with `USE_MOCK_DATA: false`, real data loaded but the manual toggle left `hasActiveRepair` false forever → empty state fired over real jobs.
+- `components/ProProfile.tsx` — Bug 7. Removed the duplicate secondary "Message" CTA (was a mirror of the primary, both `console.log` only). Wired primary Message CTA: added `useInboxThreads()` import + client-side filter on `type === 'one_to_one'` matching `other_member.user_id === resolvedProfileId`. Navigates to `InboxStack.ChatScreen` with `threadId` if an existing 1:1 thread is found, else with `recipientId` so ChatScreen creates the thread on first send. `@demo`/`@backend` markers on the lookup.
+- `components/shared/AddressAutocompleteInput.tsx` — Bugs 2 + 4. Migrated the suggestion dropdown out of the inline absolute-positioned child (which was clipped/occluded by the surrounding `KeyboardAvoidingView` + `ScrollView` stacking contexts on iOS) into a `Modal transparent` overlay. Input wrapper is measured via `measureInWindow` on layout + focus; dropdown is rendered at those window coordinates so it escapes every ancestor clip. Dropdown height is clamped by `Dimensions.get('window').height` so it never overflows. Added `__DEV__` console warning when `GOOGLE_MAPS_API_KEY` is empty (silent failure masked the bug during QA). Fix applies to PostPhotoJobScreen, PostStagingJobScreen, and PostJobWizard — they all import the same shared component.
+- `components/SquadSlotPicker.tsx` — Bug 8b (closing-squad role select flash). `prosSource` no longer falls back to `CONNECTED_PROS` mock data when `USE_MOCK_DATA: false` — it returns `[]` during load. Added `isLoadingLivePros` gate using `isLoading || isFetching` from `useConnectedPros`. Renders a 3-row `SkeletonBlock` set while loading instead of mock pros. This is the specific "demo users flash to live users" bug reported in QA.
+- `components/VouchFeedSection.tsx` — Bug 8b (vouch feed flash). Added `isLoadingVouches || isFetchingVouches` gate on `useVouchFeed(activeFilter)`. Renders skeleton rows while loading; empty state only fires after query settles. Gated to live mode (`!USE_MOCK_DATA && !externalVouches`) so the mock/embedded paths are unaffected.
+- `components/AgentDealsScreen.tsx` — Bug 8b (deals list flash). Added `isLoadingDeals || isFetchingDeals` gate on `useAgentDeals()`. Skeleton cards render during load instead of falling straight through to the empty state.
+- `tasks/lessons.md` — Added "LOADING STATE RULE (S151)" documenting the mock-fallback anti-pattern that caused the Build 39 flash bug, with correct pattern and anti-pattern side by side.
+
+**Bug 2+4 root cause:** Dropdown was clipped/occluded by the iOS stacking contexts created by the parent `KeyboardAvoidingView` and `ScrollView`. The component already had `zIndex: 1000` but that only affects ordering among siblings of the *same parent* — it doesn't escape ancestor clipping. Modal overlay is the definitive fix because it renders in a top-level window outside the RN view tree. The `GOOGLE_MAPS_API_KEY` is present in EAS; the Google Places + Geocoding APIs are enabled; root cause is code, not environment.
+
+**Bug 7 thread lookup:** Used `useInboxThreads()` (existing hook, returns `InboxThread[]` with `other_member.user_id`) + client-side `.find()` on `type === 'one_to_one'`. No new RPC introduced.
+
+**Flash-fix audit — screens reviewed:**
+- Already-gated (no change needed): `InboxList` (S138 skeleton + S149a empty state), `NetworkTab` (S138 skeleton + S149a empty state), `ContractorHomeTab`, `ProfileTab`.
+- Fixed this session: `HomeTabAgent` (active jobs), `SquadSlotPicker`, `VouchFeedSection`, `AgentDealsScreen`.
+- Out of scope this session (not in priority-6): `FindTab`, `NotificationsTab`, `PaymentSettingsScreen`, `DealClosedCelebrationScreen`, `HomeTabPartner`, `RepairJobDetails`. Any flash reports on those screens would be a follow-up session.
+
+**Feature flags:** **NOT RESET.** Build 39 QA state preserved per spec — `USE_MOCK_DATA: false`, `DEV_BYPASS_AUTH: false`, `DEV_SHOW_PASSWORD_LOGIN: true`, `LIVE_NEIGHBORHOOD_HOOKS: false`. Flip back to demo defaults before the next investor demo.
+
+**S151b addendum — CreateDealChat address + navigation:**
+- `components/CreateDealChat.tsx` — Fix A: Property Address inline `TextInput` replaced with the shared `AddressAutocompleteInput` (imported from `./shared`). This screen had never been migrated in S144 so Google Places never fired on deal-chat creation. `@demo`/`@backend` markers note that lat/lng is still stubbed — `AddressAutocompleteInput` only returns the description string today; when `rpc_create_deal_thread` is wired, resolve lat/lng via a Places Details call or extend the shared component. Fix B: `handleCreateChat` now uses `navigation.replace('DealChatScreen', …)` instead of `navigation.navigate`. Because `CreateDealChat` is registered as `fullScreenModal` in `InboxStack`, plain navigate pushed `DealChatScreen` *on top of* the modal root → back returned to CreateDealChat. `replace` swaps the modal-root screen so back dismisses the modal layer and returns to `InboxList`. Considered and rejected `CommonActions.reset` (would clobber `InboxList` underneath).
+- `components/DealChatScreen.tsx` — Fix C: **no changes needed.** Main chat input bar (`SafeAreaView edges=['top']` → `KeyboardAvoidingView flex:1 keyboardVerticalOffset:0` → ScrollView + input bar inside `SafeAreaView edges=['bottom']`) already matches the `tasks/lessons.md` canonical pattern. Deal Details edit modal KAV (line 463) is still the outermost child of `<Modal>` with `flex:1`, wrapping the `<Pressable backdrop>` → `Animated.View` sheet — the S146 Bug 7 fix is still in place. Verified; no regression.
+- InboxStack presentation mode: `CreateDealChat` stays registered as `fullScreenModal` + `slide_from_bottom` — intentional per S151, the `replace` fix is sufficient.
+- `npx tsc --noEmit` → 0 errors. `npx expo lint` → same 7 pre-existing warnings, none in `CreateDealChat.tsx`.
+
+**Verification:**
+- `npx tsc --noEmit` → 0 errors (verified at multiple checkpoints during the session)
+- `npx expo lint` → 0 new warnings (7 pre-existing: CategoryMapScreen deps ×3, ContractorHomeTab unused var, PostPhoto/Staging `jobId` unused, SquadSlotPicker `prosSource` deps — all predate S151)
+- Count updates: Hooks = unchanged (no new hooks added). RPCs = unchanged. Shared components = unchanged.
+
+---
+
 ## S150 — Delight System: CelebrationScreen + MomentBanner + 7 Moments (April 14, 2026)
 
 **Card:** ATL-DELIGHT-SYSTEM → ✅ Done

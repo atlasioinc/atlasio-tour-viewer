@@ -49,7 +49,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useVouchFeed } from '../hooks/useData';
 import { adaptVouchToFeedItem } from '../lib/typeAdapters';
-import { EmptyState } from './shared';
+import { EmptyState, SkeletonBlock } from './shared';
 import { useDemoRole } from '../lib/demoRoleContext';
 
 // ============================================================
@@ -346,8 +346,10 @@ const VouchFeedSection: React.FC<VouchFeedSectionProps> = ({
   const { demoRole } = useDemoRole();
 
   // ── Data fetching ──────────────────────────────────────
-  const { data: liveVouches } = useVouchFeed(activeFilter);
+  const { data: liveVouches, isLoading: isLoadingVouches, isFetching: isFetchingVouches } = useVouchFeed(activeFilter);
   const allVouches = useMemo(() => externalVouches || (FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_VOUCH_FEED : (liveVouches?.map(adaptVouchToFeedItem) ?? [])), [externalVouches, liveVouches]);
+  // @demo S151 — skeleton while live query resolves; mock path bypasses loading state
+  const isLoadingFeed = !FEATURE_FLAGS.USE_MOCK_DATA && !externalVouches && (isLoadingVouches || isFetchingVouches);
 
   // ── Apply filter + contractor bias ──────────────────────
   const filteredVouches = useMemo(() => {
@@ -420,7 +422,18 @@ const VouchFeedSection: React.FC<VouchFeedSectionProps> = ({
       </ScrollView>
 
       {/* Feed Cards */}
-      {filteredVouches.length === 0 ? (
+      {isLoadingFeed ? (
+        /* ── S151: skeleton while live vouches load — prevents empty-state flash ── */
+        <View style={{ paddingHorizontal: 16, gap: 12 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ gap: 8 }}>
+              <SkeletonBlock width="60%" height={14} borderRadius={6} />
+              <SkeletonBlock width="90%" height={12} borderRadius={6} />
+              <SkeletonBlock width="80%" height={12} borderRadius={6} />
+            </View>
+          ))}
+        </View>
+      ) : filteredVouches.length === 0 ? (
         /* ── Empty State — S149a — role-branched CTA (see useDemoRole comment above) ── */
         <EmptyState
           illustration="vouch_feed"

@@ -29,7 +29,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
-import { Avatar, EmptyState } from './shared';
+import { Avatar, EmptyState, SkeletonBlock } from './shared';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { useAgentDeals } from '../hooks/useData';
@@ -166,7 +166,9 @@ const FilterChip: React.FC<FilterChipProps> = ({ filterKey, label, isActive, onP
 const AgentDealsScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<RouteProp<HomeStackParamList, 'AgentDealsScreen'>>();
-  const { data: deals } = useAgentDeals();
+  // @demo S151 — skeleton while live deals load; mock path bypasses loading state
+  const { data: deals, isLoading: isLoadingDeals, isFetching: isFetchingDeals } = useAgentDeals();
+  const isLoadingFeed = isLoadingDeals || isFetchingDeals;
   const [activeFilter, setActiveFilter] = useState<DealFilter>('all');
 
   // ── Auto-navigate to ClosedDealsScreen if initialFilter === 'closed' ──
@@ -252,7 +254,18 @@ const AgentDealsScreen: React.FC = () => {
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {filteredDeals.length === 0 ? (
+        {isLoadingFeed && filteredDeals.length === 0 ? (
+          /* ── S151: skeleton while live deals load — prevents empty-state flash ── */
+          <View style={{ gap: 12 }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={{ gap: 8, padding: 16, borderWidth: 0.68, borderColor: '#F3F4F6', borderRadius: 14 }}>
+                <SkeletonBlock width="70%" height={16} borderRadius={6} />
+                <SkeletonBlock width="90%" height={12} borderRadius={6} />
+                <SkeletonBlock width="40%" height={12} borderRadius={6} />
+              </View>
+            ))}
+          </View>
+        ) : filteredDeals.length === 0 ? (
           /* ── Empty State — S149a shared EmptyState ──
              CTA gated on DEAL_CREATION_ENABLED (lib/config.ts) AND only on the 'all' filter.
              "needs_attention" is a positive empty state ("All deals on track") — no CTA.

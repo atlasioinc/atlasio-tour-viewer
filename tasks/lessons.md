@@ -171,6 +171,30 @@ section, VouchFeedSection, ProfileTab vouches bottom sheet.
 Alternative for full-screen takeover inside a scroll: wrap in `<View style={{ minHeight: 480 }}>`
 (used in ContractorHomeTab `!isFilled` branch).
 
+## LOADING STATE RULE (added S151, April 14 2026)
+
+Never use mock data as a render fallback when `USE_MOCK_DATA: false`. Gate all
+data-dependent renders on the hook's loading state before falling through to an
+empty state.
+
+Pattern:
+```typescript
+const { data, isLoading, isFetching } = useHook();
+if (isLoading || isFetching) return <SkeletonBlock ... />;
+if (!data?.length) return <EmptyState ... />;
+return <RealContent data={data} />;
+```
+
+Anti-pattern that caused the Build 39 "demo→live flash":
+```typescript
+// WRONG — falls back to MOCK_DATA while query resolves, then swaps to live
+const prosSource = USE_MOCK_DATA ? MOCK : (liveData?.map(adapt) ?? MOCK);
+```
+
+Correct: empty array during load, skeleton gate on `isLoading || isFetching`,
+then empty state on settled + no results. Applied to `SquadSlotPicker`,
+`VouchFeedSection`, `AgentDealsScreen`, `HomeTabAgent` active jobs in S151.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

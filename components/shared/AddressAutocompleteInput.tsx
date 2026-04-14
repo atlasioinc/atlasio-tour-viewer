@@ -10,10 +10,15 @@
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, Dimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, SHADOWS } from '../../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/config';
+
+// S151: surface missing API key in dev — silent failure masked Bug 2+4 during QA
+if (__DEV__ && !GOOGLE_MAPS_API_KEY) {
+  console.warn('[AddressAutocompleteInput] GOOGLE_MAPS_API_KEY is empty — autocomplete will fail silently');
+}
 
 interface PlaceSuggestion {
   placeId: string;
@@ -51,6 +56,17 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for loading indicator
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // S151: dropdown rendered in a Modal overlay to escape ScrollView/KeyboardAvoidingView
+  // stacking contexts. We measure the input in window coords and anchor the dropdown below.
+  const inputWrapperRef = useRef<View | null>(null);
+  const [inputLayout, setInputLayout] = useState<{ x: number; y: number; width: number; height: number }>(
+    { x: 0, y: 0, width: 0, height: 0 },
+  );
+  const measureInput = () => {
+    inputWrapperRef.current?.measureInWindow((x, y, width, height) => {
+      setInputLayout({ x, y, width, height });
+    });
+  };
 
   // Keep local query in sync if parent resets value (e.g. form clear)
   useEffect(() => {
@@ -119,17 +135,28 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
     setShowAutocomplete(false);
   };
 
+  const dropdownVisible = showAutocomplete && suggestions.length > 0;
+  const screenHeight = Dimensions.get('window').height;
+  // Clamp dropdown height so it doesn't overflow the screen bottom
+  const availableBelow = Math.max(120, screenHeight - (inputLayout.y + inputLayout.height) - 24);
+  const maxDropdownHeight = Math.min(240, availableBelow);
+
   return (
-    <View style={{ gap: label ? 8 : 0, zIndex: 1000, elevation: 1000 }}>
+    <View style={{ gap: label ? 8 : 0 }}>
       {label && (
         <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
           {label}
         </Text>
       )}
-      <View style={{ position: 'relative', zIndex: 1000, elevation: 1000 }}>
+      <View
+        ref={inputWrapperRef}
+        onLayout={measureInput}
+        style={{ position: 'relative' }}
+      >
         <TextInput
           value={addressQuery}
           onChangeText={handleTextChange}
+          onFocus={measureInput}
           placeholder={placeholder}
           placeholderTextColor={COLORS.bodyText}
           style={{
@@ -145,34 +172,48 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
             lineHeight: 20,
           }}
         />
+      </View>
 
-        {showAutocomplete && suggestions.length > 0 && (
+      {/* S151: dropdown in a Modal overlay — guarantees stacking above any
+          ScrollView / KeyboardAvoidingView ancestor (Bug 2+4 fix). */}
+      <Modal
+        visible={dropdownVisible}
+        transparent
+        animationType="none"
+        statusBarTranslucent
+        onRequestClose={() => setShowAutocomplete(false)}
+      >
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => setShowAutocomplete(false)}
+        >
           <View
             style={{
               position: 'absolute',
-              top: 52,
-              left: 0,
-              right: 0,
+              top: inputLayout.y + inputLayout.height + 6,
+              left: inputLayout.x,
+              width: inputLayout.width,
+              maxHeight: maxDropdownHeight,
               backgroundColor: COLORS.background,
               borderRadius: 8,
               borderWidth: 1,
               borderColor: COLORS.border,
               ...SHADOWS.card,
-              zIndex: 1000,
-              elevation: 1000,
+              overflow: 'hidden',
             }}
           >
             {suggestions.map((s) => (
               <Pressable
                 key={s.placeId}
                 onPress={() => handleSuggestionSelect(s.description)}
-                style={{
+                style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 8,
                   padding: 12,
                   paddingHorizontal: 14,
-                }}
+                  backgroundColor: pressed ? COLORS.screenBg : COLORS.background,
+                })}
               >
                 <PinIcon />
                 <Text
@@ -184,8 +225,8 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
               </Pressable>
             ))}
           </View>
-        )}
-      </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };

@@ -402,8 +402,8 @@ const MultiCategoryMap: React.FC = () => {
       </MapView>
 
       {/* ─── HEADER OVERLAY ─── */}
-      <SafeAreaView
-        edges={['top']}
+      {/* S151: header was rendering behind notch — insets.top required for absolute overlay */}
+      <View
         pointerEvents="box-none"
         style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
       >
@@ -412,7 +412,7 @@ const MultiCategoryMap: React.FC = () => {
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 16,
-            paddingTop: 8,
+            paddingTop: insets.top + 8,
             paddingBottom: 8,
             gap: 12,
           }}
@@ -467,7 +467,7 @@ const MultiCategoryMap: React.FC = () => {
             </View>
           )}
         </View>
-      </SafeAreaView>
+      </View>
 
       {/* ─── BACKDROP (behind sheet, in front of map) ─── */}
       {selectedPOI && (

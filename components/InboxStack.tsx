@@ -64,7 +64,7 @@ const InboxStack: React.FC = () => (
     <Stack.Screen
       name="ChatScreen"
       component={ChatScreen}
-      options={{ presentation: 'fullScreenModal', headerShown: false }}
+      options={{ headerShown: false, gestureEnabled: true }}
     />
     <Stack.Screen
       name="CreateDealChat"

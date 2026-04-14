@@ -513,8 +513,8 @@ const PostStagingJobScreen: React.FC = () => {
             })}
           </View>
 
-          {/* Specific Date (optional) — native DateTimePicker (S144) */}
-          {renderSectionHeader('Specific Date (optional)')}
+          {/* Date Needed — native DateTimePicker (S144, S151 label fix) */}
+          {renderSectionHeader('Date Needed *')}
           <Pressable
             onPress={() => setShowDatePicker(!showDatePicker)}
             style={{
@@ -537,7 +537,7 @@ const PostStagingJobScreen: React.FC = () => {
             >
               {specificDate
                 ? specificDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                : 'Select a date (optional)'}
+                : 'Select date'}
             </Text>
           </Pressable>
           {showDatePicker && (

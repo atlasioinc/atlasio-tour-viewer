@@ -485,7 +485,6 @@ const ActiveJobCard: React.FC<{ job: AgentActiveJob; onPress: () => void }> = ({
 // ═══════════════════════════════════════════════════════════════
 
 const HomeTabAgent: React.FC = () => {
-  const [hasActiveRepair, setHasActiveRepair] = useState<boolean>(false);
   const [isFilled, setIsFilled] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
@@ -498,7 +497,9 @@ const HomeTabAgent: React.FC = () => {
 
   // @backend rpc_get_agent_active_jobs() — deployed S135b
   // @demo MOCK_AGENT_ACTIVE_JOBS in hooks/useData.ts when USE_MOCK_DATA: true
-  const { data: activeJobs = [], isLoading: isLoadingJobs, refetch: refetchJobs } = useAgentActiveJobs();
+  const { data: activeJobs = [], isLoading: isLoadingJobs, isFetching: isFetchingJobs, refetch: refetchJobs } = useAgentActiveJobs();
+  // @demo S151 — empty state fires only after query settles; mock path always has items
+  const hasActiveRepair = !isLoadingJobs && !isFetchingJobs && activeJobs.length > 0;
 
   // ── Active Deals (S63) ──
   // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }
@@ -695,13 +696,7 @@ const HomeTabAgent: React.FC = () => {
       >
         {/* Location */}
         <Pressable
-          onPress={() => {
-            setIsFilled((prev) => {
-              const next = !prev;
-              setHasActiveRepair(next);
-              return next;
-            });
-          }}
+          onPress={() => setIsFilled((prev) => !prev)}
           style={({ pressed }) => ({
             flexDirection: 'row',
             alignItems: 'center',
@@ -801,10 +796,7 @@ const HomeTabAgent: React.FC = () => {
           }}
         >
           <Pressable
-            onPress={() => {
-              setIsFilled(false);
-              setHasActiveRepair(false);
-            }}
+            onPress={() => setIsFilled(false)}
             style={{
               paddingHorizontal: 20,
               paddingVertical: 8,
@@ -827,10 +819,7 @@ const HomeTabAgent: React.FC = () => {
             </Text>
           </Pressable>
           <Pressable
-            onPress={() => {
-              setIsFilled(true);
-              setHasActiveRepair(true);
-            }}
+            onPress={() => setIsFilled(true)}
             style={{
               paddingHorizontal: 20,
               paddingVertical: 8,

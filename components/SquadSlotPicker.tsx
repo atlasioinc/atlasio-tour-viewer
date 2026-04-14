@@ -25,7 +25,7 @@ import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useConnectedPros } from '../hooks/useData';
 import { adaptConnectionToSquadCandidate } from '../lib/typeAdapters';
 import SearchField from './SearchField';
-import { Avatar } from './shared';
+import { Avatar, SkeletonBlock } from './shared';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -253,8 +253,13 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
   }, [visible]);
 
   // ── Live data hook (keeps cache warm) ──
-  const { data: liveConnectedPros } = useConnectedPros(role);
-  const prosSource = FEATURE_FLAGS.USE_MOCK_DATA ? CONNECTED_PROS : (liveConnectedPros?.map(adaptConnectionToSquadCandidate) ?? CONNECTED_PROS);
+  // S151: in live mode, NEVER fall back to mock pros — that's the flash bug.
+  // Empty array during load → skeleton; empty state when settled + no results.
+  const { data: liveConnectedPros, isLoading: isLoadingPros, isFetching: isFetchingPros } = useConnectedPros(role);
+  const prosSource = FEATURE_FLAGS.USE_MOCK_DATA
+    ? CONNECTED_PROS
+    : (liveConnectedPros?.map(adaptConnectionToSquadCandidate) ?? []);
+  const isLoadingLivePros = !FEATURE_FLAGS.USE_MOCK_DATA && (isLoadingPros || isFetchingPros);
 
   // Filter connected pros by role + search text
   const filteredPros = useMemo(() => {
@@ -445,7 +450,29 @@ const SquadSlotPicker: React.FC<SquadSlotPickerProps> = ({
             keyboardShouldPersistTaps="handled"
             style={{ flex: 1 }}
           >
-            {filteredPros.length > 0 ? (
+            {isLoadingLivePros ? (
+              /* ── S151: loading skeleton replaces mock-data flash ── */
+              <View style={{ paddingVertical: 8 }}>
+                {[0, 1, 2].map((i) => (
+                  <View
+                    key={i}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      gap: 12,
+                    }}
+                  >
+                    <SkeletonBlock width={48} height={48} borderRadius={9999} />
+                    <View style={{ flex: 1, gap: 6 }}>
+                      <SkeletonBlock width="55%" height={14} borderRadius={6} />
+                      <SkeletonBlock width="40%" height={12} borderRadius={6} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : filteredPros.length > 0 ? (
               filteredPros.map((pro) => (
                 <ProRow key={pro.id} pro={pro} onPress={handleSelect} />
               ))

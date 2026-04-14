@@ -45,9 +45,10 @@ type NewMessageNavProp = NativeStackNavigationProp<InboxStackParamList, 'NewMess
 // SVG ICONS
 // ─────────────────────────────────────────────
 
-const BackIcon: React.FC = () => (
+// S151: bottom-sheet modal dismisses via right-aligned X (was left chevron)
+const CloseIcon: React.FC = () => (
   <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Path d="M12.5 15L7.5 10L12.5 5" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M15 5L5 15M5 5l10 10" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -172,9 +173,12 @@ const NewMessageScreen: React.FC = () => {
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      {/* Header */}
+      {/* Header — S151: X on right, title left-aligned (bottom-sheet modal pattern) */}
       <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, paddingTop: 12 + insets.top, paddingBottom: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 8, paddingTop: 12 + insets.top, paddingBottom: 4 }}>
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>
+            New Message
+          </Text>
           <Pressable
             onPress={() => navigation.goBack()}
             style={({ pressed }) => ({
@@ -185,11 +189,8 @@ const NewMessageScreen: React.FC = () => {
               opacity: pressed ? 0.5 : 1,
             })}
           >
-            <BackIcon />
+            <CloseIcon />
           </Pressable>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28, marginLeft: 8 }}>
-            New Message
-          </Text>
         </View>
         <View style={{ paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row' }}>
           <SearchField

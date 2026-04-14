@@ -29,7 +29,7 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
-import { Avatar } from './shared';
+import { Avatar, AddressAutocompleteInput } from './shared';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -44,9 +44,10 @@ type NavProp = NativeStackNavigationProp<InboxStackParamList, 'CreateDealChat'>;
 // SVG ICONS
 // ─────────────────────────────────────────────
 
-const BackIcon: React.FC = () => (
+// S151: bottom-sheet modal dismisses via right-aligned X (was left chevron)
+const CloseIcon: React.FC = () => (
   <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Path d="M12.5 15L7.5 10L12.5 5" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M15 5L5 15M5 5l10 10" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -214,7 +215,15 @@ const CreateDealChat: React.FC = () => {
       closingDate: closingDate.trim(),
       participants: participants.map((p) => `${p.name} (${p.role})`),
     });
-    navigation.navigate('DealChatScreen', {
+    // S151b: replace (not navigate) so CreateDealChat is removed from the stack.
+    // CreateDealChat is registered as fullScreenModal in InboxStack; with plain navigate,
+    // DealChatScreen layered on top of it and back → CreateDealChat instead of Inbox.
+    // replace swaps the modal-root screen so goBack() from DealChatScreen dismisses
+    // the modal layer and returns to InboxList.
+    // @demo    — no real thread yet; DealChatScreen only needs {dealName, propertyAddress, closingDate}
+    // @backend — when wired, rpc_create_deal_thread returns { thread_id }; pass it in params
+    //            (InboxStackParamList.DealChatScreen will gain threadId at that time)
+    navigation.replace('DealChatScreen', {
       dealName: dealName.trim(),
       propertyAddress: propertyAddress.trim(),
       closingDate: closingDate.trim(),
@@ -235,11 +244,14 @@ const CreateDealChat: React.FC = () => {
             Row 2: Search field with participant chips
             ══════════════════════════════════════════ */}
         <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
-          {/* Title row */}
+          {/* Title row — S151: X on right, title left-aligned (bottom-sheet modal pattern) */}
           <Pressable
             onPress={handleDismissSearch}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 16, paddingTop: 8 + insets.top }}
+            style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 8, paddingTop: 8 + insets.top }}
           >
+            <Text style={{ flex: 1, fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>
+              Create New Deal Chat
+            </Text>
             <Pressable
               onPress={() => {
                 if (isSearching) {
@@ -248,14 +260,10 @@ const CreateDealChat: React.FC = () => {
                   navigation.goBack();
                 }
               }}
-              hitSlop={12}
-              style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 9999, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
+              style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
             >
-              <BackIcon />
+              <CloseIcon />
             </Pressable>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28, marginLeft: 12 }}>
-              Create New Deal Chat
-            </Text>
           </Pressable>
 
           {/* Search field */}
@@ -421,29 +429,22 @@ const CreateDealChat: React.FC = () => {
             </View>
 
             {/* Property Address — Optional */}
+            {/* S151b: swapped inline TextInput for shared AddressAutocompleteInput so CreateDealChat
+                actually hits Google Places (Bug A — autocomplete never fired on this screen).
+                @demo    — address stored as string only; lat/lng stubbed until live wiring
+                @backend — rpc_create_deal_thread will need (p_property_address, p_lat, p_lng).
+                           AddressAutocompleteInput returns only the description string today;
+                           resolve lat/lng via a Places Details call (or extend the shared component)
+                           when the RPC is wired. */}
             <View style={{ gap: 8 }}>
               <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.darkText, lineHeight: 20 }}>
                 Property Address
               </Text>
-              <View
-                style={{
-                  height: 45,
-                  paddingHorizontal: 16,
-                  backgroundColor: COLORS.background,
-                  borderRadius: 10,
-                  borderWidth: 0.68,
-                  borderColor: COLORS.border,
-                  justifyContent: 'center',
-                }}
-              >
-                <TextInput
-                  value={propertyAddress}
-                  onChangeText={setPropertyAddress}
-                  placeholder="e.g., 123 Main Street, City, State 12345"
-                  placeholderTextColor={COLORS.lightText}
-                  style={{ fontSize: 14, fontWeight: '400', color: COLORS.darkText }}
-                />
-              </View>
+              <AddressAutocompleteInput
+                value={propertyAddress}
+                onSelect={setPropertyAddress}
+                placeholder="e.g., 123 Main Street, City, State 12345"
+              />
             </View>
 
             {/* Closing Date — Optional */}
