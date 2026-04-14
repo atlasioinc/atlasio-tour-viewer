@@ -31,13 +31,13 @@
 
 ---
 
-## Current Metrics (updated S146 — April 13, 2026)
+## Current Metrics (updated S147 — April 14, 2026)
 - **RPCs:** 66 (+1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
 - **Hooks:** 65 (unchanged S144; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
-- **Shared Components:** +1 S144 (AddressAutocompleteInput — Google Places autocomplete extracted from PostJobWizard)
+- **Shared Components:** +1 S144 (AddressAutocompleteInput); +1 S147 (PhotoLightbox — full-screen photo viewer extracted from ContractorJobDetails)
 - **Storage Buckets:** 7
 - **Tables:** 22+ (schema.sql documents 22 as of S93; messaging tables predate tracking)
 - **COLORS tokens:** 125 (+2 S144: jobGreen, jobPurple)
@@ -1208,6 +1208,47 @@ Located in `components/shared/index.ts` (barrel export):
   - Zero component file changes — this is purely a nav-config restoration.
 - **Metrics unchanged.**
 - **tsc:** 0 errors
+
+### S147 — Job Details Card (job_type fields) + Shared PhotoLightbox (April 14, 2026)
+`RepairJobDetails.tsx` is the shared agent-side details screen for all three job types, but rendered only repair-specific fields. Photography and staging jobs routed there with their type-specific data invisible. Photo section was a dummy `PhotoPlaceholder` — no real photos, no lightbox. Two fixes in one session.
+
+- **Fix 1 — `RepairJobDetails.tsx` top info card now renders all relevant fields by `job.job_type`.** Rebuilt the card into four rows: (1) pills row (category + due date + explicit `URGENT` DisplayTag when `is_urgent`), (2) budget + address, (3) **job-type branch**, (4) description.
+  - **repair branch:** trades chips (null-guarded, hidden when `trades` null per S143 latent bug — no display label remapping), bid_deadline row.
+  - **photography branch:** service_packages as ghost DisplayTag chips, turnaround_preference row, sqft row.
+  - **staging branch:** occupied_or_vacant DisplayTag pill (title-cased), rooms_count row, staging_scope as ghost DisplayTag chips, sqft row.
+  - All section sublabels use the S41 pattern (`fontSize: 12, fontWeight: '600', COLORS.secondaryText, uppercase, letterSpacing: 0.5`). Category + due date pills kept at 12pt per CLAUDE.md allowed exceptions (compact badge text).
+- **Fix 2 — Shared `PhotoLightbox` component + real photo strip on RepairJobDetails.**
+  - **New file `components/shared/PhotoLightbox.tsx`** — full-screen paged photo viewer. Props: `{ visible, photos: string[], initialIndex, onClose }`. Modal `transparent animationType="fade"`, `rgba(0,0,0,0.95)` backdrop (intentionally not a token — true-black overlay, commented), horizontal paging ScrollView with `contentOffset` seeded from `initialIndex`, `onMomentumScrollEnd` tracks current index, counter `n / total` top-center, 44×44 close button top-right. `useEffect([visible, initialIndex])` resets internal index each time the lightbox opens. Returns null when `photos.length === 0`.
+  - **`ContractorJobDetails.tsx` refactor:** replaced its inline lightbox Modal (lines 1295–1380) with `<PhotoLightbox>`. `DEMO_PHOTOS` changed from `{isPlaceholder, url}[]` to `string[]` with three real picsum URLs (parity with RepairJobDetails). Dropped unused `Modal` + `Dimensions` imports and the dead local `CameraIcon` component that only served the old placeholder branch. Thumbnails normalized to **88×88 / borderRadius 8** (from 112×88 / radius 10) to match RepairJobDetails.
+  - **`RepairJobDetails.tsx` photo strip:** replaced `<PhotoPlaceholder />` (dead decorative component) with an edge-to-edge horizontal ScrollView of 88×88 thumbnails below the info card. State: `lightboxVisible`, `lightboxIndex`. Constant `DEMO_PHOTOS` (3 picsum URLs) defined outside the component; `displayPhotos = job.photo_urls?.length ? job.photo_urls : DEMO_PHOTOS` hoisted near state so both the strip and the `<PhotoLightbox>` mount reference the same value (no duplicate computation, no IIFE in JSX). `<PhotoLightbox>` mounted outside the scrollable content alongside the other Modals.
+- **Mock data updates — `components/RepairJobsData.ts`:**
+  - Added `photo_urls` array (3 picsum seeds) to job `id: '1'` so the strip + lightbox render immediately in the default demo walkthrough.
+  - **New photography job `id: '7'`** — "Listing Photos — 4BR Colonial", open status, `job_type: 'photography'`, `service_packages: ['Interior + Exterior Photos', 'Drone / Aerial']`, `turnaround_preference: 'Next Day'`, `sqft: 2400`, one mock bid from a Part 107 licensed photographer.
+  - **New staging job `id: '8'`** — "Stage Primary Suite + Living Areas", open status, `job_type: 'staging'`, `occupied_or_vacant: 'occupied'`, `rooms_count: 4`, `staging_scope: ['Living Room', 'Dining Room', 'Primary Bedroom']`, `sqft: 1800`, one mock bid from an occupied-staging specialist.
+  - All new fields carry `@demo` markers.
+- **`/review` findings (pre-commit):**
+  - `[AUTO-FIXED]` chip map keys prefixed with index to prevent duplicate-label collisions (`key={`${i}-${trade}`}` across trades / service_packages / staging_scope rows).
+  - `[AUTO-FIXED]` hoisted `displayPhotos`, removed IIFE + duplicate `photo_urls` computation at the lightbox mount.
+  - `[FIXED after ASK]` category + due-date pill font size reverted 14→12pt after confirming the rest of the app (HomeTabAgent, ContractorJobDetails) uses 12pt for identical pills per CLAUDE.md allowed exceptions.
+  - `[SKIP]` PhotoLightbox initialIndex bounds — defensive only, no current callers at risk.
+  - `[SKIP]` ContractorJobDetails overflow overlay branch — pre-existing dead code, minimal blast radius rule.
+- **Key decisions:**
+  - `PhotoLightbox` takes `photos: string[]` instead of the original `{isPlaceholder, url}[]` shape. Simpler API, forces callers to pass real URLs only. The previous contractor-side placeholder branch was dead demo scaffolding — removed rather than ported.
+  - `DisplayTag` import stays at `./DisplayTag` (not `./shared`). S147 did not migrate it into `components/shared/` — that's a larger refactor touching ProProfile, ProfileTab, and other consumers. Flagged for a future cleanup session.
+  - Trades chip row on repair branch is hidden until `job.trades` is populated. Per `tasks/lessons.md` S143 rule, no display-label remapping was done — the TradeEnum rename (ATL-CONTRACTOR-TRADES) is a separate session.
+  - `rgba(0, 0, 0, 0.95)` is the lightbox backdrop — intentionally inline, not a token. Commented in `PhotoLightbox.tsx` as "true-black overlay, intentionally not a design token".
+- **Files modified (4) + created (1):**
+  - Created: `components/shared/PhotoLightbox.tsx`
+  - Modified: `components/RepairJobDetails.tsx`, `components/ContractorJobDetails.tsx`, `components/RepairJobsData.ts`, `components/shared/index.ts`
+- **Metrics:** Shared Components +1 (PhotoLightbox). No new RPCs, hooks, edge functions, or feature flags.
+- **tsc:** 0 errors | **Lint:** 0 errors (3 pre-existing unused-var warnings unchanged)
+
+### S147 — Next Objectives
+- **Build 28 QA** (carried from S146) — now also verify S147 photo strip + lightbox on device: repair/photography/staging details screens render correct job-type fields, thumbnails tap open lightbox to correct index, paging + close work, reopening resets to new initial index.
+- **Populate `job.trades` on mock jobs** so the repair-branch trades chip row can be visually verified before the TradeEnum rename session. Use enum values verbatim (`Electrical`, `Plumbing`, etc.), NOT display labels.
+- **Migrate `DisplayTag` into `components/shared/`** and update all consumers. Larger refactor — separate session.
+- **ContractorJobDetails dead overflow overlay cleanup** (`index === 3 && DEMO_PHOTOS.length > 4`) — can go when the photo strip gets a real overflow design or real data with >4 photos.
+- **Rollover from S146:** Bug 2 languages/specialties pre-fill investigation, TestFlight Build 28 on-device verification of all S146 fixes, all S145 rollover items still open.
 
 ### S146 — QA Bug Fixes from Build 27 (April 13, 2026)
 Seven bugs surfaced from TestFlight Build 27 QA. Root-caused and fixed in one pass.

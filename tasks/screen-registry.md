@@ -260,20 +260,30 @@
 
 **What's on this screen:**
 - Custom 3-column header (back, title, more menu)
-- Job status, address, budget range
+- Job Info Card — renders `job_type`-specific fields (S147):
+  - **All job_types:** category pill, due-date pill, explicit URGENT DisplayTag when `is_urgent`, budget range, address, description
+  - **repair:** trades chips (when populated), bid_deadline
+  - **photography:** service_packages (ghost chips), turnaround_preference, sqft
+  - **staging:** occupied_or_vacant pill, rooms_count, staging_scope (ghost chips), sqft
+- Photo strip (S147) — 88×88 thumbnails below info card, falls back to picsum DEMO_PHOTOS when `job.photo_urls` empty. Tapping opens shared `<PhotoLightbox>`.
 - Bid cards from contractors
 - Edit button → EditRepairJob
 - Invite button → InviteContractorsModal
 - Status timeline
 
 **Entry Points:**
-- HomeTabAgent → tap repair card
+- HomeTabAgent → tap repair / photography / staging card (all three job types land here)
 - PostJobWizard → success
+- PostPhotoJobScreen → success
+- PostStagingJobScreen → success
 
 **Exit Points:**
 - → EditRepairJob (Edit button) — `navigation.push`
 - → InviteContractorsModal (Invite button) — modal
+- Photo tile → `<PhotoLightbox>` (Modal, not a nav push)
 - ← Back
+
+**Shared components:** Avatar, VerificationBanner, DisplayTag, **PhotoLightbox (S147)**
 
 ---
 
