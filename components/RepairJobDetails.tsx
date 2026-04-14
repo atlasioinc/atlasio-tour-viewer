@@ -31,6 +31,7 @@ import {
   Pressable,
   ScrollView,
   StatusBar,
+  Image,
   Modal,
   TouchableOpacity,
   TextInput,
@@ -53,7 +54,8 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useJob, useJobBids } from '../hooks/useData';
 import { useRealtimeBids } from '../hooks/useRealtime';
-import { Avatar, VerificationBanner } from './shared';
+import { Avatar, PhotoLightbox, VerificationBanner } from './shared';
+import { DisplayTag } from './DisplayTag';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Which bid action modal is currently visible
@@ -277,18 +279,16 @@ const JobStatusTimeline: React.FC<{
 );
 
 // ─────────────────────────────────────────────
-// PHOTO PLACEHOLDER
+// DEMO PHOTOS — fallback used when job.photo_urls is empty
+// @demo picsum placeholders — replace with real Supabase storage URLs
+// @backend job.photo_urls is string[] of signed URLs from the job-photos bucket
 // ─────────────────────────────────────────────
 
-const PhotoPlaceholder: React.FC = () => (
-  <View style={{ width: 80, height: 80, borderRadius: 14, backgroundColor: '#C4B5A0', overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-end' }}>
-    <View style={{ flexDirection: 'row', gap: 4, marginBottom: 4 }}>
-      <View style={{ width: 4, height: 4, borderRadius: 9999, backgroundColor: '#FFFFFF' }} />
-      <View style={{ width: 4, height: 4, borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.5)' }} />
-      <View style={{ width: 4, height: 4, borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.5)' }} />
-    </View>
-  </View>
-);
+const DEMO_PHOTOS = [
+  'https://picsum.photos/seed/repair1/800/600',
+  'https://picsum.photos/seed/repair2/800/600',
+  'https://picsum.photos/seed/repair3/800/600',
+];
 
 // ─────────────────────────────────────────────
 // TRADE + LICENSED PILL
@@ -520,11 +520,16 @@ const RepairJobDetails: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   const [job, setJob] = useState<JobWithBidProfiles>(route.params.job);
+  // Photos shown in strip + lightbox — falls back to DEMO_PHOTOS when job has none
+  const displayPhotos = job.photo_urls?.length ? job.photo_urls : DEMO_PHOTOS;
   const [selectedSort, setSelectedSort] = useState('Recommended');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+  // Photo lightbox state — feeds <PhotoLightbox> rendered below
+  const [lightboxVisible, setLightboxVisible] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
   // ── Live data hooks (keep cache warm) ──
@@ -904,93 +909,162 @@ const RepairJobDetails: React.FC = () => {
               gap: 12,
             }}
           >
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-              }}
-            >
-              <View style={{ flex: 1, gap: 8, paddingRight: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      backgroundColor: COLORS.infoBg,
-                      borderRadius: 9999,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: '400',
-                        color: COLORS.primary,
-                        lineHeight: 16,
-                      }}
-                    >
-                      {job.category}
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      backgroundColor: job.is_urgent ? COLORS.urgentBg : COLORS.chipBg,
-                      borderRadius: 9999,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: '400',
-                        color: job.is_urgent ? COLORS.urgentText : COLORS.statText,
-                        lineHeight: 16,
-                      }}
-                    >
-                      {job.due_date}
-                    </Text>
-                  </View>
-                </View>
-                <View style={{ gap: 4 }}>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: '400',
-                      color: COLORS.bodyText,
-                      lineHeight: 20,
-                    }}
-                  >
-                    Budget:{' '}
-                    <Text style={{ fontWeight: '500', color: COLORS.headingText }}>
-                      {job.budget_range}
-                    </Text>
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: '400',
-                      color: COLORS.bodyText,
-                      lineHeight: 20,
-                    }}
-                  >
-                    {job.address}
+            {/* Row 1 — pills: category + due date + explicit urgency label */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              {job.category && (
+                <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: COLORS.infoBg, borderRadius: 9999 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.primary, lineHeight: 16 }}>
+                    {job.category}
                   </Text>
                 </View>
+              )}
+              <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: COLORS.chipBg, borderRadius: 9999 }}>
+                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.statText, lineHeight: 16 }}>
+                  {job.due_date}
+                </Text>
               </View>
-              <PhotoPlaceholder />
+              {job.is_urgent && (
+                <DisplayTag label="URGENT" variant="error" fontSize={12} />
+              )}
             </View>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '400',
-                color: COLORS.statText,
-                lineHeight: 20,
-              }}
-            >
+
+            {/* Row 2 — address + budget */}
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                Budget:{' '}
+                <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{job.budget_range}</Text>
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                {job.address}
+              </Text>
+            </View>
+
+            {/* Row 3 — job-type specific fields */}
+            {job.job_type === 'repair' && (
+              <View style={{ gap: 12 }}>
+                {/* @demo trades null for existing mock jobs — chip row only renders when populated */}
+                {(job.trades ?? []).length > 0 && (
+                  <View style={{ gap: 6 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.secondaryText, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Trades
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {(job.trades ?? []).map((trade, i) => (
+                        <DisplayTag key={`${i}-${trade}`} label={trade} variant="default" />
+                      ))}
+                    </View>
+                  </View>
+                )}
+                {job.bid_deadline && (
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Bids due:{' '}
+                    <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{job.bid_deadline}</Text>
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {job.job_type === 'photography' && (
+              <View style={{ gap: 12 }}>
+                {(job.service_packages ?? []).length > 0 && (
+                  <View style={{ gap: 6 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.secondaryText, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Service Packages
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {(job.service_packages ?? []).map((pkg, i) => (
+                        <DisplayTag key={`${i}-${pkg}`} label={pkg} variant="ghost" />
+                      ))}
+                    </View>
+                  </View>
+                )}
+                {job.turnaround_preference && (
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Turnaround:{' '}
+                    <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{job.turnaround_preference}</Text>
+                  </Text>
+                )}
+                {job.sqft != null && (
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Approx.{' '}
+                    <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{job.sqft.toLocaleString()} sq ft</Text>
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {job.job_type === 'staging' && (
+              <View style={{ gap: 12 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  {job.occupied_or_vacant && (
+                    <DisplayTag
+                      label={job.occupied_or_vacant.charAt(0).toUpperCase() + job.occupied_or_vacant.slice(1)}
+                      variant="default"
+                    />
+                  )}
+                  {job.rooms_count != null && (
+                    <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                      <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{job.rooms_count} rooms</Text>
+                    </Text>
+                  )}
+                </View>
+                {(job.staging_scope ?? []).length > 0 && (
+                  <View style={{ gap: 6 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.secondaryText, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Staging Scope
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {(job.staging_scope ?? []).map((room, i) => (
+                        <DisplayTag key={`${i}-${room}`} label={room} variant="ghost" />
+                      ))}
+                    </View>
+                  </View>
+                )}
+                {job.sqft != null && (
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                    Approx.{' '}
+                    <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{job.sqft.toLocaleString()} sq ft</Text>
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {/* Row 4 — description */}
+            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.statText, lineHeight: 20 }}>
               {job.description}
             </Text>
           </View>
+
+          {/* Photo strip — tappable thumbnails → PhotoLightbox */}
+          {displayPhotos.length > 0 && (
+            <View style={{ marginHorizontal: -16, marginTop: 12 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 4 }}
+              >
+                {displayPhotos.map((uri, index) => (
+                  <Pressable
+                    key={`${index}-${uri}`}
+                    onPress={() => {
+                      setLightboxIndex(index);
+                      setLightboxVisible(true);
+                    }}
+                    style={({ pressed }) => ({
+                      width: 88,
+                      height: 88,
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      backgroundColor: COLORS.chipBg,
+                      opacity: pressed ? 0.85 : 1,
+                    })}
+                  >
+                    <Image source={{ uri }} style={{ width: 88, height: 88 }} resizeMode="cover" />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         {/* ═══ STATUS TIMELINE (visible only after a bid is accepted) ═══ */}
@@ -1849,6 +1923,14 @@ const RepairJobDetails: React.FC = () => {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Photo Lightbox — full-screen swipeable viewer, mounted outside ScrollView */}
+      <PhotoLightbox
+        visible={lightboxVisible}
+        photos={displayPhotos}
+        initialIndex={lightboxIndex}
+        onClose={() => setLightboxVisible(false)}
+      />
     </View>
   );
 };

@@ -29,8 +29,6 @@ import {
   ScrollView,
   StatusBar,
   Alert,
-  Modal,
-  Dimensions,
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,7 +42,7 @@ import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
 import { useRespondToCounter, useStartJob } from '../hooks/useData';
 import { CounterButton, DangerButton } from './Button';
-import { Avatar, SkeletonBlock } from './shared';
+import { Avatar, PhotoLightbox, SkeletonBlock } from './shared';
 
 // ─────────────────────────────────────────────
 // ROUTE PARAMS
@@ -125,15 +123,6 @@ const MessageIcon: React.FC = () => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-  </Svg>
-);
-
-const CameraIcon: React.FC<{ width?: number; height?: number; color?: string }> = ({
-  width = 24, height = 24, color = COLORS.lightText,
-}) => (
-  <Svg width={width} height={height} viewBox="0 0 24 24" fill="none">
-    <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx={12} cy={13} r={4} stroke={color} strokeWidth={1.5} />
   </Svg>
 );
 
@@ -351,12 +340,12 @@ const DEMO_STATES: ContractorJobDetail[] = [
 ];
 const DEMO_LABELS = ['No Bid', 'Pending', 'Counter', 'Awarded', 'Active', 'Review'];
 
-// @demo 3 placeholder photo tiles — replace with job.photos[] array of signed Supabase storage URLs
+// @demo picsum placeholder photos — replace with job.photos[] (signed Supabase storage URLs)
 // @backend Storage bucket: job-photos (agent upload, 5MB limit, accessible to bidding contractors)
-const DEMO_PHOTOS = [
-  { isPlaceholder: true, url: null as string | null },
-  { isPlaceholder: true, url: null as string | null },
-  { isPlaceholder: true, url: null as string | null },
+const DEMO_PHOTOS: string[] = [
+  'https://picsum.photos/seed/repair1/800/600',
+  'https://picsum.photos/seed/repair2/800/600',
+  'https://picsum.photos/seed/repair3/800/600',
 ];
 
 // ─────────────────────────────────────────────
@@ -1111,37 +1100,24 @@ const ContractorJobDetails: React.FC = () => {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
               >
-                {DEMO_PHOTOS.map((photo, index) => (
+                {DEMO_PHOTOS.map((uri, index) => (
                   <Pressable
-                    key={index}
+                    key={`${index}-${uri}`}
                     onPress={() => {
                       setLightboxIndex(index);
                       setLightboxVisible(true);
                     }}
                     style={({ pressed }) => ({
-                      width: 112,
+                      width: 88,
                       height: 88,
-                      borderRadius: 10,
+                      borderRadius: 8,
                       overflow: 'hidden',
                       backgroundColor: COLORS.chipBg,
                       opacity: pressed ? 0.85 : 1,
                     })}
                   >
-                    {photo.isPlaceholder ? (
-                      // @demo Placeholder — remove when job.photos[] has real URLs
-                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                        <CameraIcon width={24} height={24} color={COLORS.lightText} />
-                      </View>
-                    ) : (
-                      <Image
-                        source={{ uri: photo.url! }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-                    )}
-
+                    <Image source={{ uri }} style={{ width: 88, height: 88 }} resizeMode="cover" />
                     {/* Overflow overlay on 4th tile when more than 4 photos exist */}
-                    {/* @demo Not active at 3 photos — activates when job.photos.length > 4 */}
                     {index === 3 && DEMO_PHOTOS.length > 4 && (
                       <View style={{
                         position: 'absolute',
@@ -1292,92 +1268,13 @@ const ContractorJobDetails: React.FC = () => {
       {/* ── 10. Sticky Bottom CTA ── */}
       {renderStickyCTA()}
 
-      {/* ── Photo Lightbox Modal ── */}
-      {/* Full-screen swipeable photo viewer. Triggered by tapping any tile in the photos strip. */}
-      {/* @demo Renders placeholder tiles (camera icon + "No photo"). Replace with real photo.url values */}
-      {/* @backend Photo URLs come from job.photos[] — signed Supabase storage URLs (job-photos bucket) */}
-      <Modal
+      {/* ── Photo Lightbox ── shared component, same UX on RepairJobDetails */}
+      <PhotoLightbox
         visible={lightboxVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLightboxVisible(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
-
-          {/* Counter: "1 / 3" */}
-          <Text style={{
-            position: 'absolute',
-            top: 60,
-            alignSelf: 'center',
-            zIndex: 10,
-            fontSize: 14,
-            fontWeight: '600',
-            color: COLORS.background,
-          }}>
-            {lightboxIndex + 1} / {DEMO_PHOTOS.length}
-          </Text>
-
-          {/* Close button */}
-          <Pressable
-            onPress={() => setLightboxVisible(false)}
-            hitSlop={16}
-            style={({ pressed }) => ({
-              position: 'absolute',
-              top: 56,
-              right: 20,
-              zIndex: 10,
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 20, color: COLORS.background, fontWeight: '300', lineHeight: 24 }}>✕</Text>
-          </Pressable>
-
-          {/* Horizontally paginated photo viewer */}
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => {
-              const index = Math.round(
-                e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
-              );
-              setLightboxIndex(index);
-            }}
-            contentOffset={{ x: lightboxIndex * Dimensions.get('window').width, y: 0 }}
-            style={{ flex: 1 }}
-          >
-            {DEMO_PHOTOS.map((photo, index) => (
-              <View
-                key={index}
-                style={{
-                  width: Dimensions.get('window').width,
-                  flex: 1,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                {photo.isPlaceholder ? (
-                  // @demo Placeholder — remove when job.photos[] has real URLs
-                  <View style={{ alignItems: 'center', gap: 12 }}>
-                    <CameraIcon width={48} height={48} color={COLORS.lightText} />
-                    <Text style={{ fontSize: 14, color: COLORS.lightText }}>No photo</Text>
-                  </View>
-                ) : (
-                  <Image
-                    source={{ uri: photo.url! }}
-                    style={{
-                      width: Dimensions.get('window').width,
-                      height: Dimensions.get('window').height * 0.75,
-                    }}
-                    resizeMode="contain"
-                  />
-                )}
-              </View>
-            ))}
-          </ScrollView>
-
-        </View>
-      </Modal>
+        photos={DEMO_PHOTOS}
+        initialIndex={lightboxIndex}
+        onClose={() => setLightboxVisible(false)}
+      />
     </View>
   );
 };

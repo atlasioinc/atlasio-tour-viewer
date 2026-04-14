@@ -75,6 +75,12 @@ export const MOCK_REPAIR_JOBS: JobWithBidProfiles[] = [
     address: '4521 Elm Street, Denver CO 80220',
     description: 'Kitchen faucet has been dripping for a week. Possible cartridge replacement needed. Standard Moen single-handle fixture.',
     status: 'open',
+    // @demo picsum placeholder photos — replace with real Supabase storage URLs
+    photo_urls: [
+      'https://picsum.photos/seed/job1a/800/600',
+      'https://picsum.photos/seed/job1b/800/600',
+      'https://picsum.photos/seed/job1c/800/600',
+    ],
     bids: [
       mockBid({ id: 'b1', job_id: '1', name: 'Brian Cooper', company: 'ProBuild Contractors', trade: 'General Contractor', is_licensed: true, avatar_color: '#7BA3C9', rating: 5.0, response_time: '2h ago', amount: 28000, price: '$280', message: 'I can get this done tomorrow morning. Faucet cartridge replacement is straightforward — I stock Moen parts.', tags: ['Licensed & Insured', 'Fast Response'], status: 'pending' }),
       mockBid({ id: 'b2', job_id: '1', name: 'Tony Ruiz', company: 'Front Range Plumbing', trade: 'Plumber', is_licensed: true, has_unread_messages: true, avatar_color: '#C9A87B', rating: 4.8, response_time: '4h ago', amount: 19500, price: '$195', message: "Standard cartridge swap. I'll include a 6-month labor warranty. Available this Thursday.", tags: ['Licensed & Insured', 'Warranty Offered'], status: 'pending' }),
@@ -139,6 +145,45 @@ export const MOCK_REPAIR_JOBS: JobWithBidProfiles[] = [
     awarded_bid_id: 'b8',
     bids: [
       mockBid({ id: 'b8', job_id: '5', name: 'Brian Cooper', company: 'ProBuild Contractors', trade: 'General Contractor', is_licensed: true, avatar_color: '#7BA3C9', rating: 5.0, response_time: '1h ago', amount: 62500, price: '$625', message: "Cedar railing with treated posts. I'll pull a permit if needed — usually not required for replacements under 30in.", tags: ['Licensed & Insured', 'Permit-Ready'], status: 'accepted' }),
+    ],
+  }),
+  mockJob({
+    id: '7',
+    title: 'Listing Photos — 4BR Colonial',
+    category: 'Photography',
+    due_date: 'Mar 6',
+    is_urgent: false,
+    budget_range: '$450 – $750',
+    address: '612 Cedar Lane, Denver CO 80206',
+    description: 'Full listing photo package for a 4BR colonial. Prefer golden hour exterior shots and drone aerials of the property and neighborhood.',
+    status: 'open',
+    // @demo mock photography fields — replace with live data
+    job_type: 'photography',
+    service_packages: ['Interior + Exterior Photos', 'Drone / Aerial'],
+    turnaround_preference: 'Next Day',
+    sqft: 2400,
+    bids: [
+      mockBid({ id: 'b10', job_id: '7', name: 'Priya Shah', company: 'Skyline Real Estate Media', trade: 'Photographer', is_licensed: true, avatar_color: '#A8C5D4', rating: 4.9, response_time: '2h ago', amount: 52500, price: '$525', message: 'Next-day turnaround with 30+ edited photos plus drone package. Licensed Part 107 pilot.', tags: ['Licensed & Insured', 'Fast Turnaround'], status: 'pending' }),
+    ],
+  }),
+  mockJob({
+    id: '8',
+    title: 'Stage Primary Suite + Living Areas',
+    category: 'Staging',
+    due_date: 'Mar 10',
+    is_urgent: false,
+    budget_range: '$1,200 – $2,000',
+    address: '2040 Spruce Avenue, Boulder CO 80302',
+    description: 'Full staging for the main living areas of an occupied listing. Existing furniture can stay or be repositioned — open to collaboration with homeowner.',
+    status: 'open',
+    // @demo mock staging fields — replace with live data
+    job_type: 'staging',
+    occupied_or_vacant: 'occupied',
+    rooms_count: 4,
+    staging_scope: ['Living Room', 'Dining Room', 'Primary Bedroom'],
+    sqft: 1800,
+    bids: [
+      mockBid({ id: 'b11', job_id: '8', name: 'Marisol Chen', company: 'Elevate Home Staging', trade: 'Home Stager', is_licensed: true, avatar_color: '#D4B5A8', rating: 4.9, response_time: '3h ago', amount: 165000, price: '$1,650', message: 'Occupied staging specialist. Will work with existing pieces plus a curated accent package.', tags: ['Licensed & Insured', 'Occupied Specialist'], status: 'pending' }),
     ],
   }),
   mockJob({
