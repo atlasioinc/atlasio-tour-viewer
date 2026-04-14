@@ -120,13 +120,13 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
   };
 
   return (
-    <View style={{ gap: label ? 8 : 0 }}>
+    <View style={{ gap: label ? 8 : 0, zIndex: 1000, elevation: 1000 }}>
       {label && (
         <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
           {label}
         </Text>
       )}
-      <View style={{ position: 'relative', zIndex: 99 }}>
+      <View style={{ position: 'relative', zIndex: 1000, elevation: 1000 }}>
         <TextInput
           value={addressQuery}
           onChangeText={handleTextChange}
@@ -153,12 +153,13 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
               top: 52,
               left: 0,
               right: 0,
-              zIndex: 99,
               backgroundColor: COLORS.background,
               borderRadius: 8,
               borderWidth: 1,
               borderColor: COLORS.border,
               ...SHADOWS.card,
+              zIndex: 1000,
+              elevation: 1000,
             }}
           >
             {suggestions.map((s) => (

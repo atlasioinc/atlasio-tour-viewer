@@ -421,7 +421,7 @@ const EditProfileScreen: React.FC = () => {
     try {
       await updateProfile.mutateAsync({
         name: form.fullName.trim(),
-        headline: form.headline.trim() || null, // @backend profiles.headline — max 50 chars
+        headline: form.headline.trim() || null, // @backend profiles.headline — max 45 chars
         // bio field hidden — omitted to avoid overwriting real Supabase bio
         // @demo restore bio param here when bio field is re-enabled in UI
         company: form.company.trim(),
@@ -558,10 +558,10 @@ const EditProfileScreen: React.FC = () => {
         <FormField
           label="Headline"
           value={form.headline}
-          onChangeText={(text) => updateField('headline', text.slice(0, 50))}
+          onChangeText={(text) => updateField('headline', text.slice(0, 45))}
           placeholder="Professional tagline (e.g., 'Fast closings, no surprises')"
-          maxLength={50}
-          helperText="50 chars max — one punchy line agents remember"
+          maxLength={45}
+          helperText="45 chars max — one punchy line agents remember"
         />
 
         <FormField

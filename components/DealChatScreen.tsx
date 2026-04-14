@@ -459,31 +459,32 @@ const DealChatScreen: React.FC = () => {
         animationType="none"
         onRequestClose={closeEditModal}
       >
-        <Pressable
-          onPress={closeEditModal}
-          style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' }}
+        {/* S146: KAV wraps the whole sheet so the keyboard pushes the bottom-aligned sheet upward */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
-          <Animated.View
-            style={{
-              transform: [{
-                translateY: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [600, 0],
-                }),
-              }],
-            }}
+          <Pressable
+            onPress={closeEditModal}
+            style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' }}
           >
-            <Pressable
-              onPress={() => {}}
+            <Animated.View
               style={{
-                backgroundColor: COLORS.background,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
+                transform: [{
+                  translateY: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [600, 0],
+                  }),
+                }],
               }}
             >
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={0}
+              <Pressable
+                onPress={() => {}}
+                style={{
+                  backgroundColor: COLORS.background,
+                  borderTopLeftRadius: 24,
+                  borderTopRightRadius: 24,
+                }}
               >
                 {/* Handle bar */}
                 <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
@@ -588,10 +589,10 @@ const DealChatScreen: React.FC = () => {
                     </Text>
                   </Pressable>
                 </View>
-              </KeyboardAvoidingView>
-            </Pressable>
-          </Animated.View>
-        </Pressable>
+              </Pressable>
+            </Animated.View>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

@@ -74,10 +74,7 @@ const InboxStack: React.FC = () => (
     <Stack.Screen
       name="DealChatScreen"
       component={DealChatScreen}
-      options={{
-        presentation: 'fullScreenModal',
-        animation: 'slide_from_bottom',
-      }}
+      options={{ gestureEnabled: true }}
     />
   </Stack.Navigator>
 );

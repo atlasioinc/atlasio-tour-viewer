@@ -231,11 +231,9 @@ const ProfileTab: React.FC = () => {
   const profileVisible = mockSource?.is_visible ?? liveProfile?.is_visible ?? true;
   const profileAvatarColor = mockSource?.avatar_color ?? liveProfile?.avatar_color ?? COLORS.primary;
   const profileRole = mockSource?.role ?? liveProfile?.role ?? 'agent';
-  const profileDisplayRole = mockSource?.display_role ?? liveProfile?.display_role ?? ROLE_DISPLAY[profileRole] ?? 'Professional';
-  // S143: safe-cased role label — guarantees capitalization when display_role is null and profileRole is a raw DB value
-  const roleLabel = mockSource?.display_role
-    ?? liveProfile?.display_role
-    ?? ROLE_DISPLAY[profileRole]
+  // S146: drop display_role from both chains — DB column is unreliable (contains raw lowercase 'agent')
+  const profileDisplayRole = ROLE_DISPLAY[profileRole] ?? 'Professional';
+  const roleLabel = ROLE_DISPLAY[profileRole]
     ?? (profileRole.charAt(0).toUpperCase() + profileRole.slice(1));
   const profileTrade = (mockSource as any)?.trade ?? liveProfile?.trade ?? null;
   const profileHeadline = mockSource?.headline ?? liveProfile?.headline ?? null;

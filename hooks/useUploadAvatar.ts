@@ -46,7 +46,7 @@ export const useUploadAvatar = () => {
         if (hasPhoto) {
           ActionSheetIOS.showActionSheetWithOptions(
             {
-              options: ['Change Photo', 'Choose from Library', 'Remove Photo', 'Cancel'],
+              options: ['Take Photo', 'Choose from Library', 'Remove Photo', 'Cancel'],
               cancelButtonIndex: 3,
               destructiveButtonIndex: 2,
             },
@@ -73,7 +73,7 @@ export const useUploadAvatar = () => {
       } else {
         const options = hasPhoto
           ? [
-              { text: 'Change Photo', onPress: () => resolve('camera') },
+              { text: 'Take Photo', onPress: () => resolve('camera') },
               { text: 'Choose from Library', onPress: () => resolve('library') },
               { text: 'Remove Photo', style: 'destructive' as const, onPress: () => resolve('remove') },
               { text: 'Cancel', style: 'cancel' as const, onPress: () => resolve(null) },
@@ -83,7 +83,7 @@ export const useUploadAvatar = () => {
               { text: 'Choose from Library', onPress: () => resolve('library') },
               { text: 'Cancel', style: 'cancel' as const, onPress: () => resolve(null) },
             ];
-        Alert.alert(hasPhoto ? 'Change Photo' : 'Upload Photo', 'Choose a source', options);
+        Alert.alert(hasPhoto ? 'Update Photo' : 'Upload Photo', 'Choose a source', options);
       }
     };
 
@@ -141,11 +141,22 @@ export const useUploadAvatar = () => {
         throw new Error('Not authenticated');
       }
 
-      // @backend read image as base64 via FileSystem — reliable on iOS SDK 54 (S143)
-      const base64 = await FileSystem.readAsStringAsync(pickedUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const arrayBuffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      // S146: step-tagged errors so device Alert identifies which step failed
+      let base64: string;
+      try {
+        base64 = await FileSystem.readAsStringAsync(pickedUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      } catch (readErr: any) {
+        throw new Error(`FileSystem read failed: ${readErr?.message ?? readErr}`);
+      }
+
+      let arrayBuffer: Uint8Array;
+      try {
+        arrayBuffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      } catch (decodeErr: any) {
+        throw new Error(`Base64 decode failed: ${decodeErr?.message ?? decodeErr}`);
+      }
 
       // @backend supabase.storage.from('avatars').upload — upsert avatar
       const storagePath = `${user.id}/avatar.jpg`;
@@ -155,7 +166,7 @@ export const useUploadAvatar = () => {
           contentType: 'image/jpeg',
           upsert: true,
         });
-      if (uploadError) throw uploadError;
+      if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
       // @backend supabase.storage.from('avatars').getPublicUrl
       const { data: urlData } = supabase.storage
@@ -177,6 +188,7 @@ export const useUploadAvatar = () => {
     } catch (err: any) {
       const message = err?.message || 'Failed to upload photo';
       setError(message);
+      Alert.alert('Upload Failed', message);
       console.error('[useUploadAvatar] Upload failed:', err);
     } finally {
       setIsUploading(false);
