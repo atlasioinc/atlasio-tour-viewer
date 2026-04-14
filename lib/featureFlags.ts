@@ -37,7 +37,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA:            true,           // @demo — true = demo mode, false = live Supabase
+  USE_MOCK_DATA:            false,          // @testflight Build 39 — live Supabase for QA
   LIVE_ONBOARDING:          true,   // permanent since S140d — rpc_complete_onboarding deployed + verified
   LIVE_CONTRACTOR_HOOKS:    true,   // true = contractor hooks call live RPCs (permanent since S36)
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
@@ -52,7 +52,7 @@ export const FEATURE_FLAGS = {
   //   and LIVE_NEIGHBORHOOD_HOOKS: false
   // DEV_BYPASS_AUTH and DEV_SHOW_PASSWORD_LOGIN must always be toggled as a pair — never individually.
   DEV_BYPASS_AUTH:          false,      // @demo — true = loads agent demo user, bypasses login
-  DEV_SHOW_PASSWORD_LOGIN:  false,   // @testflight — magic link deep links not configured yet
+  DEV_SHOW_PASSWORD_LOGIN:  true,    // @testflight Build 39 — password login for device testing
   LIVE_SQUAD_SHARE:         false,  // @demo — false for investor demos
 
   // DEAL_CREATION_ENABLED flag matrix:
