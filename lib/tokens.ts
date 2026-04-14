@@ -180,6 +180,16 @@ export const COLORS = {
   // ── Skeleton Loaders (S138) ──
   skeletonBase: '#E8ECEF',                        // light gray base for skeleton blocks
   skeletonShimmer: 'rgba(255, 255, 255, 0.55)' as const,  // moving light sweep overlay
+
+  // ── Empty States (S149a) ──
+  emptyStateFill: '#EBF0FF',     // light blue fill for illustration shapes
+  emptyStateMid:  '#C7D4FF',     // mid blue accent for illustration secondary shapes
+
+  // ── Success Toast (S149b) ──
+  // Accent bar + check icon reuse existing COLORS.successGreen ('#16A34A').
+  successToastBg:     '#F0FDF4',  // soft green container background
+  successToastBorder: '#BBF7D0',  // light green hairline border
+  successToastText:   '#15803D',  // dark green message + dismiss glyph
 } as const;
 
 // ─────────────────────────────────────────────

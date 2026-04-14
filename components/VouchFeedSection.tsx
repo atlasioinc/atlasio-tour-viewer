@@ -49,6 +49,8 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useVouchFeed } from '../hooks/useData';
 import { adaptVouchToFeedItem } from '../lib/typeAdapters';
+import { EmptyState } from './shared';
+import { useDemoRole } from '../lib/demoRoleContext';
 
 // ============================================================
 // TYPE DEFINITIONS — maps to Supabase join shape
@@ -315,18 +317,7 @@ const VouchCard: React.FC<VouchCardProps> = React.memo(function VouchCard({ item
   );
 });
 
-// ============================================================
-// EMPTY STATE
-// ============================================================
-
-const EmptyState: React.FC = () => (
-  <View style={styles.emptyContainer}>
-    <Text style={styles.emptyTitle}>No vouches yet</Text>
-    <Text style={styles.emptySubtitle}>
-      When pros in your network vouch for each other, you{"'"}ll see it here.
-    </Text>
-  </View>
-);
+// (Local EmptyState removed S149a — replaced by shared <EmptyState /> below.)
 
 // ============================================================
 // MAIN COMPONENT: VouchFeedSection
@@ -349,6 +340,10 @@ const VouchFeedSection: React.FC<VouchFeedSectionProps> = ({
   onViewAll,
 }) => {
   const [activeFilter, setActiveFilter] = useState<VouchFilterTab>('All');
+  // Role-branched empty state CTA — agents see read-only feed; contractors get a "Find work" CTA.
+  // Business rule: contractors earn vouches by completing jobs, so the CTA points them at jobs.
+  // Agents don't get vouched the same way, so showing a CTA would mislead them.
+  const { demoRole } = useDemoRole();
 
   // ── Data fetching ──────────────────────────────────────
   const { data: liveVouches } = useVouchFeed(activeFilter);
@@ -426,7 +421,17 @@ const VouchFeedSection: React.FC<VouchFeedSectionProps> = ({
 
       {/* Feed Cards */}
       {filteredVouches.length === 0 ? (
-        <EmptyState />
+        /* ── Empty State — S149a — role-branched CTA (see useDemoRole comment above) ── */
+        <EmptyState
+          illustration="vouch_feed"
+          title="No vouches yet"
+          body="Complete jobs to start building your reputation."
+          ctaLabel={demoRole === 'contractor' ? 'Find work' : undefined}
+          onCta={demoRole === 'contractor'
+            ? () => { /* @nav contractor: open Jobs tab — wired by parent screen */ }
+            : undefined}
+          style={{ flex: 0, paddingVertical: 32 }}
+        />
       ) : (
         filteredVouches.map(item => (
           <VouchCard

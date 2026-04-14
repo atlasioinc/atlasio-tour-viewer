@@ -143,6 +143,34 @@ CLAUDE.md Shared Components section (line ~496) is the source of truth — read 
 
 Pattern: when a spec says "use shared Button", `grep -l "export.*Button" components/ lib/` first.
 
+## RULE — `showSuccess` from `useSuccessToast` collides with local state in JobCompletionScreen (added S149b, April 14 2026)
+
+`JobCompletionScreen.tsx` declares a local `const [showSuccess, setShowSuccess] = useState(false)`
+for its in-screen success overlay (separate from the shared SuccessToast system).
+
+When importing the shared toast hook, alias the destructure to avoid a redeclare error:
+
+```typescript
+const { successMessage, showSuccess: showSuccessToast, clearSuccess } = useSuccessToast();
+```
+
+Generally, before destructuring `showSuccess` from `useSuccessToast`, grep the file for
+`showSuccess` first — any screen with its own success overlay state will collide.
+The two systems are deliberately separate (in-screen overlay vs root toast); don't merge them.
+
+## RULE — Shared empty-state component default `flex: 1` collapses in ScrollView (added S149a, April 14 2026)
+
+`components/shared/EmptyState.tsx` defaults to `flex: 1` so it can take over a screen.
+Inside a `ScrollView` (or any container that doesn't size flex children), the component
+collapses to zero height and renders nothing visible.
+
+When using `<EmptyState />` inside a scroll container or section card, pass
+`style={{ flex: 0, paddingVertical: 32 }}` to override. Used in: RepairJobDetails bids
+section, VouchFeedSection, ProfileTab vouches bottom sheet.
+
+Alternative for full-screen takeover inside a scroll: wrap in `<View style={{ minHeight: 480 }}>`
+(used in ContractorHomeTab `!isFilled` branch).
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

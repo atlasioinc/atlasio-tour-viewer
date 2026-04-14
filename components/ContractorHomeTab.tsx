@@ -52,7 +52,7 @@ import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { useMyProfile } from '../hooks/useData';
 import { DisplayTag } from './DisplayTag';
 import { CardButton } from './Button';
-import { Avatar } from './shared';
+import { Avatar, EmptyState } from './shared';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -1213,6 +1213,19 @@ const ContractorHomeTab: React.FC = () => {
           </Text>
         </View>
 
+        {/* ── Empty State — S149a — full-screen takeover when contractor has no activity ── */}
+        {/* @demo — pull-down empty toggle can be removed when live hooks are wired */}
+        {!isFilled ? (
+          <View style={{ minHeight: 480 }}>
+            <EmptyState
+              illustration="contractor_home"
+              title="You're all set"
+              body="No active jobs right now. New matches will appear here."
+              ctaLabel="Browse open jobs"
+              onCta={() => navigation.navigate('Jobs')}
+            />
+          </View>
+        ) : (<>
         {/* ══════════════════════════════════════════
             STRIPE CONNECT BANNER — shown when payment not set up
             ══════════════════════════════════════════ */}
@@ -1469,6 +1482,7 @@ const ContractorHomeTab: React.FC = () => {
             </View>
           )}
         </View>
+        </>)}
       </ScrollView>
 
       {/* ─────────────────────────────────────────

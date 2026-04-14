@@ -38,7 +38,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useChatThreads, useInboxThreads, useArchiveThread } from '../hooks/useData';
 import { adaptChatThreadToLocal, adaptInboxThreadToLocal } from '../lib/typeAdapters';
-import { Avatar, VerificationBanner, SkeletonBlock } from './shared';
+import { Avatar, VerificationBanner, SkeletonBlock, EmptyState } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Enable LayoutAnimation on Android
@@ -658,37 +658,17 @@ const InboxList: React.FC = () => {
           {isLoadingInbox && threads.length === 0 ? (
             <InboxSkeleton />
           ) : threads.length === 0 && searchText.length === 0 ? (
-            /* ── True Empty State — No conversations yet ── */
-            /* @demo Replace threads.length check with real thread count from useChatThreads() */
-            <View style={{ paddingTop: 80, paddingBottom: 48, paddingHorizontal: 32, alignItems: 'center', gap: 16 }}>
-              {/* Chat bubble icon */}
-              <Svg width={48} height={48} viewBox="0 0 24 24" fill="none">
-                <Path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke={COLORS.lightText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-              </Svg>
-              <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28, textAlign: 'center' }}>
-                Start a conversation
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 22, textAlign: 'center' }}>
-                Send a 1:1 message to a connection or kick off a Deal Chat for your next transaction.
-              </Text>
-              <Pressable
-                onPress={() => navigation.navigate('NewMessage')}
-                style={({ pressed }) => ({
-                  marginTop: 8,
-                  height: 44,
-                  paddingHorizontal: 32,
-                  backgroundColor: COLORS.primary,
-                  borderRadius: 8,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#FFFFFF', lineHeight: 20 }}>
-                  New Message
-                </Text>
-              </Pressable>
-            </View>
+            /* ── Empty State — S149a shared EmptyState ── */
+            /* @demo replace threads.length check with real thread count from useChatThreads() */
+            <EmptyState
+              illustration="inbox"
+              title="No messages yet"
+              body="Conversations with pros appear here."
+              ctaLabel="Find pros"
+              onCta={() => navigation.dispatch(
+                CommonActions.navigate({ name: 'Find' as never }),
+              )}
+            />
           ) : (
             <>
               {/* Pinned Section */}

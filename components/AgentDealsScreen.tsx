@@ -29,7 +29,8 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
 import { ScreenHeader } from './ScreenHeader';
-import { Avatar } from './shared';
+import { Avatar, EmptyState } from './shared';
+import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { useAgentDeals } from '../hooks/useData';
 import { getSlotStatusDot, isMilestoneStale } from '../features/partners/lib/dealMilestones';
@@ -201,10 +202,6 @@ const AgentDealsScreen: React.FC = () => {
       ? 'All deals on track'
       : 'No deals closing within 14 days';
 
-  const emptySubtitle = activeFilter === 'all'
-    ? 'Create your first deal to get started'
-    : undefined;
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
       {/* ── Header ── */}
@@ -256,20 +253,25 @@ const AgentDealsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         {filteredDeals.length === 0 ? (
-          /* ── Empty State ── */
-          <View style={{ alignItems: 'center', paddingTop: 60 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.darkText }}>
-              {activeFilter === 'needs_attention' ? 'All deals on track ' : emptyTitle}
-              {activeFilter === 'needs_attention' && (
-                <Text style={{ color: COLORS.successGreen }}>✓</Text>
-              )}
-            </Text>
-            {emptySubtitle && (
-              <Text style={{ fontSize: 14, color: COLORS.secondaryText, marginTop: 4 }}>
-                {emptySubtitle}
-              </Text>
-            )}
-          </View>
+          /* ── Empty State — S149a shared EmptyState ──
+             CTA gated on DEAL_CREATION_ENABLED (lib/config.ts) AND only on the 'all' filter.
+             "needs_attention" is a positive empty state ("All deals on track") — no CTA.
+             Other filters are informational — no CTA. */
+          <EmptyState
+            illustration="agent_deals"
+            title={emptyTitle}
+            body={
+              activeFilter === 'all'
+                ? 'Start a deal to coordinate your closing squad.'
+                : activeFilter === 'needs_attention'
+                  ? 'Every deal in your pipeline is in good shape.'
+                  : 'Closings within 14 days will appear here.'
+            }
+            ctaLabel={activeFilter === 'all' && DEAL_CREATION_ENABLED ? 'Create a deal' : undefined}
+            onCta={activeFilter === 'all' && DEAL_CREATION_ENABLED
+              ? () => { /* @backend open DealCreationSheet — wired in S79 follow-up */ }
+              : undefined}
+          />
         ) : (
           filteredDeals.map((deal) => (
             <DealCard

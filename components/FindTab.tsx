@@ -50,7 +50,8 @@ import { COLORS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useFindPros, useRecommendedPros, useTrendingPros } from '../hooks/useData';
 import { adaptProfileToProCard } from '../lib/typeAdapters';
-import { Avatar, VerificationBadge, SkeletonBlock } from './shared';
+import { Avatar, VerificationBadge, SkeletonBlock, EmptyState, SuccessToast } from './shared';
+import { useSuccessToast } from '../hooks/useSuccessToast';
 import { DisplayTag } from './DisplayTag';
 import type { VerificationLevel } from '../types';
 
@@ -479,10 +480,15 @@ const FindTab: React.FC = () => {
   const openConnectModal = (pro: ProCard) => { setConnectPro(pro); setConnectModalVisible(true); };
   const closeConnectModal = () => { setConnectModalVisible(false); setConnectPro(null); };
 
+  // @ux success feedback — SuccessToast wired S149b
+  // @demo connection mutation is stubbed in FindTab — real mutation lives in ProProfile.handleSendConnect
+  const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
+
   const handleSendConnect = (message: string) => {
     console.log('📤 Connection request sent to:', connectPro?.name);
     console.log('Message:', message || '(no message)');
     closeConnectModal();
+    showSuccess('Request sent');
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- collapse filters when user starts typing
@@ -658,10 +664,14 @@ const FindTab: React.FC = () => {
                     onInviteToJob={() => openInviteModal(pro)} onRequestConnect={() => openConnectModal(pro)} />
                 ))
               ) : (
-                <View style={{ padding: 32, alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.bodyText }}>No pros found</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, textAlign: 'center' }}>Try adjusting your search or filters</Text>
-                </View>
+                /* ── Empty State — S149a — only renders when search/filter active (gated by isSearching above) ── */
+                <EmptyState
+                  illustration="find"
+                  title="No pros found"
+                  body="Try a different search or clear your filters."
+                  ctaLabel="Clear filters"
+                  onCta={() => { setSearchText(''); clearAllFilters(); }}
+                />
               )}
             </View>
           </View>
@@ -700,6 +710,9 @@ const FindTab: React.FC = () => {
           onCreateNewJob={() => { console.log('Navigate to PostJobWizard for', invitePro.name); }}
           onInviteSent={(jobId, contractorId, message) => { console.log('Invite sent:', { jobId, contractorId, message }); }} />
       )}
+      {successMessage ? (
+        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
+      ) : null}
     </SafeAreaView>
   );
 };

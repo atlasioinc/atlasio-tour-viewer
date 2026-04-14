@@ -43,7 +43,7 @@ import { useMyProfile, useProfileVouches } from '../hooks/useData';
 // @backend Reverse trades_enum → UI label map for Z1 hero trade pill (S148a)
 import { TRADE_ENUM_TO_LABEL } from '../lib/tradesMap';
 import { useUploadAvatar } from '../hooks/useUploadAvatar';
-import { Avatar, VerificationBanner, VerificationBadge } from './shared';
+import { Avatar, VerificationBanner, VerificationBadge, EmptyState } from './shared';
 import { DisplayTag } from './DisplayTag';
 import PortfolioGallery from './PortfolioGallery';
 import { useDemoRole } from '../lib/demoRoleContext';
@@ -964,9 +964,13 @@ const ProfileTab: React.FC = () => {
                 />
               ))}
               {vouches.length === 0 && (
-                <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, textAlign: 'center', paddingVertical: 24 }}>
-                  No vouches yet
-                </Text>
+                /* ── Empty State — S149a — no CTA ── */
+                <EmptyState
+                  illustration="profile_vouches"
+                  title="No vouches received"
+                  body="Vouches from collaborators show here after completing jobs together."
+                  style={{ flex: 0, paddingVertical: 32 }}
+                />
               )}
             </View>
           </ScrollView>

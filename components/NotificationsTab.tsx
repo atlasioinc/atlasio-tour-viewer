@@ -28,7 +28,7 @@ import type { HomeStackParamList } from './HomeStack';
 import type { Job, BidWithProfile } from '../types';
 import { MOCK_REPAIR_JOBS } from './RepairJobsData';
 import { COLORS } from '../lib/tokens';
-import { Avatar } from './shared';
+import { Avatar, EmptyState } from './shared';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useNotifications as useNotificationsHook } from '../hooks/useData';
 import { adaptNotificationToLocal } from '../lib/typeAdapters';
@@ -612,19 +612,13 @@ const NotificationsTab: React.FC = () => {
     </View>
   );
 
-  // ── Empty state ──
+  // ── Empty state — S149a shared EmptyState, no CTA ──
   const renderEmptyState = () => (
-    <View style={{ flex: 1, paddingTop: 120, alignItems: 'center', gap: 12 }}>
-      <View style={{ width: 64, height: 64, borderRadius: 9999, backgroundColor: COLORS.chipBg, alignItems: 'center', justifyContent: 'center' }}>
-        <BellIcon />
-      </View>
-      <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.headingText, lineHeight: 28 }}>
-        No notifications yet
-      </Text>
-      <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, textAlign: 'center', paddingHorizontal: 48 }}>
-        Check back soon! You{"'"}ll see connection requests, bids, vouches, and more here.
-      </Text>
-    </View>
+    <EmptyState
+      illustration="notifications"
+      title="You're all caught up"
+      body="No new notifications right now."
+    />
   );
 
   return (
