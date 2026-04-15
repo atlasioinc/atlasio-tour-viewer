@@ -15,6 +15,15 @@
 - `npx tsc --noEmit` — TypeScript check (**run after EVERY file change, hard gate**)
 - `npx expo lint` — Lint check
 - `supabase functions deploy <name> --no-verify-jwt` — Deploy Edge Function
+- `eas build --platform ios --profile production` — TestFlight build (see rule below)
+
+### EAS Build Profile Rule (added S155)
+- **Always use `--profile production`** for TestFlight builds
+- `production` = auto-increments build number, Release config, wired to App Store Connect (ASC App ID: 6761231397), TestFlight distribution
+- `preview` = ad-hoc internal distribution only, NOT TestFlight — do not use for QA builds
+- `development` = dev client, local Metro connection only
+- Correct command for every TestFlight build: `eas build --platform ios --profile production`
+- Confirmed by `eas build:list`: Builds 39–43 all used `production` profile; Build 44 (S155 QA) also `production`
 
 ## Folder Structure
 ```

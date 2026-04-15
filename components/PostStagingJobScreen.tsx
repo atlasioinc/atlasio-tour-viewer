@@ -25,7 +25,7 @@
 // Platform fee: 3% captured on bid accept (same as repair/photography)
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -46,9 +46,15 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../lib/tokens';
+import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 import { useCreateJob } from '../hooks/useData';
-import { AddressAutocompleteInput, SuccessToast } from './shared';
+import { SuccessToast } from './shared';
 import { useSuccessToast } from '../hooks/useSuccessToast';
+
+// S156: surface missing API key in dev — silent failure masked BUG-001 attempts 2–4 in S151–S153.
+if (__DEV__ && !GOOGLE_MAPS_API_KEY) {
+  console.warn('[PostStagingJobScreen] GOOGLE_MAPS_API_KEY is empty — autocomplete will fail silently');
+}
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -128,6 +134,18 @@ const PostStagingJobScreen: React.FC = () => {
 
   // ── Form state ──
   const [address, setAddress] = useState('');
+  // S156: inline Google Places autocomplete — mirrors ClientLifestyleScreen pattern.
+  // No Modal, no measure(), no onBlur auto-close — absolute sibling dropdown inside
+  // a position:relative wrapper. See tasks/atlasio-bug-history.md BUG-001 attempt 7.
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    { placeId: string; description: string }[]
+  >([]);
+  const [showAddressAutocomplete, setShowAddressAutocomplete] = useState(false);
+  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
+  const addressAutocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // S156: AbortController guard — prevents stale fetch responses from overwriting fresh ones
+  // when the user types faster than the network resolves.
+  const addressFetchControllerRef = useRef<AbortController | null>(null);
   const [sqft, setSqft] = useState('');
   const [isOccupied, setIsOccupied] = useState(false);
   const [roomsCount, setRoomsCount] = useState(3);
@@ -163,6 +181,76 @@ const PostStagingJobScreen: React.FC = () => {
       setRoomsCount(next);
     }
   };
+
+  // ── Google Places autocomplete (S156 inline pattern) ──
+  // @backend Google Places Autocomplete (New) — POST places.googleapis.com/v1/places:autocomplete
+  const fetchAddressSuggestions = async (input: string) => {
+    // Abort any in-flight request so its response can't overwrite fresher results.
+    if (addressFetchControllerRef.current) {
+      addressFetchControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    addressFetchControllerRef.current = controller;
+
+    setIsFetchingAddressSuggestions(true);
+    try {
+      const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+        },
+        body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
+        signal: controller.signal,
+      });
+      const data = await response.json();
+      // Guard: if this request was superseded while the network was resolving, drop its result.
+      if (controller.signal.aborted) return;
+      const mapped = (data.suggestions ?? [])
+        .map((s: any) => ({
+          placeId: s.placePrediction?.placeId ?? '',
+          description: s.placePrediction?.text?.text ?? '',
+        }))
+        .filter((s: { placeId: string; description: string }) => s.placeId && s.description);
+      setAddressSuggestions(mapped);
+    } catch (err: any) {
+      // AbortError is expected when the user keeps typing — don't log, don't clear.
+      if (err?.name === 'AbortError') return;
+      console.warn('[PostStagingJobScreen] Places autocomplete failed');
+      setAddressSuggestions([]);
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsFetchingAddressSuggestions(false);
+      }
+    }
+  };
+
+  const handleAddressChange = (text: string) => {
+    setAddress(text);
+    if (addressAutocompleteTimerRef.current) clearTimeout(addressAutocompleteTimerRef.current);
+    if (text.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressAutocomplete(false);
+      return;
+    }
+    setShowAddressAutocomplete(true);
+    addressAutocompleteTimerRef.current = setTimeout(() => {
+      fetchAddressSuggestions(text);
+    }, 400);
+  };
+
+  const handleAddressSuggestionSelect = (description: string) => {
+    setAddress(description);
+    setAddressSuggestions([]);
+    setShowAddressAutocomplete(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (addressAutocompleteTimerRef.current) clearTimeout(addressAutocompleteTimerRef.current);
+      if (addressFetchControllerRef.current) addressFetchControllerRef.current.abort();
+    };
+  }, []);
 
   const isFormValid = address.trim().length > 0 && selectedScopes.size > 0;
 
@@ -317,13 +405,79 @@ const PostStagingJobScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Property Address — Google Places autocomplete (S144) */}
+          {/* Property Address — inline Google Places autocomplete (S156)
+              Pattern mirrors ClientLifestyleScreen: position:relative wrapper,
+              absolute sibling dropdown, NO Modal, NO measure(). Keeps keyboard
+              focus on TextInput across keystrokes. */}
           {renderSectionHeader('Property Address *')}
-          <AddressAutocompleteInput
-            value={address}
-            onSelect={setAddress}
-            placeholder="123 Main St, Denver, CO 80202"
-          />
+          <View style={{ position: 'relative', zIndex: 50 }}>
+            <TextInput
+              value={address}
+              onChangeText={handleAddressChange}
+              placeholder="123 Main St, Denver, CO 80202"
+              placeholderTextColor={COLORS.bodyText}
+              returnKeyType="done"
+              style={{
+                backgroundColor: COLORS.inputBackground,
+                borderWidth: 0.68,
+                borderColor: address.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
+                borderRadius: 10,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                fontSize: 15,
+                fontWeight: '400',
+                color: COLORS.darkText,
+                lineHeight: 20,
+              }}
+            />
+            {showAddressAutocomplete && address.length >= 3 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 52,
+                  left: 0,
+                  right: 0,
+                  zIndex: 99,
+                  backgroundColor: COLORS.background,
+                  borderRadius: 10,
+                  borderWidth: 0.68,
+                  borderColor: COLORS.border,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 4,
+                  overflow: 'hidden',
+                }}
+              >
+                {isFetchingAddressSuggestions && addressSuggestions.length === 0 ? (
+                  <View style={{ padding: 12, paddingHorizontal: 14 }}>
+                    <Text style={{ fontSize: 14, color: COLORS.lightText }}>Searching…</Text>
+                  </View>
+                ) : addressSuggestions.length === 0 ? (
+                  <View style={{ padding: 12, paddingHorizontal: 14 }}>
+                    <Text style={{ fontSize: 14, color: COLORS.lightText }}>No matches</Text>
+                  </View>
+                ) : (
+                  addressSuggestions.map((s) => (
+                    <Pressable
+                      key={s.placeId}
+                      onPress={() => handleAddressSuggestionSelect(s.description)}
+                      style={({ pressed }) => ({
+                        padding: 12,
+                        paddingHorizontal: 14,
+                        backgroundColor: pressed ? COLORS.chipBg : COLORS.background,
+                      })}
+                    >
+                      <Text style={{ fontSize: 14, color: COLORS.darkText }} numberOfLines={1}>
+                        {s.description}
+                      </Text>
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            )}
+          </View>
 
           {/* Square Footage */}
           {renderSectionHeader('Approx. Square Footage')}
