@@ -288,7 +288,9 @@ const EditRepairJob: React.FC = () => {
           trades: Array.from(selectedTrades)
             .map((label) => TRADE_LABEL_TO_ENUM[label] ?? label)
             .filter(Boolean) as TradeEnum[],
-          due_date: dueDate ? dueDate.toISOString().split('T')[0] : job.due_date,
+          due_date: dueDate
+            ? `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`
+            : job.due_date,
           budget_min: budgetMin ? parseInt(budgetMin, 10) : job.budget_min,
           budget_max: budgetMax ? parseInt(budgetMax, 10) : job.budget_max,
           description: description.trim(),

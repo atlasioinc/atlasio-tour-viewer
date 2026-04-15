@@ -100,6 +100,24 @@ Fix: Supabase `rpc_get_agent_active_jobs` widened to `('open','bidding','awarded
 
 ---
 
+## S158 — Due date timezone fix + cancel job cache refresh (April 15, 2026)
+
+**Status:** 🟢 Two surgical fixes shipped on top of S157b.
+
+### Fix 1 — Due date off-by-one in EditRepairJob
+`handleSave` was using `dueDate.toISOString().split('T')[0]` which converts to UTC and shifts the date by the timezone offset on every save from a negative-offset timezone. Denver (UTC-6/7) was losing a day on every Edit Job save.
+
+**Fix:** construct `YYYY-MM-DD` from local date components (`getFullYear/getMonth/getDate`). No UTC involvement. Every timezone clean. Rule logged in `tasks/lessons.md`.
+
+### Fix 2 — Cancel job showed stale card after navigation
+`useCancelJob.onSuccess` invalidated `['agent_active_jobs']` which refetches in the background. `mutateAsync` resolved before the refetch landed, so `navigation.goBack()` fired against stale cache and the cancelled card was still visible briefly on HomeTab.
+
+**Fix:** replace the active-jobs `invalidateQueries` with an `await qc.refetchQueries({ queryKey: ['agent_active_jobs'] })` inside an async `onSuccess`. This blocks `mutateAsync` resolution until the list has actually refetched. The three other invalidations stay as-is (background refresh is fine).
+
+**Metrics:** unchanged. RPCs 67, Hooks 67, tsc 0, lint 0 new.
+
+---
+
 ## S157b — EditRepairJob + RepairJobDetails full wire (April 15, 2026)
 
 **Status:** 🟢 All scope items shipped. tsc 0, lint 0 new.

@@ -1125,8 +1125,12 @@ export const useCancelJob = () => {
       if (error) throw error;
       return jobId;
     },
-    onSuccess: (jobId) => {
-      qc.invalidateQueries({ queryKey: ['agent_active_jobs'] });
+    onSuccess: async (jobId) => {
+      // S158: refetchQueries (not invalidateQueries) for active jobs so the
+      // list is fresh BEFORE mutateAsync resolves and navigation.goBack fires —
+      // otherwise the cancelled card lingers on HomeTab for a beat.
+      await qc.refetchQueries({ queryKey: ['agent_active_jobs'] });
+      // Background refresh is fine for the others
       qc.invalidateQueries({ queryKey: queryKeys.agentJobs });
       qc.invalidateQueries({ queryKey: queryKeys.repairJobs });
       qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });

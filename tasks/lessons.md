@@ -433,6 +433,24 @@ If you need `if (!data) return <Spinner />` in a component that has 10+ hooks (u
 
 **How to apply:** move the `if (!data)` guard to just before the final `return (...)`. Use optional chaining or `data?.field ?? fallback` for any derived values in hook dependencies. Use `data!` non-null assertions inside event handlers (they only fire post-guard).
 
+## S158 — Never use `toISOString().split('T')[0]` for date-only fields
+
+`toISOString()` converts to UTC. A date picked as May 30 at midnight in Mountain
+Time (UTC-6/7) becomes May 29 in UTC — the job saves off-by-one. Every
+negative-offset timezone sees this bug, silently.
+
+**Why:** JavaScript `Date` stores a wall-clock instant; `toISOString` rebases
+to UTC before stringifying, and the date portion gets shifted by the timezone
+offset. The user sees the wrong day even though they picked the right one.
+
+**How to apply:** construct `YYYY-MM-DD` from local date components:
+```ts
+`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+```
+No UTC involvement. Works in every timezone. First fix shipped S158
+(EditRepairJob handleSave). Any new date-only write must use this pattern —
+never `toISOString`.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —
