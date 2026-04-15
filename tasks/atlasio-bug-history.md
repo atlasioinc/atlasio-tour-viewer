@@ -1,5 +1,5 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S156 RESOLVED | April 15, 2026
+**Last updated:** S157 RESOLVED | April 15, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
@@ -340,6 +340,52 @@ Previous incorrect "Pattern Learned" told sessions to "remove fullScreenModal fr
 Do NOT layer a `Keyboard.addListener` padding hack on top of `KeyboardAvoidingView behavior='padding'`. KAV already adds keyboard-height padding at its container's bottom edge when the keyboard opens. Adding a listener that mutates `paddingBottom` on a child View creates a race during the keyboard-hide animation: `keyboardWillHide` fires and immediately restores the static padding while KAV is still animating its own padding down — both add bottom space in the same frame, producing a ~34px gap flash for ~250ms.
 
 **Correct pattern:** KAV owns all keyboard spacing. The input bar container uses a static `paddingBottom: insets.bottom + 8` that only accounts for the home indicator, never the keyboard.
+
+---
+
+## BUG-007 — Photo Thumbnails Blank, `photo_urls: []` in Supabase
+
+**Screens affected:** PostJobWizard (repair job posting)
+**Files:** `components/PostJobWizard.tsx`, `hooks/useData.ts`, `sql/schema.sql`
+**Status:** 🟢 RESOLVED in S157
+
+### Symptom
+User selects photos in PostJobWizard — thumbnails show in UI. After submit, Supabase `jobs.photo_urls` = `[]`. No error surfaced.
+
+### Root cause
+Photo upload pipeline never existed. `form.photos` stored raw `expo-image-picker` local URIs; `handlePostJob` called `rpc_create_job` without passing photos; the RPC didn't accept a `p_photo_urls` param and its INSERT didn't touch `photo_urls` (default `'{}'`). Photos were held in state and dropped at submit.
+
+### Fix (S157)
+Two-phase write. Must be in this order because `job-photos` bucket RLS requires the job row to exist (`(storage.foldername(name))[1]::UUID` matched against `jobs.agent_id = auth.uid()`):
+1. `rpc_create_job` returns `jobId`
+2. Per photo: `FileSystem.readAsStringAsync(uri, Base64)` → `Uint8Array` → `supabase.storage.from('job-photos').upload('{jobId}/{i}.jpg', bytes, { contentType: 'image/jpeg', upsert: false })`
+3. New `rpc_set_job_photos(p_job_id, p_photo_urls)` writes the collected storage paths to `jobs.photo_urls`
+
+Partial upload failures are logged and skipped — job creation always wins. `job-photos` is private, so storage PATHS (not signed URLs) are persisted; signed URLs must be generated at display time via `createSignedUrl(path, expiresIn)`.
+
+---
+
+## BUG-008 — New Job Not Appearing in Active Jobs
+
+**Screens affected:** HomeTabAgent (Active Jobs section)
+**Files:** `components/HomeTabAgent.tsx`, `hooks/useData.ts`, `types/index.ts`, `sql/schema.sql`
+**Status:** 🟢 RESOLVED in S157
+
+### Symptom
+Newly posted job has `status = 'open'` in Supabase but does not appear in HomeTabAgent Active Jobs. Trades (`["General Contractor","Electrical"]`) are valid `trades_enum` values — red herring.
+
+### Root cause (three layers)
+1. **Server filter.** `rpc_get_agent_active_jobs` restricted to `awarded | in_progress | pending_completion`. Newly-created `open` jobs were filtered out by design.
+2. **Cache invalidation.** `useCreateJob.onSuccess` invalidated `['repair-jobs']` and `['agent-jobs']` but NOT `['agent_active_jobs']` (underscore key used by `useAgentActiveJobs`). Even if the server filter were correct, the home tab would not refetch until manual pull-to-refresh.
+3. **Type narrowing.** `AgentActiveJob.status` was typed as the 3-value subset, so widening the RPC would not type-check on the client.
+
+### Fix (S157)
+- Supabase: widened `rpc_get_agent_active_jobs` status filter to `('open','bidding','awarded','in_progress','pending_completion')`.
+- `useCreateJob.onSuccess` + new `useSetJobPhotos.onSuccess` both invalidate `['agent_active_jobs']`.
+- `AgentActiveJob.status` widened to full `JobStatus` (all 8 values).
+- `HomeTabAgent` added `JOB_STATUS_LABELS` entries (`open: 'Open for Bids'`, `bidding: 'Receiving Bids'`) and a new `JOB_STATUS_COLORS` map (`open`/`bidding` → `COLORS.jobGreen`, `awarded`/`in_progress` → `COLORS.secondaryText`, `pending_completion` → `COLORS.warningAmber`). Inline ternary replaced with map lookup.
+
+---
 
 ### CTA placement inside KAV (S155)
 CTA/submit buttons on form screens must always be **siblings of the ScrollView inside KeyboardAvoidingView**, never children of the ScrollView. This is how KAV pushes the CTA above the keyboard when a field is focused.

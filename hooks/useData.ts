@@ -1044,6 +1044,37 @@ export const useCreateJob = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.repairJobs });
       qc.invalidateQueries({ queryKey: queryKeys.agentJobs });
+      qc.invalidateQueries({ queryKey: ['agent_active_jobs'] });
+    },
+  });
+};
+
+// STATUS: wired
+// @backend rpc_set_job_photos(p_job_id UUID, p_photo_urls TEXT[])
+// Updates jobs.photo_urls after two-phase upload. Called after job creation
+// and storage upload complete. Ownership verified server-side.
+export const useSetJobPhotos = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      jobId,
+      photoUrls,
+    }: {
+      jobId: string;
+      photoUrls: string[];
+    }) => {
+      const { data, error } = await supabase.rpc('rpc_set_job_photos', {
+        p_job_id: jobId,
+        p_photo_urls: photoUrls,
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error ?? 'rpc_set_job_photos failed');
+      return data;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['agent_active_jobs'] });
+      qc.invalidateQueries({ queryKey: queryKeys.agentJobs });
+      qc.invalidateQueries({ queryKey: ['job', variables.jobId] });
     },
   });
 };

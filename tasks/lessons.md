@@ -375,6 +375,34 @@ open OR closed, or input hidden by keyboard): restore this exact pattern.
 **Do not** "fix" by changing `keyboardVerticalOffset` to a non-zero value —
 breaks re-entry from attachments/compose modes.
 
+## S157 — Two-phase uploads to private buckets + sibling-list cache keys
+
+### `job-photos` is private — store paths, not signed URLs
+Private Supabase Storage buckets require signed URLs to read, but signed URLs **expire**.
+Persisting a signed URL in `jobs.photo_urls` means the link dies after the TTL and the
+photo viewer breaks. Store the storage PATH (e.g. `{jobId}/0.jpg`), and generate a fresh
+signed URL at display time with `createSignedUrl(path, expiresIn)`. This also cleanly
+matches the RLS policy, which is path-scoped (`(storage.foldername(name))[1]::UUID`).
+
+### Two-phase write order is forced by RLS
+For `job-photos`, the insert policy requires the `jobs` row to already exist. Any "upload
+then create" flow fails RLS. Always: `rpc_create_job` → upload under `{jobId}/...` →
+`rpc_set_job_photos`. Never try to pass photo bytes into the creation RPC — pushes complexity
+into plpgsql and can't use RLS-scoped storage anyway.
+
+### Invalidate every sibling list that reads the same table
+`useCreateJob` was invalidating `['repair-jobs']` and `['agent-jobs']` but not
+`['agent_active_jobs']`, so Home tab stayed stale after a successful create. When adding a
+new read hook that touches `jobs`, audit every mutation that writes `jobs` and add the new
+key to its `onSuccess` invalidation list. Underscore vs hyphen in query keys matters —
+`['agent_active_jobs']` ≠ `['agent-active-jobs']`.
+
+### Narrowed type unions block server filter widening
+`AgentActiveJob.status` was typed as `'awarded'|'in_progress'|'pending_completion'`. When
+the server RPC filter was widened to include `open`/`bidding`, the client would not
+type-check until the union was widened too. Prefer aliasing a shared enum (`JobStatus`)
+for row types that come from a server-side filter you might later change.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

@@ -696,7 +696,7 @@ export interface AgentActiveJob {
   id: string;
   title: string;
   job_type: 'repair' | 'photography' | 'staging';
-  status: 'awarded' | 'in_progress' | 'pending_completion';
+  status: JobStatus;
   address: string;
   due_date: string;
   is_urgent: boolean;

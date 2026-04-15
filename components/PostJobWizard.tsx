@@ -50,13 +50,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { supabase } from '../lib/supabase';
 import InfoBanner from './InfoBanner';
 import FormField from './FormField';
 import InviteContractorsModal from './InviteContractorsModal';
 import type { NetworkContractor } from './InviteContractorsModal';
 import { Avatar, AddressAutocompleteInput } from './shared';
 import { COLORS } from '../lib/tokens';
-import { useCreateJob, useInviteContractors } from '../hooks/useData';
+import { useCreateJob, useInviteContractors, useSetJobPhotos } from '../hooks/useData';
 
 // Simple progress bar matching Figma header spec (4px track, no label)
 const WizardProgressBar: React.FC<{ currentStep: number; totalSteps: number }> = ({ currentStep, totalSteps }) => {
@@ -777,6 +779,47 @@ const STEP_CONFIG = [
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
+// ─────────────────────────────────────────────
+// PHOTO UPLOAD HELPER (S157 — BUG-007)
+// @backend — uploads each local URI to job-photos/{jobId}/{i}.jpg
+// job-photos bucket is PRIVATE. Stores storage paths; signed URLs generated
+// at display time with createSignedUrl(path, expiresIn).
+// Partial failures are non-fatal — job creation always wins.
+// ─────────────────────────────────────────────
+async function uploadJobPhotos(jobId: string, localUris: string[]): Promise<string[]> {
+  const uploadedPaths: string[] = [];
+
+  for (let i = 0; i < localUris.length; i++) {
+    try {
+      const uri = localUris[i];
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const arrayBuffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const storagePath = `${jobId}/${i}.jpg`;
+
+      const { error } = await supabase.storage
+        .from('job-photos')
+        .upload(storagePath, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error(`[uploadJobPhotos] Upload failed for photo ${i}:`, error.message);
+        continue;
+      }
+
+      uploadedPaths.push(storagePath);
+    } catch (err) {
+      console.error(`[uploadJobPhotos] Unexpected error for photo ${i}:`, err);
+      continue;
+    }
+  }
+
+  return uploadedPaths;
+}
+
 const PostJobWizard: React.FC = () => {
   const navigation = useNavigation<NavProp>();
   const [currentStep, setCurrentStep] = useState(0);
@@ -790,6 +833,7 @@ const PostJobWizard: React.FC = () => {
   const [newJobId, setNewJobId] = useState<string>('mock-job-001');
   const createJob = useCreateJob();
   const inviteContractors = useInviteContractors();
+  const setJobPhotos = useSetJobPhotos();
 
   const [form, setForm] = useState<PostJobFormData>({
     jobTitle: '',
@@ -878,6 +922,20 @@ const PostJobWizard: React.FC = () => {
       });
 
       setNewJobId(jobId);
+
+      // S157 BUG-007 — two-phase photo upload. Job row now exists, so RLS on
+      // job-photos bucket will accept uploads under {jobId}/... Partial failures
+      // are non-fatal; we never block navigation if only photos failed.
+      if (form.photos.length > 0) {
+        const paths = await uploadJobPhotos(jobId, form.photos);
+        if (paths.length > 0) {
+          try {
+            await setJobPhotos.mutateAsync({ jobId, photoUrls: paths });
+          } catch (photoErr) {
+            console.warn('[PostJobWizard] rpc_set_job_photos failed (non-fatal):', photoErr);
+          }
+        }
+      }
 
       // Non-blocking invite — job is already created, invite failure doesn't block success
       if (form.inviteSpecificPros && selectedInvitedContractors.length > 0) {

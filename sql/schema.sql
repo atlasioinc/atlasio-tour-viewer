@@ -1038,6 +1038,88 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
+-- ─────────────────────────────────────────────
+-- rpc_get_agent_active_jobs — S135b, widened S157
+-- Returns jobs in active pipeline states for the calling agent.
+-- S157 widened filter to include 'open' + 'bidding' so newly posted jobs
+-- appear on HomeTabAgent Active Jobs immediately.
+-- ─────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.rpc_get_agent_active_jobs()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_result jsonb;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated');
+  END IF;
+  SELECT COALESCE(
+    jsonb_agg(job_row ORDER BY job_row.due_date ASC NULLS LAST),
+    '[]'::jsonb
+  )
+  INTO v_result
+  FROM (
+    SELECT
+      j.id, j.title, j.job_type, j.status, j.address, j.due_date,
+      j.is_urgent, j.budget_min, j.budget_max, j.budget_range,
+      j.trades, j.contractor_completed_at, j.created_at,
+      CASE
+        WHEN j.awarded_bid_id IS NOT NULL THEN
+          jsonb_build_object(
+            'id', cp.id, 'name', cp.name, 'avatar_url', cp.avatar_url,
+            'avatar_color', cp.avatar_color, 'company', cp.company,
+            'rating', cp.rating, 'vouch_count', cp.vouch_count
+          )
+        ELSE NULL
+      END AS contractor
+    FROM jobs j
+    LEFT JOIN bids b ON b.id = j.awarded_bid_id
+    LEFT JOIN profiles cp ON cp.id = b.contractor_id
+    WHERE j.agent_id = auth.uid()
+      AND j.status IN ('open', 'bidding', 'awarded', 'in_progress', 'pending_completion')
+    ORDER BY j.due_date ASC NULLS LAST
+  ) AS job_row;
+  RETURN jsonb_build_object('success', true, 'jobs', v_result);
+END;
+$function$;
+
+
+-- ─────────────────────────────────────────────
+-- rpc_set_job_photos — S157 (BUG-007)
+-- Updates jobs.photo_urls after two-phase upload. Client creates job via
+-- rpc_create_job, uploads to job-photos/{jobId}/{n}.jpg (RLS requires job
+-- row to exist), then calls this RPC with the collected storage paths.
+-- Ownership verified server-side — only job agent_id can update.
+-- ─────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.rpc_set_job_photos(
+  p_job_id UUID,
+  p_photo_urls TEXT[]
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM jobs WHERE id = p_job_id AND agent_id = auth.uid()
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Job not found or unauthorized');
+  END IF;
+  UPDATE jobs
+  SET photo_urls = p_photo_urls, updated_at = NOW()
+  WHERE id = p_job_id AND agent_id = auth.uid();
+  RETURN jsonb_build_object('success', true);
+END;
+$function$;
+
+
 -- Submit bid (job-eligible roles: contractor, photographer, stager)
 CREATE OR REPLACE FUNCTION rpc_submit_bid(
   p_job_id UUID, p_amount INTEGER,

@@ -39,7 +39,7 @@ import SquadSlotPicker, { SquadProCandidate } from './SquadSlotPicker';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
-import type { AgentActiveJob, Job, BidWithProfile } from '../types';
+import type { AgentActiveJob, Job, BidWithProfile, JobStatus } from '../types';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
@@ -296,10 +296,20 @@ const ClientToolCard = ({ icon, title, subtitle, onPress }: ClientToolCardProps)
 // JOB STATUS DISPLAY MAP — agent-facing labels
 // pending_completion = contractor marked done, agent needs to confirm
 // ─────────────────────────────────────────────
-const JOB_STATUS_LABELS: Record<string, string> = {
+const JOB_STATUS_LABELS: Partial<Record<JobStatus, string>> = {
+  open: 'Open for Bids',
+  bidding: 'Receiving Bids',
   awarded: 'Scheduled',
   in_progress: 'In Progress',
   pending_completion: 'Review Required',
+};
+
+const JOB_STATUS_COLORS: Partial<Record<JobStatus, string>> = {
+  open: COLORS.jobGreen,
+  bidding: COLORS.jobGreen,
+  awarded: COLORS.secondaryText,
+  in_progress: COLORS.secondaryText,
+  pending_completion: COLORS.warningAmber,
 };
 
 // ─────────────────────────────────────────────
@@ -450,7 +460,7 @@ const ActiveJobCard: React.FC<{ job: AgentActiveJob; onPress: () => void }> = ({
             style={{
               fontSize: 13,
               fontWeight: '500',
-              color: job.status === 'pending_completion' ? COLORS.warningAmber : COLORS.secondaryText,
+              color: JOB_STATUS_COLORS[job.status] ?? COLORS.secondaryText,
             }}
           >
             {JOB_STATUS_LABELS[job.status] ?? job.status}

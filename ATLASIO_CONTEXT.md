@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S147 — April 14, 2026)
-- **RPCs:** 66 (+1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 65 (unchanged S144; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+## Current Metrics (updated S157 — April 15, 2026)
+- **RPCs:** 67 (+1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
+- **Hooks:** 66 (+1 S157: useSetJobPhotos; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
@@ -52,6 +52,51 @@
 - **COLORS tokens:** 141 (+16 S148b: category color palette for CategoryMapScreen)
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
+
+---
+
+## S157 — BUG-007 + BUG-008 RESOLVED (April 15, 2026)
+
+**Status:** 🟢 Two device-test bugs from the Post Repair Job flow fixed end-to-end.
+
+### BUG-007 — Photo thumbnails blank, `photo_urls: []`
+Root cause: PostJobWizard stored `expo-image-picker` local URIs in `form.photos` and dropped them on submit. `rpc_create_job` had no photo parameter and its INSERT did not write `photo_urls`.
+
+Fix: two-phase upload pipeline gated by RLS path convention:
+1. `rpc_create_job` returns `jobId`
+2. `uploadJobPhotos(jobId, form.photos)` reads each URI as base64 → `Uint8Array` → `supabase.storage.from('job-photos').upload('{jobId}/{i}.jpg', bytes, { contentType: 'image/jpeg', upsert: false })`
+3. New `useSetJobPhotos` calls `rpc_set_job_photos(p_job_id, p_photo_urls)` with the storage paths
+
+Partial failures are logged and skipped — job creation always wins. `job-photos` is a private bucket, so paths (not signed URLs) are persisted; signed URLs must be generated at display time via `createSignedUrl(path, expiresIn)`.
+
+### BUG-008 — New job not appearing in Active Jobs
+Root cause (three layers):
+1. `rpc_get_agent_active_jobs` filter excluded `open`/`bidding` — newly created jobs were filtered out server-side.
+2. `useCreateJob.onSuccess` did not invalidate `['agent_active_jobs']` (underscore key used by `useAgentActiveJobs` — not `queryKeys.agentJobs`).
+3. `AgentActiveJob.status` was typed as the 3-value subset, blocking server-side filter widening.
+
+Fix: Supabase `rpc_get_agent_active_jobs` widened to `('open','bidding','awarded','in_progress','pending_completion')`. Client invalidation added to both `useCreateJob` and new `useSetJobPhotos`. `AgentActiveJob.status` widened to full `JobStatus`. `JOB_STATUS_LABELS` gained `open → 'Open for Bids'` and `bidding → 'Receiving Bids'`. New `JOB_STATUS_COLORS` map: open/bidding → `COLORS.jobGreen`, awarded/in_progress → `COLORS.secondaryText`, pending_completion → `COLORS.warningAmber`. Inline ternary replaced with map lookup.
+
+**Files modified this session:**
+- `components/HomeTabAgent.tsx` — `JobStatus` import, `JOB_STATUS_LABELS` widened, new `JOB_STATUS_COLORS` map, ActiveJobCard color lookup
+- `components/PostJobWizard.tsx` — `FileSystem`/`supabase` imports, `useSetJobPhotos` wiring, `uploadJobPhotos` helper, two-phase upload in `handlePostJob`
+- `hooks/useData.ts` — `useCreateJob.onSuccess` invalidates `['agent_active_jobs']`; new `useSetJobPhotos` hook
+- `types/index.ts` — `AgentActiveJob.status` widened to `JobStatus`
+- `sql/schema.sql` — added `rpc_get_agent_active_jobs` (new — was previously missing from schema.sql, now in sync) and `rpc_set_job_photos`
+- `tasks/atlasio-bug-history.md` — BUG-007 + BUG-008 entries
+- `tasks/lessons.md` — private-bucket paths, two-phase RLS ordering, sibling cache-key invalidation, server-filter vs narrowed union
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **0 new warnings** (7 pre-existing, unchanged)
+- `COLORS.jobGreen` verified in `lib/tokens.ts:129`
+
+**Metrics:** RPCs: 66 → 67 (+1 rpc_set_job_photos). Hooks: 65 → 66 (+1 useSetJobPhotos). Feature Flags: 11 (unchanged). Edge Functions: 11 (unchanged).
+
+### S157 — Next Objectives
+- Device QA: post a new repair job with photos, confirm `jobs.photo_urls` populated in Supabase, confirm job appears immediately in Active Jobs with "Open for Bids" label in green
+- PhotoLightbox (S147) + RepairJobDetails photo render: generate signed URLs from the stored paths via `createSignedUrl` at display time — current consumers may still expect public URLs
+- Flip feature flags back to demo defaults before investor demo
 
 ---
 
