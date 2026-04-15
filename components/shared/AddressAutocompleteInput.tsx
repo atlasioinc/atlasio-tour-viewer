@@ -9,29 +9,29 @@
 //          Key in GOOGLE_MAPS_API_KEY (lib/config.ts)
 // @demo    Falls back silently on API failure — address can still be typed manually
 //
-// ─── S155: DROPDOWN PATTERN ─────────────────────────────────────
-// Screen-level transparent <Modal> overlay positioned via coordinates
-// captured from `measure()` (NOT measureInWindow) called inside the
-// wrapper's `onLayout` callback. This is the ONLY reliable path on iOS
-// when the input lives inside a ScrollView.
+// ─── S156: INLINE ABSOLUTE-SIBLING PATTERN ──────────────────────
+// Dropdown is an `absolute`-positioned sibling View inside a `relative`
+// wrapper. No Modal, no measure(), no onLayout, no Keyboard listener,
+// no onBlur auto-close. This matches ClientLifestyleScreen which has
+// been shipping successfully since S57.
 //
-// Why not measureInWindow:
-//   measureInWindow is async and returns {0,0,0,0} before the ScrollView
-//   has committed its layout. measure() called from onLayout returns
-//   coordinates relative to the root view at a point where layout is
-//   already stable. See tasks/atlasio-bug-history.md BUG-001 attempts
-//   1–3 for full history. measureInWindow is PERMANENTLY BANNED here.
+// Why not Modal (the S155 approach):
+//   Mounting a <Modal> while a sibling <TextInput> is focused causes
+//   iOS to steal keyboard focus on every keystroke. Every character
+//   felt like a submit. Dropdown never stayed visible.
 //
-// Why not absolute-in-ScrollView (S146/S154):
-//   iOS ScrollView clips or paints under absolute children regardless
-//   of zIndex. Platform constraint — not a styling issue.
-// ────────────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════
+// Why response.ok check is required:
+//   Without it, Google 4xx/5xx errors parse as JSON, data.suggestions
+//   is undefined, ?? [] gives empty, UI silently shows "No matches".
+//   This masked the real root cause of BUG-001 across 6 fix attempts.
+//   Build 46 added the check and the fix was immediate.
+//
+// See tasks/atlasio-bug-history.md BUG-001 attempts 1–7 for full history.
+// ════════════════════════════════════════════════════════════════
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, Modal, StyleSheet, Keyboard } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { COLORS, SHADOWS } from '../../lib/tokens';
+import { View, Text, TextInput, Pressable } from 'react-native';
+import { COLORS } from '../../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/config';
 
 // S151: surface missing API key in dev — silent failure masked Bug 2+4 during QA
@@ -51,64 +51,28 @@ interface AddressAutocompleteInputProps {
   label?: string;
 }
 
-const PinIcon: React.FC = () => (
-  <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-    <Path
-      d="M8 1.33C5.42 1.33 3.33 3.42 3.33 6C3.33 9.5 8 14.67 8 14.67C8 14.67 12.67 9.5 12.67 6C12.67 3.42 10.58 1.33 8 1.33Z"
-      stroke={COLORS.bodyText}
-      strokeWidth={1.33}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
-
 export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> = ({
   value,
   onSelect,
   placeholder = 'Enter property address',
   label,
 }) => {
-  const [addressQuery, setAddressQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for loading indicator
-  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
-  const [dropdownLayout, setDropdownLayout] = useState<{ x: number; y: number; width: number } | null>(null);
-  const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wrapperRef = useRef<View>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // AbortController guard — prevents stale fetch responses from overwriting fresh ones
+  // when the user types faster than the network resolves.
+  const fetchControllerRef = useRef<AbortController | null>(null);
 
-  // S155: measure() (root-relative coords) from onLayout/focus/keyboard.
-  // Do NOT substitute measureInWindow — it returns 0,0,0,0 inside ScrollViews.
-  const measureWrapper = () => {
-    wrapperRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
-      if (width > 0) {
-        setDropdownLayout({ x: pageX, y: pageY + height + 4, width });
-      }
-    });
-  };
-
-  useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', measureWrapper);
-    return () => sub.remove();
-  }, []);
-
-  // Keep local query in sync if parent resets value (e.g. form clear)
-  useEffect(() => {
-    if (value !== addressQuery && value === '') {
-      setAddressQuery('');
+  const fetchSuggestions = async (input: string) => {
+    if (fetchControllerRef.current) {
+      fetchControllerRef.current.abort();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+    const controller = new AbortController();
+    fetchControllerRef.current = controller;
 
-  useEffect(() => {
-    return () => {
-      if (autocompleteTimerRef.current) clearTimeout(autocompleteTimerRef.current);
-    };
-  }, []);
-
-  const fetchAutocompleteSuggestions = async (input: string) => {
-    setIsFetchingSuggestions(true);
+    setIsFetching(true);
     try {
       const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
         method: 'POST',
@@ -117,8 +81,25 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
           'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
         },
         body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
+        signal: controller.signal,
       });
+
+      // Critical: Google returns 4xx/5xx with a JSON error body. Without this check
+      // the error parses cleanly, data.suggestions is undefined, ?? [] gives empty,
+      // UI silently shows "No matches". This was the S151–S155 silent-failure trap.
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.warn('[AddressAutocompleteInput] Places API non-OK', {
+          status: response.status,
+          body: errorBody.slice(0, 500),
+        });
+        if (!controller.signal.aborted) setSuggestions([]);
+        return;
+      }
+
       const data = await response.json();
+      if (controller.signal.aborted) return;
+
       const mapped = (data.suggestions ?? [])
         .map((s: any) => ({
           placeId: s.placePrediction?.placeId ?? '',
@@ -126,40 +107,46 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
         }))
         .filter((s: PlaceSuggestion) => s.placeId && s.description);
       setSuggestions(mapped);
-    } catch {
-      console.warn('[AddressAutocompleteInput] Autocomplete failed');
-      setSuggestions([]);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      console.warn('[AddressAutocompleteInput] Places autocomplete threw', {
+        name: err?.name,
+        message: err?.message,
+      });
+      if (!controller.signal.aborted) setSuggestions([]);
     } finally {
-      setIsFetchingSuggestions(false);
+      if (!controller.signal.aborted) setIsFetching(false);
     }
   };
 
   const handleTextChange = (text: string) => {
-    setAddressQuery(text);
-    // S152 Bug 2: do NOT clear parent value on keystroke. Parent commit
-    // happens onBlur (below) so partial strings never pass validation, but
-    // edit-after-select also no longer silently wipes parent state.
-
-    if (autocompleteTimerRef.current) clearTimeout(autocompleteTimerRef.current);
+    onSelect(text);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
     if (text.length < 3) {
       setSuggestions([]);
-      setShowAutocomplete(false);
+      setShowDropdown(false);
       return;
     }
 
-    setShowAutocomplete(true);
-    autocompleteTimerRef.current = setTimeout(() => {
-      fetchAutocompleteSuggestions(text);
+    setShowDropdown(true);
+    debounceTimerRef.current = setTimeout(() => {
+      fetchSuggestions(text);
     }, 400);
   };
 
   const handleSuggestionSelect = (description: string) => {
-    setAddressQuery(description);
     onSelect(description);
     setSuggestions([]);
-    setShowAutocomplete(false);
+    setShowDropdown(false);
   };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (fetchControllerRef.current) fetchControllerRef.current.abort();
+    };
+  }, []);
 
   return (
     <View style={{ gap: label ? 8 : 0 }}>
@@ -168,28 +155,17 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
           {label}
         </Text>
       )}
-      <View ref={wrapperRef} onLayout={measureWrapper}>
+      <View style={{ position: 'relative', zIndex: 50 }}>
         <TextInput
-          value={addressQuery}
+          value={value}
           onChangeText={handleTextChange}
-          onFocus={measureWrapper}
-          onBlur={() => {
-            // S152 Bug 2: commit typed text to parent on blur so form
-            // validation sees the value even when the user doesn't pick a
-            // dropdown suggestion (iOS QuickType / autofill / Places API
-            // failure / manual entry). Selection still wins via
-            // handleSuggestionSelect → onSelect(description).
-            if (addressQuery.trim().length > 0 && addressQuery !== value) {
-              onSelect(addressQuery);
-            }
-            setShowAutocomplete(false);
-          }}
           placeholder={placeholder}
           placeholderTextColor={COLORS.bodyText}
+          returnKeyType="done"
           style={{
             backgroundColor: COLORS.inputBackground,
             borderWidth: 0.68,
-            borderColor: addressQuery.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
+            borderColor: value.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
             borderRadius: 10,
             paddingHorizontal: 14,
             paddingVertical: 12,
@@ -199,62 +175,54 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
             lineHeight: 20,
           }}
         />
-      </View>
-
-      {/* S155: screen-level Modal — renders at root view, positioned via
-          pageX/pageY captured through measure() in onLayout. See header. */}
-      <Modal
-        visible={showAutocomplete && dropdownLayout !== null}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowAutocomplete(false)}
-      >
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => setShowAutocomplete(false)}
-        >
-          {suggestions.length > 0 && dropdownLayout && (
-            <View
-              style={{
-                position: 'absolute',
-                top: dropdownLayout.y,
-                left: dropdownLayout.x,
-                width: dropdownLayout.width,
-                backgroundColor: COLORS.background,
-                borderRadius: 12,
-                borderWidth: 0.68,
-                borderColor: COLORS.cardBorder,
-                ...SHADOWS.card,
-                maxHeight: 240,
-                overflow: 'hidden',
-              }}
-            >
-              {suggestions.map((s) => (
+        {showDropdown && value.length >= 3 && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 52,
+              left: 0,
+              right: 0,
+              zIndex: 99,
+              backgroundColor: COLORS.background,
+              borderRadius: 10,
+              borderWidth: 0.68,
+              borderColor: COLORS.border,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 4,
+              overflow: 'hidden',
+            }}
+          >
+            {isFetching && suggestions.length === 0 ? (
+              <View style={{ padding: 12, paddingHorizontal: 14 }}>
+                <Text style={{ fontSize: 14, color: COLORS.lightText }}>Searching…</Text>
+              </View>
+            ) : suggestions.length === 0 ? (
+              <View style={{ padding: 12, paddingHorizontal: 14 }}>
+                <Text style={{ fontSize: 14, color: COLORS.lightText }}>No matches</Text>
+              </View>
+            ) : (
+              suggestions.map((s) => (
                 <Pressable
                   key={s.placeId}
                   onPress={() => handleSuggestionSelect(s.description)}
                   style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
                     padding: 12,
                     paddingHorizontal: 14,
-                    backgroundColor: pressed ? COLORS.screenBg : COLORS.background,
+                    backgroundColor: pressed ? COLORS.chipBg : COLORS.background,
                   })}
                 >
-                  <PinIcon />
-                  <Text
-                    style={{ fontSize: 14, color: COLORS.darkText, flex: 1 }}
-                    numberOfLines={1}
-                  >
+                  <Text style={{ fontSize: 14, color: COLORS.darkText }} numberOfLines={1}>
                     {s.description}
                   </Text>
                 </Pressable>
-              ))}
-            </View>
-          )}
-        </Pressable>
-      </Modal>
+              ))
+            )}
+          </View>
+        )}
+      </View>
     </View>
   );
 };

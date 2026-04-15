@@ -25,7 +25,7 @@
 // Platform fee: 3% captured on bid accept (same as repair/photography)
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -46,15 +46,9 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../lib/tokens';
-import { GOOGLE_MAPS_API_KEY } from '../lib/config';
 import { useCreateJob } from '../hooks/useData';
-import { SuccessToast } from './shared';
+import { AddressAutocompleteInput, SuccessToast } from './shared';
 import { useSuccessToast } from '../hooks/useSuccessToast';
-
-// S156: surface missing API key in dev — silent failure masked BUG-001 attempts 2–4 in S151–S153.
-if (__DEV__ && !GOOGLE_MAPS_API_KEY) {
-  console.warn('[PostStagingJobScreen] GOOGLE_MAPS_API_KEY is empty — autocomplete will fail silently');
-}
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -134,23 +128,6 @@ const PostStagingJobScreen: React.FC = () => {
 
   // ── Form state ──
   const [address, setAddress] = useState('');
-  // S156: inline Google Places autocomplete — mirrors ClientLifestyleScreen pattern.
-  // No Modal, no measure(), no onBlur auto-close — absolute sibling dropdown inside
-  // a position:relative wrapper. See tasks/atlasio-bug-history.md BUG-001 attempt 7.
-  const [addressSuggestions, setAddressSuggestions] = useState<
-    { placeId: string; description: string }[]
-  >([]);
-  const [showAddressAutocomplete, setShowAddressAutocomplete] = useState(false);
-  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
-  const addressAutocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // S156: AbortController guard — prevents stale fetch responses from overwriting fresh ones
-  // when the user types faster than the network resolves.
-  const addressFetchControllerRef = useRef<AbortController | null>(null);
-  // S156 Build 46 diagnostic: surface the real Google API error to the device UI.
-  // Root cause of "No matches" is unknown — server-side curl works with the exact same
-  // key + body. Device request fails silently. This logs status/body and renders the
-  // error inside the dropdown so the next device test tells us exactly what Google said.
-  const [addressApiError, setAddressApiError] = useState<string | null>(null);
   const [sqft, setSqft] = useState('');
   const [isOccupied, setIsOccupied] = useState(false);
   const [roomsCount, setRoomsCount] = useState(3);
@@ -186,117 +163,6 @@ const PostStagingJobScreen: React.FC = () => {
       setRoomsCount(next);
     }
   };
-
-  // ── Google Places autocomplete (S156 inline pattern) ──
-  // @backend Google Places Autocomplete (New) — POST places.googleapis.com/v1/places:autocomplete
-  const fetchAddressSuggestions = async (input: string) => {
-    // Abort any in-flight request so its response can't overwrite fresher results.
-    if (addressFetchControllerRef.current) {
-      addressFetchControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    addressFetchControllerRef.current = controller;
-
-    setIsFetchingAddressSuggestions(true);
-    setAddressApiError(null);
-    // Build 46 diagnostic: log key presence (length only, never the key itself)
-    // so TestFlight testers can confirm the key survived the build pipeline.
-    const keyLen = GOOGLE_MAPS_API_KEY?.length ?? 0;
-    console.log('[PostStagingJobScreen] fetch start', { input, keyLen });
-    try {
-      const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        },
-        body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
-        signal: controller.signal,
-      });
-
-      // Build 46 diagnostic: check response.ok explicitly. Google returns 4xx/5xx
-      // with a JSON error body — the previous code parsed it and silently showed
-      // "No matches" because data.suggestions was undefined.
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.warn('[PostStagingJobScreen] Places API non-OK', {
-          status: response.status,
-          body: errorBody.slice(0, 500),
-          keyLen,
-        });
-        if (!controller.signal.aborted) {
-          setAddressApiError(`Google ${response.status}: ${errorBody.slice(0, 120)}`);
-          setAddressSuggestions([]);
-        }
-        return;
-      }
-
-      const data = await response.json();
-      // Guard: if this request was superseded while the network was resolving, drop its result.
-      if (controller.signal.aborted) return;
-
-      // Build 46 diagnostic: log raw shape so we can see if Google changed the response format.
-      console.log('[PostStagingJobScreen] Places API ok', {
-        hasSuggestions: Array.isArray(data.suggestions),
-        count: data.suggestions?.length ?? 0,
-        topLevelKeys: Object.keys(data),
-      });
-
-      const mapped = (data.suggestions ?? [])
-        .map((s: any) => ({
-          placeId: s.placePrediction?.placeId ?? '',
-          description: s.placePrediction?.text?.text ?? '',
-        }))
-        .filter((s: { placeId: string; description: string }) => s.placeId && s.description);
-      setAddressSuggestions(mapped);
-    } catch (err: any) {
-      // AbortError is expected when the user keeps typing — don't log, don't clear.
-      if (err?.name === 'AbortError') return;
-      // Build 46 diagnostic: log the actual error name + message so network failures
-      // (DNS, TLS, offline) are distinguishable from API errors.
-      console.warn('[PostStagingJobScreen] Places autocomplete threw', {
-        name: err?.name,
-        message: err?.message,
-        keyLen,
-      });
-      if (!controller.signal.aborted) {
-        setAddressApiError(`Network: ${err?.name ?? 'Error'} — ${err?.message ?? 'unknown'}`);
-        setAddressSuggestions([]);
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setIsFetchingAddressSuggestions(false);
-      }
-    }
-  };
-
-  const handleAddressChange = (text: string) => {
-    setAddress(text);
-    setAddressApiError(null);
-    if (addressAutocompleteTimerRef.current) clearTimeout(addressAutocompleteTimerRef.current);
-    if (text.length < 3) {
-      setAddressSuggestions([]);
-      setShowAddressAutocomplete(false);
-      return;
-    }
-    setShowAddressAutocomplete(true);
-    addressAutocompleteTimerRef.current = setTimeout(() => {
-      fetchAddressSuggestions(text);
-    }, 400);
-  };
-
-  const handleAddressSuggestionSelect = (description: string) => {
-    setAddress(description);
-    setAddressSuggestions([]);
-    setShowAddressAutocomplete(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (addressAutocompleteTimerRef.current) clearTimeout(addressAutocompleteTimerRef.current);
-      if (addressFetchControllerRef.current) addressFetchControllerRef.current.abort();
-    };
-  }, []);
 
   const isFormValid = address.trim().length > 0 && selectedScopes.size > 0;
 
@@ -451,90 +317,13 @@ const PostStagingJobScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Property Address — inline Google Places autocomplete (S156)
-              Pattern mirrors ClientLifestyleScreen: position:relative wrapper,
-              absolute sibling dropdown, NO Modal, NO measure(). Keeps keyboard
-              focus on TextInput across keystrokes. */}
+          {/* Property Address — shared Google Places autocomplete (S156 rewrite) */}
           {renderSectionHeader('Property Address *')}
-          <View style={{ position: 'relative', zIndex: 50 }}>
-            <TextInput
-              value={address}
-              onChangeText={handleAddressChange}
-              placeholder="123 Main St, Denver, CO 80202"
-              placeholderTextColor={COLORS.bodyText}
-              returnKeyType="done"
-              style={{
-                backgroundColor: COLORS.inputBackground,
-                borderWidth: 0.68,
-                borderColor: address.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
-                borderRadius: 10,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                fontSize: 15,
-                fontWeight: '400',
-                color: COLORS.darkText,
-                lineHeight: 20,
-              }}
-            />
-            {showAddressAutocomplete && address.length >= 3 && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 52,
-                  left: 0,
-                  right: 0,
-                  zIndex: 99,
-                  backgroundColor: COLORS.background,
-                  borderRadius: 10,
-                  borderWidth: 0.68,
-                  borderColor: COLORS.border,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 4,
-                  overflow: 'hidden',
-                }}
-              >
-                {addressApiError ? (
-                  // Build 46 diagnostic: render the raw Google / network error so TestFlight
-                  // device QA can read exactly what the API said. Remove once root cause found.
-                  <View style={{ padding: 12, paddingHorizontal: 14 }}>
-                    <Text style={{ fontSize: 12, color: COLORS.warningAmber, fontWeight: '600', marginBottom: 4 }}>
-                      API ERROR
-                    </Text>
-                    <Text style={{ fontSize: 12, color: COLORS.darkText }} numberOfLines={6}>
-                      {addressApiError}
-                    </Text>
-                  </View>
-                ) : isFetchingAddressSuggestions && addressSuggestions.length === 0 ? (
-                  <View style={{ padding: 12, paddingHorizontal: 14 }}>
-                    <Text style={{ fontSize: 14, color: COLORS.lightText }}>Searching…</Text>
-                  </View>
-                ) : addressSuggestions.length === 0 ? (
-                  <View style={{ padding: 12, paddingHorizontal: 14 }}>
-                    <Text style={{ fontSize: 14, color: COLORS.lightText }}>No matches</Text>
-                  </View>
-                ) : (
-                  addressSuggestions.map((s) => (
-                    <Pressable
-                      key={s.placeId}
-                      onPress={() => handleAddressSuggestionSelect(s.description)}
-                      style={({ pressed }) => ({
-                        padding: 12,
-                        paddingHorizontal: 14,
-                        backgroundColor: pressed ? COLORS.chipBg : COLORS.background,
-                      })}
-                    >
-                      <Text style={{ fontSize: 14, color: COLORS.darkText }} numberOfLines={1}>
-                        {s.description}
-                      </Text>
-                    </Pressable>
-                  ))
-                )}
-              </View>
-            )}
-          </View>
+          <AddressAutocompleteInput
+            value={address}
+            onSelect={setAddress}
+            placeholder="123 Main St, Denver, CO 80202"
+          />
 
           {/* Square Footage */}
           {renderSectionHeader('Approx. Square Footage')}
