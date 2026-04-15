@@ -409,7 +409,7 @@ const DealChatScreen: React.FC = () => {
             </ScrollView>
           )}
 
-          <SafeAreaView edges={['bottom']} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
               onPress={() => setShowAttach(true)}
               hitSlop={8}
@@ -439,7 +439,7 @@ const DealChatScreen: React.FC = () => {
             >
               <SendIcon />
             </Pressable>
-          </SafeAreaView>
+          </View>
         </View>
       </KeyboardAvoidingView>
 

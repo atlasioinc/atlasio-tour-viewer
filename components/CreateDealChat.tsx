@@ -248,7 +248,7 @@ const CreateDealChat: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <KeyboardAvoidingView
@@ -565,10 +565,11 @@ const CreateDealChat: React.FC = () => {
         {/* ══════════════════════════════════════════
             FOOTER — Create Chat button
             ══════════════════════════════════════════ */}
-        {/* S155: SafeAreaView now owns bottom inset (edges={['top','bottom']}) —
-            footer uses a fixed paddingBottom to avoid double-counting the home
-            indicator. KAV behavior='padding' still pushes this View above the
-            keyboard when any field is focused. */}
+        {/* S159: root SAV edges={['top']} only. KAV behavior='padding' owns ALL
+            keyboard + safe-area spacing. Footer paddingBottom:16 is fixed — iOS
+            handles the home indicator automatically when the keyboard is visible.
+            Do NOT add insets.bottom here, do NOT wrap in SafeAreaView edges={['bottom']}.
+            See tasks/lessons.md KAV rule. */}
         <View style={{
           backgroundColor: COLORS.background,
           borderTopWidth: 0.68,

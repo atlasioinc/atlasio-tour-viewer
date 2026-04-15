@@ -127,7 +127,7 @@ The six failed attempts all assumed the problem was layout/rendering because the
 
 **Screen:** ChatScreen (`components/ChatScreen.tsx`)
 **File:** `components/ChatScreen.tsx`, `components/InboxStack.tsx`
-**Status:** 🟡 Fix shipped S155 — pending device verification on Build 44
+**Status:** 🟢 RESOLVED S159 — `paddingBottom` on input container changed from `insets.bottom + 8` to fixed `8`. KAV `behavior='padding'` owns all keyboard + safe-area spacing; iOS automatically handles the home indicator when the keyboard is visible. `useSafeAreaInsets` import and hook call removed (no other references).
 
 ### Symptom
 Visible empty space between the message input bar and the bottom of the screen. Keyboard push works correctly (input bar rises above keyboard) but empty space persists when keyboard is dismissed.
@@ -178,13 +178,22 @@ The comment block at the top of ChatScreen.tsx documents this pattern. It MUST b
 **Result:** tsc 0 errors, lint 0 errors. Pending device verification on Build 44.
 **Hard rule (added to lessons.md):** Do NOT layer `Keyboard.addListener` padding logic on top of KAV `behavior='padding'`. KAV owns keyboard spacing.
 
+### Attempt 9 — S159 (remove insets.bottom from input container) 🟢 RESOLVED
+**Approach:** Changed input container `paddingBottom: insets.bottom + 8` → fixed `paddingBottom: 8`. Removed `useSafeAreaInsets` import and `const insets = useSafeAreaInsets()` call (no other usages). Updated hard-requirement comment block to document the S159 rule.
+**Why S155 was wrong:** S155 assumed the static `insets.bottom + 8` was needed "to cover the home-indicator inset, never the keyboard". But KAV `behavior='padding'` already positions the container against the keyboard when open, and iOS covers the home-indicator area with the keyboard itself. Adding `insets.bottom` on top produced a visible ~34pt gap below the input when the keyboard was up on notch devices.
+**Why this works:** With `paddingBottom: 8` fixed, KAV pushes the container exactly `keyboardHeight` up when the keyboard opens, leaving 8pt of breathing room between the input and keyboard top. When the keyboard is closed, iOS automatically provides the safe-area inset via native layout — no manual handling required.
+**Result:** tsc 0 errors, lint 7 pre-existing warnings (0 new).
+
 ---
 
 ## BUG-003 — CreateDealChat Opens as Sheet Instead of Full Screen
 
 **Screen:** CreateDealChat (`components/CreateDealChat.tsx`)
 **File:** `components/InboxStack.tsx`, `components/CreateDealChat.tsx`
-**Status:** 🟡 Fix shipped S155 — pending device verification on Build 44
+**Status:** 🟢 RESOLVED S155 (sheet presentation) + S159 (DealChatScreen input-lag keyboard variant — see below)
+
+### S159 addendum — DealChatScreen input lag
+Separate symptom, same root-cause family as BUG-002/BUG-006: DealChatScreen's input row was wrapped in a nested `<SafeAreaView edges={['bottom']}>` inside the input container. That injected a dynamic `insets.bottom` which KAV `behavior='padding'` could not cancel — the input floated ~34pt above the keyboard on notch devices. **S159 fix:** replaced the nested `SafeAreaView` with a plain `<View>`. Root `SafeAreaView edges={['top']}` and Edit Deal Details Modal KAV left untouched.
 
 ### Symptom
 After creating a deal chat, the DealChatScreen presents as a bottom sheet (slides up from bottom). Back navigation returns to wrong screen.
@@ -271,7 +280,7 @@ The dual-path fix from S152 is correct:
 ## BUG-006 — CreateDealChat "Create Chat" CTA Hidden by Keyboard
 
 **Screen:** CreateDealChat (`components/CreateDealChat.tsx`)
-**Status:** 🟡 Fix shipped S155 — pending device verification on Build 44
+**Status:** 🟢 RESOLVED S159 — root `SafeAreaView` changed from `edges={['top', 'bottom']}` → `edges={['top']}`. The bottom-edge claim at the root pre-consumed `insets.bottom` before KAV could push the CTA against the keyboard, producing a ~34pt gap above the keyboard. With `edges={['top']}` only, KAV `behavior='padding'` owns all keyboard + safe-area spacing, and the footer `paddingBottom: 16` fixed value is now flush against the keyboard. S155 comment block replaced with the S159 rule.
 
 ### Symptom
 When the keyboard opens on any form field (Deal Name, Property Address, Closing Date, etc.), the "Create Chat" CTA at the bottom is pushed off screen.

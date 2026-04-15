@@ -55,15 +55,21 @@ SafeAreaView edges={['top']}
  └ KeyboardAvoidingView behavior='padding' keyboardVerticalOffset={0} flex:1
     ├ Header
     ├ ScrollView flex:1   (content)
-    └ View (input bar, paddingBottom: insets.bottom + 8)   ← static
+    └ View (input bar, paddingBottom: 8)   ← FIXED, NO insets
 ```
 - Input bar is a direct child of KAV, outside ScrollView
-- `paddingBottom` is static: `insets.bottom + 8` (covers home indicator only, never the keyboard)
+- `paddingBottom` is FIXED at 8 (chat) or 16 (form CTA) — **no `insets.bottom`**
 - KAV pushes the input bar up naturally when the keyboard opens
+- iOS automatically handles the home indicator inset when the keyboard is visible
 - NO `Keyboard.addListener` padding logic
 
-**BUG-002 cost:** 5 sessions (S120a, S140/S141a, S146, S151/S152/S153, S154) of failed fixes
-before this rule was established. S154 tried the listener approach and made it worse.
+**S159 update — never `edges={['bottom']}` on any SafeAreaView inside a KAV screen. Never `insets.bottom` on input/CTA containers. KAV `padding` owns all keyboard + safe-area spacing. Input/CTA `paddingBottom: 8` (chat) or `16` (form CTA) fixed — iOS handles the home indicator automatically when the keyboard is visible.**
+
+This corrects the S155 guidance above, which said `insets.bottom + 8` was correct. It wasn't — the inset produced a ~34pt gap below the input on notch devices when the keyboard was open, because KAV already positions the container against the keyboard and iOS covers the home-indicator area with the keyboard itself. Fixed `paddingBottom: 8` (or 16 for form CTAs) is the permanent answer.
+
+**Applies to:** ChatScreen, DealChatScreen, CreateDealChat, and every future chat/form screen with a pinned input bar or CTA.
+
+**BUG-002/003/006 cost:** 5 sessions (S120a, S140/S141a, S146, S151–S153, S154, S155) of failed fixes before S159 nailed the real rule. S154 tried the listener approach. S155 tried static `insets.bottom + 8`. Both added bottom space KAV cannot cancel.
 
 ## RULE — CTA placement inside KAV (added S155, April 15 2026)
 

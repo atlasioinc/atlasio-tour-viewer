@@ -33,7 +33,7 @@ import {
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
@@ -223,7 +223,6 @@ const AddContactRow: React.FC<{
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<ChatScreenRouteProp>();
-  const insets = useSafeAreaInsets();
   const { threadId: initialThreadId, recipientId, contactName, contactCompany, contactRole, contactAvatarColor, dealAddress } = route.params;
 
   // S155: keyboardVisible listener REMOVED. KeyboardAvoidingView behavior='padding'
@@ -512,34 +511,34 @@ const ChatScreen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [screenReady]);
 
-  // ─── KEYBOARD PATTERN — HARD REQUIREMENT (S152, S153, S154, S155) ──────────
-  // SafeAreaView(top) → KeyboardAvoidingView(padding, offset:0, flex:1)
+  // ─── KEYBOARD PATTERN — HARD REQUIREMENT (S152–S159) ──────────────────────
+  // SafeAreaView(edges={['top']}) → KeyboardAvoidingView(padding, offset:0, flex:1)
   //   → Header View
   //   → Body (ScrollView or empty View, flex:1)
-  //   → View(input container, paddingBottom: insets.bottom + 8)   ← STATIC
+  //   → View(input container, paddingBottom: 8)   ← FIXED, NO insets
   //     → View(input row, plain View — NOT SafeAreaView)
   //
-  // DO NOT alter this structure. Removing fullScreenModal from InboxStack (S151)
-  // requires keyboardVerticalOffset: 0.
+  // S159 — paddingBottom is FIXED at 8. Do NOT use insets.bottom here, do NOT
+  // wrap the input row in SafeAreaView edges={['bottom']}, do NOT add any
+  // Keyboard.addListener padding logic. KAV behavior='padding' owns ALL
+  // keyboard + safe-area spacing. iOS automatically handles the home indicator
+  // inset when the keyboard is visible — layering insets.bottom on top produces
+  // a ~34pt gap below the input when the keyboard is up (BUG-002).
   //
-  // S155 — Keyboard.addListener REMOVED. The S154 listener (keyboardVisible
-  // state that dropped paddingBottom to 8 while the keyboard was open) fought
-  // KAV during the hide-animation frame: keyboardWillHide fired and immediately
-  // restored paddingBottom to insets.bottom + 8 while KAV was still animating
-  // its own padding down. Both added bottom space in the same frame → ~34px
-  // gap flash for ~250ms on dismiss.
+  // The S155 approach (insets.bottom + 8) was wrong because KAV already
+  // positions the input container to account for safe area when the keyboard
+  // is closed, and the keyboard itself covers the home indicator when open —
+  // so insets.bottom is never the right addition.
   //
-  // The fix is to let KAV own ALL keyboard spacing. With behavior='padding' on
-  // iOS, KAV adds keyboard-height padding at its container's bottom edge — the
-  // input bar (direct child of KAV, outside ScrollView) is pushed up naturally.
-  // The static `insets.bottom + 8` on the input container is always correct
-  // because it only needs to cover the home-indicator inset, never the keyboard.
+  // Rule (applies to ChatScreen, DealChatScreen, CreateDealChat, and any
+  // future chat/form screen):
+  //   • SafeAreaView edges={['top']} ONLY at root — NEVER ['bottom']
+  //   • KAV behavior='padding' (iOS) / 'height' (Android), keyboardVerticalOffset={0}
+  //   • Input/CTA paddingBottom: 8 (chat) or 16 (form CTA) FIXED — no insets
+  //   • No nested SafeAreaView edges={['bottom']} inside the KAV subtree
+  //   • No Keyboard.addListener for padding management
   //
-  // Do NOT wrap the input row in a SafeAreaView edges={['bottom']} — that
-  // double-counts the inset even when the keyboard is closed (S153).
-  //
-  // Do NOT re-introduce any Keyboard.addListener padding logic here. KAV owns
-  // keyboard spacing. See tasks/lessons.md — S155 rule.
+  // See tasks/lessons.md — KAV owns keyboard spacing rule (S159).
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -771,10 +770,12 @@ const ChatScreen: React.FC = () => {
             borderTopWidth: 0.68,
             borderTopColor: COLORS.border,
             paddingTop: 8,
-            // S155: static insets.bottom + 8. KAV behavior='padding' owns all
-            // keyboard spacing — do NOT layer a Keyboard listener on top. See
-            // hard-requirement comment above.
-            paddingBottom: insets.bottom + 8,
+            // S159: fixed paddingBottom:8. KAV behavior='padding' owns ALL
+            // keyboard + safe-area spacing — never layer insets.bottom here,
+            // never wrap in SafeAreaView edges={['bottom']}. iOS handles the
+            // home indicator automatically when the keyboard is visible.
+            // See tasks/lessons.md KAV rule.
+            paddingBottom: 8,
             paddingHorizontal: 16,
           }}
         >

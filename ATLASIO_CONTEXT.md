@@ -55,6 +55,42 @@
 
 ---
 
+## S159 — BUG-002/003/006 Keyboard Binding RESOLVED (April 15, 2026)
+
+**Status:** 🟢 Three chat/form screens had the same root-cause class: mixing `SafeAreaView` bottom edges or `insets.bottom` with `KeyboardAvoidingView behavior='padding'`, producing a visible ~34pt gap between the input/CTA and the keyboard on notch devices. S159 establishes the permanent rule: KAV owns ALL keyboard + safe-area spacing; input/CTA `paddingBottom` is fixed (8 for chat, 16 for form CTA), never `insets.bottom`, never wrapped in `SafeAreaView edges={['bottom']}`.
+
+### Fix 1 — ChatScreen (BUG-002)
+`paddingBottom: insets.bottom + 8` → fixed `paddingBottom: 8`. Removed `useSafeAreaInsets` import and hook call (no other references). Updated hard-requirement comment block to document the S159 rule and correct the S155 guidance.
+
+### Fix 2 — DealChatScreen (BUG-003 addendum)
+Removed the nested `<SafeAreaView edges={['bottom']}>` wrapping the input row (attach/input/send). Replaced with a plain `<View>`. Root `SafeAreaView edges={['top']}` and Edit Deal Details Modal KAV untouched.
+
+### Fix 3 — CreateDealChat (BUG-006)
+Root `SafeAreaView edges={['top', 'bottom']}` → `edges={['top']}`. Footer `paddingBottom: 16` fixed value preserved. S155 comment replaced with the S159 rule.
+
+**Files modified this session:**
+- `components/ChatScreen.tsx` — import, insets hook, input container paddingBottom, hard-requirement comment
+- `components/DealChatScreen.tsx` — removed nested `SafeAreaView edges={['bottom']}` from input row (open + close tags)
+- `components/CreateDealChat.tsx` — root SafeAreaView edges, footer comment
+- `tasks/atlasio-bug-history.md` — BUG-002, BUG-003, BUG-006 marked 🟢 RESOLVED with S159 descriptions
+- `tasks/lessons.md` — KAV rule updated: fixed `paddingBottom: 8` (chat) / `16` (form CTA), never `insets.bottom`, never `edges={['bottom']}` inside KAV subtree
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **7 pre-existing warnings, 0 new**
+- `grep insets.bottom` on the three files → 0 code references (doc comments only)
+- `grep "edges={['bottom']}"` on DealChatScreen → 0 results
+- `grep "edges={['top', 'bottom']}"` on CreateDealChat → 0 results
+
+**Metrics:** RPCs: 67 (unchanged). Hooks: 66 (unchanged). Feature Flags: 11 (unchanged). Edge Functions: 11 (unchanged).
+
+### S159 — Next Objectives
+- Device QA on Build 45: verify input bar sits flush against the keyboard (8pt gap, no ~34pt gap) on ChatScreen, DealChatScreen, and that the CreateDealChat CTA sits flush against the keyboard when any form field is focused
+- Confirm keyboard-closed state still shows the input/CTA above the home indicator (no overlap)
+- Flip feature flags back to demo defaults before investor demo
+
+---
+
 ## S157 — BUG-007 + BUG-008 RESOLVED (April 15, 2026)
 
 **Status:** 🟢 Two device-test bugs from the Post Repair Job flow fixed end-to-end.
