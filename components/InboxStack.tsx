@@ -66,13 +66,13 @@ const InboxStack: React.FC = () => (
       component={ChatScreen}
       options={{ headerShown: false, gestureEnabled: true }}
     />
-    {/* S152 Bug 5: removed fullScreenModal presentation so navigation.replace
-        from CreateDealChat → DealChatScreen works naturally. Previously the
-        modal layer persisted after replace, causing back from DealChatScreen
-        to land on CreateDealChat instead of Inbox. */}
-    {/* S153: no options — inherits default slide_from_right from Stack.Navigator.
-        Previously used slide_from_bottom which made the screen still look like
-        a sheet after S152 removed fullScreenModal. */}
+    {/* S155: CreateDealChat inherits default slide_from_right. NO presentation
+        options — chrome is S155 X-dismiss via CloseIcon. Navigation from
+        CreateDealChat → DealChatScreen uses CommonActions.reset (NOT replace)
+        because NewMessageScreen's fullScreenModal ancestor (line 62 above)
+        leaks its modal presentation down the stack when replace is used on
+        iOS native-stack. See CreateDealChat.tsx handleCreateChat +
+        tasks/atlasio-bug-history.md BUG-003 Attempt 3 (S155). */}
     <Stack.Screen
       name="CreateDealChat"
       component={CreateDealChat}

@@ -226,25 +226,11 @@ const ChatScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { threadId: initialThreadId, recipientId, contactName, contactCompany, contactRole, contactAvatarColor, dealAddress } = route.params;
 
-  // S154: track keyboard visibility so the input container can drop its
-  // bottom inset padding while the keyboard is open (iOS behavior='padding'
-  // double-counts insets.bottom when the keyboard is up — see hard-requirement
-  // comment block below for full rationale).
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true),
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false),
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  // S155: keyboardVisible listener REMOVED. KeyboardAvoidingView behavior='padding'
+  // owns all keyboard spacing — the input container only needs the static safe-area
+  // inset. The S154 listener fought KAV during the hide-animation frame and caused
+  // a ~34px gap flash. Do NOT re-add any Keyboard.addListener here without first
+  // documenting why in tasks/lessons.md. See hard-requirement block below.
 
   // ── Active thread ID — starts from route param, set after rpc_create_thread on first send ──
   const [activeThreadId, setActiveThreadId] = useState<string | undefined>(initialThreadId);
@@ -526,29 +512,34 @@ const ChatScreen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [screenReady]);
 
-  // ─── KEYBOARD PATTERN — HARD REQUIREMENT (S152, updated S153, updated S154) ──
+  // ─── KEYBOARD PATTERN — HARD REQUIREMENT (S152, S153, S154, S155) ──────────
   // SafeAreaView(top) → KeyboardAvoidingView(padding, offset:0, flex:1)
   //   → Header View
   //   → Body (ScrollView or empty View, flex:1)
-  //   → View(input container, paddingBottom: keyboardVisible ? 8 : insets.bottom + 8)
+  //   → View(input container, paddingBottom: insets.bottom + 8)   ← STATIC
   //     → View(input row, plain View — NOT SafeAreaView)
   //
   // DO NOT alter this structure. Removing fullScreenModal from InboxStack (S151)
   // requires keyboardVerticalOffset: 0.
   //
-  // S154 — keyboardVisible state: on iOS behavior='padding', KAV adds
-  // paddingBottom=keyboardHeight when the keyboard opens. The keyboard already
-  // covers the home-indicator area, so the input container's static
-  // `insets.bottom + 8` double-counts the notch and leaves a ~34px gap between
-  // the input bar and the keyboard (Build 42 regression). Fix: subscribe to
-  // Keyboard show/hide events and drop paddingBottom to 8 while the keyboard
-  // is visible. Never change keyboardVerticalOffset away from 0 — other offset
-  // values break re-entry from attachments/compose modes.
+  // S155 — Keyboard.addListener REMOVED. The S154 listener (keyboardVisible
+  // state that dropped paddingBottom to 8 while the keyboard was open) fought
+  // KAV during the hide-animation frame: keyboardWillHide fired and immediately
+  // restored paddingBottom to insets.bottom + 8 while KAV was still animating
+  // its own padding down. Both added bottom space in the same frame → ~34px
+  // gap flash for ~250ms on dismiss.
+  //
+  // The fix is to let KAV own ALL keyboard spacing. With behavior='padding' on
+  // iOS, KAV adds keyboard-height padding at its container's bottom edge — the
+  // input bar (direct child of KAV, outside ScrollView) is pushed up naturally.
+  // The static `insets.bottom + 8` on the input container is always correct
+  // because it only needs to cover the home-indicator inset, never the keyboard.
   //
   // Do NOT wrap the input row in a SafeAreaView edges={['bottom']} — that
   // double-counts the inset even when the keyboard is closed (S153).
   //
-  // Verified Build 40 (S152), Build 41 (S153), Build 42 (S154). See tasks/lessons.md.
+  // Do NOT re-introduce any Keyboard.addListener padding logic here. KAV owns
+  // keyboard spacing. See tasks/lessons.md — S155 rule.
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -780,10 +771,10 @@ const ChatScreen: React.FC = () => {
             borderTopWidth: 0.68,
             borderTopColor: COLORS.border,
             paddingTop: 8,
-            // S154: drop bottom inset while keyboard is visible — iOS KAV
-            // behavior='padding' already pushes us above the keyboard which
-            // covers the notch area. See hard-requirement comment above.
-            paddingBottom: keyboardVisible ? 8 : insets.bottom + 8,
+            // S155: static insets.bottom + 8. KAV behavior='padding' owns all
+            // keyboard spacing — do NOT layer a Keyboard listener on top. See
+            // hard-requirement comment above.
+            paddingBottom: insets.bottom + 8,
             paddingHorizontal: 16,
           }}
         >

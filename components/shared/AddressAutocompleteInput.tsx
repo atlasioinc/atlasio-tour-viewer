@@ -9,21 +9,27 @@
 //          Key in GOOGLE_MAPS_API_KEY (lib/config.ts)
 // @demo    Falls back silently on API failure — address can still be typed manually
 //
-// ─── S154: DROPDOWN PATTERN ─────────────────────────────────────
-// Inline absolute dropdown, zIndex:99, sibling of TextInput inside a
-// position:relative wrapper. Mirrors the working pattern in
-// ClientLifestyleScreen.tsx. Do NOT switch back to a React Native Modal
-// overlay with measureInWindow — that path raced on first focus and
-// never settled. See tasks/bug-history.md BUG-001.
+// ─── S155: DROPDOWN PATTERN ─────────────────────────────────────
+// Screen-level transparent <Modal> overlay positioned via coordinates
+// captured from `measure()` (NOT measureInWindow) called inside the
+// wrapper's `onLayout` callback. This is the ONLY reliable path on iOS
+// when the input lives inside a ScrollView.
 //
-// Consumers must give their outer ScrollView enough paddingBottom to
-// render the 240px max-height dropdown without clipping when the field
-// is near the bottom of the form (all 4 consumers verified S154).
+// Why not measureInWindow:
+//   measureInWindow is async and returns {0,0,0,0} before the ScrollView
+//   has committed its layout. measure() called from onLayout returns
+//   coordinates relative to the root view at a point where layout is
+//   already stable. See tasks/atlasio-bug-history.md BUG-001 attempts
+//   1–3 for full history. measureInWindow is PERMANENTLY BANNED here.
+//
+// Why not absolute-in-ScrollView (S146/S154):
+//   iOS ScrollView clips or paints under absolute children regardless
+//   of zIndex. Platform constraint — not a styling issue.
 // ────────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, StyleSheet, Keyboard } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, SHADOWS } from '../../lib/tokens';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/config';
@@ -68,7 +74,24 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for loading indicator
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const [dropdownLayout, setDropdownLayout] = useState<{ x: number; y: number; width: number } | null>(null);
   const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<View>(null);
+
+  // S155: measure() (root-relative coords) from onLayout/focus/keyboard.
+  // Do NOT substitute measureInWindow — it returns 0,0,0,0 inside ScrollViews.
+  const measureWrapper = () => {
+    wrapperRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
+      if (width > 0) {
+        setDropdownLayout({ x: pageX, y: pageY + height + 4, width });
+      }
+    });
+  };
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', measureWrapper);
+    return () => sub.remove();
+  }, []);
 
   // Keep local query in sync if parent resets value (e.g. form clear)
   useEffect(() => {
@@ -138,8 +161,6 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
     setShowAutocomplete(false);
   };
 
-  const dropdownVisible = showAutocomplete && suggestions.length > 0;
-
   return (
     <View style={{ gap: label ? 8 : 0 }}>
       {label && (
@@ -147,10 +168,11 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
           {label}
         </Text>
       )}
-      <View style={{ position: 'relative' }}>
+      <View ref={wrapperRef} onLayout={measureWrapper}>
         <TextInput
           value={addressQuery}
           onChangeText={handleTextChange}
+          onFocus={measureWrapper}
           onBlur={() => {
             // S152 Bug 2: commit typed text to parent on blur so form
             // validation sees the value even when the user doesn't pick a
@@ -160,6 +182,7 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
             if (addressQuery.trim().length > 0 && addressQuery !== value) {
               onSelect(addressQuery);
             }
+            setShowAutocomplete(false);
           }}
           placeholder={placeholder}
           placeholderTextColor={COLORS.bodyText}
@@ -176,52 +199,62 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
             lineHeight: 20,
           }}
         />
-
-        {/* S154: inline absolute dropdown — sibling of TextInput inside a
-            position:relative wrapper. Mirrors ClientLifestyleScreen pattern.
-            `top` anchors just below the 44-ish input height. */}
-        {dropdownVisible && (
-          <View
-            style={{
-              position: 'absolute',
-              top: 52,
-              left: 0,
-              right: 0,
-              zIndex: 99,
-              maxHeight: 240,
-              backgroundColor: COLORS.background,
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-              ...SHADOWS.card,
-              overflow: 'hidden',
-            }}
-          >
-            {suggestions.map((s) => (
-              <Pressable
-                key={s.placeId}
-                onPress={() => handleSuggestionSelect(s.description)}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: 12,
-                  paddingHorizontal: 14,
-                  backgroundColor: pressed ? COLORS.screenBg : COLORS.background,
-                })}
-              >
-                <PinIcon />
-                <Text
-                  style={{ fontSize: 14, color: COLORS.darkText, flex: 1 }}
-                  numberOfLines={1}
-                >
-                  {s.description}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
       </View>
+
+      {/* S155: screen-level Modal — renders at root view, positioned via
+          pageX/pageY captured through measure() in onLayout. See header. */}
+      <Modal
+        visible={showAutocomplete && dropdownLayout !== null}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowAutocomplete(false)}
+      >
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => setShowAutocomplete(false)}
+        >
+          {suggestions.length > 0 && dropdownLayout && (
+            <View
+              style={{
+                position: 'absolute',
+                top: dropdownLayout.y,
+                left: dropdownLayout.x,
+                width: dropdownLayout.width,
+                backgroundColor: COLORS.background,
+                borderRadius: 12,
+                borderWidth: 0.68,
+                borderColor: COLORS.cardBorder,
+                ...SHADOWS.card,
+                maxHeight: 240,
+                overflow: 'hidden',
+              }}
+            >
+              {suggestions.map((s) => (
+                <Pressable
+                  key={s.placeId}
+                  onPress={() => handleSuggestionSelect(s.description)}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: 12,
+                    paddingHorizontal: 14,
+                    backgroundColor: pressed ? COLORS.screenBg : COLORS.background,
+                  })}
+                >
+                  <PinIcon />
+                  <Text
+                    style={{ fontSize: 14, color: COLORS.darkText, flex: 1 }}
+                    numberOfLines={1}
+                  >
+                    {s.description}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </Pressable>
+      </Modal>
     </View>
   );
 };

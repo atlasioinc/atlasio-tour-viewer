@@ -2,6 +2,118 @@
 
 Updated after each correction.
 
+## RULE — fullScreenModal ancestor leak (added S155, April 15 2026)
+
+`navigation.replace` does NOT escape a `fullScreenModal` ancestor on iOS native-stack.
+If ANY screen earlier in the stack is registered with `{ presentation: 'fullScreenModal' }`,
+every subsequent pushed/replaced screen on iOS inherits the modal presentation — even if
+those child screens have no `presentation` option of their own. You'll see the destination
+render as a sheet with rounded corners, with the underlying view still partially visible.
+
+**Symptom:** A pushed screen appears as a bottom sheet or card modal instead of a full-screen
+slide-from-right, despite having no `presentation` option and no `animation: 'slide_from_bottom'`.
+Check the `Stack.Navigator` for a `fullScreenModal` ancestor — that's the leak.
+
+**Wrong fixes (all tried in BUG-003 S151b–S154 and all failed):**
+- `navigation.replace` from the descendant (inherits the modal)
+- Removing `presentation` from the descendant (the parent still leaks)
+- Changing `animation` on the descendant (animation ≠ presentation)
+- Changing chrome (chevron → X or vice versa — cosmetic, doesn't fix the sheet look)
+
+**Correct fix: `CommonActions.reset` with a preserved back-target.**
+```ts
+navigation.dispatch(
+  CommonActions.reset({
+    index: 1,
+    routes: [
+      { name: 'InboxList' },        // preserved back-target
+      { name: 'DealChatScreen', params: {...} },  // clean mount, no modal ancestor
+    ],
+  }),
+);
+```
+`reset` rebuilds the stack from scratch, so there's no ancestor to leak. `index: 1`
+makes the second route active while keeping the first as its parent for back-nav.
+
+**BUG-003 cost:** 4 sessions (S151b, S152, S153, S154) of failed fixes before this rule
+was established. S152 even wrote "would clobber InboxList" in "What NOT to try" about
+`CommonActions.reset` — that warning was wrong; reset works fine with a multi-route array.
+
+## RULE — KAV owns keyboard spacing (added S155, April 15 2026)
+
+Do NOT layer a `Keyboard.addListener` padding hack on top of `KeyboardAvoidingView`
+with `behavior='padding'`. KAV already adds keyboard-height padding at its container's
+bottom edge when the keyboard opens. Adding a listener that mutates `paddingBottom` on
+a child View creates a race during the keyboard-hide animation: `keyboardWillHide` fires
+and immediately restores the static padding while KAV is still animating its own padding
+down. Both add bottom space in the same frame, producing a gap flash (~34px for ~250ms
+on iOS).
+
+**Correct pattern for a screen with an input bar pinned above the keyboard:**
+```
+SafeAreaView edges={['top']}
+ └ KeyboardAvoidingView behavior='padding' keyboardVerticalOffset={0} flex:1
+    ├ Header
+    ├ ScrollView flex:1   (content)
+    └ View (input bar, paddingBottom: insets.bottom + 8)   ← static
+```
+- Input bar is a direct child of KAV, outside ScrollView
+- `paddingBottom` is static: `insets.bottom + 8` (covers home indicator only, never the keyboard)
+- KAV pushes the input bar up naturally when the keyboard opens
+- NO `Keyboard.addListener` padding logic
+
+**BUG-002 cost:** 5 sessions (S120a, S140/S141a, S146, S151/S152/S153, S154) of failed fixes
+before this rule was established. S154 tried the listener approach and made it worse.
+
+## RULE — CTA placement inside KAV (added S155, April 15 2026)
+
+CTA/submit buttons on form screens must always be **siblings of the ScrollView inside
+KeyboardAvoidingView**, never children of the ScrollView. This is how KAV pushes the CTA
+above the keyboard when a field is focused.
+
+**Correct pattern:**
+```
+SafeAreaView edges={['top', 'bottom']}
+ └ KeyboardAvoidingView behavior='padding' keyboardVerticalOffset={0}
+    ├ Header
+    ├ ScrollView flex:1 keyboardShouldPersistTaps="handled"
+    │   (form fields)
+    └ View (CTA container, paddingBottom: 16)   ← sibling of ScrollView
+```
+
+**Key pairing with SafeAreaView:**
+- If SafeAreaView has `edges={['top','bottom']}`: footer uses fixed `paddingBottom: 16`
+- If SafeAreaView has `edges={['top']}` only: footer uses `paddingBottom: insets.bottom + 16`
+- NEVER both (double-count) and NEVER neither (CTA sits on home indicator)
+
+Verified screens: `CreateDealChat` (S155), `PostPhotoJobScreen` (reference).
+
+## RULE — measure() vs measureInWindow inside ScrollView (added S155, April 15 2026)
+
+`measureInWindow` called inside a ScrollView returns `{x:0, y:0, width:0, height:0}`
+because it's async and fires before the ScrollView commits its layout. No amount of
+`setTimeout` delay reliably fixes this (tried 50ms, 200ms — still races).
+
+**Correct pattern for absolute-positioned overlays anchored to an input inside a ScrollView:**
+
+1. Attach a `ref<View>` to a wrapper View around the anchor.
+2. Attach `onLayout={measureWrapper}` to that wrapper.
+3. Inside `measureWrapper`, call `wrapperRef.current?.measure((_x, _y, w, h, pageX, pageY) => {...})`.
+4. Use `pageX/pageY` (root-relative coordinates) to position an absolute element inside a
+   screen-level `<Modal transparent>`.
+5. Also call `measureWrapper` on `onFocus` and `Keyboard.addListener('keyboardDidShow')` so
+   the overlay reflows when the scroll container shifts.
+
+**Why:** `onLayout` fires after layout commits, so `measure()` called inside it returns
+valid coordinates. `measure()` is root-relative (what Modal positioning needs) whereas
+`measureInWindow` is window-relative AND async-unsafe in this context.
+
+**Also banned:** absolute-positioned View as a sibling inside a ScrollView. iOS clips or
+paints-under regardless of zIndex — platform constraint, not a styling issue.
+
+BUG-001 cost: 4 sessions (S146, S151, S152, S153) of failed fixes before this rule was
+established. Applies to: AddressAutocompleteInput dropdown, any future anchored overlay.
+
 ## RULE — RPC Consumer Audit (added S101, March 23 2026)
 
 Before committing ANY hook wired to a live RPC for the first time:

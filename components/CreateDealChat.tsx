@@ -22,8 +22,8 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -44,11 +44,14 @@ type NavProp = NativeStackNavigationProp<InboxStackParamList, 'CreateDealChat'>;
 // SVG ICONS
 // ─────────────────────────────────────────────
 
-// S154: standard pushed-screen back chevron (replaces X button — CreateDealChat
-// is a default card screen now, not a bottom-sheet modal).
-const BackIcon: React.FC = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path d="M15 18l-6-6 6-6" stroke={COLORS.darkText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+// S155: X dismiss icon — CreateDealChat is a sheet-like entry point inside the
+// New Message fullScreenModal flow (InboxStack.tsx:62 registers NewMessageScreen
+// as fullScreenModal). S154's back chevron was reverted because chevron implies
+// a pushed parent — the modal-flow mental model calls for X.
+const CloseIcon: React.FC = () => (
+  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+    <Path d="M6 6L18 18" stroke={COLORS.darkText} strokeWidth={2} strokeLinecap="round" />
+    <Path d="M18 6L6 18" stroke={COLORS.darkText} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
 
@@ -144,7 +147,6 @@ const ContactRow: React.FC<{
 
 const CreateDealChat: React.FC = () => {
   const navigation = useNavigation<NavProp>();
-  const insets = useSafeAreaInsets();
 
   // ── State ──
   const [searchText, setSearchText] = useState('');
@@ -216,36 +218,51 @@ const CreateDealChat: React.FC = () => {
       closingDate: closingDate.trim(),
       participants: participants.map((p) => `${p.name} (${p.role})`),
     });
-    // S151b: replace (not navigate) so CreateDealChat is removed from the stack.
-    // CreateDealChat is registered as fullScreenModal in InboxStack; with plain navigate,
-    // DealChatScreen layered on top of it and back → CreateDealChat instead of Inbox.
-    // replace swaps the modal-root screen so goBack() from DealChatScreen dismisses
-    // the modal layer and returns to InboxList.
+    // S155: CommonActions.reset rebuilds the stack as [InboxList, DealChatScreen].
+    // Prior approach (navigation.replace, S151b/S152) did NOT escape the
+    // fullScreenModal ancestor established by NewMessageScreen (InboxStack.tsx:62).
+    // On iOS native-stack, replace keeps the ancestor's modal presentation active,
+    // so DealChatScreen inherited the sheet look. reset() clears the entire stack
+    // and mounts DealChatScreen clean, outside any modal layer. Back from
+    // DealChatScreen → InboxList (index: 1 places DealChatScreen as the active
+    // route with InboxList as its parent).
     // @demo    — no real thread yet; DealChatScreen only needs {dealName, propertyAddress, closingDate}
     // @backend — when wired, rpc_create_deal_thread returns { thread_id }; pass it in params
     //            (InboxStackParamList.DealChatScreen will gain threadId at that time)
-    navigation.replace('DealChatScreen', {
-      dealName: dealName.trim(),
-      propertyAddress: propertyAddress.trim(),
-      closingDate: closingDate.trim(),
-    });
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 1,
+        routes: [
+          { name: 'InboxList' },
+          {
+            name: 'DealChatScreen',
+            params: {
+              dealName: dealName.trim(),
+              propertyAddress: propertyAddress.trim(),
+              closingDate: closingDate.trim(),
+            },
+          },
+        ],
+      }),
+    );
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
         {/* ══════════════════════════════════════════
-            HEADER — S154: standard pushed-screen pattern
-            Row 1: [Back 44×44][Title flex:1 centered][44×44 spacer]
+            HEADER — S155: sheet-entry pattern (reverted from S154 chevron)
+            Row 1: [X 44×44][Title flex:1 centered][44×44 spacer]
             Row 2: Search field with participant chips
             ══════════════════════════════════════════ */}
         <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
-          {/* Title row — S154: back chevron left, title centered, spacer right */}
+          {/* Title row — S155: X dismiss left, title centered, spacer right */}
           <View style={{ flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 4 }}>
             <Pressable
               onPress={() => {
@@ -257,7 +274,7 @@ const CreateDealChat: React.FC = () => {
               }}
               style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
             >
-              <BackIcon />
+              <CloseIcon />
             </Pressable>
             <Text style={{ flex: 1, fontSize: 17, fontWeight: '600', color: COLORS.darkText, textAlign: 'center' }}>
               Create New Deal Chat
@@ -548,13 +565,17 @@ const CreateDealChat: React.FC = () => {
         {/* ══════════════════════════════════════════
             FOOTER — Create Chat button
             ══════════════════════════════════════════ */}
+        {/* S155: SafeAreaView now owns bottom inset (edges={['top','bottom']}) —
+            footer uses a fixed paddingBottom to avoid double-counting the home
+            indicator. KAV behavior='padding' still pushes this View above the
+            keyboard when any field is focused. */}
         <View style={{
           backgroundColor: COLORS.background,
           borderTopWidth: 0.68,
           borderTopColor: COLORS.border,
           paddingHorizontal: 16,
           paddingTop: 12,
-          paddingBottom: Math.max(insets.bottom, 24),
+          paddingBottom: 16,
         }}>
           <Pressable
             onPress={handleCreateChat}

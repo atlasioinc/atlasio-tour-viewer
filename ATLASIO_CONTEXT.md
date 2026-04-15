@@ -46,6 +46,70 @@
 
 ---
 
+## S155 — BUG-001 + BUG-002 + BUG-003 + BUG-006 Fixes (April 15, 2026)
+
+**Feature flags:** ✅ Reset to demo defaults (`USE_MOCK_DATA: true`, `DEV_BYPASS_AUTH: true`, `DEV_SHOW_PASSWORD_LOGIN: false`). S154's QA-mode overrides restored to stock demo state.
+
+
+### BUG-002 — ChatScreen keyboard-dismiss gap flash
+
+**Files modified:**
+- `components/ChatScreen.tsx` — Removed the S154 `keyboardVisible` state + `Keyboard.addListener` subscriptions (show/hide on iOS/Android). Input container `paddingBottom` reverted to a static `insets.bottom + 8`. Updated the hard-requirement comment block to explain why the listener was removed and why KAV owns all keyboard spacing. `Keyboard` import retained — still used by the message-scroll `keyboardDidShow` effect elsewhere in the file.
+
+**Key decision — KAV owns keyboard spacing.** The S154 listener approach fought KAV during the hide-animation frame: `keyboardWillHide` fired and immediately restored `paddingBottom` to `insets.bottom + 8` while KAV was still animating its own internal padding down from keyboard-height. Both added bottom space in the same frame → ~34px gap flash for ~250ms on dismiss. With the listener removed, KAV `behavior='padding'` is the sole source of keyboard-height padding. The static inset only accounts for the home indicator, which never needs to animate. Rule documented in `tasks/lessons.md`: "Do NOT layer Keyboard.addListener padding on top of KAV behavior='padding'".
+
+### BUG-006 — CreateDealChat "Create Chat" CTA hidden by keyboard
+
+**Files modified:**
+- `components/CreateDealChat.tsx` — `SafeAreaView edges={['top']}` → `edges={['top', 'bottom']}`. Footer `paddingBottom: Math.max(insets.bottom, 24)` → static `paddingBottom: 16` (SafeAreaView now owns the bottom inset — no double count). Added explicit `keyboardVerticalOffset={0}` to KAV. Removed `useSafeAreaInsets` import and the unused `insets` binding. Footer View remains a sibling of ScrollView inside KAV (was already correct; **not** restructured).
+
+**Key decision — premise correction.** The initial BUG-006 prompt assumed the CTA was a child of the ScrollView and needed to be moved. It was already a sibling of ScrollView inside KAV. The real cause was SafeAreaView `edges={['top']}` only — the footer was manually adding `insets.bottom` inside a KAV whose container extended to the bottom of the screen, so when KAV added keyboard-height padding the combined offset pushed the CTA below the visible area. Adding the `'bottom'` edge to SafeAreaView + dropping the manual inset restores the expected behavior. Rule documented in `tasks/lessons.md`: "CTA placement inside KAV — always sibling of ScrollView, SafeAreaView edge pairing must match footer padding".
+
+### BUG-003 — DealChatScreen sheet appearance + CreateDealChat dismiss icon
+
+**Files modified:**
+- `components/CreateDealChat.tsx` — (1) `useNavigation` import extended to include `CommonActions` from `@react-navigation/native`. (2) Replaced `BackIcon` with `CloseIcon` (pure SVG X, two `<Path>` lines, `stroke={COLORS.darkText}`, 22×22) — NOT Ionicons. S154's chevron was reverted. (3) `handleCreateChat` now dispatches `CommonActions.reset({ index: 1, routes: [{ name: 'InboxList' }, { name: 'DealChatScreen', params: {...} }] })` instead of `navigation.replace('DealChatScreen', ...)`. (4) Header comment block updated S154 → S155 to reflect the chrome reversal.
+- `components/InboxStack.tsx` — Replaced the S152+S153 comment block above `<Stack.Screen name="CreateDealChat">` with an S155 comment explaining that `navigation.replace` does NOT escape the `fullScreenModal` ancestor on `NewMessageScreen` (line 62 of the same file), and that all navigation from CreateDealChat to DealChatScreen must use `CommonActions.reset` to mount clean.
+- `lib/featureFlags.ts` — Feature flags reset to demo defaults per pre-commit checklist: `USE_MOCK_DATA: true` (was false), `DEV_BYPASS_AUTH: true` (was false), `DEV_SHOW_PASSWORD_LOGIN: false` (was true). S154 had explicitly preserved the QA-mode overrides; S155 is the first post-QA session so we flip back.
+- `tasks/atlasio-bug-history.md` — BUG-003 status → 🟡 pending Build 44; Attempt 3 (S155) block added with the actual root cause (fullScreenModal ancestor leak from `NewMessageScreen`), the reset solution, and a correction to the prior "CommonActions.reset would clobber InboxList" note which turned out to be wrong.
+- `tasks/lessons.md` — New rule: "fullScreenModal ancestor leak". Documents the leak, the 4 failed fixes across S151b–S154, and the `CommonActions.reset` pattern with `index: 1` multi-route array for preserving a back-target.
+
+**Key decisions:**
+- **Root cause was `NewMessageScreen`'s fullScreenModal, not CreateDealChat's own presentation.** Four prior sessions (S151b, S152, S153, S154) chased the wrong target — each tried to fix CreateDealChat's own registration, animation, or chrome. The actual leak is that `NewMessageScreen` at `InboxStack.tsx:62` is registered with `{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }`. On iOS native-stack, that presentation leaks down to every descendant pushed or replaced on top of it. `navigation.replace` inherits the modal layer regardless of the descendant's own options. Only `CommonActions.reset` (which rebuilds the stack from scratch) escapes the ancestor.
+- **`CommonActions.reset` with `index: 1` preserves InboxList as the back-target.** S152's "What NOT to try" note said reset "would clobber InboxList" — that was wrong. Resetting to `[InboxList, DealChatScreen]` with `index: 1` makes DealChatScreen the active route with InboxList preserved as its parent. Back-nav from DealChatScreen lands on InboxList, which is the correct UX.
+- **S154's chevron was reverted back to X.** S154 chose chevron to signal "pushed screen, not modal". But CreateDealChat is inside the NewMessageScreen modal flow — the mental model is still a sheet, even if the immediate screen isn't a modal at the native-stack level. X matches user expectations for dismiss. Pure SVG `CloseIcon` (two `<Path>` lines forming an X) — not Ionicons, which isn't imported anywhere in the file.
+- **`NewMessageScreen`'s `fullScreenModal` registration is NOT being removed.** Its slide-up-from-bottom entry from InboxList is intentional UX. Fixing this one screen's navigation via `reset` is the minimal-blast-radius change. Other descendants of NewMessageScreen can use the same pattern if they hit the same bug.
+
+### BUG-001 — Address autocomplete dropdown (original S155 fix)
+
+**Card:** ATL-BUG-001 → 🟡 Pending device verification on Build 44
+
+**Files modified:**
+- `components/shared/AddressAutocompleteInput.tsx` — Full replacement of the S154 inline-absolute-in-ScrollView dropdown with a screen-level transparent `<Modal>` positioned via coordinates captured from `measure()` (NOT `measureInWindow`) called inside the wrapper's `onLayout` callback. Added `wrapperRef`, `dropdownLayout` state, `measureWrapper()` helper. Remeasure triggers on `onLayout`, `onFocus`, and `Keyboard.addListener('keyboardDidShow')`. Backdrop `Pressable` dismisses the Modal on outside tap. `onBlur` also closes. Modal `visible` condition: `showAutocomplete && dropdownLayout !== null` (single state + layout guard — no compound `dropdownVisible` alias). Inner View guards on `suggestions.length > 0` so the backdrop stays dismissible during fetch. Consumers (`PostPhotoJobScreen`, `PostStagingJobScreen`, `PostJobWizard`, `CreateDealChat`, `DealCreationSheet`) need zero edits.
+- `tasks/atlasio-bug-history.md` — BUG-001 status → 🟡 Fix shipped S155. Added Attempt 4 (S155) block with the Modal + measure() approach. `measureInWindow` permanently banned in the "What NOT to try again" list along with absolute-in-ScrollView.
+- `tasks/lessons.md` — New rule: "measure() vs measureInWindow inside ScrollView". Documents the onLayout → measure() → pageX/pageY → Modal pattern, why `measureInWindow` races, why absolute-in-ScrollView is banned on iOS regardless of zIndex.
+
+**Key decisions:**
+- **Revert S154 inline-absolute pattern; it was clipped/painted-under by iOS ScrollView.** Four prior fixes (S146, S151, S152, S153, S154) all failed because they treated this as either a zIndex problem (S146, S154) or a measureInWindow timing problem (S151–S153). It's neither — it's a RN-on-iOS platform constraint: absolute children of ScrollView are unreliable, and `measureInWindow` is async-unsafe in ScrollView layout contexts.
+- **`measure()` called from `onLayout` is the reliable path.** `onLayout` fires after layout commits, `measure()` returns root-relative coords (what Modal positioning needs). `measureInWindow` is PERMANENTLY BANNED for this use case — documented in the component header, bug-history, and lessons.md.
+- **Single-boolean Modal visible condition.** Per user instruction, Modal visible uses `showAutocomplete && dropdownLayout !== null` rather than a compound `dropdownVisible` alias — keeps the condition obvious and the backdrop dismissible during the brief fetch window before suggestions populate.
+- **No consumer changes.** Fix is fully self-contained in AddressAutocompleteInput.tsx.
+
+**Feature flags:** Unchanged from S154 QA state (`USE_MOCK_DATA: false`, `DEV_BYPASS_AUTH: false`, `DEV_SHOW_PASSWORD_LOGIN: true`). Flip to demo defaults before investor demo.
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **0 new warnings** (7 pre-existing, unchanged from S154)
+- Device verification pending Build 44
+- Count updates: Hooks = unchanged. RPCs = unchanged. Shared components = unchanged (existing component modified).
+
+### S155 — Next Objectives (S156 targets)
+- Build 44 device verification of BUG-001 fix across all 5 consumers
+- If verified: mark BUG-001 ✅ resolved in bug-history, flip flags to demo defaults
+- If any consumer still fails: investigate whether Modal's root-mount context differs across nav stacks (especially `DealCreationSheet` which lives in a BottomSheet Modal already — nested Modal behavior on iOS can be finicky)
+
+---
+
 ## S154 — Build 42 QA Fixes (April 15, 2026)
 
 **Card:** ATL-QA-BUILD42 → ✅ Done after Build 43 QA

@@ -1,5 +1,5 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S153 | April 14, 2026
+**Last updated:** S155 | April 15, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
@@ -10,7 +10,7 @@ Use this before writing any fix prompt to avoid repeating failed approaches.
 
 **Screens affected:** PostPhotoJobScreen, PostStagingJobScreen, PostJobWizard, CreateDealChat
 **File:** `components/shared/AddressAutocompleteInput.tsx`
-**Status:** 🔴 Unresolved as of Build 41
+**Status:** 🟡 Fix shipped S155 — pending device verification on Build 44
 
 ### Symptom
 Input field appears and accepts text. No dropdown appears. Google Places API key confirmed valid (preview + production EAS environments). APIs enabled: Places API (New), Geocoding API. Key present in build.
@@ -36,10 +36,18 @@ Input field appears and accepts text. No dropdown appears. Google Places API key
 ### S153 approach
 Add 50ms delay inside `measureInput()` before calling `measureInWindow`. Add diagnostic `console.log` to confirm what values are returned. If width still 0 after delay, investigate `showAutocomplete` state — suggestions may not be populating.
 
+### Attempt 4 — S155 (Modal + measure() from onLayout)
+**Approach:** Screen-level transparent `<Modal>` positioned via coordinates captured through `measure()` (NOT `measureInWindow`) called inside the wrapper's `onLayout` callback. Remeasure also triggers on `onFocus` and `Keyboard.addListener('keyboardDidShow')` to handle scroll-shifted layouts. Backdrop `Pressable` dismisses. Modal `visible` condition: `showAutocomplete && dropdownLayout !== null` (single boolean + layout guard — no compound alias). Inner View additionally guards on `suggestions.length > 0` so backdrop remains dismissible during fetch.
+**Result:** tsc 0 errors, lint 0 errors. Pending device verification on Build 44.
+**Why this should work:** `measure()` returns root-relative coordinates at a point when layout is already stable (onLayout fires after the layout pass commits). `measureInWindow` returned 0,0,0,0 because it's async and fires before ScrollView commits its layout.
+**measureInWindow is PERMANENTLY BANNED for this use case.**
+
 ### What NOT to try again
 - zIndex/elevation bumps — doesn't escape ancestor clip contexts on iOS
 - Changing `keyboardShouldPersistTaps` — already set to "handled" on all consumers
 - Mock path changes — component always hits live API, no mock path exists
+- `measureInWindow` — returns 0,0,0,0 inside ScrollView, confirmed S151–S153
+- Absolute-positioned View inside ScrollView — iOS clips/paints-under regardless of zIndex (S146, S154)
 
 ### Files to read before next fix attempt
 - `components/shared/AddressAutocompleteInput.tsx` — full file
@@ -53,7 +61,7 @@ Add 50ms delay inside `measureInput()` before calling `measureInWindow`. Add dia
 
 **Screen:** ChatScreen (`components/ChatScreen.tsx`)
 **File:** `components/ChatScreen.tsx`, `components/InboxStack.tsx`
-**Status:** 🔴 Unresolved as of Build 41
+**Status:** 🟡 Fix shipped S155 — pending device verification on Build 44
 
 ### Symptom
 Visible empty space between the message input bar and the bottom of the screen. Keyboard push works correctly (input bar rises above keyboard) but empty space persists when keyboard is dismissed.
@@ -91,13 +99,20 @@ The comment block at the top of ChatScreen.tsx documents this pattern. It MUST b
 ### Key insight
 `SafeAreaView edges={['bottom']}` behavior changes depending on whether the screen is presented as `fullScreenModal` or a standard pushed screen. After `fullScreenModal` removal, use explicit `insets.bottom` instead of relying on SafeAreaView edge handling.
 
+### Attempt 6 — S155 (remove Keyboard.addListener; KAV owns keyboard spacing)
+**Approach:** Deleted the S154 `keyboardVisible` state + `Keyboard.addListener` subscriptions from ChatScreen. Input container `paddingBottom` is now a static `insets.bottom + 8`. KeyboardAvoidingView `behavior='padding'` (iOS) owns ALL keyboard spacing — adding a listener on top created a race with KAV's own padding animation during keyboard hide.
+**Why S154 failed:** `keyboardWillHide` fired and immediately restored `paddingBottom` to `insets.bottom + 8` while KAV was still animating its internal padding down from keyboard-height. Both were adding bottom space in the same frame → ~34px gap flash for ~250ms on dismiss.
+**Why this should work:** With `behavior='padding'` on iOS, KAV adds keyboard-height padding at its container's bottom edge. The input bar (direct child of KAV, outside ScrollView) is pushed up naturally. The static `insets.bottom + 8` only accounts for the home-indicator inset — never the keyboard — so there's nothing to animate or double-count.
+**Result:** tsc 0 errors, lint 0 errors. Pending device verification on Build 44.
+**Hard rule (added to lessons.md):** Do NOT layer `Keyboard.addListener` padding logic on top of KAV `behavior='padding'`. KAV owns keyboard spacing.
+
 ---
 
 ## BUG-003 — CreateDealChat Opens as Sheet Instead of Full Screen
 
 **Screen:** CreateDealChat (`components/CreateDealChat.tsx`)
 **File:** `components/InboxStack.tsx`, `components/CreateDealChat.tsx`
-**Status:** 🟡 Partially resolved — animation fix pending Build 42
+**Status:** 🟡 Fix shipped S155 — pending device verification on Build 44
 
 ### Symptom
 After creating a deal chat, the DealChatScreen presents as a bottom sheet (slides up from bottom). Back navigation returns to wrong screen.
@@ -114,10 +129,24 @@ After creating a deal chat, the DealChatScreen presents as a bottom sheet (slide
 ### S153 approach
 Remove `animation: 'slide_from_bottom'` from CreateDealChat options in InboxStack. Let it inherit default `slide_from_right` animation from Stack.Navigator. This is the only remaining line causing the sheet appearance.
 
+### Attempt 3 — S155 (CommonActions.reset + X icon reversal)
+**Approach:**
+1. Replaced `navigation.replace('DealChatScreen', ...)` in `CreateDealChat.handleCreateChat` with `CommonActions.reset({ index: 1, routes: [{ name: 'InboxList' }, { name: 'DealChatScreen', params: {...} }] })`.
+2. Reverted the S154 chrome chevron back to an X dismiss (pure SVG `CloseIcon`, matching the file's existing SVG convention — not Ionicons).
+3. Updated `InboxStack.tsx` comments above `CreateDealChat` registration to document that `replace` does NOT escape a `fullScreenModal` ancestor and that future edits must use `reset`.
+
+**Root cause (finally identified):** Not an animation option, not CreateDealChat's own presentation, and not a React Native `<Modal>` wrapper. The problem is `NewMessageScreen` at `InboxStack.tsx:62`, which is registered as `{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }`. On iOS native-stack, a `fullScreenModal` presentation established by an ancestor screen LEAKS down the stack — any subsequent `navigation.replace` (or even `navigate`) from a descendant screen inherits the modal layer. S152's note "removed fullScreenModal presentation so navigation.replace works naturally" was incomplete — S152 removed it from CreateDealChat but missed that NewMessageScreen (CreateDealChat's parent in the flow) still has it.
+
+**Why the "What NOT to try" list was wrong about `CommonActions.reset`:** The prior entry said reset "would clobber InboxList from the stack". That's only true if you reset to `routes: [{ name: 'DealChatScreen' }]`. Resetting to `[InboxList, DealChatScreen]` with `index: 1` preserves InboxList as the back-target. Back from DealChatScreen lands on InboxList — the correct UX.
+
+**Result:** tsc 0 errors, lint 0 errors. Pending device verification on Build 44.
+**Hard rule (added to lessons.md):** `navigation.replace` does NOT escape a `fullScreenModal` ancestor on iOS native-stack. Use `CommonActions.reset` with a multi-route `routes` array to mount a clean, non-modal destination while preserving the back-target.
+
 ### What NOT to try
-- `navigation.getParent()` approaches — adds complexity, not needed once animation is fixed
-- `CommonActions.reset` — would clobber InboxList from the stack
+- `navigation.getParent()` approaches — adds complexity, not needed
 - Changing DealChatScreen presentation — DealChatScreen itself is correct
+- Removing `fullScreenModal` from NewMessageScreen — its slide-up entry is intentional UX
+- Reverting to `navigation.replace` — DOES NOT escape fullScreenModal ancestor (confirmed across S151b, S152, S153, S154)
 
 ---
 
@@ -154,6 +183,33 @@ The dual-path fix from S152 is correct:
 - `USE_MOCK_DATA: false` → live data from `useAgentActiveJobs()`
 
 **Do not file this as a bug again.**
+
+---
+
+## BUG-006 — CreateDealChat "Create Chat" CTA Hidden by Keyboard
+
+**Screen:** CreateDealChat (`components/CreateDealChat.tsx`)
+**Status:** 🟡 Fix shipped S155 — pending device verification on Build 44
+
+### Symptom
+When the keyboard opens on any form field (Deal Name, Property Address, Closing Date, etc.), the "Create Chat" CTA at the bottom is pushed off screen.
+
+### Initial hypothesis (wrong)
+S155 prompt assumed the CTA was a child of the ScrollView and needed to be moved outside. **It was not** — the footer View was already a sibling of the ScrollView inside KAV (verified in file before editing). Restructuring was unnecessary.
+
+### Real cause
+`SafeAreaView edges={['top']}` only — bottom inset was not owned by SafeAreaView. The footer's `paddingBottom: Math.max(insets.bottom, 24)` was manually applying the home-indicator inset INSIDE a KAV that extended to the bottom of the screen. When KAV `behavior='padding'` added keyboard-height padding, the combined offset pushed the visible footer below the keyboard edge on taller devices.
+
+### S155 fix
+1. Changed `SafeAreaView edges={['top']}` → `edges={['top', 'bottom']}`
+2. Footer `paddingBottom: Math.max(insets.bottom, 24)` → static `paddingBottom: 16` (SafeAreaView now owns the bottom inset — no double count)
+3. Added explicit `keyboardVerticalOffset={0}` to KAV (matches ChatScreen lock)
+4. Removed now-unused `useSafeAreaInsets` import + `insets` binding
+
+### What was NOT changed
+- Footer is still a sibling of ScrollView inside KAV (was already correct — don't touch)
+- KAV `behavior='padding'` on iOS / `'height'` on Android (unchanged)
+- `keyboardShouldPersistTaps="handled"` on ScrollView (unchanged — already set)
 
 ---
 
