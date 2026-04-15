@@ -22,7 +22,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
@@ -44,10 +44,11 @@ type NavProp = NativeStackNavigationProp<InboxStackParamList, 'CreateDealChat'>;
 // SVG ICONS
 // ─────────────────────────────────────────────
 
-// S151: bottom-sheet modal dismisses via right-aligned X (was left chevron)
-const CloseIcon: React.FC = () => (
-  <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-    <Path d="M15 5L5 15M5 5l10 10" stroke={COLORS.darkText} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
+// S154: standard pushed-screen back chevron (replaces X button — CreateDealChat
+// is a default card screen now, not a bottom-sheet modal).
+const BackIcon: React.FC = () => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path d="M15 18l-6-6 6-6" stroke={COLORS.darkText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
@@ -231,7 +232,7 @@ const CreateDealChat: React.FC = () => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <KeyboardAvoidingView
@@ -239,19 +240,13 @@ const CreateDealChat: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* ══════════════════════════════════════════
-            HEADER
-            Row 1: Back + "Create New Deal Chat"
+            HEADER — S154: standard pushed-screen pattern
+            Row 1: [Back 44×44][Title flex:1 centered][44×44 spacer]
             Row 2: Search field with participant chips
             ══════════════════════════════════════════ */}
         <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.68, borderBottomColor: COLORS.border }}>
-          {/* Title row — S151: X on right, title left-aligned (bottom-sheet modal pattern) */}
-          <Pressable
-            onPress={handleDismissSearch}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 8, paddingTop: 8 + insets.top }}
-          >
-            <Text style={{ flex: 1, fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>
-              Create New Deal Chat
-            </Text>
+          {/* Title row — S154: back chevron left, title centered, spacer right */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', height: 48, paddingHorizontal: 4 }}>
             <Pressable
               onPress={() => {
                 if (isSearching) {
@@ -262,9 +257,13 @@ const CreateDealChat: React.FC = () => {
               }}
               style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
             >
-              <CloseIcon />
+              <BackIcon />
             </Pressable>
-          </Pressable>
+            <Text style={{ flex: 1, fontSize: 17, fontWeight: '600', color: COLORS.darkText, textAlign: 'center' }}>
+              Create New Deal Chat
+            </Text>
+            <View style={{ width: 44, height: 44 }} />
+          </View>
 
           {/* Search field */}
           <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
@@ -582,7 +581,7 @@ const CreateDealChat: React.FC = () => {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 };
 

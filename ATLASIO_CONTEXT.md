@@ -46,6 +46,33 @@
 
 ---
 
+## S154 — Build 42 QA Fixes (April 15, 2026)
+
+**Card:** ATL-QA-BUILD42 → ✅ Done after Build 43 QA
+
+**Files modified:**
+- `components/shared/AddressAutocompleteInput.tsx` — **Fix 4**. Full rewrite. Deleted the `Modal` overlay, `measureInWindow` path, `inputLayout` state, `inputWrapperRef`, `onLayout` handler, `onFocus` remeasure, 50ms setTimeout, `width > 0` guard, and all `__DEV__` diagnostic logs. Dropdown is now an inline absolute-positioned `<View>` with `top:52, zIndex:99, maxHeight:240` inside a `position:relative` wrapper, sibling to the `TextInput`. Mirrors the working pattern in `ClientLifestyleScreen.tsx` that has been shipping since S57. Component public API (`value`, `onSelect`, `placeholder`, `label`) unchanged — all 4 consumers (`PostPhotoJobScreen`, `PostStagingJobScreen`, `PostJobWizard`, `CreateDealChat`) need no edits.
+- `components/CreateDealChat.tsx` — **Fix 2**. Header chrome normalized to the standard pushed-screen pattern. Root `<View>` → `<SafeAreaView edges={['top']}>` (imported `SafeAreaView` alongside existing `useSafeAreaInsets`). Removed manual `paddingTop: 8 + insets.top` math. Replaced the right-aligned X button with a left-aligned 44×44 back chevron (new `BackIcon` SVG, removed `CloseIcon`). Title is now centered in a `[Back][flex:1 title][44×44 spacer]` row at height 48. `navigation.replace('DealChatScreen', ...)` on create still correct (S152). InboxStack registration unchanged (already had no options after S153).
+- `components/ChatScreen.tsx` — **Fix 1**. Added `keyboardVisible` state + `Keyboard.addListener` effect (`keyboardWillShow/Hide` on iOS, `keyboardDidShow/Hide` on Android). Input container `paddingBottom` is now `keyboardVisible ? 8 : insets.bottom + 8`. Structural hierarchy unchanged — the S153 KAV pattern was already correct; what failed on Build 42 was the static `insets.bottom + 8` double-counting the notch when iOS KAV `behavior='padding'` already pushed the input above the keyboard (keyboard covers home-indicator area). Updated the hard-requirement comment block with the `keyboardVisible` rationale. `keyboardVerticalOffset: 0` locked.
+- `components/ProProfile.tsx` — **Fix 3**. Removed `SuccessToast` from the connection request flow. The `connectSent` state already drives the in-place "Request Sent ✓" button copy, which is the right confirmation pattern for an action with a visible in-place state change. Removed `SuccessToast` from the shared barrel import, removed `useSuccessToast` import + hook call, removed `showSuccess('Request sent')` in `handleSendConnect`, removed the `<SuccessToast>` render at the bottom. `SuccessToast.tsx` + `useSuccessToast.ts` unchanged — other screens (PostJobWizard, BidSubmission, EditProfile, etc.) still consume them.
+- `tasks/bug-history.md` — Marked **BUG-001 RESOLVED** with the root cause explained (Modal detour chased the wrong problem; `ClientLifestyleScreen` was the working reference all along). Added **BUG-002b** entry for the Build 42 keyboard-open double-count continuation. Added a Build 42 attempt block to **BUG-003** explaining that S153's animation fix wasn't enough — the chrome (X button, left-aligned title, manual top inset) still read as modal.
+- `tasks/lessons.md` — Updated the ChatScreen HARD REQUIREMENT block with the S154 `keyboardVisible` rule + exact `Keyboard.addListener` snippet.
+
+**Key decisions:**
+- **Fix 4 — delete the Modal path, don't patch it.** Four builds of patching `measureInWindow` races (guards, delays, remeasures, diagnostic logs) couldn't win a timing race that a simpler inline pattern avoids entirely. The working reference was already in the codebase at `ClientLifestyleScreen.tsx` — the S151 "do NOT attempt plain zIndex" advisory in bug-history was wrong and has been refuted and removed. The real ask for consumers is just adequate ScrollView `paddingBottom`, which all 4 current consumers already provide.
+- **Fix 1 — keyboard-visibility listener, not `keyboardVerticalOffset: -insets.bottom`.** The latter would break re-entry from attachment/compose mode and conflicts with the ChatScreen hard-requirement lock that `keyboardVerticalOffset` stays at 0. The listener approach is narrowly scoped to the padding calculation that was actually wrong.
+- **Fix 2 — chrome, not navigation.** S153's `animation: 'slide_from_right'` fix was correct but incomplete. On device, the screen still *read* as modal because its chrome (X button, left-aligned title, manual top-inset math) was bottom-sheet chrome. Normalizing the chrome to match `RepairJobDetails` et al. is what actually makes it stop looking like a sheet.
+- **Fix 3 — in-place state beats a toast when it exists.** `connectSent` already drives the button copy change. A toast on top of that is noise. `SuccessToast` stays wired for the other consumers where there's no equivalent in-place feedback.
+
+**Feature flags:** **NOT RESET.** Build 42 QA state preserved per spec — `USE_MOCK_DATA: false`, `DEV_BYPASS_AUTH: false`, `DEV_SHOW_PASSWORD_LOGIN: true`. Flip back to demo defaults before the next investor demo.
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **0 new warnings** (7 pre-existing, unchanged from S153)
+- Count updates: Hooks = unchanged. RPCs = unchanged. Shared components = unchanged.
+
+---
+
 ## S153 — Build 41 QA Fixes (April 15, 2026)
 
 **Card:** ATL-QA-BUILD41 → ✅ Done

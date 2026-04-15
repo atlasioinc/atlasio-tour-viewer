@@ -6,38 +6,77 @@ approaches — the goal is to converge on the working fix faster each build.
 
 ---
 
-## BUG-001 — Address autocomplete dropdown not appearing on device
+## BUG-001 — Address autocomplete dropdown not appearing on device ✅ RESOLVED S154
 
 **Component:** `components/shared/AddressAutocompleteInput.tsx`
 **Consumers:** PostPhotoJobScreen, PostStagingJobScreen, PostJobWizard, CreateDealChat
 **First reported:** Build 39 QA
+**Resolved:** Build 42 (S154)
+
+### Root cause
+
+The Modal + `measureInWindow` path chased the wrong problem. A working reference
+already existed in the codebase — `components/ClientLifestyleScreen.tsx` renders
+its Places-autocomplete dropdown as an **inline absolute-positioned View with
+`zIndex: 99`** inside a `position:relative` wrapper, nested inside a ScrollView
+with generous `paddingBottom`. It worked on device from day one because the
+ScrollView gave the dropdown room to render and there was no stacking-context
+conflict — only a clipping concern, which the parent padding solved.
+
+The Modal detour in `AddressAutocompleteInput` introduced `measureInWindow`
+timing races that never settled on first focus, producing zero-size or
+never-visible dropdowns no amount of guards could compensate for.
 
 ### Attempts
 
-1. **Build 39 (S151) — zIndex on dropdown View.** Added high `zIndex` to the inline
-   dropdown View to escape ScrollView/KeyboardAvoidingView stacking contexts.
-   **Result:** FAILED. Dropdown still hidden behind other layers.
-2. **Build 39 (S151b) — Modal overlay.** Moved dropdown into a React Native `Modal`
-   with `transparent + statusBarTranslucent`, measured input via `measureInWindow`
-   and anchored the dropdown absolutely. **Result:** PARTIAL. Dropdown sometimes
-   rendered at `{top:0, left:0, width:0}` on first focus (invisible zero-size).
-3. **Build 40 (S152) — `width > 0` guard + `onLayout` + `onFocus` remeasure.**
-   Gated `dropdownVisible` on `inputLayout.width > 0`; added `onLayout` + `onFocus`
-   remeasure calls. **Result:** FAILED on device. Dropdown still not appearing
-   despite the code being structurally correct. Suspected: `measureInWindow`
-   returning `{0,0,0,0}` before layout settles.
-4. **Build 41 (S153) — 50ms delay + diagnostic logs.** Wrapped `measureInWindow`
-   in `setTimeout(..., 50)` to let layout settle; added `__DEV__`-gated console
-   logs inside the measure callback and at render time tracking `dropdownVisible`,
-   `showAutocomplete`, `suggestions.length`, and `inputLayout`. **Result:** PENDING
-   device verification on Build 42. Diagnostic-first — decision on a deeper fix
-   waits for actual `measureInWindow` return values from device logs.
+1. **Build 39 (S151) — zIndex on dropdown View.** Added high `zIndex` to an
+   inline dropdown View. **Result:** appeared to fail — later traced to
+   consumers with tight ScrollView `paddingBottom` clipping the dropdown, not
+   a stacking issue. Advisory "do NOT attempt plain zIndex" written here was
+   wrong. **Refuted by Build 42.**
+2. **Build 39 (S151b) — Modal overlay.** Moved dropdown into a React Native
+   `Modal` with `measureInWindow` anchoring. **Result:** PARTIAL. Dropdown
+   rendered at `{top:0, left:0, width:0}` on first focus.
+3. **Build 40 (S152) — `width > 0` guard + remeasure.** **Result:** FAILED.
+   `measureInWindow` still returned zeros before layout settled.
+4. **Build 41 (S153) — 50ms setTimeout + diagnostic logs.** **Result:** still
+   failing on device; logs confirmed `measureInWindow` was the race.
+5. **Build 42 (S154) — Delete Modal path; inline absolute dropdown mirroring
+   ClientLifestyleScreen.** Removed `Modal`, `measureInWindow`, `inputLayout`
+   state, `onLayout`/`onFocus` remeasure, 50ms delay, all diagnostic logs, and
+   the `width > 0` guard. Rendered dropdown inline as a sibling of the
+   TextInput inside `<View position:relative>` with `top:52`, `zIndex:99`,
+   `maxHeight:240`. **Result:** FIXED.
+
+### The pattern that works
+
+```tsx
+<View style={{ position: 'relative' }}>
+  <TextInput ... />
+  {showAutocomplete && suggestions.length > 0 && (
+    <View style={{
+      position: 'absolute', top: 52, left: 0, right: 0, zIndex: 99,
+      maxHeight: 240,
+      backgroundColor: COLORS.background,
+      borderRadius: 8, borderWidth: 1, borderColor: COLORS.border,
+      ...SHADOWS.card,
+      overflow: 'hidden',
+    }}>
+      {suggestions.map(...)}
+    </View>
+  )}
+</View>
+```
+
+Consumers must give their outer ScrollView enough `contentContainerStyle.paddingBottom`
+to clear the 240px dropdown max-height when the address field is near the bottom
+of a form. All 4 current consumers verified S154.
 
 ### Do NOT attempt again
 
-- Plain `zIndex` on dropdown View without Modal overlay — stacking contexts block it.
-- `measureInWindow` without a delay — returns `{0,0,0,0}` intermittently on first focus.
-- Removing the `width > 0` guard — reintroduces the zero-size invisible flash.
+- React Native `Modal` + `measureInWindow` anchoring for an inline dropdown —
+  the first-focus measurement race is unwinnable without hacks.
+- Re-introducing the `width > 0` guard — not needed in the inline pattern.
 
 ---
 
@@ -82,6 +121,40 @@ inner SafeAreaView was the only inset owner and worked correctly. Removing
 
 ---
 
+## BUG-002b — ChatScreen input bar floats above keyboard on notched devices (Build 42) ✅ RESOLVED S154
+
+**Component:** `components/ChatScreen.tsx`
+**First reported:** Build 42 QA — continuation of BUG-002 after S153's SafeAreaView fix
+
+### Root cause
+
+With iOS `KeyboardAvoidingView behavior='padding'` + `keyboardVerticalOffset={0}`,
+KAV adds `paddingBottom = keyboardHeight` when the keyboard opens. The keyboard
+already covers the home-indicator area on notched devices. The input container's
+static `paddingBottom: insets.bottom + 8 (≈42)` then renders as a ~34px gap
+between the input bar and the top of the keyboard, and because that static
+padding doesn't animate, the input visually "trails" the keyboard rise.
+
+S153 fixed the **keyboard-closed** double-inset correctly. It did not fix the
+**keyboard-open** case, which needed a second condition.
+
+### Fix
+
+Subscribe to `Keyboard.addListener` (`keyboardWillShow/Hide` on iOS,
+`keyboardDidShow/Hide` on Android), store `keyboardVisible` in state, and
+conditionally apply `paddingBottom: keyboardVisible ? 8 : insets.bottom + 8`
+on the outer input container. `keyboardVerticalOffset` stays at `0` per the
+hard-requirement lock in ChatScreen.tsx.
+
+### Do NOT attempt again
+
+- Changing `keyboardVerticalOffset` to `-insets.bottom` — breaks re-entry from
+  attachments/compose modes and conflicts with the hard-requirement lock.
+- Setting the input's `paddingBottom` to a single static value — there is no
+  static value that correctly handles both the closed and open keyboard states.
+
+---
+
 ## BUG-003 — CreateDealChat still animates as sheet
 
 **Component:** `components/InboxStack.tsx`
@@ -98,12 +171,23 @@ which visually read as a sheet even though structurally it was a card.
 
 1. **Build 41 (S153) — Remove `animation: 'slide_from_bottom'`.** One-line change:
    deleted the entire `options` prop so the screen inherits the navigator's default
-   `slide_from_right`. **Result:** FIXED.
+   `slide_from_right`. **Result:** partial — navigation animation fixed, but the
+   screen's internal chrome (plain `View` root with manual `insets.top`, title
+   left-aligned with right-side `X` button) still *looked* like a bottom sheet on
+   device, which read as "still modal" in Build 42 QA.
+2. **Build 42 (S154) — Normalize header chrome to standard pushed-screen pattern.**
+   Swapped root `View` → `SafeAreaView edges={['top']}`, removed manual
+   `paddingTop: 8 + insets.top`, replaced the X button with a back chevron, and
+   rebuilt the title row as `[Back 44×44][Title flex:1 centered][44×44 spacer]`.
+   **Result:** FIXED.
 
 ### Do NOT attempt again
 
 - Setting `animation: 'slide_from_bottom'` on a non-modal card screen — always
   makes it look like a sheet regardless of presentation.
+- Keeping bottom-sheet header chrome (X button, left-aligned title, manual top
+  inset math) on a screen after removing its `fullScreenModal` presentation —
+  even with correct navigation, the chrome alone makes the screen read as modal.
 
 ---
 

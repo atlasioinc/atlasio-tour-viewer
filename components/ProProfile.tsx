@@ -34,8 +34,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useProfile, useConnectionStatus, useProfileVouches, useProfileStats, useSendConnectionRequest, useInboxThreads } from '../hooks/useData';
-import { Avatar, VerificationBadge, VerificationBanner, SkeletonBlock, SuccessToast } from './shared';
-import { useSuccessToast } from '../hooks/useSuccessToast';
+import { Avatar, VerificationBadge, VerificationBanner, SkeletonBlock } from './shared';
 import type { VerificationLevel } from '../types';
 import { mapProfileToProProfileData } from './proProfileHelpers';
 import PortfolioGallery from './PortfolioGallery';
@@ -299,8 +298,8 @@ const ProProfile: React.FC = () => {
   // @backend useProfileStats — gated by LIVE_PROFILE_HOOKS, mock fallback when false
   const { data: profileStats } = useProfileStats(resolvedProfileId);
   const sendConnectionRequest = useSendConnectionRequest();
-  // @ux success feedback — SuccessToast wired S149b
-  const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
+  // S154: connection request confirmation is the in-place "Request Sent ✓"
+  // button state (connectSent) — no toast needed for this screen.
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
   const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
@@ -355,8 +354,6 @@ const ProProfile: React.FC = () => {
       });
       setConnectSent(true);
       setConnectModalVisible(false);
-      // @ux success feedback — SuccessToast wired S149b
-      showSuccess('Request sent');
     } catch {
       setConnectModalVisible(false);
     }
@@ -985,9 +982,6 @@ const ProProfile: React.FC = () => {
           console.log('Invite sent from ProProfile:', { jobId, contractorId, message });
         }}
       />
-      {successMessage ? (
-        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
-      ) : null}
     </SafeAreaView>
   );
 };

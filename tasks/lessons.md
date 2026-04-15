@@ -218,21 +218,50 @@ context) but started double-counting once the card presentation took over.
 Applies to: any screen transitioning away from `fullScreenModal` to default card
 presentation. Audit all `SafeAreaView edges={['bottom']}` usage in that screen.
 
-## HARD REQUIREMENT — ChatScreen keyboard pattern (S152, April 14 2026; updated S153)
+## HARD REQUIREMENT — ChatScreen keyboard pattern (S152, April 14 2026; updated S153, S154)
 
 ```
-SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
-  > View(input container, paddingBottom: insets.bottom + 8)
+SafeAreaView(top) > KAV(padding, offset:0, flex:1)
+  > Header View
+  > Body (ScrollView or empty View, flex:1)
+  > View(input container, paddingBottom: keyboardVisible ? 8 : insets.bottom + 8)
     > View(input row — plain View, NOT SafeAreaView)
 ```
 
 `keyboardVerticalOffset` MUST be `0` after `fullScreenModal` was removed from
 `CreateDealChat` / `ChatScreen` registration in `InboxStack.tsx` (S151/S152).
+
 The bottom inset is owned by the outer input container via `useSafeAreaInsets()`
 paddingBottom — NEVER by a `SafeAreaView edges={['bottom']}` wrapper on the input
-row (that double-counts the inset; see S153 rule above).
-Never alter this structure. Any regression (empty space below input, or input
-hidden by keyboard): restore this exact pattern.
+row (that double-counts the inset when keyboard is closed; see S153 rule above).
+
+**S154 addition — keyboardVisible state:** With iOS `behavior='padding'`, KAV
+adds `paddingBottom = keyboardHeight` when the keyboard opens. The keyboard
+already covers the home-indicator area on notched devices, so the static
+`insets.bottom + 8` double-counts the notch and leaves a ~34px gap between the
+input bar and the keyboard. Fix: subscribe to `Keyboard.addListener` and drop
+`paddingBottom` to `8` while the keyboard is visible.
+
+```typescript
+const [keyboardVisible, setKeyboardVisible] = useState(false);
+useEffect(() => {
+  const showSub = Keyboard.addListener(
+    Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+    () => setKeyboardVisible(true),
+  );
+  const hideSub = Keyboard.addListener(
+    Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+    () => setKeyboardVisible(false),
+  );
+  return () => { showSub.remove(); hideSub.remove(); };
+}, []);
+// then: paddingBottom: keyboardVisible ? 8 : insets.bottom + 8
+```
+
+Never alter this structure. Any regression (empty space below input when keyboard
+open OR closed, or input hidden by keyboard): restore this exact pattern.
+**Do not** "fix" by changing `keyboardVerticalOffset` to a non-zero value —
+breaks re-entry from attachments/compose modes.
 
 ## Known terminal warning — not a bug
 
