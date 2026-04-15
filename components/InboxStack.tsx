@@ -70,10 +70,12 @@ const InboxStack: React.FC = () => (
         from CreateDealChat → DealChatScreen works naturally. Previously the
         modal layer persisted after replace, causing back from DealChatScreen
         to land on CreateDealChat instead of Inbox. */}
+    {/* S153: no options — inherits default slide_from_right from Stack.Navigator.
+        Previously used slide_from_bottom which made the screen still look like
+        a sheet after S152 removed fullScreenModal. */}
     <Stack.Screen
       name="CreateDealChat"
       component={CreateDealChat}
-      options={{ animation: 'slide_from_bottom' }}
     />
     <Stack.Screen
       name="DealChatScreen"

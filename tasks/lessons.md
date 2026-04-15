@@ -195,19 +195,44 @@ Correct: empty array during load, skeleton gate on `isLoading || isFetching`,
 then empty state on settled + no results. Applied to `SquadSlotPicker`,
 `VouchFeedSection`, `AgentDealsScreen`, `HomeTabAgent` active jobs in S151.
 
-## HARD REQUIREMENT — ChatScreen keyboard pattern (S152, April 14 2026)
+## RULE — SafeAreaView(bottom) double-counts inset inside a native stack screen without fullScreenModal (added S153, April 15 2026)
+
+When a screen is registered in a `@react-navigation/native-stack` stack with the
+default `card` presentation (no `fullScreenModal`), the screen already sits inside
+the navigator's safe-area context. Wrapping the bottom input row in
+`<SafeAreaView edges={['bottom']}>` then double-counts the bottom inset, leaving
+empty space below the input bar on notched devices.
+
+Pattern to follow:
+- Bottom inset is owned by the OUTER container's `paddingBottom: insets.bottom + 8`
+  via `useSafeAreaInsets()`.
+- The input row itself is a plain `<View>`, never a SafeAreaView.
+- Top inset still uses `<SafeAreaView edges={['top']}>` on the screen root — that
+  one does NOT double-count.
+
+S153 cost: Build 40 regression after S151/S152 removed `fullScreenModal` from
+`CreateDealChat` / `ChatScreen`. The pre-existing `SafeAreaView edges={['bottom']}`
+input row was fine under fullScreenModal (modal layer was outside safe-area
+context) but started double-counting once the card presentation took over.
+
+Applies to: any screen transitioning away from `fullScreenModal` to default card
+presentation. Audit all `SafeAreaView edges={['bottom']}` usage in that screen.
+
+## HARD REQUIREMENT — ChatScreen keyboard pattern (S152, April 14 2026; updated S153)
 
 ```
 SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
-  > View(input container) > SafeAreaView(bottom)(input row)
+  > View(input container, paddingBottom: insets.bottom + 8)
+    > View(input row — plain View, NOT SafeAreaView)
 ```
 
 `keyboardVerticalOffset` MUST be `0` after `fullScreenModal` was removed from
 `CreateDealChat` / `ChatScreen` registration in `InboxStack.tsx` (S151/S152).
+The bottom inset is owned by the outer input container via `useSafeAreaInsets()`
+paddingBottom — NEVER by a `SafeAreaView edges={['bottom']}` wrapper on the input
+row (that double-counts the inset; see S153 rule above).
 Never alter this structure. Any regression (empty space below input, or input
-hidden by keyboard): restore this exact pattern. Bug 6 in S152 Build 40 QA was
-fixed by locking this structure and adding a hard-requirement comment block at
-the top of the ChatScreen component. Do not touch.
+hidden by keyboard): restore this exact pattern.
 
 ## Known terminal warning — not a bug
 

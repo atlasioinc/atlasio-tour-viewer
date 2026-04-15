@@ -46,6 +46,31 @@
 
 ---
 
+## S153 — Build 41 QA Fixes (April 15, 2026)
+
+**Card:** ATL-QA-BUILD41 → ✅ Done
+
+**Files modified:**
+- `components/InboxStack.tsx` — **Fix 1**. Removed lingering `options={{ animation: 'slide_from_bottom' }}` from `CreateDealChat` screen registration (left over from pre-S152 fullScreenModal setup). The screen now inherits the navigator's default `slide_from_right`, matching the rest of InboxStack. One-line change.
+- `components/ChatScreen.tsx` — **Fix 2**. Removed `<SafeAreaView edges={['bottom']}>` wrapper around the input row; replaced with a plain `<View>`. Bottom inset is now owned by the outer input container's `paddingBottom: insets.bottom + 8` via a new `useSafeAreaInsets()` call. Imported `useSafeAreaInsets` alongside existing `SafeAreaView` import. Root cause: after S151/S152 removed `fullScreenModal` from `ChatScreen`'s registration, the screen started inheriting the navigator's safe-area context, which meant the inner `SafeAreaView edges={['bottom']}` double-counted the inset — leaving a strip of empty space below the input bar on notched devices. Updated the S152 hard-requirement comment block to reflect the new structure (plain View input row, insets on outer container). `keyboardVerticalOffset: 0`, top SafeAreaView, and KAV behavior are all unchanged.
+- `components/shared/SuccessToast.tsx` — **Fix 3**. Repositioned from bottom to top. Changed initial `slideAnim` from `100` → `-80` so the toast slides DOWN from above the top edge. Replaced `bottom: insets.bottom + 32` with `top: insets.top + 8`, added `minHeight: 48` for better visibility. Same spring values (speed 14, bounciness 6), same 3000ms auto-dismiss, same green accent bar + check icon + dismiss X. Updated the file header comment to reflect the new direction. `hooks/useSuccessToast.ts` unchanged — no position logic lives there.
+- `components/shared/AddressAutocompleteInput.tsx` — **Fix 4 (diagnostic)**. Wrapped `inputWrapperRef.current?.measureInWindow` in `setTimeout(..., 50)` so layout has time to settle before measuring — Build 40/41 QA showed that on first focus inside a `ScrollView`, `measureInWindow` intermittently returned `{0,0,0,0}`, and the existing `width > 0` guard then suppressed the dropdown entirely. Added a `__DEV__`-gated console.log inside the measure callback and a second render-time log tracking `dropdownVisible`, `showAutocomplete`, `suggestions.length`, and `inputLayout`. These diagnostics ship in Build 42 so we can see actual device behavior before committing to a deeper fix. The `width > 0` guard is preserved so we still don't render a zero-sized dropdown on the first stale measurement.
+- `tasks/lessons.md` — Added "RULE — SafeAreaView(bottom) double-counts inset inside a native stack screen without fullScreenModal (S153)" and updated the S152 HARD REQUIREMENT block to reflect the new input-row structure.
+
+**Key decisions:**
+- **Fix 2 root cause confirmed before touching code.** The empty-space-below-input symptom only appeared after `fullScreenModal` was removed from InboxStack (S151/S152). Under fullScreenModal the modal layer sat outside the safe-area context, so the inner `SafeAreaView edges={['bottom']}` was the only inset owner and was correct. Under card presentation the screen is inside the navigator's safe-area context, so both the outer stack AND the inner SafeAreaView applied the inset — double-counted. Moving inset ownership to the outer container's paddingBottom is the cleanest fix and matches the pattern used across the rest of the app.
+- **Fix 4 diagnostic-first, not blind fix.** The existing `width > 0` guard + `onLayout` + `onFocus` remeasure from S151/S152 is structurally correct. Rather than layering more speculative code, S153 ships logging to capture actual `measureInWindow` return values on device so Build 42 can make a data-driven decision. The 50ms delay is a low-risk improvement (lets layout settle) but is not sold as a complete fix.
+- **Fix 3 — top placement, not size increase.** Making the toast physically larger at the bottom would have competed with the bottom tab bar and CTAs. Top placement mirrors iOS system notifications, keeps it out of the way of interactive UI, and is dramatically more noticeable without needing a bigger box.
+
+**Feature flags:** **NOT RESET.** Build 41 QA state preserved per spec — `USE_MOCK_DATA: false`, `DEV_BYPASS_AUTH: false`, `DEV_SHOW_PASSWORD_LOGIN: true`. Flip back to demo defaults before the next investor demo.
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **0 new warnings** (7 pre-existing, unchanged from S152)
+- Count updates: Hooks = unchanged. RPCs = unchanged. Shared components = unchanged.
+
+---
+
 ## S152 — Build 40 QA Fixes (April 14, 2026)
 
 **Card:** ATL-QA-BUILD40 → ✅ Done

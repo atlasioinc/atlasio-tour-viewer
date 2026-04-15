@@ -62,10 +62,20 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
   const [inputLayout, setInputLayout] = useState<{ x: number; y: number; width: number; height: number }>(
     { x: 0, y: 0, width: 0, height: 0 },
   );
+  // S153: 50ms delay to let layout settle before measuring. Build 40/41 QA
+  // showed measureInWindow sometimes returned {0,0,0,0} on first focus inside
+  // a ScrollView — the width > 0 guard then suppressed the dropdown entirely.
   const measureInput = () => {
-    inputWrapperRef.current?.measureInWindow((x, y, width, height) => {
-      setInputLayout({ x, y, width, height });
-    });
+    setTimeout(() => {
+      inputWrapperRef.current?.measureInWindow((x, y, width, height) => {
+        if (__DEV__) {
+          console.log('[AddressAutocomplete] measureInWindow:', { x, y, width, height });
+        }
+        if (width > 0) {
+          setInputLayout({ x, y, width, height });
+        }
+      });
+    }, 50);
   };
 
   // Keep local query in sync if parent resets value (e.g. form clear)
@@ -140,6 +150,14 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
   // dropdown at {top:0, left:0, width:0} before onLayout fires. Without this
   // the dropdown was invisible (zero-sized) on first focus during Build 40 QA.
   const dropdownVisible = showAutocomplete && suggestions.length > 0 && inputLayout.width > 0;
+  if (__DEV__) {
+    console.log('[AddressAutocomplete] render:', {
+      dropdownVisible,
+      showAutocomplete,
+      suggestionsCount: suggestions.length,
+      inputLayout,
+    });
+  }
   const screenHeight = Dimensions.get('window').height;
   // Clamp dropdown height so it doesn't overflow the screen bottom
   const availableBelow = Math.max(120, screenHeight - (inputLayout.y + inputLayout.height) - 24);

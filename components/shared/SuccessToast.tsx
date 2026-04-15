@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // components/shared/SuccessToast.tsx
-// Success toast overlay — slides up from bottom, auto-dismisses after 3s (S149b).
+// Success toast overlay — slides down from top, auto-dismisses after 3s
+// (S149b; repositioned to top in S153 — was bottom, too small/easy to miss).
 //
 // What: Animated success notification used after positive user actions.
 // Who:  All roles, all screens.
@@ -56,11 +57,12 @@ const CheckCircleIcon: React.FC = () => (
 
 const SuccessToast: React.FC<SuccessToastProps> = ({ message, onDismiss }) => {
   const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(100)).current;
+  // S153: slide DOWN from above the top edge (negative translateY → 0).
+  const slideAnim = useRef(new Animated.Value(-80)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Slide up entrance — values per S149b visual spec.
+    // Slide down entrance from top (S153) — same spring values as S149b.
     Animated.spring(slideAnim, {
       toValue: 0,
       useNativeDriver: true,
@@ -94,9 +96,10 @@ const SuccessToast: React.FC<SuccessToastProps> = ({ message, onDismiss }) => {
     <Animated.View
       style={{
         position: 'absolute',
-        bottom: insets.bottom + 32,
+        top: insets.top + 8,
         left: 24,
         right: 24,
+        minHeight: 48,
         backgroundColor: COLORS.successToastBg,
         borderWidth: 1,
         borderColor: COLORS.successToastBorder,
