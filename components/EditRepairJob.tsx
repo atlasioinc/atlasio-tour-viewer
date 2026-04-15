@@ -16,14 +16,15 @@
 // @backend TODO: wire photo uploads to Supabase Storage
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
   StatusBar,
-  TextInput,
+  Image,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -34,43 +35,62 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Rect } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import type { HomeStackParamList } from './HomeStack';
-import type { Job, BidWithProfile } from '../types';
+import type { TradeEnum } from '../types';
 import { COLORS } from '../lib/tokens';
+import { supabase } from '../lib/supabase';
+import { useJob, useUpdateJob, useSetJobPhotos, useCancelJob } from '../hooks/useData';
+import { TRADE_LABEL_TO_ENUM, TRADE_ENUM_TO_LABEL, ALL_TRADE_LABELS } from '../lib/tradesMap';
 import FormField from './FormField';
 
 // ─────────────────────────────────────────────
-// DESIGN TOKENS (from Figma)
+// MODULE-SCOPE HELPERS
 // ─────────────────────────────────────────────
 
-// ─────────────────────────────────────────────
-// TRADE OPTIONS (matches FindTab + Onboarding)
-// ─────────────────────────────────────────────
+const formatDate = (date: Date): string => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+};
 
-const TRADE_OPTIONS = [
-  'General Contractor',
-  'Electrical',
-  'Plumbing',
-  'HVAC',
-  'Roofing',
-  'Carpentry / Handyman',
-  'Painting',
-  'Flooring',
-  'Windows & Doors',
-  'Foundation / Structural',
-  'Drywall / Sheetrock',
-  'Pest Control / Termite',
-  'Mold Remediation',
-  'Sewer / Septic',
-  'Pool & Spa',
-  'Chimney / Fireplace',
-  'Garage Door',
-  'Appliances',
-  'Landscaping / Drainage',
-  'Locksmith / Re-key',
-  'Cleaning / Junk Removal',
-  'Other',
-];
+// Two-phase photo upload helper — mirrors PostJobWizard.uploadJobPhotos (S157).
+// job-photos bucket RLS requires the job row to exist first. Called on Save AFTER
+// the update mutation completes. Partial failures per-photo are non-fatal.
+async function uploadJobPhotos(jobId: string, localUris: string[]): Promise<string[]> {
+  const uploadedPaths: string[] = [];
+
+  for (let i = 0; i < localUris.length; i++) {
+    try {
+      const uri = localUris[i];
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const arrayBuffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      // Use timestamp suffix to avoid collisions with existing photos under {jobId}/
+      const storagePath = `${jobId}/${Date.now()}-${i}.jpg`;
+
+      const { error } = await supabase.storage
+        .from('job-photos')
+        .upload(storagePath, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error(`[EditRepairJob.uploadJobPhotos] Upload failed for photo ${i}:`, error.message);
+        continue;
+      }
+
+      uploadedPaths.push(storagePath);
+    } catch (err) {
+      console.error(`[EditRepairJob.uploadJobPhotos] Unexpected error for photo ${i}:`, err);
+      continue;
+    }
+  }
+
+  return uploadedPaths;
+}
 
 type EditRepairJobRouteProp = RouteProp<HomeStackParamList, 'EditRepairJob'>;
 
@@ -114,10 +134,8 @@ const CloseXIcon: React.FC = () => (
 // ─────────────────────────────────────────────
 
 const PhotoThumbnail: React.FC<{ uri: string; onDelete: () => void }> = ({ uri, onDelete }) => (
-  <View style={{ width: 128, height: 128, borderRadius: 14, backgroundColor: '#C4B5A0', overflow: 'hidden' }}>
-    {/* Placeholder — in production this would be an <Image source={{ uri }} /> */}
-    <View style={{ width: 128, height: 128, backgroundColor: '#C4B5A0' }} />
-    {/* Delete button: 24×24 circle, top-right */}
+  <View style={{ width: 128, height: 128, borderRadius: 14, overflow: 'hidden' }}>
+    <Image source={{ uri }} style={{ width: 128, height: 128 }} resizeMode="cover" />
     <Pressable
       onPress={onDelete}
       hitSlop={8}
@@ -174,19 +192,72 @@ const EditRepairJob: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const route = useRoute<EditRepairJobRouteProp>();
   const insets = useSafeAreaInsets();
-  const { job } = route.params;
+  const { jobId } = route.params;
 
-  // ── Form State (pre-populated from job) ──
-  const [jobTitle, setJobTitle] = useState(job.title);
-  const [selectedTrades, setSelectedTrades] = useState<Set<string>>(new Set(job.category ? [job.category] : []));
-  const [dueDate, setDueDate] = useState(job.due_date.replace('Due ', ''));
-  const [budgetMin, setBudgetMin] = useState(job.budget_range?.split(' - ')[0]?.replace('$', '').replace(',', '') || '');
-  const [budgetMax, setBudgetMax] = useState(job.budget_range?.split(' - ')[1]?.replace('$', '').replace(',', '') || '');
-  const [description, setDescription] = useState(job.description);
-  const [photos, setPhotos] = useState<string[]>(['placeholder-1', 'placeholder-2', 'placeholder-3']);
+  // @backend — live fetch keyed on jobId per CLAUDE.md navigation rule
+  const { data: job, isLoading } = useJob(jobId);
+  const updateJob = useUpdateJob();
+  const setJobPhotosMutation = useSetJobPhotos();
+  const cancelJob = useCancelJob();
 
-  // Check if due date is urgent (within 7 days — demo: always show from job data)
-  const isUrgent = job.is_urgent;
+  // ── Form State (empty defaults — pre-fill runs in useEffect below) ──
+  const [jobTitle, setJobTitle] = useState('');
+  const [selectedTrades, setSelectedTrades] = useState<Set<string>>(new Set());
+  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [budgetMin, setBudgetMin] = useState('');
+  const [budgetMax, setBudgetMax] = useState('');
+  const [description, setDescription] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Photos — three arrays working together:
+  //   existingPhotoPaths — storage paths currently in jobs.photo_urls
+  //   signedPhotoUrls    — signed URLs generated for display of existing
+  //   newPhotos          — local URIs for photos picked this session
+  const [existingPhotoPaths, setExistingPhotoPaths] = useState<string[]>([]);
+  const [signedPhotoUrls, setSignedPhotoUrls] = useState<string[]>([]);
+  const [newPhotos, setNewPhotos] = useState<string[]>([]);
+
+  // Pre-fill effect — runs when live job data loads
+  useEffect(() => {
+    if (!job) return;
+    setJobTitle(job.title ?? '');
+    // Trades: map enum values (DB) → display labels (UI) via tradesMap
+    const tradeLabels = (job.trades ?? []).map(
+      (enumVal) => TRADE_ENUM_TO_LABEL[enumVal] ?? enumVal
+    );
+    setSelectedTrades(new Set(tradeLabels));
+    setDueDate(job.due_date ? new Date(job.due_date) : null);
+    setBudgetMin(job.budget_min != null ? String(job.budget_min) : '');
+    setBudgetMax(job.budget_max != null ? String(job.budget_max) : '');
+    setDescription(job.description ?? '');
+    setExistingPhotoPaths(job.photo_urls ?? []);
+  }, [job]);
+
+  // Signed URL effect — generate fresh signed URLs for private-bucket display
+  useEffect(() => {
+    if (!existingPhotoPaths.length) {
+      setSignedPhotoUrls([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const urls: string[] = [];
+      for (const path of existingPhotoPaths) {
+        const { data, error } = await supabase.storage
+          .from('job-photos')
+          .createSignedUrl(path, 3600);
+        if (error) {
+          console.warn('[EditRepairJob] createSignedUrl failed:', path, error.message);
+          continue;
+        }
+        if (data?.signedUrl) urls.push(data.signedUrl);
+      }
+      if (!cancelled) setSignedPhotoUrls(urls);
+    })();
+    return () => { cancelled = true; };
+  }, [existingPhotoPaths]);
 
   // Toggle trade selection
   const toggleTrade = (trade: string) => {
@@ -204,47 +275,94 @@ const EditRepairJob: React.FC = () => {
   // Determine if Save button should be active
   const hasChanges = jobTitle.trim().length > 0 && selectedTrades.size > 0;
 
-  // @demo Handle save — build updated job and navigate back via params (no mutation)
-  const handleSave = () => {
-    const updatedJob: Job & { bids: BidWithProfile[] } = {
-      ...job,
-      title: jobTitle,
-      category: Array.from(selectedTrades)[0] || job.category,
-      due_date: dueDate ? `Due ${dueDate}` : job.due_date,
-      budget_range: budgetMin && budgetMax
-        ? `$${Number(budgetMin).toLocaleString()} - $${Number(budgetMax).toLocaleString()}`
-        : job.budget_range,
-      description: description || job.description,
-    };
+  // @backend wired — useUpdateJob (direct table update) + two-phase photo sync
+  const handleSave = async () => {
+    if (!job?.id) return;
+    setIsSaving(true);
+    try {
+      // 1. Update core fields
+      await updateJob.mutateAsync({
+        jobId: job.id,
+        updates: {
+          title: jobTitle.trim(),
+          trades: Array.from(selectedTrades)
+            .map((label) => TRADE_LABEL_TO_ENUM[label] ?? label)
+            .filter(Boolean) as TradeEnum[],
+          due_date: dueDate ? dueDate.toISOString().split('T')[0] : job.due_date,
+          budget_min: budgetMin ? parseInt(budgetMin, 10) : job.budget_min,
+          budget_max: budgetMax ? parseInt(budgetMax, 10) : job.budget_max,
+          description: description.trim(),
+        },
+      });
 
-    // Navigate back to RepairJobDetails with updated job data
-    // Using navigate (not goBack) so we can pass new params
-    navigation.navigate('RepairJobDetails', { job: updatedJob });
+      // 2. Photo sync — upload any new photos, then commit full path array
+      const allPaths = [...existingPhotoPaths];
+      if (newPhotos.length > 0) {
+        try {
+          const uploadedPaths = await uploadJobPhotos(job.id, newPhotos);
+          allPaths.push(...uploadedPaths);
+        } catch (uploadErr) {
+          console.warn('[EditRepairJob] uploadJobPhotos failed (non-fatal):', uploadErr);
+        }
+      }
+      const originalSorted = [...(job.photo_urls ?? [])].sort();
+      const newSorted = [...allPaths].sort();
+      const pathsChanged =
+        originalSorted.length !== newSorted.length ||
+        originalSorted.some((p, i) => p !== newSorted[i]);
+      if (pathsChanged) {
+        try {
+          await setJobPhotosMutation.mutateAsync({ jobId: job.id, photoUrls: allPaths });
+        } catch (photoErr) {
+          console.warn('[EditRepairJob] rpc_set_job_photos failed (non-fatal):', photoErr);
+        }
+      }
+
+      navigation.goBack();
+    } catch (err) {
+      console.error('[EditRepairJob] Save failed:', err);
+      Alert.alert('Save Failed', 'Could not save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // @demo Handle delete — Alert + console.log only, no backend call
+  // @backend wired — useCancelJob → rpc_cancel_job (soft cancel, withdraws bids)
   const handleDelete = () => {
     Alert.alert(
-      'Delete Job',
-      'Are you sure you want to delete this repair job? This action cannot be undone.',
+      'Cancel Job',
+      'This will cancel the job and withdraw all pending bids. This cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Keep Job', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Cancel Job',
           style: 'destructive',
-          onPress: () => {
-            console.log('Delete repair job:', job.id);
-            // Pop back to home — goBack twice (past RepairJobDetails)
-            navigation.goBack();
-            navigation.goBack();
+          onPress: async () => {
+            if (!job?.id) return;
+            setIsCancelling(true);
+            try {
+              await cancelJob.mutateAsync(job.id);
+              // Pop past RepairJobDetails back to Home
+              navigation.goBack();
+              navigation.goBack();
+            } catch (err) {
+              console.error('[EditRepairJob] Cancel failed:', err);
+              Alert.alert('Error', 'Could not cancel job. Please try again.');
+            } finally {
+              setIsCancelling(false);
+            }
           },
         },
       ]
     );
   };
 
-  // Handle add photo
+  // Handle add photo — caps at 6 total (existing + new)
   const handleAddPhoto = async () => {
+    if (existingPhotoPaths.length + newPhotos.length >= 6) {
+      Alert.alert('Limit Reached', 'You can have up to 6 photos per job.');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -252,14 +370,29 @@ const EditRepairJob: React.FC = () => {
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
-      setPhotos((prev) => [...prev, result.assets[0].uri]);
+      setNewPhotos((prev) => [...prev, result.assets![0].uri]);
     }
   };
 
-  // Handle remove photo
-  const removePhoto = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  // Remove an existing photo (deletes from pending DB path array; not uploaded yet)
+  const removeExistingPhoto = (index: number) => {
+    setExistingPhotoPaths((prev) => prev.filter((_, i) => i !== index));
+    setSignedPhotoUrls((prev) => prev.filter((_, i) => i !== index));
   };
+
+  // Remove a newly-picked photo (discards local URI before upload)
+  const removeNewPhoto = (index: number) => {
+    setNewPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Loading guard — shows spinner while live job data is fetching
+  if (isLoading || !job) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -267,54 +400,72 @@ const EditRepairJob: React.FC = () => {
 
       {/* ══════════════════════════════════════════
           HEADER: ← Edit Job | Save
+          Absolute-centered title pattern
           ══════════════════════════════════════════ */}
       <View
         style={{
-          paddingTop: 8 + insets.top,
-          paddingLeft: 8,
-          paddingRight: 16,
-          paddingBottom: 12,
+          height: 48 + insets.top,
+          paddingTop: insets.top,
           backgroundColor: COLORS.background,
-          borderBottomWidth: 0.7,
+          borderBottomWidth: 0.68,
           borderBottomColor: COLORS.border,
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',
         }}
       >
-        {/* Back */}
+        {/* Back — 44×44 touch target */}
         <Pressable
           onPress={() => navigation.goBack()}
-          hitSlop={12}
           style={({ pressed }) => ({
-            width: 36, height: 36, borderRadius: 10,
-            alignItems: 'center', justifyContent: 'center',
+            width: 44,
+            height: 44,
+            alignItems: 'center',
+            justifyContent: 'center',
             opacity: pressed ? 0.5 : 1,
           })}
         >
           <BackIcon />
         </Pressable>
 
-        {/* Title: "Edit Job" — 16px, 500, #003DC3 */}
-        <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.primary, lineHeight: 24 }}>
+        {/* Title — absolute-centered so it's always the visual middle */}
+        <Text
+          style={{
+            position: 'absolute',
+            top: insets.top,
+            left: 0,
+            right: 0,
+            height: 48,
+            lineHeight: 48,
+            textAlign: 'center',
+            fontSize: 17,
+            fontWeight: '600',
+            color: COLORS.darkText,
+          }}
+        >
           Edit Job
         </Text>
 
-        {/* Save — gray when no changes, blue when active */}
-        <Pressable
-          onPress={hasChanges ? handleSave : undefined}
-          hitSlop={12}
-          style={({ pressed }) => ({
-            borderRadius: 10,
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            opacity: pressed && hasChanges ? 0.5 : 1,
-          })}
-        >
-          <Text style={{ fontSize: 16, fontWeight: '500', color: hasChanges ? COLORS.primary : COLORS.lightText, lineHeight: 24, textAlign: 'center' }}>
-            Save
-          </Text>
-        </Pressable>
+        {/* Save — right-aligned, disabled while saving or cancelling */}
+        <View style={{ flex: 1, alignItems: 'flex-end', paddingRight: 16 }}>
+          <Pressable
+            onPress={hasChanges && !isSaving && !isCancelling ? handleSave : undefined}
+            hitSlop={12}
+            style={({ pressed }) => ({
+              opacity: pressed && hasChanges && !isSaving && !isCancelling ? 0.5 : 1,
+            })}
+          >
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: hasChanges && !isSaving && !isCancelling ? COLORS.primary : COLORS.lightText,
+                lineHeight: 24,
+              }}
+            >
+              {isSaving ? 'Saving…' : 'Save'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* ══════════════════════════════════════════
@@ -347,7 +498,7 @@ const EditRepairJob: React.FC = () => {
             </Text>
             {/* Pills — wrapping, 40px height, 12px gap */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-              {TRADE_OPTIONS.map((trade) => {
+              {ALL_TRADE_LABELS.map((trade) => {
                 const isActive = selectedTrades.has(trade);
                 return (
                   <Pressable
@@ -380,36 +531,55 @@ const EditRepairJob: React.FC = () => {
             <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.darkText, lineHeight: 20 }}>
               Due Date
             </Text>
-            {/* Show urgent pill if date is soon */}
-            {isUrgent && dueDate.trim().length > 0 && (
+            {/* Urgent pill — stays when job flagged urgent AND a date is set */}
+            {job.is_urgent && dueDate && (
               <View style={{ alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.urgentBg, borderRadius: 9999 }}>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.urgentText, lineHeight: 20, textAlign: 'center' }}>
-                  Due {dueDate}
+                  Due {formatDate(dueDate)}
                 </Text>
               </View>
             )}
-            <View
+            <Pressable
+              onPress={() => setShowDatePicker(!showDatePicker)}
               style={{
                 paddingHorizontal: 14,
                 paddingVertical: 12,
                 backgroundColor: COLORS.inputBackground,
                 borderRadius: 10,
                 borderWidth: 0.68,
-                borderColor: dueDate.length > 0 ? COLORS.inputActiveBorder : COLORS.border,
+                borderColor: dueDate ? COLORS.inputActiveBorder : COLORS.border,
                 flexDirection: 'row',
                 alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              <TextInput
-                value={dueDate}
-                onChangeText={setDueDate}
-                placeholder="MM/DD/YYYY"
-                placeholderTextColor={COLORS.bodyText}
-                style={{ flex: 1, fontSize: 15, fontWeight: '400', color: COLORS.darkText, lineHeight: 20 }}
-                keyboardType="numbers-and-punctuation"
-              />
+              <Text style={{ fontSize: 15, fontWeight: '400', color: dueDate ? COLORS.darkText : COLORS.bodyText, lineHeight: 20 }}>
+                {dueDate ? formatDate(dueDate) : 'Select date'}
+              </Text>
               <CalendarIcon />
-            </View>
+            </Pressable>
+            {showDatePicker && (
+              <View style={{ alignItems: 'center' }}>
+                <DateTimePicker
+                  value={dueDate ?? new Date(Date.now() + 7 * 86400000)}
+                  mode="date"
+                  display="inline"
+                  themeVariant="light"
+                  minimumDate={new Date()}
+                  onChange={(event, date) => {
+                    if (Platform.OS === 'android') {
+                      setShowDatePicker(false);
+                    }
+                    if (event.type === 'set' && date) {
+                      setDueDate(date);
+                      setShowDatePicker(false);
+                    } else if (event.type === 'dismissed') {
+                      setShowDatePicker(false);
+                    }
+                  }}
+                />
+              </View>
+            )}
           </View>
 
           {/* ── Budget (Min – Max) ── */}
@@ -423,7 +593,8 @@ const EditRepairJob: React.FC = () => {
                   label=""
                   value={budgetMin}
                   onChangeText={setBudgetMin}
-                  placeholder="800"
+                  placeholder="Min"
+                  placeholderTextColor={COLORS.lightText}
                   prefix="$"
                   keyboardType="numeric"
                 />
@@ -434,7 +605,8 @@ const EditRepairJob: React.FC = () => {
                   label=""
                   value={budgetMax}
                   onChangeText={setBudgetMax}
-                  placeholder="1,500"
+                  placeholder="Max"
+                  placeholderTextColor={COLORS.lightText}
                   prefix="$"
                   keyboardType="numeric"
                 />
@@ -462,14 +634,26 @@ const EditRepairJob: React.FC = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12 }}
             >
-              {photos.map((photo, index) => (
+              {/* Existing photos — signed URLs from DB */}
+              {signedPhotoUrls.map((uri, index) => (
                 <PhotoThumbnail
-                  key={`photo-${index}`}
-                  uri={photo}
-                  onDelete={() => removePhoto(index)}
+                  key={`existing-${index}`}
+                  uri={uri}
+                  onDelete={() => removeExistingPhoto(index)}
                 />
               ))}
-              <AddPhotoButton onPress={handleAddPhoto} />
+              {/* New photos picked this session — local URIs */}
+              {newPhotos.map((uri, index) => (
+                <PhotoThumbnail
+                  key={`new-${index}`}
+                  uri={uri}
+                  onDelete={() => removeNewPhoto(index)}
+                />
+              ))}
+              {/* Add button — cap at 6 total */}
+              {existingPhotoPaths.length + newPhotos.length < 6 && (
+                <AddPhotoButton onPress={handleAddPhoto} />
+              )}
             </ScrollView>
           </View>
         </ScrollView>
@@ -492,9 +676,10 @@ const EditRepairJob: React.FC = () => {
           borderTopColor: COLORS.border,
         }}
       >
-        {/* Delete Job: white bg, red border 1.37px, 50px height, rounded 14 */}
+        {/* Cancel Job: white bg, red border 1.37px, 50px height, rounded 14 */}
         <Pressable
           onPress={handleDelete}
+          disabled={isCancelling}
           style={({ pressed }) => ({
             height: 51,
             backgroundColor: COLORS.background,
@@ -503,12 +688,11 @@ const EditRepairJob: React.FC = () => {
             borderColor: COLORS.rejectRed,
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: pressed ? 0.7 : 1,
+            opacity: pressed && !isCancelling ? 0.7 : isCancelling ? 0.5 : 1,
           })}
         >
-          {/* Text: 16px, 500, #E7000B */}
           <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.rejectRed, lineHeight: 24, textAlign: 'center' }}>
-            Delete Job
+            {isCancelling ? 'Cancelling…' : 'Cancel Job'}
           </Text>
         </Pressable>
       </View>

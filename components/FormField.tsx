@@ -67,6 +67,8 @@ export interface FormFieldProps {
   secureTextEntry?: boolean;
   /** Text alignment inside the input (e.g. 'center' for budget fields) */
   textAlign?: 'left' | 'center' | 'right';
+  /** Optional placeholder text color override. Defaults to COLORS.bodyText. */
+  placeholderTextColor?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -91,6 +93,7 @@ const FormField: React.FC<FormFieldProps> = ({
   autoCorrect,
   secureTextEntry,
   textAlign,
+  placeholderTextColor,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const hasError = !!error;
@@ -149,7 +152,7 @@ const FormField: React.FC<FormFieldProps> = ({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.bodyText}
+          placeholderTextColor={placeholderTextColor ?? COLORS.bodyText}
           style={{
             flex: prefix ? 1 : undefined,
             fontSize: 15,

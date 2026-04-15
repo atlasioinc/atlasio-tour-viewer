@@ -23,7 +23,6 @@ import PostJobWizard from './PostJobWizard';
 import SendSquadScreen from './SendSquadScreen';
 import PostPhotoJobScreen from './PostPhotoJobScreen';
 import PostStagingJobScreen from './PostStagingJobScreen';
-import type { Job, BidWithProfile } from '../types';
 import type { ProProfileData } from './ProProfile';
 import type { SquadProCandidate } from './SquadSlotPicker';
 import JobCompletionScreen from './JobCompletionScreen';
@@ -55,10 +54,10 @@ interface SquadSlot {
 export type HomeStackParamList = {
   HomeMain: undefined;
   RepairJobDetails: {
-    job: Job & { bids: BidWithProfile[] };
+    jobId: string;
   };
   EditRepairJob: {
-    job: Job & { bids: BidWithProfile[] };
+    jobId: string;
   };
   RepairChatScreen: {
     bidId: string;

@@ -51,8 +51,8 @@ import type { Job, BidWithProfile, BidStatus, JobStatus } from '../types';
 import InviteContractorsModal from './InviteContractorsModal';
 import InfoBanner from './InfoBanner';
 import { COLORS } from '../lib/tokens';
-import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useJob, useJobBids } from '../hooks/useData';
+import { supabase } from '../lib/supabase';
 import { useRealtimeBids } from '../hooks/useRealtime';
 import { Avatar, PhotoLightbox, VerificationBanner, EmptyState, MomentBanner } from './shared';
 import { useMomentBanner } from '../hooks/useMomentBanner';
@@ -520,9 +520,20 @@ const RepairJobDetails: React.FC = () => {
   const route = useRoute<RepairJobDetailsRouteProp>();
   const insets = useSafeAreaInsets();
 
-  const [job, setJob] = useState<JobWithBidProfiles>(route.params.job);
-  // Photos shown in strip + lightbox — falls back to DEMO_PHOTOS when job has none
-  const displayPhotos = job.photo_urls?.length ? job.photo_urls : DEMO_PHOTOS;
+  // S157b — route param is now jobId (CLAUDE.md rule), live fetch via useJob.
+  // Local `job` state is preserved so existing @demo optimistic bid handlers
+  // (handleAcceptBid/handleCounterBid/handleRejectBid) keep working unchanged.
+  // Tech-debt: the 4 @demo bid handlers will be rewired to real hooks in a
+  // follow-up session (see Notion ATL-CONTRACTOR-TRADES-3 sibling ticket).
+  const { jobId } = route.params;
+  const { data: jobData, isLoading: isLoadingJob } = useJob(jobId);
+  const { data: liveBids } = useJobBids(jobId);
+  useRealtimeBids(jobId);
+
+  const [job, setJob] = useState<JobWithBidProfiles | null>(null);
+  // Photos shown in strip + lightbox — signed URLs generated from private bucket paths.
+  // Falls back to DEMO_PHOTOS when the job has no uploaded photos.
+  const [displayPhotos, setDisplayPhotos] = useState<string[]>(DEMO_PHOTOS);
   const [selectedSort, setSelectedSort] = useState('Recommended');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
@@ -533,26 +544,42 @@ const RepairJobDetails: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
-  // ── Live data hooks (keep cache warm) ──
-  const { data: liveJob } = useJob(route.params.job.id);
-  const { data: liveBids } = useJobBids(route.params.job.id);
-  useRealtimeBids(route.params.job.id);
-
-  React.useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      const updatedJob = route.params?.job;
-      if (updatedJob) setJob(updatedJob);
-    });
-    return unsubscribe;
-  }, [navigation, route.params?.job]);
-
+  // Seed local job state when live fetch resolves
   useEffect(() => {
-    if (!FEATURE_FLAGS.USE_MOCK_DATA && liveJob) {
-      setJob({ ...liveJob, bids: liveBids ?? [] } as JobWithBidProfiles);
+    if (jobData) {
+      setJob({ ...jobData, bids: liveBids ?? [] } as JobWithBidProfiles);
     }
-  }, [liveJob, liveBids]);
+  }, [jobData, liveBids]);
 
-  const bids = job.bids as BidWithProfile[];
+  // Signed URL effect — private bucket, paths → fresh signed URLs on each mount
+  useEffect(() => {
+    const paths = job?.photo_urls;
+    if (!paths || paths.length === 0) {
+      setDisplayPhotos(DEMO_PHOTOS);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const urls: string[] = [];
+      for (const path of paths) {
+        const { data, error } = await supabase.storage
+          .from('job-photos')
+          .createSignedUrl(path, 3600);
+        if (error) {
+          console.warn('[RepairJobDetails] createSignedUrl failed:', path, error.message);
+          continue;
+        }
+        if (data?.signedUrl) urls.push(data.signedUrl);
+      }
+      if (!cancelled) setDisplayPhotos(urls.length > 0 ? urls : DEMO_PHOTOS);
+    })();
+    return () => { cancelled = true; };
+  }, [job?.photo_urls]);
+
+  // Safe bids derivation — keeps all downstream hooks (useMomentBanner, useRef,
+  // useEffect) running consistently even during the loading window when `job`
+  // is still null. Real loading guard moves to just before final return below.
+  const bids: BidWithProfile[] = (job?.bids ?? []) as BidWithProfile[];
 
   // ─── E4: First bid received Tier 2 delight (S150) ──────────────────
   // Fires when the agent's job receives its very first bid — i.e. when
@@ -595,7 +622,7 @@ const RepairJobDetails: React.FC = () => {
 
   // ── Derive job-level status from bid states ──
   const hasAcceptedBid = bids.some((b) => b.status === 'accepted');
-  const effectiveJobStatus: JobStatus = job.status || (hasAcceptedBid ? 'in_progress' : 'open');
+  const effectiveJobStatus: JobStatus = (job?.status ?? (hasAcceptedBid ? 'in_progress' : 'open')) as JobStatus;
   const isJobAwarded = effectiveJobStatus !== 'draft' && effectiveJobStatus !== 'open';
   const acceptedBid = bids.find((b) => b.status === 'accepted');
 
@@ -626,7 +653,7 @@ const RepairJobDetails: React.FC = () => {
             : 'pending',
         sublabel:
           effectiveJobStatus === 'in_progress' || effectiveJobStatus === 'awarded'
-            ? `Due ${job.due_date}`
+            ? `Due ${job?.due_date ?? ''}`
             : undefined,
       },
       {
@@ -660,7 +687,7 @@ const RepairJobDetails: React.FC = () => {
   const handleTimelineStepTap = (stepIndex: number) => {
     if (effectiveJobStatus === 'pending_completion' && stepIndex === 3) {
       navigation.navigate('JobCompletion', {
-        jobId: job.id,
+        jobId: job!.id,
         userRole: 'agent',
       });
     }
@@ -677,13 +704,13 @@ const RepairJobDetails: React.FC = () => {
     const currentIndex = JOB_STATUS_SEQUENCE.indexOf(effectiveJobStatus);
     const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % JOB_STATUS_SEQUENCE.length : 0;
     const nextStatus = JOB_STATUS_SEQUENCE[nextIndex];
-    setJob((prev) => ({ ...prev, status: nextStatus }));
+    setJob((prev) => (prev ? { ...prev, status: nextStatus } : prev));
   };
 
   // @demo DEV: Open contractor view directly ──
   const handleOpenContractorView = () => {
     navigation.navigate('JobCompletion', {
-      jobId: job.id,
+      jobId: job!.id,
       userRole: 'contractor',
     });
   };
@@ -694,8 +721,8 @@ const RepairJobDetails: React.FC = () => {
       bidId: bid.id,
       bidderName: bid.name,
       bidderAvatarColor: bid.avatar_color,
-      jobId: job.id,
-      jobTitle: job.title,
+      jobId: job!.id,
+      jobTitle: job!.title,
     });
   };
 
@@ -745,13 +772,13 @@ const RepairJobDetails: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 600));
       console.log('ACCEPT BID →', {
         bidId: selectedBid.id,
-        jobId: job.id,
+        jobId: job!.id,
         amountCents: priceToCents(selectedBid.price),
         feeCents: calculateFee(priceToCents(selectedBid.price)),
       });
 
       // Optimistic UI: update bid status + job status
-      setJob(prev => ({
+      setJob(prev => prev ? ({
         ...prev,
         status: 'in_progress' as JobStatus,
         awarded_bid_id: selectedBid.id,
@@ -760,7 +787,7 @@ const RepairJobDetails: React.FC = () => {
             ? { ...b, status: 'accepted' as BidStatus }
             : { ...b, status: 'rejected' as BidStatus }
         ) as BidWithProfile[],
-      }));
+      }) : prev);
 
       closeBidAction();
     } catch {
@@ -796,20 +823,20 @@ const RepairJobDetails: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 600));
       console.log('COUNTER BID →', {
         bidId: selectedBid.id,
-        jobId: job.id,
+        jobId: job!.id,
         originalCents,
         counterCents,
         counterDisplay: centsToDisplay(counterCents),
       });
 
-      setJob(prev => ({
+      setJob(prev => prev ? ({
         ...prev,
         bids: prev.bids.map(b =>
           b.id === selectedBid.id
             ? { ...b, status: 'countered' as BidStatus }
             : b
         ) as BidWithProfile[],
-      }));
+      }) : prev);
 
       closeBidAction();
     } catch {
@@ -827,17 +854,17 @@ const RepairJobDetails: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 600));
       console.log('REJECT BID →', {
         bidId: selectedBid.id,
-        jobId: job.id,
+        jobId: job!.id,
       });
 
-      setJob(prev => ({
+      setJob(prev => prev ? ({
         ...prev,
         bids: prev.bids.map(b =>
           b.id === selectedBid.id
             ? { ...b, status: 'rejected' as BidStatus }
             : b
         ) as BidWithProfile[],
-      }));
+      }) : prev);
 
       closeBidAction();
     } catch {
@@ -846,6 +873,16 @@ const RepairJobDetails: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Loading guard — placed after all hook calls to comply with rules of hooks.
+  // All useState/useEffect/useRef/useMemo above run every render; JSX branches here.
+  if (isLoadingJob || !job) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -983,7 +1020,15 @@ const RepairJobDetails: React.FC = () => {
                 {job.bid_deadline && (
                   <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
                     Bids due:{' '}
-                    <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{job.bid_deadline}</Text>
+                    <Text style={{ fontWeight: '500', color: COLORS.headingText }}>
+                      {new Date(job.bid_deadline).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true,
+                      })}
+                    </Text>
                   </Text>
                 )}
               </View>
@@ -1366,7 +1411,7 @@ const RepairJobDetails: React.FC = () => {
             <TouchableOpacity
               onPress={() => {
                 setShowActionMenu(false);
-                navigation.navigate('EditRepairJob', { job });
+                navigation.navigate('EditRepairJob', { jobId: job.id });
               }}
               activeOpacity={0.7}
               style={{

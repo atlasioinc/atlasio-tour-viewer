@@ -25,14 +25,37 @@
  * be rejected by Postgres as invalid enum values.
  */
 export const TRADE_LABEL_TO_ENUM: Record<string, string> = {
+  // Contractor-profile labels (S148a — ATL-119 fix, 7 mislabels)
   'Electrician':        'Electrical',
   'Plumber':            'Plumbing',
   'Roofer':             'Roofing',
-  'General Contractor': 'General Contractor',   // identity — verified in schema.sql
-  'HVAC':               'HVAC',                 // identity — verified in schema.sql
   'Painter':            'Painting',
   'Landscaper':         'Landscaping / Drainage',
   'Driveway/Paving':    'Driveway / Paving',
+
+  // Identity mappings — labels that already match trades_enum verbatim.
+  // Verified against sql/schema.sql lines 109-123 (trades_enum definition).
+  // Added S157b to close ATL-120 (EditRepairJob side).
+  'General Contractor':      'General Contractor',
+  'HVAC':                    'HVAC',
+  'Carpentry / Handyman':    'Carpentry / Handyman',   // Legacy — kept for backward compat on existing rows
+  'Carpentry':               'Carpentry',
+  'Handyman':                'Handyman',
+  'Flooring':                'Flooring',
+  'Windows & Doors':         'Windows & Doors',
+  'Foundation / Structural': 'Foundation / Structural',
+  'Drywall / Sheetrock':     'Drywall / Sheetrock',
+  'Pest Control / Termite':  'Pest Control / Termite',
+  'Mold Remediation':        'Mold Remediation',
+  'Sewer / Septic':          'Sewer / Septic',
+  'Pool & Spa':              'Pool & Spa',
+  'Chimney / Fireplace':     'Chimney / Fireplace',
+  'Garage Door':             'Garage Door',
+  'Appliances':              'Appliances',
+  'Locksmith / Re-key':      'Locksmith / Re-key',
+  'Cleaning / Junk Removal': 'Cleaning / Junk Removal',
+  'Concrete / Masonry':      'Concrete / Masonry',
+  'Other':                   'Other',
 };
 
 /**
@@ -43,3 +66,11 @@ export const TRADE_LABEL_TO_ENUM: Record<string, string> = {
 export const TRADE_ENUM_TO_LABEL: Record<string, string> = Object.fromEntries(
   Object.entries(TRADE_LABEL_TO_ENUM).map(([label, enumVal]) => [enumVal, label])
 );
+
+/**
+ * Flat list of all UI labels — drives the chip grid in EditRepairJob.
+ * Order follows TRADE_LABEL_TO_ENUM declaration order: contractor-profile
+ * labels first, then the full identity-mapped job-side set. Consumers that
+ * want a custom order should import TRADE_LABEL_TO_ENUM and sort themselves.
+ */
+export const ALL_TRADE_LABELS: string[] = Object.keys(TRADE_LABEL_TO_ENUM);

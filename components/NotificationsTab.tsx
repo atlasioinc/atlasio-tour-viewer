@@ -25,8 +25,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
 import type { HomeStackParamList } from './HomeStack';
-import type { Job, BidWithProfile } from '../types';
-import { MOCK_REPAIR_JOBS } from './RepairJobsData';
 import { COLORS } from '../lib/tokens';
 import { Avatar, EmptyState } from './shared';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
@@ -412,15 +410,9 @@ const NotificationsTab: React.FC = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   }, []);
 
-  // ── Resolve a repair job by ID ──
-  // Production: this becomes an API call or cache lookup
-  // e.g., queryClient.getQueryData(['repair_job', jobId])
-  const resolveRepairJob = useCallback((jobId?: string): (Job & { bids: BidWithProfile[] }) | undefined => {
-    if (!jobId) return undefined;
-    return MOCK_REPAIR_JOBS.find((j) => j.id === jobId);
-  }, []);
-
   // ── Handle notification tap → mark read + deep link ──
+  // S157b: removed local resolveRepairJob helper — nav now passes only jobId,
+  // RepairJobDetails fetches via useJob(jobId).
   // Production: deep_link field maps to screen names,
   // entity IDs (job_id, chat_id, user_id) provide the route params.
   // When backend is ready, replace resolveRepairJob with API/cache lookup.
@@ -433,9 +425,8 @@ const NotificationsTab: React.FC = () => {
       case 'bid_accepted':
       case 'bid_rejected':
       case 'job_expired': {
-        const job = resolveRepairJob(notif.job_id);
-        if (job) {
-          navigation.navigate('RepairJobDetails', { job });
+        if (notif.job_id) {
+          navigation.navigate('RepairJobDetails', { jobId: notif.job_id });
         }
         break;
       }
@@ -459,7 +450,7 @@ const NotificationsTab: React.FC = () => {
       default:
         console.log('Nav to: Home');
     }
-  }, [markAsRead, resolveRepairJob, navigation]);
+  }, [markAsRead, navigation]);
 
   // ── Handle accept/reject connection request ──
   const handleAcceptConnection = useCallback((notif: Notification) => {

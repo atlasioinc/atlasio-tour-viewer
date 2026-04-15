@@ -403,6 +403,36 @@ the server RPC filter was widened to include `open`/`bidding`, the client would 
 type-check until the union was widened too. Prefer aliasing a shared enum (`JobStatus`)
 for row types that come from a server-side filter you might later change.
 
+## S157b — tradesMap single source of truth, scope-decision surfacing, signed URLs
+
+### `lib/tradesMap.ts` is the single source of truth for trade label↔enum mapping
+Never declare local `TRADE_OPTIONS` arrays in component files. ATL-119 (contractor profile) and ATL-120 (EditRepairJob/PostJobWizard) both originated from drifted local arrays. The map now exports `TRADE_LABEL_TO_ENUM`, `TRADE_ENUM_TO_LABEL`, and `ALL_TRADE_LABELS`. New screens that need a trade chip grid must import from `lib/tradesMap.ts`.
+
+**Why:** drift between component-local arrays and the Postgres `trades_enum` silently corrupts saves — Postgres rejects the enum cast, the error gets swallowed by an adjacent try/catch, and the UI reports fake success. We've now had this bug twice.
+
+**How to apply:** on new screens, `import { ALL_TRADE_LABELS, TRADE_LABEL_TO_ENUM, TRADE_ENUM_TO_LABEL } from '../lib/tradesMap';`. Use `ALL_TRADE_LABELS` for the chip grid. Map label→enum at save, enum→label at load. Never inline a new trade list.
+
+### Always surface UX-impacting scope decisions — never silently defer
+If a prompt instructs an approach that conflicts with a file's actual state, STOP and flag. S157b nearly shipped with a broken `ALL_TRADE_LABELS` import because the prompt assumed the export existed — surfaced as a blocker before writing code, user chose Option A, and ATL-120 got closed as a side-effect.
+
+**Why:** silently working around missing exports leaves the codebase in a worse state than flagging. The user has context you don't about whether to expand the missing piece or work around it.
+
+**How to apply:** when the prompt's stated state doesn't match the file's actual state, ask. Don't paper over. "The export you named doesn't exist — options: A/B/C" beats "quietly wrote TRADE_OPTIONS inline again."
+
+### Private Supabase buckets: store paths, generate signed URLs at display time
+`job-photos` is private. Persisting signed URLs in `jobs.photo_urls` would break after the TTL. Always write storage paths to the DB and call `createSignedUrl(path, 3600)` per path at mount time in a `useEffect` with a cancellation guard.
+
+**Why:** signed URL TTLs. A URL generated on Monday dies by Friday.
+
+**How to apply:** any screen that renders `photo_urls` from a private bucket needs a local `const [signedUrls, setSignedUrls] = useState<string[]>([])` + effect that iterates paths and calls `createSignedUrl`. Pattern used by EditRepairJob and RepairJobDetails (S157b).
+
+### Loading guards in components with many hooks: place after all hook calls
+If you need `if (!data) return <Spinner />` in a component that has 10+ hooks (useState/useEffect/useRef/useMemo/useCallback), place the early return AFTER all hook calls. Otherwise you violate rules-of-hooks — later hooks won't run on loading renders but will on subsequent renders, causing ordering bugs.
+
+**Why:** React hooks are position-tracked. Skipping hooks on loading renders creates a different hook order than post-load renders, which React detects and errors on.
+
+**How to apply:** move the `if (!data)` guard to just before the final `return (...)`. Use optional chaining or `data?.field ?? fallback` for any derived values in hook dependencies. Use `data!` non-null assertions inside event handlers (they only fire post-guard).
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

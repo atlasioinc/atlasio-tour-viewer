@@ -387,6 +387,33 @@ Newly posted job has `status = 'open'` in Supabase but does not appear in HomeTa
 
 ---
 
+## S157b — EditRepairJob + RepairJobDetails full wire
+
+**Status:** 🟢 RESOLVED S157b
+
+### What was broken (pre-S157b)
+- EditRepairJob was pure `@demo` — `handleSave` navigated with mock data via nav params; `handleDelete` was `console.log`; photos were hardcoded placeholder strings; trades pre-fill used the legacy `job.category` single-string field; budget parsed out of a formatted display string; header was off-center; due date was a raw TextInput typed as MM/DD/YYYY.
+- RepairJobDetails took a full `job` object via nav params (`useState(route.params.job)`) — always stale after edit. Photos treated `job.photo_urls` as ready-to-use URLs (broken for the private `job-photos` bucket after BUG-007). `bid_deadline` rendered as raw ISO string.
+- `useUpdateJob` missed `['agent_active_jobs']` in its invalidation set — same class of gap BUG-008 patched for `useCreateJob`.
+- ATL-120 latent bug: EditRepairJob declared its own local `TRADE_OPTIONS` array drifted from `trades_enum`.
+- "Delete Job" button was a `@backend TODO` despite `rpc_cancel_job` being live at schema.sql:1274.
+
+### Fix (S157b)
+- **Route params:** both screens take `{ jobId: string }`. Live data via `useJob(jobId)`. HomeTabAgent active-jobs card and NotificationsTab deep links updated.
+- **EditRepairJob rewrite:** pre-fill effect, signed-URL effect, absolute-centered header, `DateTimePicker`, real `<Image>` thumbnails, `ALL_TRADE_LABELS` from `lib/tradesMap.ts`, two-phase photo sync on save, cancel via `useCancelJob` → `rpc_cancel_job`.
+- **RepairJobDetails:** live `useJob(jobId)` with local state snapshot preserved (keeps the 4 existing `@demo` optimistic bid handlers working unchanged — minimum blast radius). Signed-URL effect, formatted `bid_deadline`, loading guard placed after all hook calls.
+- **tradesMap:** expanded `TRADE_LABEL_TO_ENUM` to the full `trades_enum` set (6 profile fixes + 19 identity mappings). Added `ALL_TRADE_LABELS`. Closes ATL-120 for EditRepairJob.
+- **FormField:** added backwards-compat optional `placeholderTextColor` prop.
+- **`useUpdateJob`:** now invalidates `['agent_active_jobs']`.
+- **New hook:** `useCancelJob(jobId)` — wraps `rpc_cancel_job` (already live). Soft cancel; withdraws pending bids; ownership verified server-side.
+
+### Non-obvious calls
+- **6 `setJob(` call sites** in RepairJobDetails were audited. 4 are `@demo` optimistic bid handlers (`setTimeout` + `console.log`) that should call the real `useAcceptBid`/`useCounterBid`/`useRejectBid` hooks but don't. Preserved unchanged this session — new Notion ticket created.
+- **Loading guard placement:** the early-return sits *after* all useState/useEffect/useRef calls to comply with rules-of-hooks.
+- **Null-safety:** 7 handler sites use `job!.id` / `job!.title` non-null assertion. Safe because handlers only fire post-guard.
+
+---
+
 ### CTA placement inside KAV (S155)
 CTA/submit buttons on form screens must always be **siblings of the ScrollView inside KeyboardAvoidingView**, never children of the ScrollView. This is how KAV pushes the CTA above the keyboard when a field is focused.
 

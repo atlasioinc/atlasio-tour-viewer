@@ -1108,6 +1108,28 @@ export const useUpdateJob = () => {
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: queryKeys.repairJob(variables.jobId) });
       qc.invalidateQueries({ queryKey: queryKeys.agentJobs });
+      qc.invalidateQueries({ queryKey: ['agent_active_jobs'] });
+    },
+  });
+};
+
+// STATUS: wired
+// @backend — rpc_cancel_job(p_job_id UUID)
+// Soft cancel: sets jobs.status='cancelled', withdraws pending/edited/countered bids.
+// Ownership verified server-side (auth.uid() = agent_id). Refuses completed jobs.
+export const useCancelJob = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const { error } = await supabase.rpc('rpc_cancel_job', { p_job_id: jobId });
+      if (error) throw error;
+      return jobId;
+    },
+    onSuccess: (jobId) => {
+      qc.invalidateQueries({ queryKey: ['agent_active_jobs'] });
+      qc.invalidateQueries({ queryKey: queryKeys.agentJobs });
+      qc.invalidateQueries({ queryKey: queryKeys.repairJobs });
+      qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
     },
   });
 };

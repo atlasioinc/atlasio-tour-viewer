@@ -39,7 +39,7 @@ import SquadSlotPicker, { SquadProCandidate } from './SquadSlotPicker';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HomeStackParamList } from './HomeStack';
-import type { AgentActiveJob, Job, BidWithProfile, JobStatus } from '../types';
+import type { AgentActiveJob, JobStatus } from '../types';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
@@ -1374,34 +1374,7 @@ const HomeTabAgent: React.FC = () => {
                   <ActiveJobCard
                     key={job.id}
                     job={job}
-                    onPress={() => navigation.push('RepairJobDetails', {
-                      job: {
-                        ...job,
-                        // @demo: stub missing Job fields — overwritten by useJob(jobId) on mount
-                        agent_id: '',
-                        description: '',
-                        photo_urls: [],
-                        awarded_bid_id: null,
-                        bid_deadline: null,
-                        max_bid_edits: 3,
-                        invited_contractor_ids: [],
-                        category: null,
-                        service_packages: null,
-                        turnaround_preference: null,
-                        sqft: null,
-                        occupied_or_vacant: null,
-                        rooms_count: null,
-                        staging_scope: null,
-                        agent_confirmed_at: null,
-                        completion_notes: null,
-                        proof_photo_urls: [],
-                        revision_notes: null,
-                        vouch_prompt_sent: false,
-                        updated_at: job.created_at,
-                        bids: [],
-                        // @backend: wire real bids when DEAL_CREATION_ENABLED=true
-                      } as Job & { bids: BidWithProfile[] },
-                    })}
+                    onPress={() => navigation.push('RepairJobDetails', { jobId: job.id })}
                   />
                 ))}
               </ScrollView>

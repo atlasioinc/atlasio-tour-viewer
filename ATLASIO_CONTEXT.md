@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S157 — April 15, 2026)
-- **RPCs:** 67 (+1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 66 (+1 S157: useSetJobPhotos; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+## Current Metrics (updated S157b — April 15, 2026)
+- **RPCs:** 67 (unchanged S157b — rpc_cancel_job was already live at schema.sql:1274, newly wired via useCancelJob; +1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
+- **Hooks:** 67 (+1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
@@ -97,6 +97,45 @@ Fix: Supabase `rpc_get_agent_active_jobs` widened to `('open','bidding','awarded
 - Device QA: post a new repair job with photos, confirm `jobs.photo_urls` populated in Supabase, confirm job appears immediately in Active Jobs with "Open for Bids" label in green
 - PhotoLightbox (S147) + RepairJobDetails photo render: generate signed URLs from the stored paths via `createSignedUrl` at display time — current consumers may still expect public URLs
 - Flip feature flags back to demo defaults before investor demo
+
+---
+
+## S157b — EditRepairJob + RepairJobDetails full wire (April 15, 2026)
+
+**Status:** 🟢 All scope items shipped. tsc 0, lint 0 new.
+
+**Files modified this session (9):**
+- `components/EditRepairJob.tsx` — full rewrite: route params → jobId, `useJob(jobId)` live fetch, pre-fill effect, signed-URL effect, absolute-centered header, DateTimePicker, real Image thumbnails, `ALL_TRADE_LABELS` from tradesMap, two-phase photo save, cancel via `useCancelJob`
+- `components/RepairJobDetails.tsx` — `useJob(jobId)` live fetch (keeps local `job` state for 4 preserved `@demo` optimistic bid handlers), signed-URL effect for private bucket, formatted `bid_deadline`, loading guard placed after all hooks, null-safe handler sites via `job!` assertions
+- `components/HomeStack.tsx` — `EditRepairJob` + `RepairJobDetails` params both narrowed to `{ jobId: string }`. Removed now-unused `Job`/`BidWithProfile` import
+- `components/HomeTabAgent.tsx` — active-jobs card nav simplified from 14-line `{ job: {...stubbed} }` to `{ jobId: job.id }`. Removed unused `Job`/`BidWithProfile` import
+- `components/NotificationsTab.tsx` — deep-link nav simplified to `{ jobId: notif.job_id }`. Removed local `resolveRepairJob` helper and its `Job`/`BidWithProfile`/`MOCK_REPAIR_JOBS` imports
+- `components/FormField.tsx` — added optional `placeholderTextColor` prop (backwards-compat for 7 other consumers)
+- `hooks/useData.ts` — new `useCancelJob` hook; `useUpdateJob` now invalidates `['agent_active_jobs']`
+- `lib/tradesMap.ts` — expanded to full schema set (25 entries); new `ALL_TRADE_LABELS` export
+- `tasks/atlasio-bug-history.md` — S157b block
+- `tasks/lessons.md` — 4 new rules: tradesMap single source, scope-decision surfacing, signed URLs for private buckets, loading guards after hook calls
+- `ATLASIO_CONTEXT.md` — this entry
+
+**Key decisions:**
+- Route params always pass `jobId`, never full `job` object (CLAUDE.md rule enforced on both screens)
+- Photos: storage paths stored in DB, signed URLs generated at display time via `createSignedUrl(path, 3600)` — private bucket
+- Minimum blast radius: RepairJobDetails keeps local `job` state snapshot seeded from `useJob` data. The 4 `@demo` optimistic bid handlers (`handleAcceptBid`/`handleCounterBid`/`handleRejectBid`/`handleSimulateProgress`) are preserved unchanged. Wiring them to real `useAcceptBid`/`useCounterBid`/`useRejectBid` is deferred to new Notion ticket ATL-CONTRACTOR-TRADES-3 follow-up (RepairJobDetails bid actions).
+- `useCancelJob` wraps existing `rpc_cancel_job` — soft cancel, withdraws pending bids, ownership verified server-side
+- tradesMap is the single source of truth — `ALL_TRADE_LABELS` drives the chip grid; `TRADE_LABEL_TO_ENUM` at save, `TRADE_ENUM_TO_LABEL` at load
+- FormField `placeholderTextColor` is backwards-compat — 7 other consumers unchanged
+- Direct table UPDATE on `jobs` is safe — RLS "Agents update own jobs" policy at schema.sql:604 gates on `auth.uid() = agent_id`
+- `useUpdateJob` now invalidates `['agent_active_jobs']` (same BUG-008-class gap that BUG-008 already fixed for `useCreateJob`)
+- Loading guard placed after all hook calls in RepairJobDetails to comply with rules-of-hooks (the component has 18+ hooks in its body)
+
+**Metrics:** RPCs 67 (unchanged — rpc_cancel_job already live), Hooks 66 → 67 (+1 useCancelJob), tsc 0, lint 0 new (7 pre-existing).
+
+**Closes:** ATL-120 (EditRepairJob side only; PostJobWizard → new follow-up ticket).
+
+### S157b — Next Objectives
+- Wire @demo bid action handlers in RepairJobDetails (accept/counter/reject) to real `useAcceptBid`/`useCounterBid`/`useRejectBid` hooks
+- PostJobWizard tradesMap migration (ATL-CONTRACTOR-TRADES-3 parallel)
+- Device QA: post job → edit → save → confirm live, cancel → confirm soft-cancel in Supabase
 
 ---
 
