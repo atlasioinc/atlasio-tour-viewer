@@ -55,6 +55,41 @@
 
 ---
 
+## S156 — BUG-001 RESOLVED (April 15, 2026)
+
+**Status:** 🟢 BUG-001 Address Autocomplete fully resolved across all 4 consumers after 7 failed attempts.
+
+**Root cause (two layers):**
+1. **Modal + focused TextInput** (S155 failure mode) — iOS stole keyboard focus every keystroke
+2. **Missing `response.ok` check** (ALL prior attempts' silent failure mode) — Google 4xx/5xx errors parsed as JSON, `data.suggestions` was undefined, `?? []` gave empty, UI silently showed "No matches." The 6 previous layout/rendering attempts never touched the data layer where the real bug lived.
+
+**Final fix (`781830f`):**
+- Rewrote `components/shared/AddressAutocompleteInput.tsx` with inline absolute-sibling dropdown pattern (no Modal), `response.ok` guard, `AbortController` for stale-response protection, `__DEV__` empty-key warn
+- Refactored `PostStagingJobScreen.tsx` back to use the shared component (removed inline pilot + Build 46 diagnostic logging)
+- Cleaned diagnostic logs from `ClientLifestyleScreen.tsx` but kept permanent `response.ok` guard
+- 3 other consumers (`PostPhotoJobScreen`, `PostJobWizard`, `CreateDealChat`) picked up the fix with zero code changes
+
+**Verification:**
+- ✅ Build 46 device test: PostStagingJobScreen + NeighborhoodMatch working
+- ✅ Dev client post-rewrite: PostPhotoJobScreen, PostJobWizard, CreateDealChat all working
+- ✅ Backend wiring validated: Supabase `jobs.address = "2950 Brighton Boulevard, Denver, CO, USA"` (full Google Places string, zero transformation)
+- ✅ `keyboardShouldPersistTaps="handled"` audited across all 4 consumers — clean
+
+**Permanent lesson added to `tasks/atlasio-bug-history.md`:**
+When a component appears to render empty, check whether it's receiving empty data or silently swallowing errors BEFORE touching layout code. Always gate `fetch` JSON parsing on `response.ok` and log error bodies when false.
+
+**Files modified this session:**
+- `components/shared/AddressAutocompleteInput.tsx` — full rewrite
+- `components/PostStagingJobScreen.tsx` — refactored back to shared component
+- `components/ClientLifestyleScreen.tsx` — permanent `response.ok` guard
+- `tasks/atlasio-bug-history.md` — Attempt 7 (S156 inline pilot) + Attempt 8 (S156 Build 46 root cause + resolution) + permanent lesson
+
+**Metrics:** unchanged (RPCs 66, Hooks 65, Edge Functions 11, tsc 0, lint 0 new).
+
+**Commits:** `98983d6` (inline pilot) → `1efd308` (Build 46 diagnostic) → `781830f` (rewrite + full rollout)
+
+---
+
 ## S155 — BUG-001 + BUG-002 + BUG-003 + BUG-006 Fixes (April 15, 2026)
 
 **Feature flags:** ✅ Reset to demo defaults (`USE_MOCK_DATA: true`, `DEV_BYPASS_AUTH: true`, `DEV_SHOW_PASSWORD_LOGIN: false`). S154's QA-mode overrides restored to stock demo state.

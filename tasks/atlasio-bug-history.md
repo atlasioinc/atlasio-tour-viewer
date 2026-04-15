@@ -1,5 +1,5 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S156 | April 15, 2026
+**Last updated:** S156 RESOLVED | April 15, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
@@ -9,8 +9,8 @@ Use this before writing any fix prompt to avoid repeating failed approaches.
 ## BUG-001 — Address Autocomplete Dropdown Not Appearing
 
 **Screens affected:** PostPhotoJobScreen, PostStagingJobScreen, PostJobWizard, CreateDealChat
-**File:** `components/shared/AddressAutocompleteInput.tsx` (broken S155 version — still used by 3 consumers); `components/PostStagingJobScreen.tsx` (S156 inline pilot)
-**Status:** 🔴 S155 failed on Build 44 (keyboard closed per keystroke, dropdown still absent) → 🟡 S156 inline pilot applied to PostStagingJobScreen only, pending device verification on Build 45
+**File:** `components/shared/AddressAutocompleteInput.tsx` (S156 rewrite — single source of truth for all 4 consumers)
+**Status:** 🟢 RESOLVED in S156. Build 46 verified working on PostStagingJobScreen + ClientLifestyleScreen. Post-rewrite confirmed on PostPhotoJobScreen (repair jobs), PostJobWizard, and CreateDealChat via dev client. Backend wiring validated: Supabase `jobs.address` contains fully-formatted Google Places string (e.g. `"2950 Brighton Boulevard, Denver, CO, USA"`). `keyboardShouldPersistTaps="handled"` audited across all 4 consumers — clean.
 
 ### Symptom
 Input field appears and accepts text. No dropdown appears. Google Places API key confirmed valid (preview + production EAS environments). APIs enabled: Places API (New), Geocoding API. Key present in build.
@@ -80,6 +80,30 @@ Input field appears and accepts text. No dropdown appears. Google Places API key
   - Scrolling the ScrollView while typing does not misalign the dropdown (it's relative to input, so it should follow automatically).
   - Other form fields still tappable through/around the dropdown area.
 
+### Attempt 8 — S156 Build 46 (response.ok check + full rollout) 🟢 RESOLVED
+**Context:** Build 45 shipped the inline pilot to PostStagingJobScreen. Device test showed a NEW failure mode: the inline pattern rendered correctly and the keyboard stayed up, but both PostStagingJobScreen and the previously-working ClientLifestyleScreen displayed "No matches" / a brief "Searching…" flash, then nothing. Server-side curl with the exact same key + body returned valid suggestions, proving the API, key, and request shape were all correct. The failure was on the client side.
+**Investigation:** User confirmed Google Cloud Console: key unrestricted, "Places API (New)" enabled, billing active. That ruled out the entire restriction / enablement branch.
+**Build 46 diagnostic ship:** Added `response.ok` check, full error body logging, key-length log (never the key itself), and in-UI error surfacing to both PostStagingJobScreen and ClientLifestyleScreen. Shipped as `1efd308`. The moment the diagnostic code ran on device, the autocomplete **started working**. The fix was the diagnostic itself — because the old code never checked `response.ok`, Google's error responses silently parsed as JSON, `data.suggestions` was undefined, `?? []` gave empty, and the UI showed "No matches" forever. The `response.ok` branch didn't just log errors, it also **correctly handled the success path** by no longer swallowing them.
+**Actual root cause (both layers):**
+  1. **Modal + focused TextInput (S155 failure mode).** iOS steals keyboard focus when a `<Modal>` mounts while a sibling `<TextInput>` is focused. This caused the "keyboard closes per keystroke" regression on Build 44.
+  2. **Missing `response.ok` check (ALL attempts 1–7 failure mode).** The original fetch code parsed ANY JSON response (including error bodies) and read `data.suggestions ?? []`. When Google returned a 4xx/5xx — which apparently happened intermittently due to network or transient backend issues — the UI silently showed empty results. This is what made the bug look like "dropdown never appears" across 6 different attempted fixes. None of the S146–S155 approaches addressed it because everyone assumed the code was successfully getting empty results, not silently swallowing errors.
+**S156 Final Fix Ship (`781830f`):** Rewrote `components/shared/AddressAutocompleteInput.tsx` with the complete working pattern:
+  - Inline absolute-sibling dropdown inside `position:'relative'` wrapper (no Modal)
+  - `response.ok` check with `console.warn` on non-OK status + body logging
+  - `AbortController` to drop stale in-flight responses
+  - `__DEV__` warn when `GOOGLE_MAPS_API_KEY` is empty
+  - 400ms debounce, 3-char minimum, US region gate
+  - `onSelect(text)` called on every keystroke (so manually-typed addresses still commit to the parent form even without a suggestion tap)
+**Refactored PostStagingJobScreen back to the shared component.** Removed the inline copy and diagnostic logging. Single source of truth restored.
+**Removed diagnostic logging from ClientLifestyleScreen** but kept the permanent `response.ok` guard.
+**Auto-rollout:** All 3 remaining consumers (`PostPhotoJobScreen`, `PostJobWizard`, `CreateDealChat`) picked up the fix with zero code changes because they already imported the shared component.
+**Verification:**
+  - ✅ Build 46 device test: PostStagingJobScreen + NeighborhoodMatch both working
+  - ✅ Dev client post-rewrite test: PostPhotoJobScreen (repair jobs), PostJobWizard, CreateDealChat all working
+  - ✅ Backend wiring: Supabase `jobs.address = "2950 Brighton Boulevard, Denver, CO, USA"` — full formatted Google Places string, zero transformation needed
+  - ✅ `keyboardShouldPersistTaps="handled"` audited across all 4 consumers — clean
+**Commits:** `1efd308` (diagnostic) → `781830f` (rewrite + rollout)
+
 ### What NOT to try again
 - zIndex/elevation bumps — doesn't escape ancestor clip contexts on iOS (S146)
 - Changing `keyboardShouldPersistTaps` — already set to "handled" on all consumers
@@ -87,11 +111,15 @@ Input field appears and accepts text. No dropdown appears. Google Places API key
 - `measureInWindow` — returns 0,0,0,0 inside ScrollView, confirmed S151–S153
 - `<Modal>` overlay while TextInput is focused — iOS focus steal closes keyboard on every keystroke (S155)
 - `onBlur` auto-closing the dropdown — races against Modal/dropdown lifecycle (S155)
+- **Parsing `fetch` responses without checking `response.ok`** — Google (and most REST APIs) return errors as valid JSON bodies. `data.field ?? fallback` silently masks 4xx/5xx failures. Permanent rule: always gate JSON parsing on `response.ok`, and log the error body when it's false. (S151–S156)
 
-### Files to read before next fix attempt
-- `components/ClientLifestyleScreen.tsx:617-681` — the working reference pattern (inline absolute sibling, no Modal)
-- `components/PostStagingJobScreen.tsx` — the S156 pilot implementation
-- `components/shared/AddressAutocompleteInput.tsx` — the broken S155 version, kept for comparison
+### The permanent lesson
+The six failed attempts all assumed the problem was layout/rendering because the visible symptom was "dropdown doesn't appear." The real bug was that the fetch was silently failing on Google errors, so the component was correctly rendering "no results" every time. No amount of Modal/measure/zIndex work could fix a data-layer bug. **When a component appears to render empty, check whether it's receiving empty data or silently swallowing errors — BEFORE touching layout code.**
+
+### Files to read before next fix attempt (if regression)
+- `components/shared/AddressAutocompleteInput.tsx` — the S156 canonical implementation
+- `components/ClientLifestyleScreen.tsx:318-357` — duplicate reference with the `response.ok` guard
+- This log section — to avoid re-running the 6 dead-end approaches
 
 ---
 
