@@ -530,6 +530,13 @@
 **Feature Flag:** None
 **Wiring:** ✅ Live (useThreadMessages + useSendMessage, Avatar wired S134 — shared component, 3 instances: size 40+36+64, initials fallback)
 
+**⚠️ Keyboard pattern — HARD REQUIREMENT (S152):**
+```
+SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
+  > View(input container) > SafeAreaView(bottom)(input row)
+```
+`keyboardVerticalOffset` MUST be `0` after `fullScreenModal` was removed from InboxStack (S151/S152). Do not alter this structure — regressions manifest as empty space below the input or input hidden by the keyboard. Hard-requirement comment block lives above the `return` statement in the component; see `tasks/lessons.md` for full rationale.
+
 **What's on this screen:**
 - Header: contact name + role + address (2-line header)
 - Message bubbles FlatList

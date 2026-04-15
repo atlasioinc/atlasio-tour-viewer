@@ -195,6 +195,20 @@ Correct: empty array during load, skeleton gate on `isLoading || isFetching`,
 then empty state on settled + no results. Applied to `SquadSlotPicker`,
 `VouchFeedSection`, `AgentDealsScreen`, `HomeTabAgent` active jobs in S151.
 
+## HARD REQUIREMENT — ChatScreen keyboard pattern (S152, April 14 2026)
+
+```
+SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
+  > View(input container) > SafeAreaView(bottom)(input row)
+```
+
+`keyboardVerticalOffset` MUST be `0` after `fullScreenModal` was removed from
+`CreateDealChat` / `ChatScreen` registration in `InboxStack.tsx` (S151/S152).
+Never alter this structure. Any regression (empty space below input, or input
+hidden by keyboard): restore this exact pattern. Bug 6 in S152 Build 40 QA was
+fixed by locking this structure and adding a hard-requirement comment block at
+the top of the ChatScreen component. Do not touch.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

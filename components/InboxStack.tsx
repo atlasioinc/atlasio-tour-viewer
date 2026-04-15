@@ -66,10 +66,14 @@ const InboxStack: React.FC = () => (
       component={ChatScreen}
       options={{ headerShown: false, gestureEnabled: true }}
     />
+    {/* S152 Bug 5: removed fullScreenModal presentation so navigation.replace
+        from CreateDealChat → DealChatScreen works naturally. Previously the
+        modal layer persisted after replace, causing back from DealChatScreen
+        to land on CreateDealChat instead of Inbox. */}
     <Stack.Screen
       name="CreateDealChat"
       component={CreateDealChat}
-      options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+      options={{ animation: 'slide_from_bottom' }}
     />
     <Stack.Screen
       name="DealChatScreen"

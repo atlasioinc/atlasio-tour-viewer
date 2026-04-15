@@ -718,7 +718,11 @@ const ProProfile: React.FC = () => {
                       textAlign: 'center',
                     }}
                   >
-                    {is_connected ? 'Message' : (connectionPending || connectSent) ? 'Request Pending' : 'Request to Connect'}
+                    {/* S152 Bug 4: distinguish connectSent (just-sent in this session)
+                        from connectionPending (pre-existing DB pending). Sent state shows
+                        "Request Sent ✓" so the user gets clear visual confirmation in
+                        addition to the SuccessToast fired in handleSendConnect. */}
+                    {is_connected ? 'Message' : connectSent ? 'Request Sent ✓' : connectionPending ? 'Request Pending' : 'Request to Connect'}
                   </Text>
                 </Pressable>
               </View>

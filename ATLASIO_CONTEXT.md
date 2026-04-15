@@ -46,6 +46,34 @@
 
 ---
 
+## S152 — Build 40 QA Fixes (April 14, 2026)
+
+**Card:** ATL-QA-BUILD40 → ✅ Done
+
+**Files modified:**
+- `components/shared/AddressAutocompleteInput.tsx` — **Bug 1** + **Bug 2**. Bug 1: added `inputLayout.width > 0` guard to `dropdownVisible` so the `Modal` never renders at zero size before `measureInWindow` resolves on first focus. The existing `onLayout` + `onFocus` remeasure pattern from S151 was correct but the Modal was flashing at `{top:0, left:0, width:0}` on first open; the width guard blocks that invisible-state render. Bug 2: reworked `handleTextChange` to no longer call `onSelect('')` on every keystroke (that was silently wiping parent state on edit-after-select). Instead, parent commit now happens `onBlur`: if the user types but never picks a suggestion (iOS QuickType, autofill, Places API failure, manual entry), the typed text is committed to the parent form on blur. Selection via `handleSuggestionSelect` still wins — it fires `onSelect(description)` with the fully-formatted address. Partial strings never pass validation because commit is gated on blur, not on keystroke. Fix applies to PostPhotoJobScreen, PostStagingJobScreen, PostJobWizard, and CreateDealChat — all four screens share this component.
+- `components/InboxStack.tsx` — **Bug 5**. Removed `presentation: 'fullScreenModal'` from the `CreateDealChat` screen registration. S151b had used `navigation.replace('DealChatScreen', …)` to work around the fullScreenModal layer, but on device the modal persisted after replace and back from DealChatScreen landed on CreateDealChat instead of Inbox. Removing the modal presentation lets the existing `replace` dispatch work naturally — same card animation as the rest of InboxStack, clean back → InboxList. `CreateDealChat.tsx` itself is untouched.
+- `components/HomeTabAgent.tsx` — **Bug 3**. Restored dual-path `hasActiveRepair` derivation. S151 collapsed it into a single live-data expression (`!isLoadingJobs && !isFetchingJobs && activeJobs.length > 0`) which broke the mock "filled" demo toggle: with `USE_MOCK_DATA: true` the Repairs section showed empty regardless of the `isFilled` state. Now gated on `FEATURE_FLAGS.USE_MOCK_DATA`: mock mode uses the `isFilled` toggle, live mode derives from query data. Imported `FEATURE_FLAGS` from `lib/featureFlags` (was not previously in this file). Do not collapse these branches — they serve different purposes.
+- `components/ProProfile.tsx` — **Bug 4**. Distinguished `connectSent` (just-sent in this session) from `connectionPending` (pre-existing DB pending state) in the primary CTA label. Previously both rendered as "Request Pending". After a successful send, the button now shows "Request Sent ✓" for clear visual confirmation alongside the `SuccessToast` fired in `handleSendConnect`. Both feedback mechanisms fire — the toast is additive, not a replacement. `setConnectSent(true)` + `showSuccess('Request sent')` both present in `onSuccess` (S149b wiring preserved).
+- `components/ChatScreen.tsx` — **Bug 6**. Current KAV structure already matched the canonical pattern (`SafeAreaView(top)` → `KeyboardAvoidingView(padding, offset:0, flex:1)` → ScrollView(messages) → View(input container) → `SafeAreaView(bottom)`). Added a **hard-requirement comment block** above the `return` statement locking this structure — any future session that touches ChatScreen must preserve it. Removing `fullScreenModal` from InboxStack (S151/S152) requires `keyboardVerticalOffset: 0`; any change breaks input bar position (empty space below or input hidden by keyboard).
+- `tasks/lessons.md` — Added "HARD REQUIREMENT — ChatScreen keyboard pattern (S152)" entry documenting the structure and the rationale for the lock.
+- `tasks/screen-registry.md` — ChatScreen entry updated with the keyboard pattern hard-requirement note.
+
+**Key decisions:**
+- **Bug 2 root cause was NOT in PostJobWizard.** The session spec theorised a state-variable mismatch between `onSelect` target and validation field in PostJobWizard. Audit of PostJobWizard.tsx showed every reference uses `form.propertyAddress` consistently (line 343 value, line 344 onSelect, line 347 error, line 838 canContinue, line 870 RPC). No mismatch exists. The actual bug was in AddressAutocompleteInput: `handleTextChange` never committed typed text to parent — it only wiped it (`onSelect('')` on every subsequent keystroke). Fixed at the component level so all four consumer screens benefit.
+- **Bug 5 — Option B chosen** (remove `fullScreenModal` from InboxStack) over Option A (pop + navigate from CreateDealChat). Structurally cleaner, leaves navigation call sites alone, and matches the S146 DealChatScreen card-animation precedent.
+- **Bug 6 — no structural fix required.** The canonical KAV pattern was already in place; the value of this session on Bug 6 was locking it via a visible comment block + lessons.md entry so future sessions cannot silently regress it. The empty-space symptom reported in QA may have been transient (stale Metro cache after flag flip) or device-specific — structure matched spec, so locked as-is.
+- **commit-on-keystroke rejected for Bug 2.** First attempt proposed committing the text on every keystroke; rejected by review because it would let partial strings ("123") pass validation mid-type. `onBlur` commit preserves the partial-string guard (validation only fires on Continue, which is a blur event anyway).
+
+**Feature flags:** **NOT RESET.** Build 40 QA state preserved per spec — `USE_MOCK_DATA: false`, `DEV_BYPASS_AUTH: false`, `DEV_SHOW_PASSWORD_LOGIN: true`, `LIVE_NEIGHBORHOOD_HOOKS: false`. Flip back to demo defaults before the next investor demo.
+
+**Verification:**
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → **0 new warnings** (7 pre-existing, unchanged from S151)
+- Count updates: Hooks = unchanged. RPCs = unchanged. Shared components = unchanged.
+
+---
+
 ## S151 — Build 39 QA Fixes (April 14, 2026)
 
 **Card:** ATL-QA-BUILD39 → ✅ Done

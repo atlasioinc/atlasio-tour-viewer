@@ -42,6 +42,7 @@ import type { HomeStackParamList } from './HomeStack';
 import type { AgentActiveJob, Job, BidWithProfile } from '../types';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMyProfile, useAgentActiveDeals, useAgentActiveJobs } from '../hooks/useData';
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
 import { Avatar, VerificationBanner, SkeletonBlock, ErrorToast, MomentBanner } from './shared';
@@ -499,7 +500,12 @@ const HomeTabAgent: React.FC = () => {
   // @demo MOCK_AGENT_ACTIVE_JOBS in hooks/useData.ts when USE_MOCK_DATA: true
   const { data: activeJobs = [], isLoading: isLoadingJobs, isFetching: isFetchingJobs, refetch: refetchJobs } = useAgentActiveJobs();
   // @demo S151 — empty state fires only after query settles; mock path always has items
-  const hasActiveRepair = !isLoadingJobs && !isFetchingJobs && activeJobs.length > 0;
+  // S152 Bug 3: restored dual-path — mock mode uses isFilled toggle so the
+  // demo "filled" state shows repair cards; live mode derives from query data.
+  // Do NOT collapse these into a single expression — they serve different purposes.
+  const hasActiveRepair = FEATURE_FLAGS.USE_MOCK_DATA
+    ? isFilled // @demo — demo toggle drives mock repairs section
+    : (!isLoadingJobs && !isFetchingJobs && activeJobs.length > 0); // @backend — live data
 
   // ── Active Deals (S63) ──
   // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }

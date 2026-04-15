@@ -505,6 +505,14 @@ const ChatScreen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [screenReady]);
 
+  // ─── KEYBOARD PATTERN — HARD REQUIREMENT (S152) ───────────────────────────
+  // SafeAreaView(top) → KeyboardAvoidingView(padding, offset:0, flex:1)
+  //   → ScrollView(messages) → View(input bar) → SafeAreaView(bottom)(input row)
+  // DO NOT alter this structure. Removing fullScreenModal from InboxStack (S151)
+  // requires keyboardVerticalOffset: 0. Any change to this pattern breaks the
+  // input bar position (empty space below input, or input hidden by keyboard).
+  // Verified Build 40, locked S152. See tasks/lessons.md for full rationale.
+  // ──────────────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />

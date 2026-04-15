@@ -111,8 +111,9 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
 
   const handleTextChange = (text: string) => {
     setAddressQuery(text);
-    // Clear committed parent value while typing — forces re-selection
-    if (value.length > 0) onSelect('');
+    // S152 Bug 2: do NOT clear parent value on keystroke. Parent commit
+    // happens onBlur (below) so partial strings never pass validation, but
+    // edit-after-select also no longer silently wipes parent state.
 
     if (autocompleteTimerRef.current) clearTimeout(autocompleteTimerRef.current);
 
@@ -135,7 +136,10 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
     setShowAutocomplete(false);
   };
 
-  const dropdownVisible = showAutocomplete && suggestions.length > 0;
+  // S152 Bug 1: guard on inputLayout.width > 0 — prevents Modal rendering the
+  // dropdown at {top:0, left:0, width:0} before onLayout fires. Without this
+  // the dropdown was invisible (zero-sized) on first focus during Build 40 QA.
+  const dropdownVisible = showAutocomplete && suggestions.length > 0 && inputLayout.width > 0;
   const screenHeight = Dimensions.get('window').height;
   // Clamp dropdown height so it doesn't overflow the screen bottom
   const availableBelow = Math.max(120, screenHeight - (inputLayout.y + inputLayout.height) - 24);
@@ -157,6 +161,16 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
           value={addressQuery}
           onChangeText={handleTextChange}
           onFocus={measureInput}
+          onBlur={() => {
+            // S152 Bug 2: commit typed text to parent on blur so form
+            // validation sees the value even when the user doesn't pick a
+            // dropdown suggestion (iOS QuickType / autofill / Places API
+            // failure / manual entry). Selection still wins via
+            // handleSuggestionSelect → onSelect(description).
+            if (addressQuery.trim().length > 0 && addressQuery !== value) {
+              onSelect(addressQuery);
+            }
+          }}
           placeholder={placeholder}
           placeholderTextColor={COLORS.bodyText}
           style={{
