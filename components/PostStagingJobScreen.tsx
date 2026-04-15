@@ -146,6 +146,11 @@ const PostStagingJobScreen: React.FC = () => {
   // S156: AbortController guard — prevents stale fetch responses from overwriting fresh ones
   // when the user types faster than the network resolves.
   const addressFetchControllerRef = useRef<AbortController | null>(null);
+  // S156 Build 46 diagnostic: surface the real Google API error to the device UI.
+  // Root cause of "No matches" is unknown — server-side curl works with the exact same
+  // key + body. Device request fails silently. This logs status/body and renders the
+  // error inside the dropdown so the next device test tells us exactly what Google said.
+  const [addressApiError, setAddressApiError] = useState<string | null>(null);
   const [sqft, setSqft] = useState('');
   const [isOccupied, setIsOccupied] = useState(false);
   const [roomsCount, setRoomsCount] = useState(3);
@@ -193,6 +198,11 @@ const PostStagingJobScreen: React.FC = () => {
     addressFetchControllerRef.current = controller;
 
     setIsFetchingAddressSuggestions(true);
+    setAddressApiError(null);
+    // Build 46 diagnostic: log key presence (length only, never the key itself)
+    // so TestFlight testers can confirm the key survived the build pipeline.
+    const keyLen = GOOGLE_MAPS_API_KEY?.length ?? 0;
+    console.log('[PostStagingJobScreen] fetch start', { input, keyLen });
     try {
       const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
         method: 'POST',
@@ -203,9 +213,35 @@ const PostStagingJobScreen: React.FC = () => {
         body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
         signal: controller.signal,
       });
+
+      // Build 46 diagnostic: check response.ok explicitly. Google returns 4xx/5xx
+      // with a JSON error body — the previous code parsed it and silently showed
+      // "No matches" because data.suggestions was undefined.
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.warn('[PostStagingJobScreen] Places API non-OK', {
+          status: response.status,
+          body: errorBody.slice(0, 500),
+          keyLen,
+        });
+        if (!controller.signal.aborted) {
+          setAddressApiError(`Google ${response.status}: ${errorBody.slice(0, 120)}`);
+          setAddressSuggestions([]);
+        }
+        return;
+      }
+
       const data = await response.json();
       // Guard: if this request was superseded while the network was resolving, drop its result.
       if (controller.signal.aborted) return;
+
+      // Build 46 diagnostic: log raw shape so we can see if Google changed the response format.
+      console.log('[PostStagingJobScreen] Places API ok', {
+        hasSuggestions: Array.isArray(data.suggestions),
+        count: data.suggestions?.length ?? 0,
+        topLevelKeys: Object.keys(data),
+      });
+
       const mapped = (data.suggestions ?? [])
         .map((s: any) => ({
           placeId: s.placePrediction?.placeId ?? '',
@@ -216,8 +252,17 @@ const PostStagingJobScreen: React.FC = () => {
     } catch (err: any) {
       // AbortError is expected when the user keeps typing — don't log, don't clear.
       if (err?.name === 'AbortError') return;
-      console.warn('[PostStagingJobScreen] Places autocomplete failed');
-      setAddressSuggestions([]);
+      // Build 46 diagnostic: log the actual error name + message so network failures
+      // (DNS, TLS, offline) are distinguishable from API errors.
+      console.warn('[PostStagingJobScreen] Places autocomplete threw', {
+        name: err?.name,
+        message: err?.message,
+        keyLen,
+      });
+      if (!controller.signal.aborted) {
+        setAddressApiError(`Network: ${err?.name ?? 'Error'} — ${err?.message ?? 'unknown'}`);
+        setAddressSuggestions([]);
+      }
     } finally {
       if (!controller.signal.aborted) {
         setIsFetchingAddressSuggestions(false);
@@ -227,6 +272,7 @@ const PostStagingJobScreen: React.FC = () => {
 
   const handleAddressChange = (text: string) => {
     setAddress(text);
+    setAddressApiError(null);
     if (addressAutocompleteTimerRef.current) clearTimeout(addressAutocompleteTimerRef.current);
     if (text.length < 3) {
       setAddressSuggestions([]);
@@ -450,7 +496,18 @@ const PostStagingJobScreen: React.FC = () => {
                   overflow: 'hidden',
                 }}
               >
-                {isFetchingAddressSuggestions && addressSuggestions.length === 0 ? (
+                {addressApiError ? (
+                  // Build 46 diagnostic: render the raw Google / network error so TestFlight
+                  // device QA can read exactly what the API said. Remove once root cause found.
+                  <View style={{ padding: 12, paddingHorizontal: 14 }}>
+                    <Text style={{ fontSize: 12, color: COLORS.warningAmber, fontWeight: '600', marginBottom: 4 }}>
+                      API ERROR
+                    </Text>
+                    <Text style={{ fontSize: 12, color: COLORS.darkText }} numberOfLines={6}>
+                      {addressApiError}
+                    </Text>
+                  </View>
+                ) : isFetchingAddressSuggestions && addressSuggestions.length === 0 ? (
                   <View style={{ padding: 12, paddingHorizontal: 14 }}>
                     <Text style={{ fontSize: 14, color: COLORS.lightText }}>Searching…</Text>
                   </View>

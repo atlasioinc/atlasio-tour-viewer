@@ -322,6 +322,12 @@ const ClientLifestyleScreen: React.FC = () => {
   // Called with 400ms debounce after 3+ chars typed
   const fetchAutocompleteSuggestions = async (input: string) => {
     setIsFetchingSuggestions(true);
+    setAddressError(null);
+    // S156 Build 46 diagnostic: log key presence + full error body so the next
+    // TestFlight build tells us why the device request silently returns nothing
+    // while server-side curl with the same key + body returns real results.
+    const keyLen = GOOGLE_MAPS_API_KEY?.length ?? 0;
+    console.log('[ClientLifestyleScreen] fetch start', { input, keyLen });
     try {
       const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
         method: 'POST',
@@ -331,14 +337,35 @@ const ClientLifestyleScreen: React.FC = () => {
         },
         body: JSON.stringify({ input, includedRegionCodes: ['us'] }),
       });
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.warn('[ClientLifestyleScreen] Places API non-OK', {
+          status: response.status,
+          body: errorBody.slice(0, 500),
+          keyLen,
+        });
+        setAddressError(`Google ${response.status}: ${errorBody.slice(0, 120)}`);
+        setSuggestions([]);
+        return;
+      }
       const data = await response.json();
+      console.log('[ClientLifestyleScreen] Places API ok', {
+        hasSuggestions: Array.isArray(data.suggestions),
+        count: data.suggestions?.length ?? 0,
+        topLevelKeys: Object.keys(data),
+      });
       const mapped = (data.suggestions ?? []).map((s: any) => ({
         placeId: s.placePrediction?.placeId ?? '',
         description: s.placePrediction?.text?.text ?? '',
       })).filter((s: { placeId: string; description: string }) => s.placeId && s.description);
       setSuggestions(mapped);
-    } catch {
-      console.warn('[ClientLifestyleScreen] Autocomplete failed');
+    } catch (err: any) {
+      console.warn('[ClientLifestyleScreen] Places autocomplete threw', {
+        name: err?.name,
+        message: err?.message,
+        keyLen,
+      });
+      setAddressError(`Network: ${err?.name ?? 'Error'} — ${err?.message ?? 'unknown'}`);
       setSuggestions([]);
     } finally {
       setIsFetchingSuggestions(false);
