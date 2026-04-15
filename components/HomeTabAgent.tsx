@@ -449,9 +449,11 @@ const ActiveJobCard: React.FC<{ job: AgentActiveJob; onPress: () => void }> = ({
           {job.address}
         </Text>
 
-        {/* Contractor name */}
+        {/* Contractor name — S157 hotfix: open/bidding jobs have no awardee yet */}
         <Text style={{ fontSize: 14, color: COLORS.bodyText }}>
-          {job.contractor?.name ?? 'Contractor'}
+          {job.status === 'open' || job.status === 'bidding'
+            ? 'No bids yet'
+            : job.contractor?.name ?? 'Contractor'}
         </Text>
 
         {/* Status + Due date row */}

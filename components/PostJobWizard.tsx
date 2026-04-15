@@ -926,14 +926,21 @@ const PostJobWizard: React.FC = () => {
       // S157 BUG-007 — two-phase photo upload. Job row now exists, so RLS on
       // job-photos bucket will accept uploads under {jobId}/... Partial failures
       // are non-fatal; we never block navigation if only photos failed.
+      // S157 hotfix — wrap the whole block in its own try/catch so an unexpected
+      // throw cannot reach the outer createJob fallback and overwrite the real
+      // jobId with a mock one.
       if (form.photos.length > 0) {
-        const paths = await uploadJobPhotos(jobId, form.photos);
-        if (paths.length > 0) {
-          try {
-            await setJobPhotos.mutateAsync({ jobId, photoUrls: paths });
-          } catch (photoErr) {
-            console.warn('[PostJobWizard] rpc_set_job_photos failed (non-fatal):', photoErr);
+        try {
+          const paths = await uploadJobPhotos(jobId, form.photos);
+          if (paths.length > 0) {
+            try {
+              await setJobPhotos.mutateAsync({ jobId, photoUrls: paths });
+            } catch (photoErr) {
+              console.warn('[PostJobWizard] rpc_set_job_photos failed (non-fatal):', photoErr);
+            }
           }
+        } catch (uploadErr) {
+          console.warn('[PostJobWizard] uploadJobPhotos failed (non-fatal):', uploadErr);
         }
       }
 
