@@ -427,28 +427,28 @@ Newly posted job has `status = 'open'` in Supabase but does not appear in HomeTa
 
 ## BUG-011 — Dark Keyboard Flash on DealChatScreen Initial Load
 
-**Status:** 🔴 Open
+**Status:** 🟡 Pending device verification
 
 **Symptom:** When DealChatScreen first opens, the keyboard briefly renders dark before switching to the light keyboard. Occurs on initial screen load. Edit modal TextInput now works (Attempt 1 fixed that). Issue is on the main message composer.
 
 **Screens affected:** DealChatScreen.tsx (main message composer)
 
+**Root cause:** `autoFocus` fires during `CommonActions.reset` screen transition before the white background paints. iOS samples keyboard appearance at focus time and sees the dark transition background, falling back to system appearance. Once the screen fully renders, `keyboardAppearance="light"` takes effect and the keyboard switches — producing the visible dark→light flash.
+
 **Previous attempts:**
-- Attempt 1 (S159, commit fd26b05): Added `keyboardAppearance="light"` to message composer TextInput (line 432) and edit modal TextInput (line 533). Edit modal: FIXED. Main message composer: FAILED — dark flash persists.
+- Attempt 1 (S159, commit fd26b05): Added `keyboardAppearance="light"` to message composer TextInput and edit modal TextInput. Edit modal: FIXED. Main message composer: FAILED — dark flash persists.
 - Attempt 2 (S159, commit 0e23329): Added `keyboardAppearance="light"` to CreateDealChat TextInputs. Not the right screen for this bug.
+- Attempt 3 (S159): Removed `autoFocus`, replaced with 350ms delayed focus via `useRef<TextInput>` + `useEffect`. Allows `CommonActions.reset` animation to complete and view tree to paint before iOS samples keyboard appearance.
 
 **What NOT to try again:**
 - Simply adding `keyboardAppearance="light"` to the TextInput — already done, does not resolve the flash on initial screen load.
-
-**Root cause hypothesis:** The message composer TextInput at line 423 has `autoFocus`. DealChatScreen is mounted via `CommonActions.reset` from CreateDealChat — the stack rebuild triggers a screen transition animation. `autoFocus` requests the keyboard BEFORE the screen's light background (`COLORS.background` = `#FFFFFF`) has fully painted. At the moment iOS samples the view hierarchy to determine keyboard appearance, the screen is still mid-transition, so iOS falls back to the system appearance (dark on devices with dark mode/dark keyboard preference). Once the screen fully renders, `keyboardAppearance="light"` takes effect and the keyboard switches — producing the visible dark→light flash.
+- Adding `keyboardAppearance="light"` alone without addressing `autoFocus` — the prop is correct but `autoFocus` fires before iOS can read it during screen transitions.
 
 **Supporting evidence:**
-- Edit modal TextInput (line 527) has NO `autoFocus` and works correctly — user taps it after the modal has fully rendered
+- Edit modal TextInput has NO `autoFocus` and works correctly — user taps it after the modal has fully rendered
 - Root SafeAreaView has `backgroundColor: COLORS.background` (#FFFFFF) — no dark surface
 - Screen is a standard pushed card (InboxStack line 80–83), no modal presentation
 - The flash only occurs on initial screen mount, not on subsequent focus events
-
-**Fix approach (pending review):** Remove `autoFocus` from the message composer TextInput (line 423). Replace with a delayed focus via `useEffect` + `inputRef.current?.focus()` after a 300–400ms delay, allowing the reset animation to complete and the view tree to paint before iOS samples the keyboard appearance.
 
 ---
 

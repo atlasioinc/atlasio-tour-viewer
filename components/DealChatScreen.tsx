@@ -191,6 +191,7 @@ const DealChatScreen: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
   const [attachments, setAttachments] = useState<{ type: 'photo' | 'document'; uri: string; name: string }[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
 
   // Editable deal details
   const [currentDealName, setCurrentDealName] = useState(dealName);
@@ -220,6 +221,17 @@ const DealChatScreen: React.FC = () => {
     console.log('Deal details updated:', { dealName: editDealName.trim() });
     closeEditModal();
   };
+
+  // BUG-011: delayed focus replaces autoFocus — autoFocus fires during
+  // CommonActions.reset screen transition before the white background paints,
+  // causing iOS to sample dark system appearance for the keyboard. 350ms delay
+  // lets the reset animation complete so iOS sees keyboardAppearance="light".
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Picker useEffect
   useEffect(() => {
@@ -420,7 +432,7 @@ const DealChatScreen: React.FC = () => {
 
             <View style={{ flex: 1, height: 45, paddingHorizontal: 16, borderRadius: 9999, borderWidth: 0.68, borderColor: COLORS.inputBorder, justifyContent: 'center' }}>
               <TextInput
-                autoFocus
+                ref={inputRef}
                 value={messageText}
                 onChangeText={setMessageText}
                 placeholder="Type a message..."
