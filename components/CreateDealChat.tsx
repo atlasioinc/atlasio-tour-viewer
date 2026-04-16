@@ -254,7 +254,7 @@ const CreateDealChat: React.FC = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
       >
         {/* ══════════════════════════════════════════
             HEADER — S155: sheet-entry pattern (reverted from S154 chevron)
@@ -560,7 +560,6 @@ const CreateDealChat: React.FC = () => {
               </View>
             )}
 
-            <View style={{ height: 40 }} />
           </ScrollView>
         )}
 
