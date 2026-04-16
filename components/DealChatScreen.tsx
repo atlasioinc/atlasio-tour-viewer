@@ -322,24 +322,27 @@ const DealChatScreen: React.FC = () => {
 
         {/* ══════════════════════════════════════════
             INFO BAR — Property + Closing Date (stacked)
+            Only shown when at least one of address or closing date is populated.
             ══════════════════════════════════════════ */}
-        <View
-          style={{
-            backgroundColor: COLORS.primary,
-            paddingVertical: 10,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.onPrimary, textAlign: 'center' }}>
-            {currentAddress || 'Deal Chat'}
-          </Text>
-          {currentClosingDate ? (
-            <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.onPrimary, textAlign: 'center', opacity: 0.85, marginTop: 2 }}>
-              Closing {currentClosingDate}
+        {(currentAddress.trim().length > 0 || currentClosingDate.trim().length > 0) && (
+          <View
+            style={{
+              backgroundColor: COLORS.primary,
+              paddingVertical: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '600', color: COLORS.onPrimary, textAlign: 'center' }}>
+              {currentAddress || 'Deal Chat'}
             </Text>
-          ) : null}
-        </View>
+            {currentClosingDate ? (
+              <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.onPrimary, textAlign: 'center', opacity: 0.85, marginTop: 2 }}>
+                Closing {currentClosingDate}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {/* ══════════════════════════════════════════
             CHAT BODY

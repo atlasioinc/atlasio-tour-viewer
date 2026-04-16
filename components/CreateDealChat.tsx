@@ -205,7 +205,7 @@ const CreateDealChat: React.FC = () => {
     searchInputRef.current?.blur();
   };
 
-  const canCreate = dealName.trim().length > 0;
+  const canCreate = dealName.trim().length > 0 && participants.length > 0;
 
   const handleCreateChat = () => {
     if (!canCreate) {

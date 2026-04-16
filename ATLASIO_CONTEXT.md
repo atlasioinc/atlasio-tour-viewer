@@ -98,6 +98,10 @@ Root `SafeAreaView edges={['top', 'bottom']}` → `edges={['top']}`. Footer `pad
 
 **Files modified:** `App.tsx`, `components/DealChatScreen.tsx`, `tasks/atlasio-bug-history.md`
 
+**Fix 4 — canCreate + context bar:** `canCreate` in `CreateDealChat.tsx` now requires `dealName.trim().length > 0 && participants.length > 0` (at least one closing partner). Blue context bar in `DealChatScreen.tsx` hidden when both address and closing date are empty — no more "Deal Chat" placeholder on blue background.
+
+**Files modified:** `components/CreateDealChat.tsx`, `components/DealChatScreen.tsx`
+
 ### S159 — Next Objectives
 - Device QA on Build 45: verify input bar sits flush against the keyboard (8pt gap, no ~34pt gap) on ChatScreen, DealChatScreen, and that the CreateDealChat CTA sits flush against the keyboard when any form field is focused
 - Confirm keyboard-closed state still shows the input/CTA above the home indicator (no overlap)
