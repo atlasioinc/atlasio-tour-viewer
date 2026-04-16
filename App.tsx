@@ -43,7 +43,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -68,6 +68,16 @@ import OnboardingComplete from './components/OnboardingComplete';
 import BottomTabNavigator from './components/BottomTabNavigator';
 
 import type { Session } from '@supabase/supabase-js';
+
+// Global keyboard appearance — light keyboard across all screens (S159 BUG-011)
+// Prevents dark keyboard flash during screen transitions on iOS.
+// Set once here so no per-screen keyboardAppearance props are needed.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TI = TextInput as any;
+if (TI.defaultProps === undefined) {
+  TI.defaultProps = {};
+}
+TI.defaultProps.keyboardAppearance = 'light';
 
 // ─────────────────────────────────────────────
 // TYPES — OnboardingFormData accumulates through route params.

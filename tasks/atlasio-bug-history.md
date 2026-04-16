@@ -439,10 +439,13 @@ Newly posted job has `status = 'open'` in Supabase but does not appear in HomeTa
 - Attempt 1 (S159, commit fd26b05): Added `keyboardAppearance="light"` to message composer TextInput and edit modal TextInput. Edit modal: FIXED. Main message composer: FAILED — dark flash persists.
 - Attempt 2 (S159, commit 0e23329): Added `keyboardAppearance="light"` to CreateDealChat TextInputs. Not the right screen for this bug.
 - Attempt 3 (S159): Removed `autoFocus`, replaced with 350ms delayed focus via `useRef<TextInput>` + `useEffect`. Allows `CommonActions.reset` animation to complete and view tree to paint before iOS samples keyboard appearance.
+- Attempt 4 (S159): Global `TextInput.defaultProps.keyboardAppearance = 'light'` set in `App.tsx` (module scope, before any component definition). Removed `inputRef` + delayed-focus `useEffect` from DealChatScreen entirely. No `autoFocus` — user taps to focus, consistent with iMessage/WhatsApp pattern. Status: 🟡 Pending device verification.
 
 **What NOT to try again:**
 - Simply adding `keyboardAppearance="light"` to the TextInput — already done, does not resolve the flash on initial screen load.
 - Adding `keyboardAppearance="light"` alone without addressing `autoFocus` — the prop is correct but `autoFocus` fires before iOS can read it during screen transitions.
+- Delayed focus via `setTimeout` (350ms, 600ms) — unreliable across devices, animation duration varies.
+- `autoFocus` during `CommonActions.reset` transition — always samples dark compositor layer.
 
 **Supporting evidence:**
 - Edit modal TextInput has NO `autoFocus` and works correctly — user taps it after the modal has fully rendered

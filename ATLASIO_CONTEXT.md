@@ -94,6 +94,10 @@ Root `SafeAreaView edges={['top', 'bottom']}` → `edges={['top']}`. Footer `pad
 
 **Files modified:** `components/DealChatScreen.tsx`, `components/CreateDealChat.tsx`, `tasks/lessons.md`
 
+**Fix 3 — BUG-011 global keyboard appearance:** Set `TextInput.defaultProps.keyboardAppearance = 'light'` in `App.tsx` (module scope, before any component definition). Removed `autoFocus` + delayed-focus `useEffect` + `inputRef` from `DealChatScreen.tsx`. Key decision: global defaultProps means every keyboard in the app is light regardless of screen transition state or focus timing — no per-screen props needed. autoFocus removed — user taps to focus (iMessage/WhatsApp pattern).
+
+**Files modified:** `App.tsx`, `components/DealChatScreen.tsx`, `tasks/atlasio-bug-history.md`
+
 ### S159 — Next Objectives
 - Device QA on Build 45: verify input bar sits flush against the keyboard (8pt gap, no ~34pt gap) on ChatScreen, DealChatScreen, and that the CreateDealChat CTA sits flush against the keyboard when any form field is focused
 - Confirm keyboard-closed state still shows the input/CTA above the home indicator (no overlap)
