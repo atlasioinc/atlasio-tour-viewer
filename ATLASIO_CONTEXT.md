@@ -84,9 +84,20 @@ Root `SafeAreaView edges={['top', 'bottom']}` → `edges={['top']}`. Footer `pad
 
 **Metrics:** RPCs: 67 (unchanged). Hooks: 66 (unchanged). Feature Flags: 11 (unchanged). Edge Functions: 11 (unchanged).
 
+### S159 Polish — Keyboard Appearance + CTA Button Alignment (April 16, 2026)
+
+**Fix 1 — Dark keyboard flash:** Added `keyboardAppearance="light"` to both TextInputs in `DealChatScreen.tsx` (message composer + edit modal deal name field).
+
+**Fix 2 — CTA button alignment:** Replaced `borderRadius: 9999` pill CTAs with the PostPhotoJobScreen canonical pattern (`borderRadius: 12`, `paddingVertical: 15`, `COLORS.primary`/`COLORS.disabledBg`, `COLORS.onPrimary`/`COLORS.disabledText`, press opacity 0.9) on:
+- `CreateDealChat.tsx` — "Create Chat" footer CTA
+- `DealChatScreen.tsx` — Edit Deal Details modal "Save" button
+
+**Files modified:** `components/DealChatScreen.tsx`, `components/CreateDealChat.tsx`, `tasks/lessons.md`
+
 ### S159 — Next Objectives
 - Device QA on Build 45: verify input bar sits flush against the keyboard (8pt gap, no ~34pt gap) on ChatScreen, DealChatScreen, and that the CreateDealChat CTA sits flush against the keyboard when any form field is focused
 - Confirm keyboard-closed state still shows the input/CTA above the home indicator (no overlap)
+- Broader CTA audit (ATL-CTA-AUDIT): scan all screens for pill-radius CTAs and align to PostPhotoJobScreen pattern
 - Flip feature flags back to demo defaults before investor demo
 
 ---

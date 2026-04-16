@@ -457,6 +457,21 @@ No UTC involvement. Works in every timezone. First fix shipped S158
 (EditRepairJob handleSave). Any new date-only write must use this pattern —
 never `toISOString`.
 
+## RULE — Primary CTA button pattern (added S159, April 16 2026)
+
+Primary CTA buttons must match the PostPhotoJobScreen canonical pattern:
+- `borderRadius: 12` — NOT `9999` (pill shape is for pills/chips, not CTAs)
+- `paddingVertical: 15` — NOT fixed `height: 50/52`
+- Active: `backgroundColor: COLORS.primary`
+- Disabled: `backgroundColor: COLORS.disabledBg`
+- Text: `fontSize: 16, fontWeight: '600', color: COLORS.onPrimary` (active) / `COLORS.disabledText` (disabled)
+- Press feedback: `opacity: pressed && isValid ? 0.9 : 1`
+- `lineHeight: 20` on button text
+
+**Why:** S159 audit found CreateDealChat and DealChatScreen using `borderRadius: 9999` pill buttons as primary CTAs — inconsistent with PostPhotoJobScreen reference pattern and visually mismatched.
+
+**How to apply:** before building any new CTA, read PostPhotoJobScreen.tsx sticky submit button (lines ~484–503). Match exactly. Broader CTA audit ticket created — ATL-CTA-AUDIT.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

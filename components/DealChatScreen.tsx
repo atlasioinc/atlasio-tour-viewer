@@ -429,6 +429,7 @@ const DealChatScreen: React.FC = () => {
                 multiline={false}
                 returnKeyType="send"
                 onSubmitEditing={handleSend}
+                keyboardAppearance="light"
               />
             </View>
 
@@ -529,6 +530,7 @@ const DealChatScreen: React.FC = () => {
                         placeholder="e.g., 123 Main St – Smith Buyer"
                         placeholderTextColor={COLORS.placeholderText}
                         style={{ fontSize: 14, fontWeight: '400', color: COLORS.darkText }}
+                        keyboardAppearance="light"
                       />
                     </View>
                   </View>
@@ -575,16 +577,16 @@ const DealChatScreen: React.FC = () => {
                   <Pressable
                     onPress={handleSaveEdit}
                     style={({ pressed }) => ({
-                      height: 50,
-                      backgroundColor: editDealName.trim().length > 0 ? COLORS.primary : COLORS.chipBg,
-                      borderRadius: 9999,
+                      backgroundColor: editDealName.trim().length > 0 ? COLORS.primary : COLORS.disabledBg,
+                      borderRadius: 12,
+                      paddingVertical: 15,
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginTop: 4,
-                      opacity: pressed && editDealName.trim().length > 0 ? 0.85 : 1,
+                      opacity: pressed && editDealName.trim().length > 0 ? 0.9 : 1,
                     })}
                   >
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: editDealName.trim().length > 0 ? COLORS.onPrimary : COLORS.lightText, lineHeight: 24 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: editDealName.trim().length > 0 ? COLORS.onPrimary : COLORS.disabledText, lineHeight: 20 }}>
                       Save
                     </Text>
                   </Pressable>

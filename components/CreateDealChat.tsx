@@ -581,21 +581,20 @@ const CreateDealChat: React.FC = () => {
           <Pressable
             onPress={handleCreateChat}
             style={({ pressed }) => ({
-              height: 52,
               backgroundColor: canCreate ? COLORS.primary : COLORS.disabledBg,
-              borderRadius: 9999,
+              borderRadius: 12,
+              paddingVertical: 15,
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: pressed && canCreate ? 0.85 : 1,
+              opacity: pressed && canCreate ? 0.9 : 1,
             })}
           >
             <Text
               style={{
                 fontSize: 16,
                 fontWeight: '600',
-                color: canCreate ? '#FFFFFF' : COLORS.disabledText,
-                lineHeight: 24,
-                textAlign: 'center',
+                color: canCreate ? COLORS.onPrimary : COLORS.disabledText,
+                lineHeight: 20,
               }}
             >
               Create Chat
