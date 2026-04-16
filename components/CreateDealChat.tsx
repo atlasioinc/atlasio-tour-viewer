@@ -355,6 +355,7 @@ const CreateDealChat: React.FC = () => {
                 }}
                 placeholder="Search closing partners..."
                 placeholderTextColor={COLORS.placeholderText}
+                keyboardAppearance="light"
                 style={{
                   flex: 1,
                   minWidth: 120,
@@ -435,6 +436,7 @@ const CreateDealChat: React.FC = () => {
                   placeholder="e.g., 123 Main St – Smith Buyer"
                   placeholderTextColor={COLORS.placeholderText}
                   style={{ fontSize: 14, fontWeight: '400', color: COLORS.darkText }}
+                  keyboardAppearance="light"
                 />
               </View>
               {showError && dealName.trim().length === 0 && (
@@ -576,7 +578,7 @@ const CreateDealChat: React.FC = () => {
           borderTopColor: COLORS.border,
           paddingHorizontal: 16,
           paddingTop: 12,
-          paddingBottom: 16,
+          paddingBottom: 24,
         }}>
           <Pressable
             onPress={handleCreateChat}
