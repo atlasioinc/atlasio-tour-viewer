@@ -423,6 +423,35 @@ Newly posted job has `status = 'open'` in Supabase but does not appear in HomeTa
 
 ---
 
+---
+
+## BUG-011 — Dark Keyboard Flash on DealChatScreen Initial Load
+
+**Status:** 🔴 Open
+
+**Symptom:** When DealChatScreen first opens, the keyboard briefly renders dark before switching to the light keyboard. Occurs on initial screen load. Edit modal TextInput now works (Attempt 1 fixed that). Issue is on the main message composer.
+
+**Screens affected:** DealChatScreen.tsx (main message composer)
+
+**Previous attempts:**
+- Attempt 1 (S159, commit fd26b05): Added `keyboardAppearance="light"` to message composer TextInput (line 432) and edit modal TextInput (line 533). Edit modal: FIXED. Main message composer: FAILED — dark flash persists.
+- Attempt 2 (S159, commit 0e23329): Added `keyboardAppearance="light"` to CreateDealChat TextInputs. Not the right screen for this bug.
+
+**What NOT to try again:**
+- Simply adding `keyboardAppearance="light"` to the TextInput — already done, does not resolve the flash on initial screen load.
+
+**Root cause hypothesis:** The message composer TextInput at line 423 has `autoFocus`. DealChatScreen is mounted via `CommonActions.reset` from CreateDealChat — the stack rebuild triggers a screen transition animation. `autoFocus` requests the keyboard BEFORE the screen's light background (`COLORS.background` = `#FFFFFF`) has fully painted. At the moment iOS samples the view hierarchy to determine keyboard appearance, the screen is still mid-transition, so iOS falls back to the system appearance (dark on devices with dark mode/dark keyboard preference). Once the screen fully renders, `keyboardAppearance="light"` takes effect and the keyboard switches — producing the visible dark→light flash.
+
+**Supporting evidence:**
+- Edit modal TextInput (line 527) has NO `autoFocus` and works correctly — user taps it after the modal has fully rendered
+- Root SafeAreaView has `backgroundColor: COLORS.background` (#FFFFFF) — no dark surface
+- Screen is a standard pushed card (InboxStack line 80–83), no modal presentation
+- The flash only occurs on initial screen mount, not on subsequent focus events
+
+**Fix approach (pending review):** Remove `autoFocus` from the message composer TextInput (line 423). Replace with a delayed focus via `useEffect` + `inputRef.current?.focus()` after a 300–400ms delay, allowing the reset animation to complete and the view tree to paint before iOS samples the keyboard appearance.
+
+---
+
 ### CTA placement inside KAV (S155)
 CTA/submit buttons on form screens must always be **siblings of the ScrollView inside KeyboardAvoidingView**, never children of the ScrollView. This is how KAV pushes the CTA above the keyboard when a field is focused.
 

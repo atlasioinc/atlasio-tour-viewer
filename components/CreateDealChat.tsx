@@ -578,7 +578,7 @@ const CreateDealChat: React.FC = () => {
           borderTopColor: COLORS.border,
           paddingHorizontal: 16,
           paddingTop: 12,
-          paddingBottom: 24,
+          paddingBottom: 32,
         }}>
           <Pressable
             onPress={handleCreateChat}
