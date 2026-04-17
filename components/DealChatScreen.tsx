@@ -190,6 +190,7 @@ const DealChatScreen: React.FC = () => {
     dealName = '',
     propertyAddress = '',
     closingDate = '',
+    isCreator = false,
   } = route.params ?? {};
   // @backend — wired in future session via useThreadMessages(threadId)
   void threadId;
@@ -365,14 +366,18 @@ const DealChatScreen: React.FC = () => {
           contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16, gap: 16 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* System message */}
-          <View style={{ alignItems: 'center' }}>
-            <View style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: COLORS.systemBg, borderRadius: 9999 }}>
-              <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
-                Agent added you to this chat
-              </Text>
+          {/* System message — S160: hidden for the deal creator (CreateDealChat
+              sets isCreator=true). Shown for participants opening the chat from
+              Inbox or any non-creator entry point. */}
+          {!isCreator && (
+            <View style={{ alignItems: 'center' }}>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: COLORS.systemBg, borderRadius: 9999 }}>
+                <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 16 }}>
+                  Agent added you to this chat
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Messages */}
           {messages.map((msg) => (

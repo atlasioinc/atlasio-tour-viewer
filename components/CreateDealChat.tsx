@@ -286,6 +286,9 @@ const CreateDealChat: React.FC = () => {
                 dealName: dealName.trim(),
                 propertyAddress: propertyAddress.trim(),
                 closingDate: closingDate.trim(),
+                // S160: viewer is the agent who just created the deal — hide
+                // the "Agent added you to this chat" system pill.
+                isCreator: true,
               },
             },
           ],

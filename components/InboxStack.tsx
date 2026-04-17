@@ -43,6 +43,10 @@ export type InboxStackParamList = {
     dealName: string;
     propertyAddress: string;
     closingDate: string;
+    /** True when the current user just created the deal (CreateDealChat flow).
+     *  Suppresses the "Agent added you to this chat" system pill since the
+     *  creator was not added by anyone. Absent / false from InboxList. */
+    isCreator?: boolean;
   };
 };
 
