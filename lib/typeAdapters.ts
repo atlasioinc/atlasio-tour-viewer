@@ -17,6 +17,18 @@ import type {
   Notification as GlobalNotification,
   VerificationLevel,
 } from '../types';
+import { COLORS } from './tokens';
+
+// ─────────────────────────────────────────────
+// S160: Derives a consistent avatar color from a string (thread name) —
+// placeholder until rpc_get_inbox_threads returns all member colors as an array.
+// @backend — replace with members[].avatar_color when RPC is updated.
+// ─────────────────────────────────────────────
+const AVATAR_COLORS = ['#7BA3C9', '#E8A87C', '#85C1A3', '#C9A7E8', '#E8C97B'];
+const deriveColor = (str: string): string => {
+  const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+};
 
 // ─────────────────────────────────────────────
 // InboxList: ChatThreadView → local ChatThread
@@ -37,6 +49,7 @@ interface InboxChatThread {
   isOnline?: boolean;
   contactRole?: string;
   dealAddress?: string;
+  closingDate?: string;          // S160: propagated from threads.closing_date for deal_chat nav
   // Navigation helpers from RPC data
   threadId?: string;
   otherMemberUserId?: string;
@@ -65,7 +78,11 @@ export const adaptChatThreadToLocal = (thread: ChatThreadView): InboxChatThread 
 
 export const adaptInboxThreadToLocal = (thread: InboxThread): InboxChatThread => ({
   id: thread.thread_id,
-  name: (thread.other_member?.name ?? '') || (thread.name ?? ''),
+  // S160: for deal_chat / job_thread, prefer the agent-entered thread name
+  // (e.g. "123 Main St — Smith Buyer"). For 1:1, prefer the other member's name.
+  name: thread.type !== 'one_to_one'
+    ? (thread.name ?? thread.other_member?.name ?? 'Deal Chat')
+    : (thread.other_member?.name ?? thread.name ?? 'Unknown'),
   lastMessage: thread.last_message ?? '',
   timestamp: thread.last_message_at
     ? formatRelativeTimestamp(thread.last_message_at)
@@ -74,10 +91,20 @@ export const adaptInboxThreadToLocal = (thread: InboxThread): InboxChatThread =>
   unreadCount: thread.unread_count ?? 0,
   isPinned: thread.is_pinned ?? false,
   isGroup: thread.type !== 'one_to_one',
-  avatarColors: [thread.other_member?.avatar_color ?? '#7BA3C9'],
+  // @backend — placeholder. Replace with all member avatar_colors when
+  //            rpc_get_inbox_threads returns members[] instead of single other_member.
+  avatarColors: thread.type !== 'one_to_one'
+    ? [
+        thread.other_member?.avatar_color ?? COLORS.primary,
+        deriveColor(thread.name ?? ''),
+        deriveColor((thread.name ?? '') + '1'),
+        deriveColor((thread.name ?? '') + '2'),
+      ]
+    : [thread.other_member?.avatar_color ?? COLORS.primary],
   avatarUrl: thread.other_member?.avatar_url ?? null,
   contactRole: '',
   dealAddress: thread.property_address ?? undefined,
+  closingDate: thread.closing_date ?? undefined,
   // Pass through for navigation
   threadId: thread.thread_id,
   otherMemberUserId: thread.other_member?.user_id ?? '',

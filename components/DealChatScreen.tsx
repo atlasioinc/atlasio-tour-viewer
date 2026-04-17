@@ -10,10 +10,12 @@
 //           Group Avatar Grid, Mock Data, Main Screen
 //
 // @demo  MOCK_DEAL_MESSAGES (7 messages from 3 participants)
-//        Fully mock — no hooks wired, no feature flag gate
+//        Gated on FEATURE_FLAGS.USE_MOCK_DATA (S160 follow-up). When false,
+//        the screen starts with an empty messages array — the system pill
+//        renders and the user can type-and-see local-only bubbles until
+//        useThreadMessages(threadId) is wired.
 // @backend — threadId received from CreateDealChat params (S160).
 //            Wire useThreadMessages(threadId) in a future session to load real messages.
-//            Demo messages still shown until that session.
 // @backend TODO: useMessages + useSendMessage (deal thread variant)
 // @backend TODO: Realtime subscription for group messages
 // ═══════════════════════════════════════════════════════════════
@@ -44,6 +46,7 @@ import MessageBubble from './MessageBubble';
 import type { Message } from './MessageBubble';
 import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -192,7 +195,9 @@ const DealChatScreen: React.FC = () => {
   void threadId;
 
   const [messageText, setMessageText] = useState('');
-  const [messages, setMessages] = useState<Message[]>(MOCK_DEAL_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>(
+    FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_DEAL_MESSAGES : []
+  );
   const [showAttach, setShowAttach] = useState(false);
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
   const [attachments, setAttachments] = useState<{ type: 'photo' | 'document'; uri: string; name: string }[]>([]);

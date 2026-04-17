@@ -85,10 +85,32 @@
 **Metrics:** RPCs 67 → 68. Hooks 67 → 68. Feature Flags: 11 (unchanged). Edge Functions: 11 (unchanged).
 
 ### S160 — Next Objectives
-- Replace `DEAL_CONTACTS` mock in `CreateDealChat.tsx` with a real network-contact source so the RPC stops failing in demo mode
+- Replace `DEAL_CONTACTS` mock in `CreateDealChat.tsx` with a real network-contact source so the RPC stops failing in demo mode ✅ shipped (`useConnections`)
 - Wire `useThreadMessages(threadId)` in `DealChatScreen` to replace `MOCK_DEAL_MESSAGES` with live messages
 - Wire `useSendMessage` for deal threads (shared with 1:1 ChatScreen)
 - Add a "deal chat" entry point to `InboxList` so newly created deal chats appear with the same row pattern as 1:1 threads
+
+### S160 — Inbox display fixes (April 17, 2026)
+
+After ATL-DEAL-THREAD-01 device QA surfaced three display bugs in deal-chat threads. Four small fixes shipped:
+
+1. **DealChatScreen mock gate** — `MOCK_DEAL_MESSAGES` is now gated on `FEATURE_FLAGS.USE_MOCK_DATA`. When false, the screen starts with an empty `messages` array (system pill renders, user can type-and-see local-only bubbles until `useThreadMessages` is wired).
+2. **Inbox thread name** — `adaptInboxThreadToLocal` now branches on `thread.type !== 'one_to_one'`: deal_chat / job_thread display the agent-entered `threads.name`, while 1:1 still prefers `other_member.name`. Fixes the bug where a deal thread showed one participant's name instead of the deal name.
+3. **GroupAvatar colors** — added `deriveColor(str)` helper that hashes a string to one of 5 placeholder palette colors. Group threads now get 4 colors `[other_member.avatar_color, deriveColor(name), deriveColor(name+'1'), deriveColor(name+'2')]` so the 2x2 grid is fully populated. Marked `@backend` — replace with real `members[].avatar_color` array when `rpc_get_inbox_threads` is updated.
+4. **InboxList → DealChatScreen nav** — passes real `threadId` (`thread.threadId ?? thread.id`), uses adapter-propagated `dealAddress` + new `closingDate` instead of brittle string-splitting on the deal name. New `closingDate?: string` field added to `InboxChatThread` and the local `ChatThread` interface, propagated via `thread.closing_date` from the RPC.
+
+**Files modified:**
+- `components/DealChatScreen.tsx` — `FEATURE_FLAGS` import + gated `useState` initializer + header comment update
+- `lib/typeAdapters.ts` — `COLORS` import + `deriveColor` helper + name branch + 4-color avatar + `closingDate` field/propagation
+- `components/InboxList.tsx` — added `closingDate?: string` to local `ChatThread` interface + handleThreadPress group branch rewritten to pass `threadId`, `dealAddress`, `closingDate` (no string splitting)
+
+**Verification:**
+- `npx tsc --noEmit` → results below
+- `npx expo lint` → results below
+
+**Follow-up backend work (deferred — not this session):**
+- Update `rpc_get_inbox_threads` to return `members[]` with each member's `user_id`, `name`, `avatar_color`, `avatar_url`. Today the RPC returns a single `other_member`, which forces the deriveColor placeholder. With members[] the adapter can use real avatar colors.
+- Mirror `rpc_get_inbox_threads` definition into `sql/schema.sql` (currently absent — long-standing drift, not introduced by S160).
 
 ---
 

@@ -134,6 +134,8 @@ interface ChatThread {
   contactRole?: string;
   /** @demo — address for deal context threads; replace with thread.deal.address when LIVE */
   dealAddress?: string;
+  /** S160: closing date (YYYY-MM-DD) for deal_chat threads, propagated from threads.closing_date */
+  closingDate?: string;
   // Navigation helpers from RPC data
   threadId?: string;
   otherMemberUserId?: string;
@@ -581,13 +583,13 @@ const InboxList: React.FC = () => {
   // ── Navigate to chat screen ──
   const handleThreadPress = useCallback((thread: ChatThread) => {
     if (thread.isGroup) {
-      const parts = (thread.name ?? '').split(/\s[-\u2013]\s/);
-      const propertyAddress = parts[0] ?? '';
-
       navigation.navigate('DealChatScreen' as any, {
+        // S160: pass real threadId so future useThreadMessages(threadId) wiring lands clean.
+        // @demo — when USE_MOCK_DATA, threadId is a mock id ('t1'..'t8'); useThreadMessages must guard.
+        threadId: thread.threadId ?? thread.id,
         dealName: thread.name ?? '',
-        propertyAddress,
-        closingDate: '',
+        propertyAddress: thread.dealAddress ?? '',
+        closingDate: thread.closingDate ?? '',
       });
     } else {
       // Use RPC-sourced fields when available, fall back to parsed name
