@@ -10,9 +10,9 @@
 // @backend — rpc_create_deal_thread deployed S160. Returns { success, thread_id }.
 //            Participants must be valid profile UUIDs with thread_members INSERT rights.
 //            Closing date passed as YYYY-MM-DD string, Postgres casts to DATE.
-// @demo    — Mock contact IDs (d1..d10) are NOT UUIDs; the RPC will reject them
-//            in demo mode. Failure surfaces via Alert. In production, participants
-//            must come from a real network source.
+// @backend — Participants sourced from useConnections() (S160 follow-up) — real
+//            profile UUIDs from accepted connections, bidirectional per S115d.
+//            DEAL_CONTACTS kept below for reference only; no longer referenced.
 // @demo    — isSaving state shows 'Creating…' during RPC. Alert on failure.
 // ═══════════════════════════════════════════════════════════════
 
@@ -36,7 +36,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
 import { Avatar, AddressAutocompleteInput } from './shared';
-import { useCreateDealThread } from '../hooks/useData';
+import { useCreateDealThread, useConnections } from '../hooks/useData';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -99,8 +99,11 @@ interface Contact {
 
 // ─────────────────────────────────────────────
 // MOCK CONTACTS — All roles (Deal Chats include Contractors)
+// @demo — replaced by liveContacts from useConnections() in S160.
+//         Kept here for reference / fallback demo reel. Do not reference in code.
 // ─────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DEAL_CONTACTS: Contact[] = [
   { id: 'd1', name: 'Mike Rodriguez', company: 'First National Bank', role: 'Lender', avatarColor: '#7BA3C9' },
   { id: 'd2', name: 'Jennifer Lee', company: 'Premier Title', role: 'Title', avatarColor: '#D4A8B5' },
@@ -188,10 +191,27 @@ const CreateDealChat: React.FC = () => {
   const createDealThread = useCreateDealThread();
   const [isSaving, setIsSaving] = useState(false);
 
+  // S160: accepted connections (bidirectional via useConnections — handles both
+  // requester and responder sides per S115d). Profile UUIDs here are real and
+  // accepted by rpc_create_deal_thread. Memoized so downstream availableContacts
+  // useMemo has a stable reference and doesn't recompute every render.
+  const { data: connections = [] } = useConnections();
+  const liveContacts: Contact[] = useMemo(
+    () =>
+      connections.map((conn) => ({
+        id: conn.profile.id,
+        name: conn.profile.name ?? '',
+        company: conn.profile.company ?? '',
+        role: conn.profile.display_role ?? conn.profile.role ?? '',
+        avatarColor: conn.profile.avatar_color ?? COLORS.primary,
+      })),
+    [connections],
+  );
+
   // Filter contacts: exclude already-added + match search
   const availableContacts = useMemo(() => {
     const addedIds = new Set(participants.map((p) => p.id));
-    let filtered = DEAL_CONTACTS.filter((c) => !addedIds.has(c.id));
+    let filtered = liveContacts.filter((c) => !addedIds.has(c.id));
     if (searchText.length > 0) {
       const q = searchText.toLowerCase();
       filtered = filtered.filter(
@@ -202,7 +222,7 @@ const CreateDealChat: React.FC = () => {
       );
     }
     return filtered;
-  }, [participants, searchText]);
+  }, [participants, searchText, liveContacts]);
 
   // ── Handlers ──
   const handleAddParticipant = (contact: Contact) => {
@@ -230,9 +250,7 @@ const CreateDealChat: React.FC = () => {
       return;
     }
     if (isSaving) return;
-    // @demo — mock contact IDs (d1..d10) are not UUIDs; RPC will fail in demo
-    //          mode. Alert below handles the failure path. Real network contacts
-    //          will pass real profile UUIDs once the contact source is wired.
+    // Participant IDs are real profile UUIDs from useConnections() — RPC accepts them in live mode
     const participantIds = participants
       .map((p) => p.id)
       .filter((id): id is string => Boolean(id));
