@@ -215,6 +215,7 @@ const DealChatScreen: React.FC = () => {
     propertyAddress = '',
     closingDate = '',
     isCreator = false,
+    memberColors = [],
   } = route.params ?? {};
   // S161 — live message loading + sending (gated on USE_MOCK_DATA)
   const { data: myProfile } = useMyProfile();
@@ -416,7 +417,7 @@ const DealChatScreen: React.FC = () => {
               onPress={openEditModal}
               style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 12, marginLeft: 16, opacity: pressed ? 0.5 : 1 })}
             >
-              <GroupAvatarGrid colors={['#D4A8B5', '#7BA3C9', '#A8D4C5', '#C9B87B']} />
+              <GroupAvatarGrid colors={memberColors} />
               <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.darkText, lineHeight: 24, flexShrink: 1 }} numberOfLines={1}>
                 {currentDealName}
               </Text>

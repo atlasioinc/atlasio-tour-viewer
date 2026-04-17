@@ -262,13 +262,13 @@ const GroupAvatar: React.FC<{ colors: string[]; size?: number; isOnline?: boolea
 }) => {
   const cellSize = 22;
   const gap = size - cellSize * 2;
-  const c = [...colors, '#C0C0C0', '#C0C0C0', '#C0C0C0', '#C0C0C0'].slice(0, 4);
+  const c = colors.slice(0, 4);
   return (
     <View style={{ width: size, height: size, position: 'relative' }}>
-      <View style={{ position: 'absolute', left: 0, top: 0, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[0] }} />
-      <View style={{ position: 'absolute', left: cellSize + gap, top: 0, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[1] }} />
-      <View style={{ position: 'absolute', left: 0, top: cellSize + gap, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[2] }} />
-      <View style={{ position: 'absolute', left: cellSize + gap, top: cellSize + gap, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[3] }} />
+      {c[0] && <View style={{ position: 'absolute', left: 0, top: 0, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[0] }} />}
+      {c[1] && <View style={{ position: 'absolute', left: cellSize + gap, top: 0, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[1] }} />}
+      {c[2] && <View style={{ position: 'absolute', left: 0, top: cellSize + gap, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[2] }} />}
+      {c[3] && <View style={{ position: 'absolute', left: cellSize + gap, top: cellSize + gap, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[3] }} />}
       {isOnline && (
         <View style={{ position: 'absolute', bottom: -1, right: -1, width: 12, height: 12, borderRadius: 9999, backgroundColor: COLORS.onlineGreen, borderWidth: 1.5, borderColor: '#FFFFFF' }} />
       )}
@@ -590,6 +590,9 @@ const InboxList: React.FC = () => {
         dealName: thread.name ?? '',
         propertyAddress: thread.dealAddress ?? '',
         closingDate: thread.closingDate ?? '',
+        // S161 QA: reuse the same member colors already computed by
+        // adaptInboxThreadToLocal from rpc_get_inbox_threads members[].
+        memberColors: thread.avatarColors ?? [],
       });
     } else {
       // Use RPC-sourced fields when available, fall back to parsed name
