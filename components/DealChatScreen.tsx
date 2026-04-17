@@ -11,6 +11,9 @@
 //
 // @demo  MOCK_DEAL_MESSAGES (7 messages from 3 participants)
 //        Fully mock — no hooks wired, no feature flag gate
+// @backend — threadId received from CreateDealChat params (S160).
+//            Wire useThreadMessages(threadId) in a future session to load real messages.
+//            Demo messages still shown until that session.
 // @backend TODO: useMessages + useSendMessage (deal thread variant)
 // @backend TODO: Realtime subscription for group messages
 // ═══════════════════════════════════════════════════════════════
@@ -180,10 +183,13 @@ const DealChatScreen: React.FC = () => {
   // navigating from InboxList or any other entry point that
   // may not supply every param.
   const {
+    threadId,
     dealName = '',
     propertyAddress = '',
     closingDate = '',
   } = route.params ?? {};
+  // @backend — wired in future session via useThreadMessages(threadId)
+  void threadId;
 
   const [messageText, setMessageText] = useState('');
   const [messages, setMessages] = useState<Message[]>(MOCK_DEAL_MESSAGES);

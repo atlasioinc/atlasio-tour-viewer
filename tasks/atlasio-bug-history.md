@@ -1,8 +1,42 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S157 RESOLVED | April 15, 2026
+**Last updated:** S160 ATL-DEAL-THREAD-01 WIRED | April 17, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
+
+---
+
+## ATL-DEAL-THREAD-01 — CreateDealChat not persisting deal threads
+
+**Screen:** `components/CreateDealChat.tsx` → `components/DealChatScreen.tsx`
+**Hook:** `hooks/useData.ts` → `useCreateDealThread`
+**RPC:** `rpc_create_deal_thread(p_deal_name TEXT, p_property_address TEXT, p_closing_date DATE, p_participant_ids UUID[])` — deployed S160
+**Status:** 🟢 WIRED in S160. `handleCreateChat` now calls the RPC; `DealChatScreen` receives the returned `thread_id`. Demo-mode mock contact IDs will trigger an Alert on failure (see Known Limitations below).
+
+### Symptom
+Before S160, `handleCreateChat` only `console.log`ed the payload and navigated to `DealChatScreen` with no `thread_id` — threads were never persisted to Supabase, never appeared in the Inbox, and `DealChatScreen` had no backend linkage for future message loading.
+
+### Root cause
+`threads` table has no INSERT RLS policy (`sql/schema.sql:662-670` only exposes SELECT + UPDATE for members). Direct client INSERT is impossible. A SECURITY DEFINER RPC is required — same pattern as the existing `rpc_create_thread` for 1:1 chats.
+
+### Resolution (S160)
+1. Added `rpc_create_deal_thread` as a SECURITY DEFINER Postgres function (deployed to Supabase, mirrored in `sql/schema.sql:18b`). Inserts into `threads` with `type='deal_chat'` + seeds `thread_members` for agent (`auth.uid()`) and every participant UUID in the array. Returns `{ success, thread_id }` or `{ success: false, error }`.
+2. Added `useCreateDealThread` mutation hook (`hooks/useData.ts`) with `refetchQueries({ queryKey: queryKeys.inboxThreads })` on success — same pattern as `useCancelJob` (S157b) for immediate Inbox refresh.
+3. Rewrote `handleCreateChat` in `CreateDealChat.tsx` as async: calls `createDealThread.mutateAsync(...)`, navigates via `CommonActions.reset` with `threadId: result.thread_id` on success, shows `Alert.alert('Error', ...)` on failure. Button shows 'Creating…' and is `disabled` during the save.
+4. Added parallel `closingDateISO` state to `CreateDealChat.tsx` — the existing display string ("Dec 15") loses the year, so `handleDateConfirm` now sets both the display string and a YYYY-MM-DD ISO string in lockstep. Display flows to the DealChatScreen banner; ISO flows to the RPC.
+5. Threaded `threadId?: string` through `InboxStackParamList` (`components/InboxStack.tsx`) and `DealChatScreen.tsx` route-param destructuring. Silenced the TS unused-local warning with `void threadId;` + `@backend — wired in future session via useThreadMessages(threadId)` comment.
+6. Fixed `InboxThread.type` enum mismatch in `types/index.ts`: `'deal'` → `'deal_chat'` (matches Supabase `thread_type_enum`).
+7. Deleted duplicate `InboxStackParamList` export from `types/index.ts` — it had drifted from the canonical definition in `components/InboxStack.tsx`. All five consumer files already import from `./InboxStack`; no call-site changes needed.
+
+### Known limitations
+- **Demo-mode RPC failure:** `DEAL_CONTACTS` in `CreateDealChat.tsx:97` uses mock IDs (`'d1'..'d10'`) that are not valid UUIDs. In demo mode the RPC will reject the participant array cast and the user will see an Alert. This is by design per the S160 decision log — the fix is to wire a real network-contact source in a follow-up session.
+- **Message loading deferred:** `DealChatScreen` receives the real `threadId` but still renders `MOCK_DEAL_MESSAGES`. `useThreadMessages(threadId)` wiring + realtime subscription are scoped to a separate session.
+- **InboxList still mock:** existing InboxList navigation to DealChatScreen does not supply a `threadId` (handled via the optional `threadId?: string` param shape).
+
+### Do NOT
+- Do NOT attempt to revert to direct client INSERT on the `threads` table — RLS blocks it.
+- Do NOT make `threadId` required on `DealChatScreen` until InboxList passes it on every navigation.
+- Do NOT remove the `Alert` failure handler — it is the only user feedback in the demo-mode failure path.
 
 ---
 

@@ -1361,6 +1361,50 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
+-- ── 18b. CREATE DEAL THREAD (S160) ────────────────────────────
+-- Creates a deal_chat thread + seeds thread_members for agent (auth.uid())
+-- and all participant UUIDs. SECURITY DEFINER bypasses the missing INSERT RLS
+-- on threads. Participant UUIDs must exist in profiles (foreign key enforced
+-- via thread_members.user_id → profiles.id).
+
+CREATE OR REPLACE FUNCTION public.rpc_create_deal_thread(
+  p_deal_name TEXT,
+  p_property_address TEXT DEFAULT NULL::text,
+  p_closing_date DATE DEFAULT NULL::date,
+  p_participant_ids UUID[] DEFAULT '{}'::uuid[]
+)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_thread_id UUID;
+  v_agent_id UUID;
+  v_participant_id UUID;
+BEGIN
+  v_agent_id := auth.uid();
+  IF v_agent_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated');
+  END IF;
+  IF p_deal_name IS NULL OR trim(p_deal_name) = '' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Deal name is required');
+  END IF;
+  INSERT INTO threads (type, name, property_address, closing_date, last_message_at)
+  VALUES ('deal_chat', trim(p_deal_name), NULLIF(trim(COALESCE(p_property_address, '')), ''), p_closing_date, NOW())
+  RETURNING id INTO v_thread_id;
+  INSERT INTO thread_members (thread_id, user_id) VALUES (v_thread_id, v_agent_id);
+  FOREACH v_participant_id IN ARRAY p_participant_ids LOOP
+    IF v_participant_id != v_agent_id THEN
+      INSERT INTO thread_members (thread_id, user_id) VALUES (v_thread_id, v_participant_id)
+      ON CONFLICT DO NOTHING;
+    END IF;
+  END LOOP;
+  RETURN jsonb_build_object('success', true, 'thread_id', v_thread_id);
+END;
+$function$;
+
+
 -- ═════════════════════════════════════════════════════════════
 -- STORAGE BUCKETS + RLS POLICIES
 -- ═════════════════════════════════════════════════════════════

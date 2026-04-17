@@ -35,9 +35,9 @@
 //                          useMarkJobComplete, useConfirmJobComplete, useRequestJobRevision,
 //                          useCreateJob, useUpdateJob, useInviteContractors
 //   VOUCH FEED (2)       — useVouchFeed, useLikeVouch
-//   CHAT / INBOX (8)     — useChatThreads, useMarkThreadRead, useChatRecipients,
-//                          useCreateThread, useMessages, useSendMessage,
-//                          useInboxThreads, useThreadMessages
+//   CHAT / INBOX (9)     — useChatThreads, useMarkThreadRead, useChatRecipients,
+//                          useCreateThread, useCreateDealThread, useMessages,
+//                          useSendMessage, useInboxThreads, useThreadMessages
 //   NOTIFICATIONS (3)    — useNotifications, useMarkNotificationsRead, useUnreadNotificationCount
 //   FIND / SEARCH (4)    — useSearchPros, useFindPros, useRecommendedPros, useTrendingPros
 //   SQUADS (3)           — useSquadMembers, useAssignSquadMember, useRemoveSquadMember
@@ -1509,6 +1509,51 @@ export const useInboxThreads = () => {
         console.warn('[useInboxThreads] Supabase failed, using mock fallback', err);
         return [];
       }
+    },
+  });
+};
+
+// STATUS: wired
+// @backend — rpc_create_deal_thread(
+//   p_deal_name: TEXT,
+//   p_property_address: TEXT | null,
+//   p_closing_date: DATE | null,   ← YYYY-MM-DD string, Postgres casts to DATE
+//   p_participant_ids: UUID[]
+// )
+// Returns { success: bool, thread_id?: string, error?: string }
+// Creates deal_chat thread + seeds thread_members for agent + all participants.
+// Ownership: auth.uid() = agent. Participants must be valid profile UUIDs.
+export const useCreateDealThread = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      dealName,
+      propertyAddress,
+      closingDate,
+      participantIds,
+    }: {
+      dealName: string;
+      propertyAddress?: string;
+      closingDate?: string;        // YYYY-MM-DD format
+      participantIds: string[];
+    }) => {
+      const { data, error } = await supabase.rpc('rpc_create_deal_thread', {
+        p_deal_name: dealName,
+        p_property_address: propertyAddress ?? null,
+        p_closing_date: closingDate ?? null,
+        p_participant_ids: participantIds,
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; thread_id?: string; error?: string } | null;
+      if (!result?.success) {
+        throw new Error(result?.error ?? 'rpc_create_deal_thread failed');
+      }
+      return { success: true as const, thread_id: result.thread_id as string };
+    },
+    onSuccess: () => {
+      // Refetch (not invalidate) so new deal chat appears in Inbox immediately
+      // — same pattern as useCancelJob (S157b).
+      qc.refetchQueries({ queryKey: queryKeys.inboxThreads });
     },
   });
 };

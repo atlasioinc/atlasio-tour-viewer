@@ -36,6 +36,10 @@ export type InboxStackParamList = {
   };
   CreateDealChat: undefined;
   DealChatScreen: {
+    /** threads.id UUID — present when created via rpc_create_deal_thread (S160).
+     *  Absent when navigating from InboxList (demo threads) until message
+     *  loading is wired in a future session. */
+    threadId?: string;
     dealName: string;
     propertyAddress: string;
     closingDate: string;

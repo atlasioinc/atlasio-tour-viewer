@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S157b — April 15, 2026)
-- **RPCs:** 67 (unchanged S157b — rpc_cancel_job was already live at schema.sql:1274, newly wired via useCancelJob; +1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 67 (+1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+## Current Metrics (updated S160 — April 17, 2026)
+- **RPCs:** 68 (+1 S160: rpc_create_deal_thread — creates deal_chat thread + seeds thread_members for agent + participants; +1 S157b: rpc_cancel_job; +1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
+- **Hooks:** 68 (+1 S160: useCreateDealThread; +1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
@@ -52,6 +52,43 @@
 - **COLORS tokens:** 141 (+16 S148b: category color palette for CategoryMapScreen)
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
+
+---
+
+## S160 — ATL-DEAL-THREAD-01: Wire rpc_create_deal_thread (April 17, 2026)
+
+**Status:** 🟢 Deal chat thread creation wired end-to-end. `CreateDealChat` now invokes `rpc_create_deal_thread` and passes the returned `thread_id` to `DealChatScreen`. Message fetching deliberately deferred to a later session — the screen receives the real thread id but continues rendering `MOCK_DEAL_MESSAGES`.
+
+**Key decisions:**
+- Deal thread created via SECURITY DEFINER RPC — `threads` table has no INSERT RLS, so direct client INSERT is impossible. Same pattern as `rpc_create_thread` (one_to_one).
+- `onSuccess` uses `refetchQueries` (not `invalidateQueries`) on `inboxThreads` — same pattern as `useCancelJob` (S157b) for immediate UI refresh.
+- Message fetching deferred — DealChatScreen accepts optional `threadId?` param and silences the TS unused-local via `void threadId;` + `@backend — wired in future session via useThreadMessages(threadId)` comment.
+- `InboxThread.type` corrected from `'deal'` → `'deal_chat'` — matches the `thread_type_enum` in Supabase.
+- Duplicate `InboxStackParamList` in `types/index.ts` deleted. Single source of truth now lives in `components/InboxStack.tsx`; `DealChatScreen` param shape gains optional `threadId?: string`.
+- `closingDate` display string ("Dec 15") lost year info at entry, so `CreateDealChat` now tracks a parallel `closingDateISO` state (YYYY-MM-DD) set in lockstep inside `handleDateConfirm`. Display string flows to `DealChatScreen` banner; ISO string flows to the RPC.
+- **Known demo-mode failure:** mock contact IDs (`d1`..`d10` in `DEAL_CONTACTS`) are not valid UUIDs. The RPC call will fail in demo mode — surfaced to the user via `Alert.alert('Error', ...)` in the catch block. Production participants must come from a real network source (follow-up session).
+
+**Files modified:**
+- `hooks/useData.ts` — added `useCreateDealThread` mutation hook (STATUS: wired); updated CHAT / INBOX section header count 8 → 9
+- `components/CreateDealChat.tsx` — added `Alert` import + `useCreateDealThread` import; added `closingDateISO` + `isSaving` state; wired `handleDateConfirm` to set ISO in lockstep; rewrote `handleCreateChat` as async with try/catch + `Alert` on failure; Create Chat button shows 'Creating…' + `disabled` during save
+- `components/DealChatScreen.tsx` — destructures `threadId` from route params; `void threadId;` silences unused-local until message loading is wired; added `@backend` comment block at the top
+- `components/InboxStack.tsx` — added `threadId?: string` (optional) to `DealChatScreen` param shape
+- `types/index.ts` — `InboxThread.type` `'deal'` → `'deal_chat'`; deleted duplicate `InboxStackParamList` export (all inbox screens already import from `./InboxStack`)
+- `sql/schema.sql` — added `rpc_create_deal_thread` body (section 18b) after `rpc_create_thread`
+- `tasks/atlasio-bug-history.md` — added ATL-DEAL-THREAD-01 entry
+
+**Verification:**
+- `npx tsc --noEmit` → results below
+- `npx expo lint` → results below
+- `InboxStackParamList` grep confirmed zero imports from `types/index.ts` before deletion; all 5 consumer files import from `./InboxStack`
+
+**Metrics:** RPCs 67 → 68. Hooks 67 → 68. Feature Flags: 11 (unchanged). Edge Functions: 11 (unchanged).
+
+### S160 — Next Objectives
+- Replace `DEAL_CONTACTS` mock in `CreateDealChat.tsx` with a real network-contact source so the RPC stops failing in demo mode
+- Wire `useThreadMessages(threadId)` in `DealChatScreen` to replace `MOCK_DEAL_MESSAGES` with live messages
+- Wire `useSendMessage` for deal threads (shared with 1:1 ChatScreen)
+- Add a "deal chat" entry point to `InboxList` so newly created deal chats appear with the same row pattern as 1:1 threads
 
 ---
 

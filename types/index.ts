@@ -526,7 +526,7 @@ export interface Recipient {
 /** @backend rpc_get_inbox_threads() — single thread in the response array */
 export interface InboxThread {
   thread_id: string;
-  type: 'one_to_one' | 'job_thread' | 'deal';
+  type: 'one_to_one' | 'job_thread' | 'deal_chat';
   name: string | null;
   job_id: string | null;
   property_address: string | null;
@@ -742,19 +742,9 @@ export type NetworkStackParamList = {
   ProProfile: { profileId: string };
 };
 
-export type InboxStackParamList = {
-  InboxList: undefined;
-  NewMessage: undefined;
-  ChatScreen: {
-    threadId: string;
-    contactName: string;
-    contactCompany: string;
-    contactRole: string;
-    contactAvatarColor: string;
-  };
-  CreateDealChat: undefined;
-  DealChatScreen: { conversationId: string };
-};
+// InboxStackParamList is defined in components/InboxStack.tsx (single source of
+// truth). All inbox-stack screens import it from there. Removed duplicate here
+// in S160 — it had drifted (DealChatScreen shape, ChatScreen required fields).
 
 // ─────────────────────────────────────────────
 // SQUAD SHARE (Send to Client — S51)

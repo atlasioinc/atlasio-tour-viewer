@@ -1,14 +1,19 @@
 // CreateDealChat.tsx
 // ═══════════════════════════════════════════════════════════════
-// Create New Deal Chat — Single screen (592 lines)
+// Create New Deal Chat — Single screen
 // Header: Back + title + search field for closing partners
 // Body: Deal name (required), Property Address, Closing Date,
 //       info banner, selected participant chips
 // Footer: "Create Chat" button (disabled until name entered)
 // Searching shows contact list overlay in body area
 //
-// @demo  Mock contacts list, console.log on create
-// @backend TODO: rpc_create_deal_thread — create thread + add participants
+// @backend — rpc_create_deal_thread deployed S160. Returns { success, thread_id }.
+//            Participants must be valid profile UUIDs with thread_members INSERT rights.
+//            Closing date passed as YYYY-MM-DD string, Postgres casts to DATE.
+// @demo    — Mock contact IDs (d1..d10) are NOT UUIDs; the RPC will reject them
+//            in demo mode. Failure surfaces via Alert. In production, participants
+//            must come from a real network source.
+// @demo    — isSaving state shows 'Creating…' during RPC. Alert on failure.
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -21,6 +26,7 @@ import {
   StatusBar,
   Platform,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CommonActions } from '@react-navigation/native';
@@ -30,6 +36,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
 import { Avatar, AddressAutocompleteInput } from './shared';
+import { useCreateDealThread } from '../hooks/useData';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -154,6 +161,9 @@ const CreateDealChat: React.FC = () => {
   const [dealName, setDealName] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
   const [closingDate, setClosingDate] = useState('');
+  // S160: closingDate is the display string ("Dec 1") and loses year info.
+  // closingDateISO stores YYYY-MM-DD for the RPC; set in lockstep below.
+  const [closingDateISO, setClosingDateISO] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Format date to abbreviated "Dec 1" style
@@ -164,12 +174,19 @@ const CreateDealChat: React.FC = () => {
 
   const handleDateConfirm = (date: Date) => {
     setClosingDate(formatDate(date));
+    // S160: keep ISO in lockstep so the RPC receives a real YYYY-MM-DD.
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    setClosingDateISO(`${yyyy}-${mm}-${dd}`);
     setShowDatePicker(false);
   };
   const [showError, setShowError] = useState(false);
   const [participants, setParticipants] = useState<Contact[]>([]);
   const [highlightedChip, setHighlightedChip] = useState<string | null>(null);
   const searchInputRef = useRef<TextInput>(null);
+  const createDealThread = useCreateDealThread();
+  const [isSaving, setIsSaving] = useState(false);
 
   // Filter contacts: exclude already-added + match search
   const availableContacts = useMemo(() => {
@@ -207,44 +224,61 @@ const CreateDealChat: React.FC = () => {
 
   const canCreate = dealName.trim().length > 0 && participants.length > 0;
 
-  const handleCreateChat = () => {
+  const handleCreateChat = async () => {
     if (!canCreate) {
       setShowError(true);
       return;
     }
-    console.log('Deal Chat created:', {
-      dealName: dealName.trim(),
-      propertyAddress: propertyAddress.trim(),
-      closingDate: closingDate.trim(),
-      participants: participants.map((p) => `${p.name} (${p.role})`),
-    });
-    // S155: CommonActions.reset rebuilds the stack as [InboxList, DealChatScreen].
-    // Prior approach (navigation.replace, S151b/S152) did NOT escape the
-    // fullScreenModal ancestor established by NewMessageScreen (InboxStack.tsx:62).
-    // On iOS native-stack, replace keeps the ancestor's modal presentation active,
-    // so DealChatScreen inherited the sheet look. reset() clears the entire stack
-    // and mounts DealChatScreen clean, outside any modal layer. Back from
-    // DealChatScreen → InboxList (index: 1 places DealChatScreen as the active
-    // route with InboxList as its parent).
-    // @demo    — no real thread yet; DealChatScreen only needs {dealName, propertyAddress, closingDate}
-    // @backend — when wired, rpc_create_deal_thread returns { thread_id }; pass it in params
-    //            (InboxStackParamList.DealChatScreen will gain threadId at that time)
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 1,
-        routes: [
-          { name: 'InboxList' },
-          {
-            name: 'DealChatScreen',
-            params: {
-              dealName: dealName.trim(),
-              propertyAddress: propertyAddress.trim(),
-              closingDate: closingDate.trim(),
+    if (isSaving) return;
+    // @demo — mock contact IDs (d1..d10) are not UUIDs; RPC will fail in demo
+    //          mode. Alert below handles the failure path. Real network contacts
+    //          will pass real profile UUIDs once the contact source is wired.
+    const participantIds = participants
+      .map((p) => p.id)
+      .filter((id): id is string => Boolean(id));
+
+    setIsSaving(true);
+    try {
+      const result = await createDealThread.mutateAsync({
+        dealName: dealName.trim(),
+        propertyAddress: propertyAddress.trim() || undefined,
+        closingDate: closingDateISO || undefined,
+        participantIds,
+      });
+
+      // S155: CommonActions.reset rebuilds the stack as [InboxList, DealChatScreen].
+      // Prior approach (navigation.replace, S151b/S152) did NOT escape the
+      // fullScreenModal ancestor established by NewMessageScreen (InboxStack.tsx:62).
+      // On iOS native-stack, replace keeps the ancestor's modal presentation active,
+      // so DealChatScreen inherited the sheet look. reset() clears the entire stack
+      // and mounts DealChatScreen clean, outside any modal layer. Back from
+      // DealChatScreen → InboxList (index: 1 places DealChatScreen as the active
+      // route with InboxList as its parent).
+      // S160: threadId from RPC is now passed through for future useThreadMessages wiring.
+      //       closingDate param keeps the display string ("Dec 15") so the banner reads clean.
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 1,
+          routes: [
+            { name: 'InboxList' },
+            {
+              name: 'DealChatScreen',
+              params: {
+                threadId: result.thread_id,
+                dealName: dealName.trim(),
+                propertyAddress: propertyAddress.trim(),
+                closingDate: closingDate.trim(),
+              },
             },
-          },
-        ],
-      }),
-    );
+          ],
+        }),
+      );
+    } catch (err) {
+      console.error('[CreateDealChat] handleCreateChat failed:', err);
+      Alert.alert('Error', 'Could not create deal chat. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -581,24 +615,25 @@ const CreateDealChat: React.FC = () => {
         }}>
           <Pressable
             onPress={handleCreateChat}
+            disabled={!canCreate || isSaving}
             style={({ pressed }) => ({
-              backgroundColor: canCreate ? COLORS.primary : COLORS.disabledBg,
+              backgroundColor: canCreate && !isSaving ? COLORS.primary : COLORS.disabledBg,
               borderRadius: 12,
               paddingVertical: 15,
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: pressed && canCreate ? 0.9 : 1,
+              opacity: pressed && canCreate && !isSaving ? 0.9 : 1,
             })}
           >
             <Text
               style={{
                 fontSize: 16,
                 fontWeight: '600',
-                color: canCreate ? COLORS.onPrimary : COLORS.disabledText,
+                color: canCreate && !isSaving ? COLORS.onPrimary : COLORS.disabledText,
                 lineHeight: 20,
               }}
             >
-              Create Chat
+              {isSaving ? 'Creating…' : 'Create Chat'}
             </Text>
           </Pressable>
         </View>
