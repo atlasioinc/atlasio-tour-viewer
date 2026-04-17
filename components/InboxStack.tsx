@@ -47,10 +47,11 @@ export type InboxStackParamList = {
      *  Suppresses the "Agent added you to this chat" system pill since the
      *  creator was not added by anyone. Absent / false from InboxList. */
     isCreator?: boolean;
-    /** S161 QA: avatar colors for GroupAvatarGrid in the header.
-     *  From CreateDealChat: participant avatar colors.
-     *  From InboxList: thread.avatarColors (sourced from rpc_get_inbox_threads members[]). */
-    memberColors?: string[];
+    /** S161: real member data for avatar stack in header.
+     *  Each entry is a non-self thread member: { name, color }.
+     *  From CreateDealChat: participant name + avatarColor.
+     *  From InboxList: member name + avatar_color from rpc_get_inbox_threads members[]. */
+    members?: { name: string; color: string }[];
   };
 };
 

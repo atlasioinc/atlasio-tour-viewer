@@ -52,6 +52,7 @@ import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useThreadMessages, useSendMessage, useMyProfile, useUpdateThreadName } from '../hooks/useData';
+import { getInitials } from './shared';
 import type { ThreadMessage } from '../types';
 
 // ─────────────────────────────────────────────
@@ -108,31 +109,62 @@ const ChevronRightIcon: React.FC = () => (
 type DealChatRouteProp = RouteProp<InboxStackParamList, 'DealChatScreen'>;
 
 // ─────────────────────────────────────────────
-// GROUP AVATAR GRID (2x2)
+// GROUP AVATAR GRID — overlap stack, 36x36 header avatar
+// 1 member: full 36px circle. 2: 22px ×2, offset 12. 3: 18px ×3, offset 9.
+// Real initials from member names (S161). Cap at 3 shown.
 // ─────────────────────────────────────────────
 
-const GroupAvatarGrid: React.FC<{ colors: string[] }> = ({ colors }) => {
-  const slots = colors.slice(0, 4);
+const GroupAvatarGrid: React.FC<{ members: { name: string; color: string }[] }> = ({ members }) => {
+  const shown = members.slice(0, 3);
+  const containerSize = 36;
+
+  if (shown.length === 0) {
+    return <View style={{ width: containerSize, height: containerSize }} />;
+  }
+
+  if (shown.length === 1) {
+    const m = shown[0];
+    return (
+      <View style={{
+        width: containerSize, height: containerSize, borderRadius: 9999,
+        backgroundColor: m.color, alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Text style={{ fontSize: Math.round(containerSize * 0.38), fontWeight: '600', color: COLORS.onPrimary }}>
+          {getInitials(m.name)}
+        </Text>
+      </View>
+    );
+  }
+
+  const circleSize = shown.length === 2 ? 22 : 18;
+  const offset = shown.length === 2 ? 12 : 9;
+
   return (
-    <View style={{ width: 36, height: 36, flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
-      {slots.map((color, i) => {
-        const initials = ['SM', 'AC', 'AG', 'JL'][i] || '?';
-        return (
-          <View
-            key={i}
-            style={{
-              width: 17,
-              height: 17,
-              borderRadius: 9999,
-              backgroundColor: color,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 6, fontWeight: '600', color: '#FFFFFF' }}>{initials}</Text>
-          </View>
-        );
-      })}
+    <View style={{ width: containerSize, height: containerSize, position: 'relative' }}>
+      {shown.map((m, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            left: i * offset,
+            top: (containerSize - circleSize) / 2,
+            width: circleSize,
+            height: circleSize,
+            borderRadius: 9999,
+            backgroundColor: m.color,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1.5,
+            borderColor: COLORS.background,
+            zIndex: shown.length - i,
+            elevation: shown.length - i,
+          }}
+        >
+          <Text style={{ fontSize: Math.round(circleSize * 0.38), fontWeight: '600', color: COLORS.onPrimary }}>
+            {getInitials(m.name)}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 };
@@ -215,7 +247,7 @@ const DealChatScreen: React.FC = () => {
     propertyAddress = '',
     closingDate = '',
     isCreator = false,
-    memberColors = [],
+    members = [],
   } = route.params ?? {};
   // S161 — live message loading + sending (gated on USE_MOCK_DATA)
   const { data: myProfile } = useMyProfile();
@@ -417,7 +449,7 @@ const DealChatScreen: React.FC = () => {
               onPress={openEditModal}
               style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 12, marginLeft: 16, opacity: pressed ? 0.5 : 1 })}
             >
-              <GroupAvatarGrid colors={memberColors} />
+              <GroupAvatarGrid members={members} />
               <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.darkText, lineHeight: 24, flexShrink: 1 }} numberOfLines={1}>
                 {currentDealName}
               </Text>

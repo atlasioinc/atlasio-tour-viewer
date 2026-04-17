@@ -38,7 +38,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useChatThreads, useInboxThreads, useArchiveThread } from '../hooks/useData';
 import { adaptChatThreadToLocal, adaptInboxThreadToLocal } from '../lib/typeAdapters';
-import { Avatar, VerificationBanner, SkeletonBlock, EmptyState } from './shared';
+import { Avatar, VerificationBanner, SkeletonBlock, EmptyState, getInitials } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Enable LayoutAnimation on Android
@@ -128,6 +128,8 @@ interface ChatThread {
   isGroup: boolean;
   memberCount?: number;
   avatarColors: string[];
+  /** S161: real member data for group-thread avatar stack. First 3 shown. */
+  members?: { name: string; color: string }[];
   avatarUrl?: string | null;    // S133: photo URL from other_member.avatar_url
   isOnline?: boolean;
   /** @demo — role label for deal context threads; replace with thread.contact.role when LIVE */
@@ -158,6 +160,12 @@ const INITIAL_THREADS: ChatThread[] = [
     isGroup: true,
     memberCount: 6,
     avatarColors: ['#C4A882', '#7BA3C9', '#D4A8B5', '#A8C5DA'],
+    members: [
+      { name: 'Sarah Martinez', color: '#C4A882' },
+      { name: 'Alex Chen', color: '#7BA3C9' },
+      { name: 'Mike Rodriguez', color: '#D4A8B5' },
+      { name: 'Jenna Liu', color: '#A8C5DA' },
+    ],
     isOnline: true,
   },
   {
@@ -170,6 +178,12 @@ const INITIAL_THREADS: ChatThread[] = [
     isGroup: true,
     memberCount: 6,
     avatarColors: ['#B5C4A8', '#C9B87B', '#A8B5D4', '#D4C5A8'],
+    members: [
+      { name: 'Sarah Martinez', color: '#B5C4A8' },
+      { name: 'Alex Chen', color: '#C9B87B' },
+      { name: 'Amy Gonzalez', color: '#A8B5D4' },
+      { name: 'Jake Lee', color: '#D4C5A8' },
+    ],
   },
   {
     id: 't3',
@@ -194,6 +208,12 @@ const INITIAL_THREADS: ChatThread[] = [
     isGroup: true,
     memberCount: 5,
     avatarColors: ['#D4A8A8', '#B5D4C5', '#C5A8D4', '#A8C4B5'],
+    members: [
+      { name: 'Robert Johnson', color: '#D4A8A8' },
+      { name: 'Lisa Park', color: '#B5D4C5' },
+      { name: 'Marcus Brown', color: '#C5A8D4' },
+      { name: 'Emma Wilson', color: '#A8C4B5' },
+    ],
   },
   {
     id: 't5',
@@ -238,6 +258,12 @@ const INITIAL_THREADS: ChatThread[] = [
     isGroup: true,
     memberCount: 4,
     avatarColors: ['#A8D4D4', '#C4A882', '#D4A8C5', '#B5C5D4'],
+    members: [
+      { name: 'David Torres', color: '#A8D4D4' },
+      { name: 'Carlos Martinez', color: '#C4A882' },
+      { name: 'Jennifer Lee', color: '#D4A8C5' },
+      { name: 'Amy Chen', color: '#B5C5D4' },
+    ],
   },
 ];
 
@@ -252,25 +278,69 @@ const SWIPE_ACTION_WIDTH = 80;
 // @backend rpc_get_inbox_threads — other_member now includes avatar_url (S133)
 // Avatar component wired — SingleAvatar removed from this file
 // @cleanup resolved S134 — SingleAvatar eliminated from all remaining files
-// GroupAvatar uses 2x2 grid — not compatible with shared Avatar; keep as-is
+// S161: GroupAvatar rewritten as an overlap stack; 1-member case reuses shared Avatar.
 // ─────────────────────────────────────────────
 
-const GroupAvatar: React.FC<{ colors: string[]; size?: number; isOnline?: boolean }> = ({
-  colors,
-  size = 48,
-  isOnline,
-}) => {
-  const cellSize = 22;
-  const gap = size - cellSize * 2;
-  const c = colors.slice(0, 4);
+// S161: overlap stack — 1 member = full Avatar, 2-3 = overlapping circles with real initials.
+// Circle sizes: 1→48px (via shared Avatar), 2→28px (offset 14), 3→24px (offset 12).
+// Cap at 3 shown. First member on top (zIndex + elevation).
+const GroupAvatar: React.FC<{
+  members: { name: string; color: string }[];
+  size?: number;
+  isOnline?: boolean;
+}> = ({ members, size = 48, isOnline }) => {
+  const shown = members.slice(0, 3);
+
+  // 1 member → full-size shared Avatar (matches 1:1 rows)
+  if (shown.length === 1) {
+    const m = shown[0];
+    return (
+      <View style={{ width: size, height: size, position: 'relative' }}>
+        <Avatar uri={null} name={m.name} size={size} color={m.color} />
+        {isOnline && (
+          <View style={{ position: 'absolute', bottom: -1, right: -1, width: 12, height: 12, borderRadius: 9999, backgroundColor: COLORS.onlineGreen, borderWidth: 1.5, borderColor: COLORS.background }} />
+        )}
+      </View>
+    );
+  }
+
+  // 0 members → empty 48×48 container (same footprint as populated)
+  if (shown.length === 0) {
+    return <View style={{ width: size, height: size, position: 'relative' }} />;
+  }
+
+  // 2 or 3 members → overlap stack
+  const circleSize = shown.length === 2 ? 28 : 24;
+  const offset = shown.length === 2 ? 14 : 12;
+
   return (
     <View style={{ width: size, height: size, position: 'relative' }}>
-      {c[0] && <View style={{ position: 'absolute', left: 0, top: 0, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[0] }} />}
-      {c[1] && <View style={{ position: 'absolute', left: cellSize + gap, top: 0, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[1] }} />}
-      {c[2] && <View style={{ position: 'absolute', left: 0, top: cellSize + gap, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[2] }} />}
-      {c[3] && <View style={{ position: 'absolute', left: cellSize + gap, top: cellSize + gap, width: cellSize, height: cellSize, borderRadius: 9999, backgroundColor: c[3] }} />}
+      {shown.map((m, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            left: i * offset,
+            top: (size - circleSize) / 2,
+            width: circleSize,
+            height: circleSize,
+            borderRadius: 9999,
+            backgroundColor: m.color,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1.5,
+            borderColor: COLORS.background,
+            zIndex: shown.length - i,
+            elevation: shown.length - i,
+          }}
+        >
+          <Text style={{ fontSize: Math.round(circleSize * 0.38), fontWeight: '600', color: COLORS.onPrimary }}>
+            {getInitials(m.name)}
+          </Text>
+        </View>
+      ))}
       {isOnline && (
-        <View style={{ position: 'absolute', bottom: -1, right: -1, width: 12, height: 12, borderRadius: 9999, backgroundColor: COLORS.onlineGreen, borderWidth: 1.5, borderColor: '#FFFFFF' }} />
+        <View style={{ position: 'absolute', bottom: -1, right: -1, width: 12, height: 12, borderRadius: 9999, backgroundColor: COLORS.onlineGreen, borderWidth: 1.5, borderColor: COLORS.background, zIndex: shown.length + 1, elevation: shown.length + 1 }} />
       )}
     </View>
   );
@@ -413,7 +483,7 @@ const SwipeableThreadRow: React.FC<{
         })}
       >
         {thread.isGroup ? (
-          <GroupAvatar colors={thread.avatarColors} isOnline={thread.isOnline} />
+          <GroupAvatar members={thread.members ?? []} isOnline={thread.isOnline} />
         ) : (
           <Avatar uri={thread.avatarUrl ?? null} name={thread.name} size={48} color={thread.avatarColors[0]} />
         )}
@@ -590,9 +660,9 @@ const InboxList: React.FC = () => {
         dealName: thread.name ?? '',
         propertyAddress: thread.dealAddress ?? '',
         closingDate: thread.closingDate ?? '',
-        // S161 QA: reuse the same member colors already computed by
-        // adaptInboxThreadToLocal from rpc_get_inbox_threads members[].
-        memberColors: thread.avatarColors ?? [],
+        // S161: pass full member data (name + color) so the header avatar
+        // stack renders real initials in addition to colors.
+        members: thread.members ?? [],
       });
     } else {
       // Use RPC-sourced fields when available, fall back to parsed name
