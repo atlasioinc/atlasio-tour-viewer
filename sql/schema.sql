@@ -1405,6 +1405,93 @@ END;
 $function$;
 
 
+-- rpc_get_inbox_threads — returns all threads for the current user with
+-- last message, unread counts, the "other member" for 1:1 display, and
+-- a full members[] array (S161) used to populate group-avatar tiles with
+-- real member colors. Members array excludes the caller.
+CREATE OR REPLACE FUNCTION public.rpc_get_inbox_threads()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_result JSONB;
+BEGIN
+
+  IF auth.uid() IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated');
+  END IF;
+
+  SELECT jsonb_build_object(
+    'success', true,
+    'threads', COALESCE(jsonb_agg(thread_row ORDER BY t.last_message_at DESC NULLS LAST), '[]'::jsonb)
+  )
+  INTO v_result
+  FROM threads t
+  JOIN thread_members tm ON tm.thread_id = t.id
+  CROSS JOIN LATERAL (
+    SELECT jsonb_build_object(
+      'thread_id',        t.id,
+      'type',             t.type,
+      'name',             t.name,
+      'job_id',           t.job_id,
+      'property_address', t.property_address,
+      'closing_date',     t.closing_date,
+      'is_pinned',        t.is_pinned,
+      'is_archived',      t.is_archived,
+      'last_message',     t.last_message,
+      'last_message_at',  t.last_message_at,
+      'created_at',       t.created_at,
+      'is_muted',         tm.is_muted,
+      'last_read_at',     tm.last_read_at,
+      'other_member',     COALESCE((
+        SELECT jsonb_build_object(
+          'user_id',      p.id,
+          'name',         p.name,
+          'avatar_color', p.avatar_color,
+          'avatar_url',   p.avatar_url,
+          'company',      p.company
+        )
+        FROM thread_members tm2
+        JOIN profiles p ON p.id = tm2.user_id
+        WHERE tm2.thread_id = t.id
+          AND tm2.user_id != auth.uid()
+        LIMIT 1
+      ), '{}'::jsonb),
+      'members',          COALESCE((
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'user_id',      p.id,
+            'name',         p.name,
+            'avatar_color', p.avatar_color,
+            'avatar_url',   p.avatar_url
+          )
+          ORDER BY tm2.joined_at ASC
+        )
+        FROM thread_members tm2
+        JOIN profiles p ON p.id = tm2.user_id
+        WHERE tm2.thread_id = t.id
+          AND tm2.user_id != auth.uid()
+      ), '[]'::jsonb),
+      'unread_count',     (
+        SELECT COUNT(*)::int
+        FROM messages m
+        WHERE m.thread_id = t.id
+          AND m.sender_id != auth.uid()
+          AND (tm.last_read_at IS NULL OR m.created_at > tm.last_read_at)
+      )
+    ) AS thread_row
+  ) subq
+  WHERE tm.user_id = auth.uid()
+    AND t.is_archived = false;
+
+  RETURN v_result;
+
+END;
+$function$;
+
+
 -- ═════════════════════════════════════════════════════════════
 -- STORAGE BUCKETS + RLS POLICIES
 -- ═════════════════════════════════════════════════════════════

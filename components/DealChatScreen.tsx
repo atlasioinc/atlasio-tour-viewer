@@ -9,15 +9,17 @@
 // Sections: Design Tokens, SVG Icons, Route Type,
 //           Group Avatar Grid, Mock Data, Main Screen
 //
-// @demo  MOCK_DEAL_MESSAGES (7 messages from 3 participants)
-//        Gated on FEATURE_FLAGS.USE_MOCK_DATA (S160 follow-up). When false,
-//        the screen starts with an empty messages array — the system pill
-//        renders and the user can type-and-see local-only bubbles until
-//        useThreadMessages(threadId) is wired.
-// @backend — threadId received from CreateDealChat params (S160).
-//            Wire useThreadMessages(threadId) in a future session to load real messages.
-// @backend TODO: useMessages + useSendMessage (deal thread variant)
-// @backend TODO: Realtime subscription for group messages
+// @demo  MOCK_DEAL_MESSAGES (5 messages from 3 participants)
+//        Gated on FEATURE_FLAGS.USE_MOCK_DATA. When false, messages load
+//        via useThreadMessages(threadId) and send via useSendMessage().
+// @backend — S161: useThreadMessages(threadId) wired for live message loading
+//            (rpc_get_thread_messages). useSendMessage() wired for persistence
+//            (rpc_send_message). sender_name is derived server-side from
+//            auth.uid() — no client-side sender_name passed. isMine derived
+//            from useMyProfile().data?.id. Real-time updates via
+//            useSendMessage.onSuccess invalidating queryKeys.threadMessages.
+//            threadId flows from CreateDealChat (S160) and InboxList (S160).
+// @backend TODO: Realtime Supabase subscription for deal thread messages.
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -34,6 +36,8 @@ import {
   Platform,
   Modal,
   Animated,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -47,6 +51,8 @@ import type { Message } from './MessageBubble';
 import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useThreadMessages, useSendMessage, useMyProfile, useUpdateThreadName } from '../hooks/useData';
+import type { ThreadMessage } from '../types';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -174,6 +180,24 @@ const MOCK_DEAL_MESSAGES: Message[] = [
   },
 ];
 
+// ─────────────────────────────────────────────
+// ADAPTER — ThreadMessage (RPC) → Message (UI)
+// ─────────────────────────────────────────────
+
+const adaptThreadMessage = (tm: ThreadMessage, currentUserId: string | undefined): Message => ({
+  id: tm.id,
+  text: tm.content,
+  timestamp: new Date(tm.created_at).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }),
+  isMine: !!currentUserId && tm.sender_id === currentUserId,
+  senderName: tm.sender_name,
+  // senderAvatarColor intentionally omitted — RPC does not return avatar_color.
+  // MessageBubble renders received bubbles without avatar when color is undefined.
+});
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════
@@ -192,13 +216,25 @@ const DealChatScreen: React.FC = () => {
     closingDate = '',
     isCreator = false,
   } = route.params ?? {};
-  // @backend — wired in future session via useThreadMessages(threadId)
-  void threadId;
+  // S161 — live message loading + sending (gated on USE_MOCK_DATA)
+  const { data: myProfile } = useMyProfile();
+  const { data: liveMessages = [], isLoading: messagesLoading } = useThreadMessages(
+    FEATURE_FLAGS.USE_MOCK_DATA ? undefined : threadId,
+  );
+  const sendMessage = useSendMessage();
+  const updateThreadName = useUpdateThreadName();
+  const [isSavingName, setIsSavingName] = useState(false);
 
   const [messageText, setMessageText] = useState('');
   const [messages, setMessages] = useState<Message[]>(
     FEATURE_FLAGS.USE_MOCK_DATA ? MOCK_DEAL_MESSAGES : []
   );
+
+  // Derived render source: mock state in demo mode, live RPC data otherwise.
+  // `messages` state is preserved for mock-mode local echo (handleSend demo path).
+  const displayMessages: Message[] = FEATURE_FLAGS.USE_MOCK_DATA
+    ? messages
+    : liveMessages.map((tm) => adaptThreadMessage(tm, myProfile?.id));
   const [showAttach, setShowAttach] = useState(false);
   const [pendingAction, setPendingAction] = useState<'photo' | 'document' | null>(null);
   const [attachments, setAttachments] = useState<{ type: 'photo' | 'document'; uri: string; name: string }[]>([]);
@@ -226,11 +262,37 @@ const DealChatScreen: React.FC = () => {
     });
   };
 
-  const handleSaveEdit = () => {
-    if (editDealName.trim().length === 0) return;
-    setCurrentDealName(editDealName.trim());
-    console.log('Deal details updated:', { dealName: editDealName.trim() });
-    closeEditModal();
+  const handleSaveEdit = async () => {
+    const trimmed = editDealName.trim();
+    if (trimmed.length === 0 || isSavingName) return;
+
+    // ── Demo mode: local state only, no Supabase write ──
+    if (FEATURE_FLAGS.USE_MOCK_DATA) {
+      setCurrentDealName(trimmed);
+      closeEditModal();
+      return;
+    }
+
+    // ── Live mode, but no threadId (e.g. InboxList entry without real thread) ──
+    if (!threadId) {
+      console.warn('[DealChatScreen] Cannot update name — no threadId');
+      setCurrentDealName(trimmed);
+      closeEditModal();
+      return;
+    }
+
+    // ── Live mode: update Supabase, then commit to local state ──
+    setIsSavingName(true);
+    try {
+      await updateThreadName.mutateAsync({ threadId, name: trimmed });
+      setCurrentDealName(trimmed);
+      closeEditModal();
+    } catch (err) {
+      console.error('[DealChatScreen] Update name failed:', err);
+      Alert.alert('Error', 'Could not update deal name. Please try again.');
+    } finally {
+      setIsSavingName(false);
+    }
   };
 
   // Picker useEffect
@@ -260,10 +322,10 @@ const DealChatScreen: React.FC = () => {
     }
   }, [pendingAction, showAttach]);
 
-  // Auto-scroll
+  // Auto-scroll — depends on displayMessages so live-mode arrivals trigger scroll
   useEffect(() => {
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [messages]);
+  }, [displayMessages]);
 
   // Scroll to latest when keyboard opens (S108g pattern)
   useEffect(() => {
@@ -275,17 +337,48 @@ const DealChatScreen: React.FC = () => {
     };
   }, []);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (messageText.trim().length === 0 && attachments.length === 0) return;
-    const newMessage: Message = {
-      id: `dm${Date.now()}`,
-      text: messageText.trim() || `Attachment(s): ${attachments.length}`,
-      timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-      isMine: true,
-    };
-    setMessages((prev) => [...prev, newMessage]);
+    const content = messageText.trim();
+
+    // ── Demo mode: local echo only, no Supabase write ──
+    if (FEATURE_FLAGS.USE_MOCK_DATA) {
+      const newMessage: Message = {
+        id: `dm${Date.now()}`,
+        text: content || `Attachment(s): ${attachments.length}`,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        isMine: true,
+      };
+      setMessages((prev) => [...prev, newMessage]);
+      setMessageText('');
+      setAttachments([]);
+      return;
+    }
+
+    // ── Live mode: Supabase write via useSendMessage ──
+    if (!threadId) {
+      console.warn('[DealChatScreen] Cannot send — no threadId');
+      return;
+    }
+    if (attachments.length > 0) {
+      Alert.alert('Not yet supported', 'Attachments in deal chats ship in a later session.');
+      return;
+    }
+    if (content.length === 0) return;
+
     setMessageText('');
+    const clearedAttachments = attachments;
     setAttachments([]);
+
+    try {
+      await sendMessage.mutateAsync({ threadId, content });
+      // useThreadMessages refetches automatically via queryKey invalidation.
+    } catch (err) {
+      console.error('[DealChatScreen] Send failed:', err);
+      Alert.alert('Error', 'Could not send message. Please try again.');
+      setMessageText(content);
+      setAttachments(clearedAttachments);
+    }
   };
 
   const handleRemoveAttachment = (index: number) => {
@@ -379,8 +472,15 @@ const DealChatScreen: React.FC = () => {
             </View>
           )}
 
+          {/* Loading state — live mode only, while initial fetch is in flight */}
+          {!FEATURE_FLAGS.USE_MOCK_DATA && messagesLoading && displayMessages.length === 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <ActivityIndicator color={COLORS.primary} />
+            </View>
+          )}
+
           {/* Messages */}
-          {messages.map((msg) => (
+          {displayMessages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} showSender={true} />
           ))}
         </ScrollView>
@@ -454,7 +554,20 @@ const DealChatScreen: React.FC = () => {
             <Pressable
               onPress={handleSend}
               hitSlop={8}
-              style={({ pressed }) => ({ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', opacity: (messageText.trim().length > 0 || attachments.length > 0) ? (pressed ? 0.5 : 1) : 0.5 })}
+              disabled={
+                (messageText.trim().length === 0 && attachments.length === 0) ||
+                sendMessage.isPending
+              }
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity:
+                  (messageText.trim().length > 0 || attachments.length > 0) && !sendMessage.isPending
+                    ? (pressed ? 0.5 : 1)
+                    : 0.5,
+              })}
             >
               <SendIcon />
             </Pressable>
@@ -594,18 +707,19 @@ const DealChatScreen: React.FC = () => {
                   {/* Save button */}
                   <Pressable
                     onPress={handleSaveEdit}
+                    disabled={editDealName.trim().length === 0 || isSavingName}
                     style={({ pressed }) => ({
-                      backgroundColor: editDealName.trim().length > 0 ? COLORS.primary : COLORS.disabledBg,
+                      backgroundColor: editDealName.trim().length > 0 && !isSavingName ? COLORS.primary : COLORS.disabledBg,
                       borderRadius: 12,
                       paddingVertical: 15,
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginTop: 4,
-                      opacity: pressed && editDealName.trim().length > 0 ? 0.9 : 1,
+                      opacity: pressed && editDealName.trim().length > 0 && !isSavingName ? 0.9 : 1,
                     })}
                   >
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: editDealName.trim().length > 0 ? COLORS.onPrimary : COLORS.disabledText, lineHeight: 20 }}>
-                      Save
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: editDealName.trim().length > 0 && !isSavingName ? COLORS.onPrimary : COLORS.disabledText, lineHeight: 20 }}>
+                      {isSavingName ? 'Saving…' : 'Save'}
                     </Text>
                   </Pressable>
                 </View>

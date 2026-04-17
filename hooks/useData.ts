@@ -1558,6 +1558,33 @@ export const useCreateDealThread = () => {
   });
 };
 
+// STATUS: wired
+// @backend — direct table update on threads.name
+//            RLS: id IN (get_user_thread_ids(auth.uid())) — any member can rename
+//            threads table has no updated_at column — do not add it to the update
+export const useUpdateThreadName = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      threadId,
+      name,
+    }: {
+      threadId: string;
+      name: string;
+    }) => {
+      const { error } = await supabase
+        .from('threads')
+        .update({ name: name.trim() })
+        .eq('id', threadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      // Refetch inbox so thread list shows updated name
+      qc.refetchQueries({ queryKey: queryKeys.inboxThreads });
+    },
+  });
+};
+
 /**
  * Fetch messages for a specific thread
  * @backend rpc_get_thread_messages({ p_thread_id }) — validates membership, marks last_read_at

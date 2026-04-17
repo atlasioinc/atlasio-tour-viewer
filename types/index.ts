@@ -545,6 +545,15 @@ export interface InboxThread {
     avatar_url: string | null;   // S133: now returned by rpc_get_inbox_threads
     company: string | null;
   };
+  // S161: all thread members except the current user, ordered by joined_at ASC.
+  // Optional for backward compat. Used by adaptInboxThreadToLocal to populate
+  // GroupAvatar tiles with real member colors (replaces S160 deriveColor placeholder).
+  members?: {
+    user_id: string;
+    name: string;
+    avatar_color: string | null;
+    avatar_url: string | null;
+  }[];
   unread_count: number;
 }
 
