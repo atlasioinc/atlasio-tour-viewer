@@ -289,6 +289,11 @@ const CreateDealChat: React.FC = () => {
                 // S160: viewer is the agent who just created the deal — hide
                 // the "Agent added you to this chat" system pill.
                 isCreator: true,
+                // S161: pass real participant data so DealChatScreen header
+                // shows member tiles with real colors and initials.
+                members: participants
+                  .filter((p) => Boolean(p.avatarColor))
+                  .map((p) => ({ name: p.name ?? '', color: p.avatarColor! })),
               },
             },
           ],

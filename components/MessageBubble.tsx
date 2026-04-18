@@ -70,7 +70,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, showSender = fal
             <Text style={{ fontSize: 14, fontWeight: '400', color: '#FFFFFF', lineHeight: 20 }}>
               {text}
             </Text>
-            <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.timestampMine, lineHeight: 16 }}>
+            <Text style={{ fontSize: 12, fontWeight: '400', color: COLORS.timestampMine, lineHeight: 16, textAlign: 'right' }}>
               {timestamp}
             </Text>
           </View>

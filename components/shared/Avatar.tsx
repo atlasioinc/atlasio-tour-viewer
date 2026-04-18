@@ -18,6 +18,16 @@ interface AvatarProps {
   isUploading?: boolean;       // spinner overlay during upload
 }
 
+// S161: shared initials helper — first letter of first two words, uppercased.
+// Exported for use in GroupAvatar (InboxList) and GroupAvatarGrid (DealChatScreen).
+export const getInitials = (name: string): string =>
+  (name ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]!.toUpperCase())
+    .join('') || '?';
+
 const Avatar: React.FC<AvatarProps> = ({
   uri,
   name,
@@ -29,13 +39,7 @@ const Avatar: React.FC<AvatarProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   const hasImage = !!uri && !imageError;
-  const initials =
-    (name ?? '')
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((n) => n[0]!.toUpperCase())
-      .join('') || '?';
+  const initials = getInitials(name);
 
   const avatarContent = (
     <View style={{ width: size, height: size, position: 'relative' }}>

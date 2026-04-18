@@ -20,17 +20,6 @@ import type {
 import { COLORS } from './tokens';
 
 // ─────────────────────────────────────────────
-// S160: Derives a consistent avatar color from a string (thread name) —
-// placeholder until rpc_get_inbox_threads returns all member colors as an array.
-// @backend — replace with members[].avatar_color when RPC is updated.
-// ─────────────────────────────────────────────
-const AVATAR_COLORS = ['#7BA3C9', '#E8A87C', '#85C1A3', '#C9A7E8', '#E8C97B'];
-const deriveColor = (str: string): string => {
-  const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-};
-
-// ─────────────────────────────────────────────
 // InboxList: ChatThreadView → local ChatThread
 // ─────────────────────────────────────────────
 
@@ -45,6 +34,8 @@ interface InboxChatThread {
   isGroup: boolean;
   memberCount?: number;
   avatarColors: string[];
+  /** S161: real member data for group-thread avatar stack (name + color). */
+  members?: { name: string; color: string }[];
   avatarUrl?: string | null;    // S133: photo URL from other_member.avatar_url
   isOnline?: boolean;
   contactRole?: string;
@@ -91,16 +82,23 @@ export const adaptInboxThreadToLocal = (thread: InboxThread): InboxChatThread =>
   unreadCount: thread.unread_count ?? 0,
   isPinned: thread.is_pinned ?? false,
   isGroup: thread.type !== 'one_to_one',
-  // @backend — placeholder. Replace with all member avatar_colors when
-  //            rpc_get_inbox_threads returns members[] instead of single other_member.
+  // @backend — avatarColors for group threads uses members[] from
+  //            rpc_get_inbox_threads (updated S161). deriveColor() removed.
+  //            members[] excludes the current user (filtered server-side).
+  //            Fallback: other_member.avatar_color if members[] is empty.
   avatarColors: thread.type !== 'one_to_one'
-    ? [
-        thread.other_member?.avatar_color ?? COLORS.primary,
-        deriveColor(thread.name ?? ''),
-        deriveColor((thread.name ?? '') + '1'),
-        deriveColor((thread.name ?? '') + '2'),
-      ]
+    ? (thread.members && thread.members.length > 0
+        ? thread.members.map(m => m.avatar_color ?? COLORS.primary)
+        : [thread.other_member?.avatar_color ?? COLORS.primary])
     : [thread.other_member?.avatar_color ?? COLORS.primary],
+  // @backend — S161: real member data from rpc_get_inbox_threads members[].
+  //            Used by GroupAvatar overlap stack for real initials + colors.
+  members: thread.type !== 'one_to_one'
+    ? (thread.members ?? []).map(m => ({
+        name: m.name ?? '',
+        color: m.avatar_color ?? COLORS.primary,
+      }))
+    : [],
   avatarUrl: thread.other_member?.avatar_url ?? null,
   contactRole: '',
   dealAddress: thread.property_address ?? undefined,
