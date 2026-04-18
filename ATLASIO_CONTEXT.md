@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S160 — April 17, 2026)
-- **RPCs:** 68 (+1 S160: rpc_create_deal_thread — creates deal_chat thread + seeds thread_members for agent + participants; +1 S157b: rpc_cancel_job; +1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 68 (+1 S160: useCreateDealThread; +1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+## Current Metrics (updated S161 — April 17, 2026)
+- **RPCs:** 69 (+1 S161: rpc_get_inbox_threads updated to return `members[]`; +1 S160: rpc_create_deal_thread — creates deal_chat thread + seeds thread_members for agent + participants; +1 S157b: rpc_cancel_job; +1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
+- **Hooks:** 69 (+1 S161: useUpdateThreadName; +1 S160: useCreateDealThread; +1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
@@ -52,6 +52,53 @@
 - **COLORS tokens:** 141 (+16 S148b: category color palette for CategoryMapScreen)
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
+
+---
+
+## S161 — ATL-DEAL-THREAD-03/04/05 + Avatar Stack Redesign (April 17, 2026)
+
+**Status:** 🟢 Shipped. Final commit on `main`: merge of `feat/atl-deal-thread-s161` (`df1537d`). Three tickets closed (03/04/05) + two QA follow-ups (GroupAvatar variable tiles + avatar stack redesign). ATL-DEAL-THREAD-06 logged for S162.
+
+**Key decisions:**
+- **Messages persistence (03):** `DealChatScreen` consumes `useThreadMessages(threadId)` (already wired) and `useSendMessage` (already wired). New `adaptThreadMessage` adapter maps RPC `ThreadMessage` → local `Message` (content→text, created_at→formatted timestamp, sender_id===myProfile.id→isMine). Demo mode preserved with local-echo branch; live mode uses optimistic-clear-on-submit with restore on error. Attachments blocked in live mode with Alert (upload path deferred).
+- **Deal name edit (04):** New `useUpdateThreadName` hook does a direct `threads.name` UPDATE. RLS `Members update threads` (any thread member) gates the write. No RPC needed. `threads` table has no `updated_at` column — not added. `refetchQueries({ queryKey: queryKeys.inboxThreads })` on success so the inbox row picks up the new name immediately.
+- **Member colors (05):** `rpc_get_inbox_threads` updated to return a `members[]` array alongside `other_member` (non-self members only, ordered by `joined_at ASC`). Adapter extended to propagate `{ name, color }[]` through `InboxChatThread.members` and the local `ChatThread.members`. `deriveColor` + `AVATAR_COLORS` placeholder fully removed.
+- **Avatar stack redesign:** Both `GroupAvatar` (InboxList, 48×48) and `GroupAvatarGrid` (DealChatScreen header, 36×36) rewritten as dynamic overlap stacks. 1 member → full Avatar with initials. 2 members → 28×28 (InboxList) / 22×22 (header) circles offset 14/12. 3 members → 24×24 / 18×18 offset 12/9. zIndex + elevation for first-on-top stacking. `isOnline` dot preserved on `GroupAvatar` container. `getInitials` helper exported from `components/shared/Avatar.tsx` and re-exported via the shared barrel — single source for initial derivation.
+- **Route param `members`:** replaces S161-QA `memberColors` on `DealChatScreen` params. Passed from `CreateDealChat` (from `participants`) and `InboxList.handleThreadPress` (from `thread.members`).
+- **Mock data enrichment:** `INITIAL_THREADS` group threads (t1, t2, t4, t8) gain realistic `members: [{name, color}]` arrays so demo mode renders real initials (SM/AC/MR/JL style) instead of `?` placeholders.
+- **Sent timestamp alignment:** `MessageBubble` sent-bubble timestamp gets `textAlign: 'right'` so it hugs the right edge of the bubble. Received bubbles untouched.
+- **Commit hygiene:** `lib/featureFlags.ts` never committed with live-mode drift — reset pre-merge. Demo defaults preserved on main.
+
+**Files modified (across 3 commits on feat/atl-deal-thread-s161):**
+- `hooks/useData.ts` — added `useUpdateThreadName`
+- `lib/typeAdapters.ts` — removed `deriveColor` + `AVATAR_COLORS`; rewrote `avatarColors` block; added `members` field + propagation
+- `types/index.ts` — added optional `members?: { user_id, name, avatar_color: string | null, avatar_url }[]` to `InboxThread`
+- `sql/schema.sql` — added `rpc_get_inbox_threads` body (mirrors deployed Supabase state)
+- `components/DealChatScreen.tsx` — wired `useThreadMessages` + `useSendMessage` + `useMyProfile` + `useUpdateThreadName`; `adaptThreadMessage` adapter; rewrote `handleSend` + `handleSaveEdit` async; rewrote `GroupAvatarGrid` as overlap stack; replaced hardcoded initials + colors with route-param `members`
+- `components/InboxList.tsx` — rewrote `GroupAvatar` as overlap stack; added `members?` to `ChatThread`; enriched `INITIAL_THREADS`; updated `handleThreadPress` to pass `members`
+- `components/InboxStack.tsx` — `DealChatScreen` param type: `members?: { name, color }[]`
+- `components/CreateDealChat.tsx` — passes `members` (name + color) in `CommonActions.reset`
+- `components/MessageBubble.tsx` — sent timestamp `textAlign: 'right'`
+- `components/shared/Avatar.tsx` — exported `getInitials` helper
+- `components/shared/index.ts` — re-export `getInitials`
+
+**Verification:**
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 7 pre-existing warnings, 0 new
+- `/review` (3 runs) → auto-fixed type nullability, attachment drop, stale comment; no remaining findings
+- Supabase `rpc_get_inbox_threads` deployed with `SET search_path TO 'public'`
+
+**Metrics:** RPCs 68 → 69 (rpc_get_inbox_threads updated). Hooks 68 → 69 (useUpdateThreadName). Edge Functions: 11. Feature Flags: 11.
+
+### S162 — Next Objectives
+- **ATL-DEAL-THREAD-06** — Settings gear + system pill creator detection via `joined_at` approach (MVP blocker)
+- **ATL-DEAL-THREAD-02** — Archive deal chat
+- **ATL-LOCATION-01** — Service area filtering for contractors
+- **ATL-CONTRACTOR-TRADES-3** — PostJobWizard tradesMap migration
+- **ATL-CTA-AUDIT** — Primary CTA button audit
+- GroupAvatar +N overflow badge (4+ members)
+- GroupAvatarGrid header initials wiring (member names at screen level)
+- RepairJobDetails bid actions wire-up
 
 ---
 
