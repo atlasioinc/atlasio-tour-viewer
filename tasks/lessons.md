@@ -472,6 +472,45 @@ Primary CTA buttons must match the PostPhotoJobScreen canonical pattern:
 
 **How to apply:** before building any new CTA, read PostPhotoJobScreen.tsx sticky submit button (lines ~484–503). Match exactly. Broader CTA audit ticket created — ATL-CTA-AUDIT.
 
+## RULE — `now()` is transaction-time; `clock_timestamp()` is statement-time (added S162, April 18 2026)
+
+Postgres `now()` returns `transaction_timestamp()` — **every statement inside a single transaction
+gets the same timestamp to the microsecond.** If a column defaults to `now()` and multiple rows
+are INSERTed in the same RPC, plpgsql function, or BEGIN/COMMIT block, they all share an
+identical timestamp. `ORDER BY that_column ASC LIMIT 1` returns an arbitrary row from the tied
+set — not the row inserted first.
+
+**Symptom (S162):** `useIsThreadCreator` hook tried to identify the deal-chat creator as the
+member with the earliest `thread_members.joined_at`. Default was `now()`. `rpc_create_deal_thread`
+INSERTs the agent + every participant in one transaction → all rows share `joined_at` → query
+returns a non-deterministic member as "creator". Bug surfaces ~20% of the time, impossible to
+reproduce reliably.
+
+**Correct fix:** change the default to `clock_timestamp()`, which returns wall-clock time **per
+statement call**. Each INSERT statement gets its own microsecond-precision timestamp; insert order
+becomes the natural `ORDER BY` order. One-line migration:
+```sql
+ALTER TABLE thread_members ALTER COLUMN joined_at SET DEFAULT clock_timestamp();
+```
+
+**Caveats:**
+- Only affects NEW inserts — existing rows keep their original tied timestamps. For ordering
+  guarantees on historical rows, you need a separate column (e.g., `creator_id`) or a backfill,
+  not a default change.
+- `clock_timestamp()` is slightly more expensive than `now()` (each call hits the system clock).
+  Negligible for INSERTs, but if a SELECT computes `clock_timestamp()` per row in a million-row
+  query, it adds up.
+- Don't use `clock_timestamp()` for `created_at` columns where you actually want
+  transaction-start time. The default `now()` is correct for those.
+
+**When to apply:** any time you need a deterministic "first inserted" order for rows created
+inside the same transaction — RPCs that seed multiple child rows, batch INSERT patterns, anything
+where row order from a single statement matters semantically.
+
+S162 cost: 1 investigation cycle to discover the tie problem, 1 migration + bundled hook to fix.
+Without this rule, the next person doing similar "who joined first" / "first row inserted wins"
+logic on a SECURITY DEFINER RPC will rediscover it the hard way.
+
 ## Known terminal warning — not a bug
 
 "Each child in a list should have a unique key prop" from HomeTabAgent ScrollView —

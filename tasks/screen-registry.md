@@ -609,23 +609,28 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 
 #### ContractorInboxList
 **File:** `components/ContractorInboxList.tsx`
-**Role:** Contractor only
-**Nav Type:** Tab root (Inbox tab for contractor)
-**Feature Flag:** None
-**Wiring:** 🟡 Partial
+**Role:** Contractor + Partner (shared surface — both roles route here per BottomTabNavigator)
+**Nav Type:** Tab root (Inbox tab for contractor + partner)
+**Feature Flag:** None (USE_MOCK_DATA gates live vs mock data path)
+**Wiring:** ✅ Live (S162b — useInboxThreads with client-side filter to deal_chat + job_thread)
 
 **What's on this screen:**
 - Header: "Job Chats"
-- ACTIVE JOBS section (threads with count inline)
-- PAST JOBS section (threads with count inline)
+- ACTIVE JOBS section — live deal_chat + job_thread threads the user is a member of (RLS-scoped via thread_members)
+- PAST JOBS section — empty in live mode pending RPC support for completed/cancelled threads (header conditionally rendered behind length > 0); shows mock past threads in demo mode
 - Swipe-to-delete (UI via Swipeable, @demo console.log, @backend rpc_delete_chat_thread)
-- Thread rows → ChatScreen
+- Status badge suppressed for deal_chat rows (S162b — placeholder jobStatus would render misleading "In Progress" pill)
+- In-screen Empty/Filled toggle preserved for demo mode QA
 
 **Entry Points:**
-- Bottom tab (contractor)
+- Bottom tab (contractor + partner)
 
 **Exit Points:**
-- → ChatScreen (tap thread) — push
+- → DealChatScreen (tap deal_chat thread) — `navigation.navigate` (S162b)
+- → ChatScreen (tap job_thread or mock thread) — `navigation.navigate`
+
+**Live hooks:** useInboxThreads (S162b)
+**@backend:** rpc_get_inbox_threads() — auth.uid() identifies contractor/partner; client filters returned threads to type IN ('deal_chat', 'job_thread')
 
 ---
 
