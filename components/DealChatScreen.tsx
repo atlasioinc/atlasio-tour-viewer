@@ -51,7 +51,7 @@ import type { Message } from './MessageBubble';
 import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useThreadMessages, useSendMessage, useMyProfile, useUpdateThreadName } from '../hooks/useData';
+import { useThreadMessages, useSendMessage, useMyProfile, useUpdateThreadName, useIsThreadCreator } from '../hooks/useData';
 import { getInitials } from './shared';
 import type { ThreadMessage } from '../types';
 
@@ -246,7 +246,7 @@ const DealChatScreen: React.FC = () => {
     dealName = '',
     propertyAddress = '',
     closingDate = '',
-    isCreator = false,
+    isCreator: routeIsCreator = false,
     members = [],
   } = route.params ?? {};
   // S161 — live message loading + sending (gated on USE_MOCK_DATA)
@@ -254,6 +254,12 @@ const DealChatScreen: React.FC = () => {
   const { data: liveMessages = [], isLoading: messagesLoading } = useThreadMessages(
     FEATURE_FLAGS.USE_MOCK_DATA ? undefined : threadId,
   );
+  // S162 — server-derived creator detection. Returns undefined in mock mode,
+  // on RLS error, or for pre-S162 tied-timestamp threads → routeIsCreator owns fallback.
+  const { data: serverIsCreator } = useIsThreadCreator(
+    FEATURE_FLAGS.USE_MOCK_DATA ? undefined : threadId,
+  );
+  const isCreator = serverIsCreator ?? routeIsCreator;
   const sendMessage = useSendMessage();
   const updateThreadName = useUpdateThreadName();
   const [isSavingName, setIsSavingName] = useState(false);

@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S161 — April 17, 2026)
+## Current Metrics (updated S162 — April 18, 2026)
 - **RPCs:** 69 (+1 S161: rpc_get_inbox_threads updated to return `members[]`; +1 S160: rpc_create_deal_thread — creates deal_chat thread + seeds thread_members for agent + participants; +1 S157b: rpc_cancel_job; +1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 69 (+1 S161: useUpdateThreadName; +1 S160: useCreateDealThread; +1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts count; partner hooks in usePartnerData.ts tracked separately)
+- **Hooks:** 69 (+1 S162: useIsThreadCreator; +1 S161: useUpdateThreadName; +1 S160: useCreateDealThread; +1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts grep-authoritative count; partner hooks in usePartnerData.ts tracked separately. Pre-S162 actual count was 68 — S161 entry drifted by 1; this S162 number is the corrected, grep-authoritative post-session value.)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 (PaymentSettingsScreen S129)
@@ -52,6 +52,49 @@
 - **COLORS tokens:** 141 (+16 S148b: category color palette for CategoryMapScreen)
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
+
+---
+
+## S162 — ATL-DEAL-THREAD-06 + ATL-INBOX-MOCK-SHADOW: Server-derived creator detection + contractor/partner inbox live wiring (April 18–19, 2026)
+
+**Status:** 🟢 Server-derived creator detection wired. System pill in `DealChatScreen` now correctly hidden for the deal creator on every entry path (first-creation hop AND Inbox re-entry). S162b bundled: `ContractorInboxList` (shared contractor + partner surface) wired to live `useInboxThreads`; deal_chat threads now appear for non-agent members. Pending device QA on `feat/atl-deal-thread-06-s162` branch.
+
+**Key decisions:**
+- **Migration (D-prime):** `thread_members.joined_at` default changed from `now()` (transaction-time, ties all rows in same RPC) → `clock_timestamp()` (wall-clock, deterministic per statement). Single-line `ALTER COLUMN` — no schema rewrite, no new column, no RPC change. Agent is inserted first inside `rpc_create_deal_thread`, so for all threads created from S162 forward, agent reliably wins `ORDER BY joined_at ASC LIMIT 1`.
+- **Hook (`useIsThreadCreator`):** Direct `thread_members` SELECT (no RPC needed — RLS "View co-members" already permits). Returns `boolean | undefined`. `undefined` is the explicit "I don't know" signal returned in mock mode, when `threadId` is missing, on RLS error, or for pre-S162 tied-timestamp threads. 5-min `staleTime` because creator never changes for a given thread.
+- **Wiring (Option C):** `DealChatScreen` renames the route-param destructure to `routeIsCreator` and merges via `const isCreator = serverIsCreator ?? routeIsCreator`. The route param remains as the loading-state hint (covers ~100–300ms server query window on first-creation hop with zero pill flash). The pill render at line 498 (`{!isCreator && …}`) consumes the merged value with no other change.
+- **Schema sync:** `sql/schema.sql:367` updated to `DEFAULT clock_timestamp()` in the same commit as hook + screen + docs. The deployed database is the source of truth — the file mirrors it.
+- **Known-acceptable edge case:** Threads created BEFORE the S162 migration retain tied `joined_at` values. For these, the hook returns `undefined` or wrongly `false` for the creator → UI falls back to `routeIsCreator` (matches pre-S162 behavior). Documented in `tasks/atlasio-bug-history.md`. Mitigation: create fresh deal threads post-migration for demo purposes. Not a bug.
+- **S162b bundled — ATL-INBOX-MOCK-SHADOW:** `ContractorInboxList.tsx` (shared contractor + partner surface — confirmed: title_escrow Lisa AND mortgage_pro David both land here) was 100% mock with no live data wiring. Bundled fix: wire `useInboxThreads` with client-side filter to `deal_chat` + `job_thread`, branch `handleThreadPress` on type, register `DealChatScreen` in `ContractorInboxStack`. Adapter `adaptInboxThreadToLocal` confirmed role-agnostic — no `viewerRole` parameter needed. Status badge suppressed for deal_chat rows (placeholder `'in_progress'` jobStatus would have rendered as misleading "In Progress" pill). Past-thread surface deferred (RPC doesn't yet return `completed`/`cancelled`; "Past Jobs" header was already conditionally rendered).
+- **Out of scope (held the line):** No `creator_id` column on `threads`. No `rpc_get_inbox_threads` modification. No archive logic (that is ATL-DEAL-THREAD-02 in S163). No settings gear icon. No new "Deal" pill variant. No file rename of `ContractorInboxList.tsx`. No `useContractorJobChats()` hook (would duplicate `useInboxThreads`). No BottomTabNavigator routing change beyond the `DealChatScreen` registration in `ContractorInboxStack`.
+- **Hook-count drift acknowledged:** S161 entry reported 68 → 69, but `grep -c "^export const use" hooks/useData.ts` showed 68 going into S162. This is upstream drift, not a regression. S162 reports grep-authoritative 68 → 69. CLAUDE.md metrics block intentionally NOT touched this session — reconciliation deferred to a dedicated metrics audit. Notion Live Build State (showing 69 pre-S162) is not the source of truth.
+
+**Files modified (single commit on feat/atl-deal-thread-06-s162):**
+- `sql/schema.sql` — `thread_members.joined_at` default `now()` → `clock_timestamp()` (mirrors deployed migration)
+- `hooks/useData.ts` — added `useIsThreadCreator` hook (after `useUpdateThreadName`, before `useThreadMessages`)
+- `components/DealChatScreen.tsx` — added `useIsThreadCreator` import; renamed destructured `isCreator` → `routeIsCreator`; inserted hook call + `serverIsCreator ?? routeIsCreator` merge; pill render unchanged
+- `components/ContractorInboxList.tsx` — S162b: header reframe (membership-scoped); imports `useEffect`, `FEATURE_FLAGS`, `useInboxThreads`, `adaptInboxThreadToLocal`; new `JobChatThreadWithMeta` type; `useInboxThreads` + `useEffect` wire that filters to `deal_chat`/`job_thread` and adapts to row shape; `handleThreadPress` branches on `__type` to route to `DealChatScreen` with members[]; `ThreadStatusBadge` suppressed for deal_chat rows
+- `components/BottomTabNavigator.tsx` — S162b: imported `DealChatScreen`; registered it inside `ContractorInboxStack` so contractor/partner deal_chat navigation lands cleanly
+- `tasks/atlasio-bug-history.md` — added ATL-INBOX-MOCK-SHADOW entry (top); added ATL-DEAL-THREAD-06 entry (below) with Symptom / Root cause / Resolution / Known-acceptable / Do NOT
+- `tasks/screen-registry.md` — added new `DealChatScreen` entry between `ChatScreen` and `NewMessageScreen` with full data-source list including `useIsThreadCreator`
+- `ATLASIO_CONTEXT.md` — this entry; Current Metrics block updated to reflect grep-authoritative hook count
+
+**Verification:**
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → see commit log
+- `/review` (or `/ultrareview` per S162 prompt) → run before commit
+- Hook-count grep before commit: `grep -c "^export const use" hooks/useData.ts` → 69
+
+**Metrics:** RPCs 69 (unchanged). Hooks 68 → 69 (grep-authoritative; +useIsThreadCreator). Edge Functions 11 (unchanged). Feature Flags 11 (unchanged).
+
+### S163 — Next Objectives
+- **ATL-DEAL-THREAD-02** — Archive deal chat (next in deal-thread sequence)
+- **ATL-LOCATION-01** — Service area filtering for contractors
+- **ATL-CONTRACTOR-TRADES-3** — PostJobWizard tradesMap migration
+- **ATL-CTA-AUDIT** — Primary CTA button audit
+- GroupAvatar +N overflow badge (4+ members)
+- RepairJobDetails bid actions wire-up
+- Hook-count + metrics audit session — reconcile CLAUDE.md, ATLASIO_CONTEXT.md, and Notion Live Build State to a single grep-derived source of truth
 
 ---
 

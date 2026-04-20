@@ -1586,6 +1586,52 @@ export const useUpdateThreadName = () => {
 };
 
 /**
+ * Determine if the current user is the creator of a deal thread.
+ * Creator = earliest joined_at member — deterministic since the S162 migration
+ * changed thread_members.joined_at default from now() → clock_timestamp().
+ *
+ * Returns:
+ *   true       — current user is the creator
+ *   false      — current user is a non-creator member
+ *   undefined  — mock mode, no threadId, RLS error, or pre-S162 thread with
+ *                tied joined_at values (UI falls back to route-param hint)
+ *
+ * @backend thread_members table — SELECT user_id, joined_at WHERE thread_id = ?
+ *          ORDER BY joined_at ASC LIMIT 1. RLS: "View co-members" policy permits
+ *          any member to read all rows for their threads.
+ * @demo Returns undefined in USE_MOCK_DATA mode so route-param isCreator owns demo behavior.
+ */
+// STATUS: wired (with route-param fallback)
+export const useIsThreadCreator = (threadId: string | undefined) => {
+  return useQuery<boolean | undefined>({
+    queryKey: ['thread_creator', threadId] as const,
+    queryFn: async (): Promise<boolean | undefined> => {
+      if (FEATURE_FLAGS.USE_MOCK_DATA) return undefined;
+      if (!threadId) return undefined;
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) return undefined;
+        const { data, error } = await supabase
+          .from('thread_members')
+          .select('user_id, joined_at')
+          .eq('thread_id', threadId)
+          .order('joined_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) return undefined;
+        return data.user_id === userId;
+      } catch (err) {
+        console.warn('[useIsThreadCreator] failed, falling back to route hint', err);
+        return undefined;
+      }
+    },
+    enabled: !!threadId && !FEATURE_FLAGS.USE_MOCK_DATA,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+/**
  * Fetch messages for a specific thread
  * @backend rpc_get_thread_messages({ p_thread_id }) — validates membership, marks last_read_at
  * Returns ThreadMessage[] ordered ASC by created_at

@@ -1,34 +1,40 @@
 // ContractorInboxList.tsx
 // ═══════════════════════════════════════════════════════════════
-// Contractor Inbox — Job-Scoped Chat Threads (812 lines)
+// Contractor / Partner Inbox — Membership-Scoped Chat Threads (812 lines)
 //
-// Business rule: Contractors can ONLY chat in the context of a job.
-// No proactive outreach, no standalone DMs. Every thread is tied
-// to a repair job via jobId. This protects the commission model —
-// all contractor ↔ agent interactions flow through billable jobs.
+// S162b: This screen serves BOTH contractor and partner roles. Routing
+// to this surface is intentional — agent, contractor, and partner inboxes
+// have different chrome (contractor: "Job Chats" header + status badges)
+// but the underlying data model is shared.
 //
-// Thread creation triggers:
-//   1. Invited to a job → thread auto-creates
-//   2. Bid submitted → thread opens with posting agent
-//   3. Active job (awarded/in_progress) → ongoing channel
+// Scoping rule: users see threads they are members of. Membership is
+// enforced server-side via thread_members + RLS "View own memberships"
+// policy. The earlier "contractors only chat in job context" rule was
+// a client-side convention that broke when deal_chat threads (S160)
+// added agent-initiated multi-party threads contractors could be added to.
+//
+// Thread creation triggers (server-side, RLS-gated):
+//   1. Invited to a job → job_thread auto-creates
+//   2. Bid submitted → job_thread opens with posting agent
+//   3. Agent creates deal_chat with contractor as participant → deal_chat row
 //
 // Thread lifecycle:
 //   - Active: invited / bid_submitted / awarded / in_progress → read/write
 //   - Past: completed / cancelled → read-only archive, swipe to delete
+//   - deal_chat: no lifecycle (always active until archived)
 //
 // Sections: SVG Icons, Avatar, Status Badge, Data Types, Mock Data,
 //           Thread Row, Section Header, Empty State, Main Component
-// No search, no FAB — intentionally minimal (business-scoped only)
+// No search, no FAB — intentionally minimal (membership-scoped only)
 //
-// @demo  12 mock threads (8 active, 4 past) with unread counts (lines ~225–340)
-// @backend TODO: useContractorJobChats() — replace mock data
-//   → supabase.from('job_chat_threads')
-//     .select('*, jobs(title, address, status, due_date), profiles!agent_id(name, avatar_url)')
-//     .eq('contractor_id', auth.uid())
-//     .order('last_message_at', { ascending: false })
+// @demo  12 mock threads (8 active, 4 past) — used only when USE_MOCK_DATA = true
+// @backend useInboxThreads() → rpc_get_inbox_threads() — returns ALL thread types
+//          for current user. Client filters to deal_chat + job_thread to preserve
+//          the contractor-doesn't-see-1:1-DMs convention. Future server-side filter
+//          (rpc_get_contractor_inbox_threads) would move this to RLS-pure.
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -45,6 +51,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Swipeable } from 'react-native-gesture-handler';
 import { COLORS, DIMENSIONS, TYPOGRAPHY } from '../lib/tokens';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { useInboxThreads } from '../hooks/useData';
+import { adaptInboxThreadToLocal } from '../lib/typeAdapters';
 import { Avatar } from './shared';
 
 // Enable LayoutAnimation on Android
@@ -192,6 +201,17 @@ interface JobChatThread {
   unreadCount: number;
   trade: string;
 }
+
+// S162b — when a row originates from a live deal_chat thread, we stash a few
+// extra fields on the same shape so handleThreadPress can route to DealChatScreen
+// with the real members[] / closingDate, and ThreadRow can suppress the
+// (meaningless) status badge for deal_chat rows. The `__` prefix marks them
+// as private metadata that the existing ThreadRow render path ignores.
+type JobChatThreadWithMeta = JobChatThread & {
+  __type: string;
+  __members: { name: string; color: string }[];
+  __closingDate: string;
+};
 
 // ─────────────────────────────────────────────
 // @demo MOCK DATA — 12 threads (8 active, 4 past)
@@ -402,7 +422,12 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onPress, isPast = false }
             {thread.address}
           </Text>
         </View>
-        <ThreadStatusBadge status={thread.jobStatus} />
+        {/* S162b — deal_chat rows have no real status; suppress the badge so
+            the placeholder 'in_progress' value doesn't render as a misleading
+            "In Progress" pill. A dedicated 'Deal' pill is a S163 design call. */}
+        {(thread as JobChatThreadWithMeta).__type !== 'deal_chat' && (
+          <ThreadStatusBadge status={thread.jobStatus} />
+        )}
       </View>
 
       {/* Row 3: Last message preview */}
@@ -484,9 +509,57 @@ const ContractorInboxList: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [isFilled, setIsFilled] = useState<boolean>(true);
 
-  // @demo Replace with hook data
-  const activeThreads = isFilled ? MOCK_ACTIVE_THREADS : [];
-  const pastThreads = isFilled ? MOCK_PAST_THREADS : [];
+  // S162b — live wiring. In live mode, replace mock with adapted RPC threads
+  // filtered to deal_chat + job_thread (excludes standalone 1:1 DMs).
+  // @backend rpc_get_inbox_threads() — auth.uid() identifies contractor/partner
+  const { data: inboxThreads } = useInboxThreads();
+  const [activeThreads, setActiveThreads] = useState<JobChatThread[]>(MOCK_ACTIVE_THREADS);
+  const [pastThreads, setPastThreads] = useState<JobChatThread[]>(MOCK_PAST_THREADS);
+
+  useEffect(() => {
+    // Demo mode: keep hardcoded mocks driven by the `isFilled` toggle below.
+    if (FEATURE_FLAGS.USE_MOCK_DATA) {
+      setActiveThreads(isFilled ? MOCK_ACTIVE_THREADS : []);
+      setPastThreads(isFilled ? MOCK_PAST_THREADS : []);
+      return;
+    }
+    // Live mode: filter to deal_chat + job_thread, adapt to JobChatThread shape.
+    if (inboxThreads !== undefined && inboxThreads !== null) {
+      const live: JobChatThread[] = inboxThreads
+        .filter((t) => t.type === 'deal_chat' || t.type === 'job_thread')
+        .map((t) => {
+          const adapted = adaptInboxThreadToLocal(t);
+          // Map InboxChatThread → JobChatThreadWithMeta (existing render contract
+          // + S162b metadata). For deal_chat: jobId carries threadId so
+          // handleThreadPress can route. jobStatus 'in_progress' is a placeholder
+          // (deal_chats have no status) — the badge is suppressed in ThreadRow
+          // when __type === 'deal_chat'.
+          const row: JobChatThreadWithMeta = {
+            id: adapted.id,
+            jobId: t.job_id ?? adapted.threadId ?? adapted.id,
+            jobTitle: adapted.name,
+            jobStatus: 'in_progress' as ThreadStatus,
+            address: adapted.dealAddress ?? '',
+            agentName: t.other_member?.name ?? adapted.name,
+            agentAvatar: t.other_member?.avatar_color ?? COLORS.primary,
+            lastMessage: adapted.lastMessage,
+            lastMessageTime: adapted.timestamp,
+            unreadCount: adapted.unreadCount ?? 0,
+            trade: '',
+            __type: t.type,
+            __members: adapted.members ?? [],
+            __closingDate: adapted.closingDate ?? '',
+          };
+          return row;
+        });
+      setActiveThreads(live);
+      // S162b: rpc_get_inbox_threads doesn't yet return completed/cancelled
+      // threads. Past Jobs section stays empty in live mode (header is already
+      // conditionally rendered behind visiblePastThreads.length > 0). Defer
+      // server-side past-thread support to a follow-up session.
+      setPastThreads([]);
+    }
+  }, [inboxThreads, isFilled]);
 
   // Deletion handler for past threads
   // @backend supabase.from('job_chat_threads').update({ deleted_by_contractor: true }).eq('id', threadId)
@@ -503,6 +576,22 @@ const ContractorInboxList: React.FC = () => {
   const hasAnyThreads = visibleActiveThreads.length > 0 || visiblePastThreads.length > 0;
 
   const handleThreadPress = (thread: JobChatThread) => {
+    const meta = thread as JobChatThreadWithMeta;
+    // S162b — deal_chat threads route to the group DealChatScreen, not 1:1 ChatScreen.
+    if (meta.__type === 'deal_chat') {
+      navigation.navigate('DealChatScreen', {
+        threadId: thread.id,
+        dealName: thread.jobTitle,
+        propertyAddress: thread.address,
+        closingDate: meta.__closingDate ?? '',
+        // Contractors/partners are NEVER creators — server hook will confirm
+        // (S162 useIsThreadCreator returns false). Route hint is false.
+        isCreator: false,
+        members: meta.__members ?? [],
+      });
+      return;
+    }
+    // Default: 1:1 chat (existing behavior — job_thread + mock fallthrough).
     navigation.navigate('ChatScreen', {
       threadId: thread.id,
       contactName: thread.agentName,

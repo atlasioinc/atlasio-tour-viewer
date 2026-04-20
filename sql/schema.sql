@@ -364,7 +364,7 @@ CREATE TABLE thread_members (
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   is_muted BOOLEAN NOT NULL DEFAULT false,
   last_read_at TIMESTAMPTZ,              -- NULL = never read (show as unread)
-  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   PRIMARY KEY (thread_id, user_id)
 );
 ALTER TABLE thread_members ENABLE ROW LEVEL SECURITY;
