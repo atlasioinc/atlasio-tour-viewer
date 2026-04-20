@@ -56,6 +56,7 @@ import { useMyProfile } from '../hooks/useData';
 import ContractorHomeTab from './ContractorHomeTab';
 // ContractorProfileTab retired in S43 — contractors now use ProfileStack (7-zone layout)
 import ContractorInboxList from './ContractorInboxList';
+import DealChatScreen from './DealChatScreen';
 import ContractorJobDetails from './ContractorJobDetails';
 import BidSubmissionScreen from './BidSubmissionScreen';
 import ProProfile from './ProProfile';
@@ -153,6 +154,10 @@ const ContractorInboxStackScreen: React.FC = () => (
   <ContractorInboxStackNav.Navigator screenOptions={{ headerShown: false }}>
     <ContractorInboxStackNav.Screen name="ContractorInboxMain" component={ContractorInboxList} />
     <ContractorInboxStackNav.Screen name="ChatScreen" component={ChatScreen} options={{ gestureEnabled: true }} />
+    {/* S162b — deal_chat threads contractors/partners are members of route here.
+        Without this registration, navigation.navigate('DealChatScreen', ...) from
+        ContractorInboxList would fail or fall through to a sibling tab's stack. */}
+    <ContractorInboxStackNav.Screen name="DealChatScreen" component={DealChatScreen} options={{ gestureEnabled: true }} />
   </ContractorInboxStackNav.Navigator>
 );
 

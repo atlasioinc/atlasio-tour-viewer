@@ -1,8 +1,81 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S160 ATL-DEAL-THREAD-01 WIRED | April 17, 2026
+**Last updated:** S162b ATL-INBOX-MOCK-SHADOW FIXED | April 19, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
+
+---
+
+## ATL-INBOX-MOCK-SHADOW — Contractor/Partner inbox showed mock threads instead of live deal_chat (S162b)
+
+**Screen:** `components/ContractorInboxList.tsx` (shared by contractor + partner roles)
+**Hook:** `hooks/useData.ts` → `useInboxThreads` (no change — already wired)
+**Status:** 🟢 Fixed in S162b (bundled with ATL-DEAL-THREAD-06 commit on `feat/atl-deal-thread-06-s162`).
+
+### Symptom
+Lisa (title_escrow) and David (mortgage_pro) saw 12 hardcoded mock threads ("Rachel Williams / 4521 Elm Street", "Marcus Lee / 782 Maple Drive", etc.) in their inbox even with `USE_MOCK_DATA = false`. Real deal_chat threads they were members of (e.g. `77722f91-67a1-4d6a-b69f-347f5695075c` — "123 Main St" created by Tony) never appeared. Backend was healthy: `rpc_get_inbox_threads` returned the thread correctly when called as Lisa.
+
+### Root cause
+`ContractorInboxList.tsx` was 100% hardcoded mock. It did not import `useInboxThreads` or any data hook — render path used `MOCK_ACTIVE_THREADS` and `MOCK_PAST_THREADS` directly. The S160/S161 work that wired `rpc_get_inbox_threads` → `adaptInboxThreadToLocal` → `InboxList.tsx` was scoped to the agent inbox only. The contractor/partner inbox surface was left with a `@backend TODO: useContractorJobChats()` placeholder that never landed.
+
+Compounding issue: `ContractorInboxStack` in `BottomTabNavigator.tsx` only registered `ChatScreen`, not `DealChatScreen` — so even if the data flowed, navigation to a deal_chat would fail.
+
+### Resolution (S162b)
+1. Wire `useInboxThreads` into `ContractorInboxList.tsx`. `useEffect` overwrites the mock state with adapted live data filtered to `type IN ('deal_chat', 'job_thread')`. Demo mode (`USE_MOCK_DATA = true`) preserves the existing 12 hardcoded threads driven by the in-screen `isFilled` toggle.
+2. `handleThreadPress` branches on stashed `__type` field: `deal_chat` → `DealChatScreen` with `members[]` + `closingDate`; everything else → `ChatScreen` (existing behavior).
+3. `ThreadRow` suppresses the `ThreadStatusBadge` when `__type === 'deal_chat'` so the placeholder `'in_progress'` jobStatus does not render as a misleading "In Progress" pill.
+4. `BottomTabNavigator.tsx` `ContractorInboxStack` registers `DealChatScreen` so the navigation target exists.
+5. Header comment reframed: "users see threads they are members of" (RLS-enforced); the older "contractors only chat in job context" client-side convention is preserved by the type filter, not by lack of data.
+
+### Known limitations / follow-ups
+- Past threads (`completed`, `cancelled`) are NOT yet returned by `rpc_get_inbox_threads`. In live mode the "Past Jobs" section is empty; the section header is already conditionally rendered behind `visiblePastThreads.length > 0` so nothing visually breaks. Defer to a session that extends the RPC.
+- "Job Chats" header still says that — a deal_chat shows up under "Active Jobs" with no status badge. Acceptable interim. Consider renaming the section header (and adding a dedicated "Deal" pill variant) in a S163 design pass.
+- `lib/typeAdapters.ts` `adaptInboxThreadToLocal` is **role-agnostic** — verified during S162b investigation. No `viewerRole` parameter needed. RPC `members[]` excludes the caller server-side regardless of role.
+
+### Do NOT
+- Do NOT add `useContractorJobChats()` as a separate hook — it would duplicate `useInboxThreads`. RLS on `thread_members` already gates membership scoping correctly.
+- Do NOT rename `ContractorInboxList.tsx` in S162b — file rename is a separate semantic change deferred to S163.
+- Do NOT remove the demo `isFilled` toggle — it remains useful for QA in mock mode.
+- Do NOT introduce a new "Deal" pill variant in S162b — that's a separate design decision deferred to S163. Suppression is the right interim answer.
+
+---
+
+## ATL-DEAL-THREAD-06 — System pill creator detection (S162)
+
+**Screen:** `components/DealChatScreen.tsx`
+**Hook:** `hooks/useData.ts` → `useIsThreadCreator`
+**Migration:** `ALTER TABLE thread_members ALTER COLUMN joined_at SET DEFAULT clock_timestamp();`
+**Status:** 🟢 Fixed for all threads created on or after the S162 migration (April 18, 2026).
+
+### Symptom
+"Agent added you to this chat" system pill incorrectly shown for the deal creator on Inbox re-entry. The route-param `isCreator` was only true on the first-creation hop from `CreateDealChat` — it defaulted to false/undefined on every other entry path, so the true creator saw the pill every time they came back from Inbox.
+
+### Root cause
+Creator identity is not route-derivable. It must be server-derived from `thread_members`.
+
+The earliest-joined-member heuristic was viable in theory but required a schema tweak: `thread_members.joined_at` previously defaulted to `now()`, which returns transaction start time in Postgres. Every row inserted inside `rpc_create_deal_thread` (agent + each participant) got an identical timestamp to the microsecond, making `ORDER BY joined_at ASC LIMIT 1` non-deterministic.
+
+### Resolution (S162)
+1. Migration: `thread_members.joined_at` default changed from `now()` (transaction-time, ties all rows in same RPC) → `clock_timestamp()` (wall-clock, deterministic per statement). Agent row is inserted first in `rpc_create_deal_thread`, so agent wins the earliest-joined query.
+2. New hook `useIsThreadCreator(threadId)` (`hooks/useData.ts`) queries `thread_members` `ORDER BY joined_at ASC LIMIT 1` and compares `user_id` to `auth.uid()` via `getCurrentUserId()`. Returns `boolean | undefined`; error and mock paths return `undefined`. 5-min `staleTime` because creator never changes.
+3. `DealChatScreen.tsx` renames the route-param destructure to `routeIsCreator` and merges server truth via Option C: `const isCreator = serverIsCreator ?? routeIsCreator`. The pill render (`{!isCreator && …}`) consumes the merged value with no other changes.
+4. `sql/schema.sql:367` synced to match deployed state (`DEFAULT clock_timestamp()`).
+
+### Known-acceptable edge case
+Threads created BEFORE the S162 migration have tied `joined_at` values (all rows share transaction-start timestamp). For these threads:
+- If the query happens to return the creator first, `useIsThreadCreator` returns `true` → pill hidden correctly.
+- If it returns another member first, the hook returns `false` → pill incorrectly shown for the creator.
+- Either way, the UI degrades gracefully via the route-param `routeIsCreator` fallback on the first-creation hop. On Inbox re-entry for pre-S162 threads, creator may see the pill incorrectly.
+
+**Mitigation:** Create fresh deal threads post-migration for demo purposes. All deal threads from S162 forward are deterministic.
+
+**Not a bug.** This is expected and documented.
+
+### Do NOT
+- Do NOT add a `creator_id` column to `threads` to "fix" pre-migration threads — out of scope. The small user cohort affected (anyone who created a deal pre-S162) can be unblocked by creating a fresh deal thread.
+- Do NOT modify `rpc_get_inbox_threads` to return creator info — out of scope for this ticket.
+- Do NOT change the route-param `isCreator` plumbing from `CreateDealChat` → `DealChatScreen` — it is the loading-state fallback that hides the pill during the ~100–300ms server query on first-creation hop.
+- Do NOT backfill `joined_at` for existing rows — `clock_timestamp()` is a default for NEW inserts only, and rewriting historical timestamps would be a fake fix.
 
 ---
 

@@ -556,6 +556,37 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 
 ---
 
+#### DealChatScreen
+**File:** `components/DealChatScreen.tsx`
+**Role:** All roles (agent, contractor, partner — any thread member)
+**Nav Type:** Pushed screen (InboxStack — NOT fullScreenModal, swipe-back enabled)
+**Feature Flag:** None
+**Wiring:** ✅ Live (useThreadMessages, useSendMessage, useUpdateThreadName, useIsThreadCreator — S162)
+
+**What's on this screen:**
+- Header: back-to-Inbox + group avatar grid + editable deal name + chevron (opens edit modal)
+- Info bar: property address + closing date (blue banner)
+- System pill: "Agent added you to this chat" — hidden for the deal creator
+- Message bubbles with sender names/avatars
+- Attach + message input + send
+
+**Entry Points:**
+- CreateDealChat → on successful rpc_create_deal_thread (CommonActions.reset, isCreator=true)
+- InboxList → tap deal_chat thread row (threadId, isCreator absent → route fallback)
+
+**Exit Points:**
+- ← Back → Inbox
+- Edit deal name modal (in-screen)
+
+**Creator detection (S162):**
+- `useIsThreadCreator(threadId)` queries thread_members.joined_at ASC LIMIT 1 and compares to auth.uid()
+- Merged with route-param via `const isCreator = serverIsCreator ?? routeIsCreator` (Option C)
+- Pre-S162 threads (tied joined_at) return undefined from the hook → route-param fallback governs, matching pre-S162 behavior
+
+**@backend:** rpc_get_thread_messages, rpc_send_message, threads (direct UPDATE for name), thread_members (SELECT for creator detection)
+
+---
+
 #### NewMessageScreen
 **File:** `components/NewMessageScreen.tsx`
 **Role:** All roles
