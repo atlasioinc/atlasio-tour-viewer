@@ -40,7 +40,7 @@
 
 ---
 
-## Current Metrics (updated S162 — April 18, 2026)
+## Current Metrics (updated S162c — April 19, 2026)
 - **RPCs:** 69 (+1 S161: rpc_get_inbox_threads updated to return `members[]`; +1 S160: rpc_create_deal_thread — creates deal_chat thread + seeds thread_members for agent + participants; +1 S157b: rpc_cancel_job; +1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
 - **Hooks:** 69 (+1 S162: useIsThreadCreator; +1 S161: useUpdateThreadName; +1 S160: useCreateDealThread; +1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts grep-authoritative count; partner hooks in usePartnerData.ts tracked separately. Pre-S162 actual count was 68 — S161 entry drifted by 1; this S162 number is the corrected, grep-authoritative post-session value.)
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
@@ -49,9 +49,71 @@
 - **Shared Components:** +1 S144 (AddressAutocompleteInput); +1 S147 (PhotoLightbox — full-screen photo viewer extracted from ContractorJobDetails)
 - **Storage Buckets:** 7
 - **Tables:** 22+ (schema.sql documents 22 as of S93; messaging tables predate tracking)
-- **COLORS tokens:** 141 (+16 S148b: category color palette for CategoryMapScreen)
+- **COLORS tokens:** 142 (+1 S162c: textTertiary for sender names / chat metadata; +16 S148b: category color palette for CategoryMapScreen)
+- **Shared Components:** +2 S162c (GroupAvatar extracted from InboxList — now reused by ContractorInboxList for deal_chat multi-avatar rows; UnreadIndicator added in S162c-patch — shared primitive for dot/count × primary/danger unread rendering across agent + contractor + partner Inbox surfaces)
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
+
+---
+
+## S162c — Deal Chat & Partner Inbox polish pass: sender eyebrow, closing-date format, creator-only name edit, unread-cache fix, header photo avatars, partner multi-avatar rows (April 19, 2026)
+
+**Status:** 🟢 All 7 polish items shipped + S162c-patch follow-up (UnreadIndicator shared component + 3-callsite visual-consistency migration + mock-data partner UX coverage). Amended into single commit `bdc1b62`. Pending device QA on `feat/atl-s162c-polish` branch across 3 accounts (Tony agent, Lisa title_escrow, David mortgage_pro).
+
+**S162c-patch additions (amended into `bdc1b62`):**
+- **New primitive `UnreadIndicator`** (`components/shared/UnreadIndicator.tsx`) — two-axis design contract: `variant="count" | "dot"` × `tone="primary" | "danger"` × `size="sm" | "md"` × `position="inline" | "absolute"`. Permanent role semantics: **count = "volume matters"** (agent triage, contractor action queue) · **dot = "attention needed"** (partner deal_chat, future presence signals) · **primary tone = conversational (blue)** · **danger tone = action urgency (red)**.
+- **3 callsite migrations** — `InboxList` agent unread → `UnreadIndicator` (pill-with-count preserved via `tone="primary"`; blue dot preserved when no count); `ContractorInboxList` job_thread unread → `variant="count" tone="danger" position="absolute"` (pixel-identical to prior inline red overlay); `ContractorInboxList` deal_chat unread → `variant="dot"` INLINE in Row 3 message line, avatar overlay suppressed. No inline hex anywhere — all colors from tokens.
+- **Partner dot-only rule (permanent design contract):** deal_chat rows show an unread dot regardless of count. The dot signals "something is new" without implying queue depth. Partners work one deal at a time; a count would create false urgency. This is NOT a deferred feature — it's the intended final shape for partner Inbox.
+- **Mock data fix** — `MOCK_ACTIVE_THREADS` now includes one partner `deal_chat` row (`id: 'deal-mock-1'`, agent `Alex Morgan`, 3 members, closingDate `2026-05-31`, unreadCount 2) cast to `JobChatThreadWithMeta`. Fixes ATL-MOCK-DEAL-CHAT-METADATA: demo mode (`USE_MOCK_DATA = true`) now accurately represents partner UX (multi-avatar stack + inline blue dot + no status pill). Contractor job_thread mocks untouched — their demo flow is unchanged.
+- **Files touched by patch (6):** `components/shared/UnreadIndicator.tsx` (NEW), `components/shared/index.ts`, `components/InboxList.tsx`, `components/ContractorInboxList.tsx`, `tasks/atlasio-bug-history.md` (ATL-MOCK-DEAL-CHAT-METADATA entry), `ATLASIO_CONTEXT.md` (this entry).
+- **NOT touched by patch:** `lib/tokens.ts` (no new tokens — reused `primary`, `notificationRed`, `onPrimary`, `background`), `hooks/useData.ts`, `lib/typeAdapters.ts`, `DealChatScreen.tsx`, `MessageBubble.tsx`, `InboxStack.tsx`, `GroupAvatar.tsx`, `featureFlags.ts` (QA-mode flips intentionally preserved in working tree).
+- **Staging discipline:** `git add` was scoped to the 6 patch-touched paths only. `lib/featureFlags.ts` (QA flips `DEV_BYPASS_AUTH=false`, `DEV_SHOW_PASSWORD_LOGIN=true`) stays in working tree for ongoing partner-account device QA. Reset to demo defaults before main-branch merge.
+
+**Scope:** 7 items — 2 visual (sender name color + size), 1 format (closing date MM-DD-YYYY), 2 behavior bugs (partner-edit leak, unread-cache stale), 2 architectural (header photo avatars in DealChatScreen, multi-avatar pattern on partner Inbox via extracted shared `GroupAvatar`).
+
+**Key decisions:**
+- **`textTertiary` token:** new color `#9CA3AF` added to `lib/tokens.ts` Text Hierarchy. Semantic: "sender names, chat metadata, caption-level text." MessageBubble sender eyebrow consumes it. Closest existing token (`lightText: #99A1AF`) was visually indistinguishable but semantically tied to "placeholders / disabled text" — separate concern.
+- **Sender name restyle (MessageBubble only):** `fontSize: 14, fontWeight: '400', color: COLORS.darkText` → `fontSize: 12, fontWeight: '500', color: COLORS.textTertiary`. Applies in the `showSender` branch only. ChatScreen (1:1) does NOT pass `showSender` — unchanged there. Cleaner than the spec suggested: one edit touches both surfaces via shared MessageBubble.
+- **Closing date formatter:** pure string transform `YYYY-MM-DD → MM-DD-YYYY`. NO `Date()` object, NO `toISOString()` — obeys the S158 permanent rule ("never use toISOString for date-only fields"). Edge cases: empty → empty, non-ISO → pass-through, no `NaN-NaN-NaN`. Applied to context bar only; edit modal read-only date row is intentionally untouched (scope held).
+- **Creator-only name edit (Item 4 — behavior fix):** DealChatScreen header wraps the `{GroupAvatarGrid + dealName + chevron}` in `isCreator ? <Pressable>…</Pressable> : <View>…</View>`. Non-creators see a non-interactive View with NO chevron. Server-side RLS on `rpc_update_thread_name` already rejected writes — this is purely removing a misleading UI affordance. Re-uses the existing `isCreator = serverIsCreator ?? routeIsCreator` merge from S162; no new hook.
+- **Unread-cache fix (Item 5 — behavior bug, medium risk):** two-part fix. (1) `useData.ts:1351` — `useMarkThreadRead.onSuccess` now invalidates `queryKeys.inboxThreads` in addition to `queryKeys.chatThreads`. The S160 rewire moved the Inbox surface to `useInboxThreads` (RPC-backed) but left the invalidation list pointing at the legacy key. (2) `InboxList.tsx` + `ContractorInboxList.tsx` — added `useFocusEffect` with a `hasMountedRef` skip guard so `refetchInbox()` fires only on RE-focus (not initial mount). The focus-refetch covers the DealChatScreen auto-read path where no client mutation fires (server-side mark-read inside `rpc_get_thread_messages`).
+- **Header photo avatars (Item 6 — architectural):** `rpc_get_inbox_threads.members[]` already returns `avatar_url`, but the adapter at `typeAdapters.ts:96-101` dropped it. Added `uri: m.avatar_url ?? null` to the mapping, extended `InboxChatThread.members` type + `InboxStack.tsx` route param type to match, updated `GroupAvatarGrid` inside `DealChatScreen.tsx` to use shared `<Avatar uri=…>` per tile. Avatar's built-in null-uri guard + image-error onError handler provides free graceful fallback to colored initials.
+- **Per-message bubble avatars — permanent "no":** Tony confirmed as design decision (not deferred). `rpc_get_thread_messages` does NOT return `sender_avatar_url`; the sender-name eyebrow is the sole per-message identity cue by design. No backlog ticket logged.
+- **Partner multi-avatar rows (Item 7):** `GroupAvatar` extracted from `InboxList.tsx` (previously inline) → `components/shared/GroupAvatar.tsx` + barrel export. ContractorInboxList's `ThreadRow` now branches on `__type === 'deal_chat' && __members.length > 0` to render `<GroupAvatar members=… size=48>`; job_thread and mock rows keep the existing single `<Avatar>`. The `__members` metadata already carries `uri` via the adapter, so partner Inbox deal_chat rows get photo tiles too.
+- **Out of scope (held the line — zero expansions):** No RPC changes. No schema changes. No RLS changes. No BottomTabNavigator changes. No `ContractorInboxList.tsx` rename (still S163). No new "Deal" pill variant (still S163). No hook-count changes. No past-threads RPC extension. No edit-modal closing-date format change (only the context bar banner was in scope).
+
+**Files modified (single amended commit on feat/atl-s162c-polish — `bdc1b62`):**
+- `lib/tokens.ts` — +1 token (`textTertiary: '#9CA3AF'`)
+- `components/shared/GroupAvatar.tsx` — **NEW** (extracted from InboxList; uses shared `<Avatar>` for each tile, so photos + error-fallback are free)
+- `components/shared/UnreadIndicator.tsx` — **NEW** (S162c-patch; shared unread primitive — dot/count × primary/danger × sm/md × inline/absolute)
+- `components/shared/index.ts` — barrel exports `GroupAvatar` + types + `UnreadIndicator` + type
+- `components/MessageBubble.tsx` — sender-name Text style updated (items 1 + 2)
+- `components/DealChatScreen.tsx` — added `Avatar` import; removed unused `getInitials`; `GroupAvatarGrid` rewritten to accept `uri` + use shared `Avatar` per tile; new `formatClosingDate` helper (items 3 + 6); creator-only Pressable gate (item 4)
+- `components/InboxStack.tsx` — route param `members` type extended with optional `uri`
+- `lib/typeAdapters.ts` — `InboxChatThread.members` type extended + adapter plumbs `avatar_url → uri`
+- `components/InboxList.tsx` — removed inline `GroupAvatar` (moved to shared); imports from shared barrel; removed unused `getInitials` import; `useFocusEffect` now also triggers `refetchInbox()` on re-focus (with `hasMountedRef` first-mount guard); `members` type extended with optional `uri`; S162c-patch: inline pill/dot → `UnreadIndicator` (count tone="primary" / dot)
+- `components/ContractorInboxList.tsx` — added `useFocusEffect`, `useRef`, `useCallback` imports; imports shared `GroupAvatar` + `UnreadIndicator`; `JobChatThreadWithMeta.__members` type extended with optional `uri`; `ThreadRow` avatar branch for `__type === 'deal_chat'`; new `useFocusEffect` block with `hasMountedRef` for refetch-on-focus; S162c-patch: red overlay badge → `UnreadIndicator variant="count" tone="danger" position="absolute"` gated on `__type !== 'deal_chat'`; inline `variant="dot"` added in Row 3 for deal_chat unread; new `deal-mock-1` row at top of `MOCK_ACTIVE_THREADS` (partner UX demo fixture)
+- `hooks/useData.ts` — `useMarkThreadRead.onSuccess` now invalidates `queryKeys.inboxThreads` alongside `queryKeys.chatThreads`
+- `tasks/atlasio-bug-history.md` — added ATL-MOCK-DEAL-CHAT-METADATA (S162c-patch) + ATL-DEAL-NAME-EDIT (item 4) + ATL-UNREAD-CACHE (item 5) entries at top
+- `ATLASIO_CONTEXT.md` — this entry; Current Metrics block updated (+2 shared components, +1 COLORS token)
+
+**Verification:**
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 NEW warnings (7 pre-existing warnings in unrelated files: CategoryMapScreen, ContractorHomeTab, PostPhotoJobScreen, PostStagingJobScreen, SquadSlotPicker)
+- Avatar error handling verified pre-implementation: shared `Avatar.tsx` already guards null uri (`!!uri && !imageError`) and handles image load failure via `onError` state → initials fallback. No Avatar modifications needed.
+
+**Metrics:** RPCs 69 (unchanged). Hooks 69 (unchanged — no new hooks). Edge Functions 11 (unchanged). Feature Flags 11 (unchanged). Shared Components +2 (GroupAvatar extracted in S162c; UnreadIndicator added in S162c-patch). COLORS tokens +1 (textTertiary — no new tokens in S162c-patch).
+
+### S163 — Next Objectives
+- **ATL-DEAL-THREAD-02** — Archive deal chat (next in deal-thread sequence)
+- **ATL-LOCATION-01** — Service area filtering for contractors
+- **ATL-CONTRACTOR-TRADES-3** — PostJobWizard tradesMap migration
+- **ATL-CTA-AUDIT** — Primary CTA button audit
+- **GroupAvatar +N overflow badge** (4+ members) — component now in shared, ready for extension
+- **ContractorInboxList rename** → `PartnerContractorInboxList.tsx` (deferred from S162b)
+- **"Deal" pill variant** for deal_chat rows in ContractorInboxList (replaces current status-badge suppression)
+- **`rpc_get_inbox_threads` past-threads extension** (returns completed + cancelled threads)
+- Hook-count + metrics audit session
 
 ---
 

@@ -1,8 +1,96 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S162b ATL-INBOX-MOCK-SHADOW FIXED | April 19, 2026
+**Last updated:** S162c-patch ATL-MOCK-DEAL-CHAT-METADATA + visual-consistency pass | April 19, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
+
+---
+
+## ATL-MOCK-DEAL-CHAT-METADATA — Partner UX invisible in demo mode + inconsistent unread indicator (S162c-patch)
+
+**Screen:** `components/ContractorInboxList.tsx`
+**Shared primitive:** `components/shared/UnreadIndicator.tsx` (NEW)
+**Status:** 🟢 Fixed in S162c-patch (amended into the main S162c commit `bdc1b62`).
+
+### Symptom
+Two coupled issues surfaced during S162c device QA:
+1. **Visual inconsistency.** Partner Inbox (`ContractorInboxList` in Lisa/David's view) rendered a red numeric overlay badge on the avatar for unread messages on `deal_chat` rows. The agent Inbox (`InboxList`) renders a blue dot/pill inline on the right side of the row. Two surfaces, two visual languages for the same concept. Partner users got a "4 actions waiting" mental model for what is actually a conversational thread.
+2. **Demo-mode invisibility.** `MOCK_ACTIVE_THREADS` contained only contractor `job_thread` rows. No mock `deal_chat` row existed, so demo mode (`USE_MOCK_DATA = true`) could not showcase the partner Inbox UX at all — multi-avatar, inline dot, and status-pill suppression were all untestable without flipping flags and signing in as a real partner user.
+
+### Root cause
+1. The unread badge in `ContractorInboxList.ThreadRow` was hardcoded inline (red, overlaid on avatar, always numeric) with no branching on `__type`. The S162b work wired live `deal_chat` threads in but did not differentiate the unread visual per thread type. The `__type === 'deal_chat'` suppression existed for the status pill but not for the unread badge.
+2. The mock array predated the S160/S161/S162b wiring. It was never backfilled with `__type` / `__members` / `__closingDate` metadata, so the runtime cast `thread as JobChatThreadWithMeta` resolved `__type` to `undefined` for every mock row, making every branch that checks `__type === 'deal_chat'` evaluate false — including the new unread-badge branch.
+
+### Resolution (S162c-patch)
+1. **`UnreadIndicator` shared primitive** (`components/shared/UnreadIndicator.tsx`) with a two-axis design contract that's now permanent:
+   - `variant="count"` → "volume matters" (agent triage, contractor action queue)
+   - `variant="dot"` → "attention needed" (partner deal_chat, future presence)
+   - `tone="primary"` (blue) → conversational · `tone="danger"` (red) → action urgency
+   Sizes (`sm`/`md`), positions (`inline`/`absolute`), and accessibility labels are first-class.
+2. **Three callsite migrations** to the shared primitive — `InboxList` (agent: `variant="count" tone="primary"` OR `variant="dot"`), `ContractorInboxList` job_thread (`variant="count" tone="danger" position="absolute"` — visually identical to prior hardcoded render), `ContractorInboxList` deal_chat (`variant="dot"` inline in Row 3 message line, overlay suppressed).
+3. **Demo mock row added** — one new `deal_chat` entry at the top of `MOCK_ACTIVE_THREADS` (id `deal-mock-1`, agent `Alex Morgan`, 3 members, closing date 2026-05-31) with full `__type` / `__members` / `__closingDate` metadata cast to `JobChatThreadWithMeta`. Demo mode now accurately represents partner UX.
+
+### Design contract (permanent)
+- **Partner deal_chat uses `variant="dot"` regardless of count.** The dot signals "something is new" without implying a queue depth. Partners work one deal at a time; the count would create false urgency.
+- **Agent + contractor use `variant="count"`.** Both roles benefit from at-a-glance volume (agent triage load, contractor action-item queue).
+- **Tone is role-semantic, not surface-semantic.** Agent's primary tone = blue (conversational). Contractor's danger tone = red (queue urgency). A future partner-facing count render would use primary tone; a future agent-facing action queue would use danger tone.
+
+### Do NOT
+- Do NOT add a numeric count to partner deal_chat rows — the dot-only rule is a design decision, not a defect.
+- Do NOT migrate tab bar badges, alert banners, or notification badges to `UnreadIndicator` without a separate design review — they carry different semantics.
+- Do NOT extend `UnreadIndicator` with animation, pulse, or priority flavors without a design call. The component is intentionally narrow: 2 variants × 2 tones × 2 sizes × 2 positions.
+- Do NOT remove the `deal-mock-1` mock row — demo mode relies on it to showcase the partner experience. If it needs renaming or reshuffling, keep one partner-shaped mock in the array.
+- Do NOT switch `ContractorInboxList` away from `JobChatThreadWithMeta` unless you are simultaneously introducing a proper thread-kind discriminated union — the per-row cast is the current contract.
+
+---
+
+## ATL-DEAL-NAME-EDIT — Partners could tap deal name and open editor (S162c)
+
+**Screen:** `components/DealChatScreen.tsx`
+**Status:** 🟢 Fixed in S162c (`feat/atl-s162c-polish`).
+
+### Symptom
+Lisa (title_escrow) and David (mortgage_pro) could tap the deal name + chevron in the DealChatScreen header and open the Edit Deal Details modal. The modal's Save button would appear to accept input, but the server would reject the RPC (RLS on `rpc_update_thread_name` enforces creator-only writes). This was a UI permission leak — not a security hole (RLS held) but a confusing UX where a partner saw an affordance they couldn't actually use.
+
+### Root cause
+The header Pressable wrapping `{GroupAvatarGrid + dealName + ChevronRightIcon}` was rendered unconditionally. Creator vs. non-creator identity was already derived (`const isCreator = serverIsCreator ?? routeIsCreator`, S162) but never consumed as a UI gate.
+
+### Resolution (S162c)
+Wrap the deal-name touch surface in a `isCreator ? <Pressable>...</Pressable> : <View>...</View>` ternary inside DealChatScreen header. The non-creator branch renders a plain `View` with the same avatar + name but no chevron and no press handler. Server-side RLS continues to be the authoritative check — this purely removes the misleading affordance.
+
+### Do NOT
+- Do NOT show an error toast when a partner taps the deal name — the surface is simply non-interactive. Toast-on-fail would imply the field is editable and they're being rejected, which is worse UX than silence.
+- Do NOT add a new hook — `isCreator` is already merged in scope.
+- Do NOT modify `useUpdateThreadName` or the RPC — backend is correct.
+
+---
+
+## ATL-UNREAD-CACHE — Unread indicator stuck after reading + back navigation (S162c)
+
+**Screen:** `components/InboxList.tsx` (agent), `components/ContractorInboxList.tsx` (contractor/partner)
+**Hook:** `hooks/useData.ts` → `useMarkThreadRead`, `useInboxThreads`
+**Status:** 🟢 Fixed in S162c.
+
+### Symptom
+User taps a thread → reads messages → navigates back → the unread dot still appears on the Inbox row until a manual pull-to-refresh. Applied to both the agent Inbox (InboxList) and the contractor/partner Inbox (ContractorInboxList). Backend was healthy — `thread_members.last_read_at` was being updated correctly by both the explicit `useMarkThreadRead` mutation (ChatScreen) and the server-side auto-mark inside `rpc_get_thread_messages` (DealChatScreen).
+
+### Root cause
+Two independent gaps in the client cache story:
+1. `useMarkThreadRead.onSuccess` (hooks/useData.ts:1351) invalidated the legacy `queryKeys.chatThreads` key but NOT `queryKeys.inboxThreads`. The S160 rewire moved the Inbox surface to `useInboxThreads` (RPC-backed, `inbox_threads` query key) without updating the invalidation list in `useMarkThreadRead`.
+2. `rpc_get_thread_messages` marks `last_read_at` server-side when called, but `useThreadMessages` is a `useQuery` (not a mutation) — it has no `onSuccess` that could invalidate `inbox_threads`. The DealChatScreen read-path had no client signal to refresh the inbox at all.
+
+### Resolution (S162c)
+Two-part fix (belt + suspenders):
+1. **useData.ts:1351** — add `qc.invalidateQueries({ queryKey: queryKeys.inboxThreads })` inside `useMarkThreadRead.onSuccess` so the explicit mark-read mutation refreshes the correct cache key.
+2. **InboxList.tsx + ContractorInboxList.tsx** — add `useFocusEffect` with a `hasMountedRef` first-mount skip guard. On re-focus (user navigates back from a chat), call `refetchInbox()` in live mode. This catches the DealChatScreen auto-read case where no mutation fires client-side. `hasMountedRef` prevents double-fetch on initial mount — the underlying `useQuery` owns the first load.
+
+Demo mode (`USE_MOCK_DATA = true`) is a no-op on both paths — no live data to refetch.
+
+### Do NOT
+- Do NOT add a `useMarkThreadRead.mutate` call inside `DealChatScreen` — the RPC already marks read server-side. Duplicating it would trigger two `UPDATE thread_members` statements per message view.
+- Do NOT remove the `hasMountedRef` guard — without it, `useFocusEffect` fires on initial mount alongside the `useQuery`, producing a wasteful double-fetch and possible UI flicker.
+- Do NOT convert `useThreadMessages` from `useQuery` to a mutation just to add `onSuccess` — it is correctly modeled as a query (cached, refetched, component-driven).
+- Do NOT extend the RPC to return a "just marked read" signal — the focus-refetch pattern is simpler and already covers the 1:1 path via the explicit mutation.
 
 ---
 

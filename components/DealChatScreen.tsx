@@ -52,7 +52,7 @@ import AttachSheet from './AttachSheet';
 import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useThreadMessages, useSendMessage, useMyProfile, useUpdateThreadName, useIsThreadCreator } from '../hooks/useData';
-import { getInitials } from './shared';
+import { Avatar } from './shared';
 import type { ThreadMessage } from '../types';
 
 // ─────────────────────────────────────────────
@@ -111,10 +111,14 @@ type DealChatRouteProp = RouteProp<InboxStackParamList, 'DealChatScreen'>;
 // ─────────────────────────────────────────────
 // GROUP AVATAR GRID — overlap stack, 36x36 header avatar
 // 1 member: full 36px circle. 2: 22px ×2, offset 12. 3: 18px ×3, offset 9.
-// Real initials from member names (S161). Cap at 3 shown.
+// Each tile: photo when uri present, colored initials otherwise (S162c).
+// Avatar fallback (null uri or image load failure) is handled inside the
+// shared Avatar component via its onError → imageError state.
 // ─────────────────────────────────────────────
 
-const GroupAvatarGrid: React.FC<{ members: { name: string; color: string }[] }> = ({ members }) => {
+type GridMember = { name: string; color: string; uri?: string | null };
+
+const GroupAvatarGrid: React.FC<{ members: GridMember[] }> = ({ members }) => {
   const shown = members.slice(0, 3);
   const containerSize = 36;
 
@@ -125,14 +129,7 @@ const GroupAvatarGrid: React.FC<{ members: { name: string; color: string }[] }> 
   if (shown.length === 1) {
     const m = shown[0];
     return (
-      <View style={{
-        width: containerSize, height: containerSize, borderRadius: 9999,
-        backgroundColor: m.color, alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Text style={{ fontSize: Math.round(containerSize * 0.38), fontWeight: '600', color: COLORS.onPrimary }}>
-          {getInitials(m.name)}
-        </Text>
-      </View>
+      <Avatar uri={m.uri ?? null} name={m.name} size={containerSize} color={m.color} />
     );
   }
 
@@ -151,18 +148,14 @@ const GroupAvatarGrid: React.FC<{ members: { name: string; color: string }[] }> 
             width: circleSize,
             height: circleSize,
             borderRadius: 9999,
-            backgroundColor: m.color,
-            alignItems: 'center',
-            justifyContent: 'center',
             borderWidth: 1.5,
             borderColor: COLORS.background,
+            overflow: 'hidden',
             zIndex: shown.length - i,
             elevation: shown.length - i,
           }}
         >
-          <Text style={{ fontSize: Math.round(circleSize * 0.38), fontWeight: '600', color: COLORS.onPrimary }}>
-            {getInitials(m.name)}
-          </Text>
+          <Avatar uri={m.uri ?? null} name={m.name} size={circleSize} color={m.color} />
         </View>
       ))}
     </View>
@@ -211,6 +204,19 @@ const MOCK_DEAL_MESSAGES: Message[] = [
     isMine: true,
   },
 ];
+
+// ─────────────────────────────────────────────
+// DATE FORMATTING — S162c
+// Pure string transform YYYY-MM-DD → MM-DD-YYYY. No Date() object, no
+// toISOString — avoids the S158 timezone off-by-one trap. Non-ISO input
+// (including empty string) passes through unchanged.
+// ─────────────────────────────────────────────
+
+const formatClosingDate = (raw: string): string => {
+  if (!raw || raw.length < 10 || !/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw;
+  const [y, m, d] = raw.slice(0, 10).split('-');
+  return `${m}-${d}-${y}`;
+};
 
 // ─────────────────────────────────────────────
 // ADAPTER — ThreadMessage (RPC) → Message (UI)
@@ -450,17 +456,31 @@ const DealChatScreen: React.FC = () => {
               </Text>
             </Pressable>
 
-            {/* Avatar grid + deal name + edit caret */}
-            <Pressable
-              onPress={openEditModal}
-              style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 12, marginLeft: 16, opacity: pressed ? 0.5 : 1 })}
-            >
-              <GroupAvatarGrid members={members} />
-              <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.darkText, lineHeight: 24, flexShrink: 1 }} numberOfLines={1}>
-                {currentDealName}
-              </Text>
-              <ChevronRightIcon />
-            </Pressable>
+            {/* Avatar grid + deal name (+ edit caret for creator only).
+                S162c — only the deal creator can edit the name, so partners
+                (non-creators) see a non-interactive View with no chevron.
+                Server-side RLS enforces the write permission; this gates UI. */}
+            {isCreator ? (
+              <Pressable
+                onPress={openEditModal}
+                style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 12, marginLeft: 16, opacity: pressed ? 0.5 : 1 })}
+              >
+                <GroupAvatarGrid members={members} />
+                <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.darkText, lineHeight: 24, flexShrink: 1 }} numberOfLines={1}>
+                  {currentDealName}
+                </Text>
+                <ChevronRightIcon />
+              </Pressable>
+            ) : (
+              <View
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 12, marginLeft: 16 }}
+              >
+                <GroupAvatarGrid members={members} />
+                <Text style={{ fontSize: 16, fontWeight: '400', color: COLORS.darkText, lineHeight: 24, flexShrink: 1 }} numberOfLines={1}>
+                  {currentDealName}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -482,7 +502,7 @@ const DealChatScreen: React.FC = () => {
             </Text>
             {currentClosingDate ? (
               <Text style={{ fontSize: 13, fontWeight: '400', color: COLORS.onPrimary, textAlign: 'center', opacity: 0.85, marginTop: 2 }}>
-                Closing {currentClosingDate}
+                Closing {formatClosingDate(currentClosingDate)}
               </Text>
             ) : null}
           </View>

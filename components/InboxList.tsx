@@ -38,7 +38,7 @@ import { COLORS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useChatThreads, useInboxThreads, useArchiveThread } from '../hooks/useData';
 import { adaptChatThreadToLocal, adaptInboxThreadToLocal } from '../lib/typeAdapters';
-import { Avatar, VerificationBanner, SkeletonBlock, EmptyState, getInitials } from './shared';
+import { Avatar, GroupAvatar, VerificationBanner, SkeletonBlock, EmptyState, UnreadIndicator } from './shared';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
 // Enable LayoutAnimation on Android
@@ -129,7 +129,7 @@ interface ChatThread {
   memberCount?: number;
   avatarColors: string[];
   /** S161: real member data for group-thread avatar stack. First 3 shown. */
-  members?: { name: string; color: string }[];
+  members?: { name: string; color: string; uri?: string | null }[];
   avatarUrl?: string | null;    // S133: photo URL from other_member.avatar_url
   isOnline?: boolean;
   /** @demo — role label for deal context threads; replace with thread.contact.role when LIVE */
@@ -276,75 +276,9 @@ const SWIPE_ACTION_WIDTH = 80;
 // ─────────────────────────────────────────────
 // AVATAR COMPONENTS
 // @backend rpc_get_inbox_threads — other_member now includes avatar_url (S133)
-// Avatar component wired — SingleAvatar removed from this file
-// @cleanup resolved S134 — SingleAvatar eliminated from all remaining files
-// S161: GroupAvatar rewritten as an overlap stack; 1-member case reuses shared Avatar.
+// S162c: GroupAvatar extracted to components/shared/GroupAvatar.tsx for reuse
+// by ContractorInboxList (partner/contractor deal_chat rows).
 // ─────────────────────────────────────────────
-
-// S161: overlap stack — 1 member = full Avatar, 2-3 = overlapping circles with real initials.
-// Circle sizes: 1→48px (via shared Avatar), 2→28px (offset 14), 3→24px (offset 12).
-// Cap at 3 shown. First member on top (zIndex + elevation).
-const GroupAvatar: React.FC<{
-  members: { name: string; color: string }[];
-  size?: number;
-  isOnline?: boolean;
-}> = ({ members, size = 48, isOnline }) => {
-  const shown = members.slice(0, 3);
-
-  // 1 member → full-size shared Avatar (matches 1:1 rows)
-  if (shown.length === 1) {
-    const m = shown[0];
-    return (
-      <View style={{ width: size, height: size, position: 'relative' }}>
-        <Avatar uri={null} name={m.name} size={size} color={m.color} />
-        {isOnline && (
-          <View style={{ position: 'absolute', bottom: -1, right: -1, width: 12, height: 12, borderRadius: 9999, backgroundColor: COLORS.onlineGreen, borderWidth: 1.5, borderColor: COLORS.background }} />
-        )}
-      </View>
-    );
-  }
-
-  // 0 members → empty 48×48 container (same footprint as populated)
-  if (shown.length === 0) {
-    return <View style={{ width: size, height: size, position: 'relative' }} />;
-  }
-
-  // 2 or 3 members → overlap stack
-  const circleSize = shown.length === 2 ? 28 : 24;
-  const offset = shown.length === 2 ? 14 : 12;
-
-  return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
-      {shown.map((m, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            left: i * offset,
-            top: (size - circleSize) / 2,
-            width: circleSize,
-            height: circleSize,
-            borderRadius: 9999,
-            backgroundColor: m.color,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1.5,
-            borderColor: COLORS.background,
-            zIndex: shown.length - i,
-            elevation: shown.length - i,
-          }}
-        >
-          <Text style={{ fontSize: Math.round(circleSize * 0.38), fontWeight: '600', color: COLORS.onPrimary }}>
-            {getInitials(m.name)}
-          </Text>
-        </View>
-      ))}
-      {isOnline && (
-        <View style={{ position: 'absolute', bottom: -1, right: -1, width: 12, height: 12, borderRadius: 9999, backgroundColor: COLORS.onlineGreen, borderWidth: 1.5, borderColor: COLORS.background, zIndex: shown.length + 1, elevation: shown.length + 1 }} />
-      )}
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────
 // SWIPEABLE THREAD ROW
@@ -517,15 +451,13 @@ const SwipeableThreadRow: React.FC<{
               </View>
             )}
 
+            {/* S162c-patch — agent Inbox: numeric count when available (triage value),
+                blue dot otherwise. Both use tone='primary' for conversational semantic. */}
             {thread.isUnread && (
               (thread.unreadCount ?? 0) > 0 ? (
-                <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 9999, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>
-                    {(thread.unreadCount ?? 0) > 99 ? '99+' : thread.unreadCount}
-                  </Text>
-                </View>
+                <UnreadIndicator variant="count" tone="primary" count={thread.unreadCount} />
               ) : (
-                <View style={{ width: 8, height: 8, borderRadius: 9999, backgroundColor: COLORS.primary }} />
+                <UnreadIndicator variant="dot" />
               )
             )}
           </View>
@@ -605,11 +537,19 @@ const InboxList: React.FC = () => {
     }
   }, [inboxThreads, liveThreads]);
 
-  // Scroll to top when screen comes into focus (e.g., back from ChatScreen)
+  // Scroll to top + refetch inbox when screen re-focuses (e.g., back from a chat).
+  // S162c — hasMountedRef skip guard prevents double-fetch on initial mount
+  // (the useQuery itself owns the first load). Only refires on re-focus.
+  const hasMountedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-    }, []),
+      if (!hasMountedRef.current) {
+        hasMountedRef.current = true;
+        return;
+      }
+      if (!FEATURE_FLAGS.USE_MOCK_DATA) refetchInbox();
+    }, [refetchInbox]),
   );
 
   const filteredThreads = threads.filter((t) => {

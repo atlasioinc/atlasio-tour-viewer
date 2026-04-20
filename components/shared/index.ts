@@ -4,6 +4,10 @@
 // ═══════════════════════════════════════════════════════════════
 
 export { default as Avatar, getInitials } from './Avatar';
+export { default as GroupAvatar } from './GroupAvatar';
+export type { GroupAvatarMember, GroupAvatarProps } from './GroupAvatar';
+export { default as UnreadIndicator } from './UnreadIndicator';
+export type { UnreadIndicatorProps } from './UnreadIndicator';
 export { VerificationBadge } from './VerificationBadge';
 export { VerificationBanner } from './VerificationBanner';
 export { default as SkeletonBlock } from './SkeletonBlock';

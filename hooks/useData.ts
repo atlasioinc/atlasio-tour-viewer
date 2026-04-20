@@ -1349,6 +1349,10 @@ export const useMarkThreadRead = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.chatThreads });
+      // S162c — also refresh the RPC-backed inbox cache so unread dots clear
+      // on the Inbox list when a user reads a thread. Previously only the
+      // legacy chatThreads key was invalidated; inboxThreads stayed stale.
+      qc.invalidateQueries({ queryKey: queryKeys.inboxThreads });
     },
   });
 };

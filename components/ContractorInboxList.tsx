@@ -34,7 +34,7 @@
 //          (rpc_get_contractor_inbox_threads) would move this to RLS-pure.
 // ═══════════════════════════════════════════════════════════════
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -46,7 +46,7 @@ import {
   UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -54,7 +54,7 @@ import { COLORS, DIMENSIONS, TYPOGRAPHY } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useInboxThreads } from '../hooks/useData';
 import { adaptInboxThreadToLocal } from '../lib/typeAdapters';
-import { Avatar } from './shared';
+import { Avatar, GroupAvatar, UnreadIndicator } from './shared';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -209,7 +209,7 @@ interface JobChatThread {
 // as private metadata that the existing ThreadRow render path ignores.
 type JobChatThreadWithMeta = JobChatThread & {
   __type: string;
-  __members: { name: string; color: string }[];
+  __members: { name: string; color: string; uri?: string | null }[];
   __closingDate: string;
 };
 
@@ -226,6 +226,31 @@ type JobChatThreadWithMeta = JobChatThread & {
  *   .order('last_message_at', { ascending: false })
  */
 const MOCK_ACTIVE_THREADS: JobChatThread[] = [
+  // @demo — S162c-patch: partner deal_chat mock so demo mode showcases
+  // the partner Inbox UX (multi-avatar + inline blue dot + no status pill).
+  // Cast to JobChatThreadWithMeta for the __type / __members / __closingDate
+  // metadata the renderer branches on. Contractor job_thread rows below are
+  // untouched — their demo behavior remains unchanged.
+  {
+    id: 'deal-mock-1',
+    jobId: 'deal-mock-1',
+    jobTitle: '123 Main St – Smith Buyer',
+    jobStatus: 'in_progress',
+    address: '123 Main St, Denver CO',
+    agentName: 'Alex Morgan',
+    agentAvatar: '#7BA3C9',
+    lastMessage: 'Pre-approval letter is ready — should I send to title?',
+    lastMessageTime: '15m ago',
+    unreadCount: 2,
+    trade: '',
+    __type: 'deal_chat',
+    __members: [
+      { name: 'Alex Morgan', color: '#7BA3C9', uri: null },
+      { name: 'Sarah Martinez', color: '#D4A8B5', uri: null },
+      { name: 'Mike Rodriguez', color: '#C4A882', uri: null },
+    ],
+    __closingDate: '2026-05-31',
+  } as JobChatThreadWithMeta,
   {
     id: 'thread1',
     jobId: 'aj1',
@@ -357,30 +382,25 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onPress, isPast = false }
       opacity: isPast ? 0.75 : 1,
     })}
   >
-    {/* Avatar */}
+    {/* Avatar — S162c: GroupAvatar stack for deal_chat rows (matches agent Inbox),
+        single Avatar for job_thread / mock rows. */}
     <View style={{ position: 'relative' }}>
-      <Avatar name={thread.agentName} color={thread.agentAvatar} size={48} />
-      {/* Unread dot */}
-      {thread.unreadCount > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            top: -2,
-            right: -2,
-            width: 20,
-            height: 20,
-            borderRadius: 9999,
-            backgroundColor: COLORS.notificationRed,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 2,
-            borderColor: COLORS.background,
-          }}
-        >
-          <Text style={{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }}>
-            {thread.unreadCount}
-          </Text>
-        </View>
+      {(thread as JobChatThreadWithMeta).__type === 'deal_chat' &&
+      ((thread as JobChatThreadWithMeta).__members?.length ?? 0) > 0 ? (
+        <GroupAvatar members={(thread as JobChatThreadWithMeta).__members} size={48} />
+      ) : (
+        <Avatar name={thread.agentName} color={thread.agentAvatar} size={48} />
+      )}
+      {/* S162c-patch — unread indicator follows role semantics:
+          - job_thread: red numeric badge overlaid on avatar (action-queue mental model)
+          - deal_chat:  overlay suppressed; inline blue dot in Row 3 (conversational) */}
+      {(thread as JobChatThreadWithMeta).__type !== 'deal_chat' && (
+        <UnreadIndicator
+          variant="count"
+          count={thread.unreadCount}
+          show={thread.unreadCount > 0}
+          position="absolute"
+        />
       )}
     </View>
 
@@ -430,7 +450,10 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onPress, isPast = false }
         )}
       </View>
 
-      {/* Row 3: Last message preview */}
+      {/* Row 3: Last message preview (+ inline blue dot for deal_chat unread).
+          S162c-patch — deal_chat rows show the "attention needed" dot here in
+          place of the avatar overlay — count is intentionally hidden (partner
+          role uses dot-only by design contract). */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         {isPast && <LockIcon />}
         <Text
@@ -445,6 +468,9 @@ const ThreadRow: React.FC<ThreadRowProps> = ({ thread, onPress, isPast = false }
         >
           {thread.lastMessage}
         </Text>
+        {(thread as JobChatThreadWithMeta).__type === 'deal_chat' && (
+          <UnreadIndicator variant="dot" show={thread.unreadCount > 0} />
+        )}
       </View>
     </View>
   </Pressable>
@@ -512,7 +538,21 @@ const ContractorInboxList: React.FC = () => {
   // S162b — live wiring. In live mode, replace mock with adapted RPC threads
   // filtered to deal_chat + job_thread (excludes standalone 1:1 DMs).
   // @backend rpc_get_inbox_threads() — auth.uid() identifies contractor/partner
-  const { data: inboxThreads } = useInboxThreads();
+  const { data: inboxThreads, refetch: refetchInbox } = useInboxThreads();
+
+  // S162c — refetch inbox when screen re-focuses so unread dots clear after a
+  // partner/contractor reads a thread and navigates back. hasMountedRef skips
+  // the initial mount (useQuery owns the first load). Demo mode is a no-op.
+  const hasMountedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasMountedRef.current) {
+        hasMountedRef.current = true;
+        return;
+      }
+      if (!FEATURE_FLAGS.USE_MOCK_DATA) refetchInbox();
+    }, [refetchInbox]),
+  );
   const [activeThreads, setActiveThreads] = useState<JobChatThread[]>(MOCK_ACTIVE_THREADS);
   const [pastThreads, setPastThreads] = useState<JobChatThread[]>(MOCK_PAST_THREADS);
 

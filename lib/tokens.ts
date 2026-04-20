@@ -56,6 +56,7 @@ export const COLORS = {
   sortText: '#333333',        // sort pill text, bold body variant
   tagText: '#707070',         // tag pill text
   lightText: '#99A1AF',       // placeholders, timestamps, disabled text
+  textTertiary: '#9CA3AF',    // sender names, chat metadata, caption-level text (S162c)
   mutedText: '#6A7282',       // icon gray, muted labels
   placeholderText: 'rgba(10, 10, 10, 0.5)' as const,
 

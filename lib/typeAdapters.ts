@@ -34,8 +34,10 @@ interface InboxChatThread {
   isGroup: boolean;
   memberCount?: number;
   avatarColors: string[];
-  /** S161: real member data for group-thread avatar stack (name + color). */
-  members?: { name: string; color: string }[];
+  /** S161: real member data for group-thread avatar stack (name + color).
+   *  S162c: uri plumbed through from rpc_get_inbox_threads members[].avatar_url
+   *  so the DealChatScreen header GroupAvatarGrid can render photos. */
+  members?: { name: string; color: string; uri?: string | null }[];
   avatarUrl?: string | null;    // S133: photo URL from other_member.avatar_url
   isOnline?: boolean;
   contactRole?: string;
@@ -93,10 +95,12 @@ export const adaptInboxThreadToLocal = (thread: InboxThread): InboxChatThread =>
     : [thread.other_member?.avatar_color ?? COLORS.primary],
   // @backend — S161: real member data from rpc_get_inbox_threads members[].
   //            Used by GroupAvatar overlap stack for real initials + colors.
+  // S162c — avatar_url plumbed through so header GroupAvatarGrid shows photos.
   members: thread.type !== 'one_to_one'
     ? (thread.members ?? []).map(m => ({
         name: m.name ?? '',
         color: m.avatar_color ?? COLORS.primary,
+        uri: m.avatar_url ?? null,
       }))
     : [],
   avatarUrl: thread.other_member?.avatar_url ?? null,

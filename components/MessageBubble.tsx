@@ -89,7 +89,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, showSender = fal
 
         <View style={{ flex: 1, maxWidth: 271, gap: 4 }}>
           {senderName && (
-            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.darkText, lineHeight: 20 }}>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: COLORS.textTertiary, lineHeight: 16 }}>
               {senderName}
             </Text>
           )}
