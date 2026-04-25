@@ -47,6 +47,18 @@ interface PlaceSuggestion {
 interface AddressAutocompleteInputProps {
   value: string;
   onSelect: (address: string) => void;
+  /**
+   * Optional — if provided, a Places Details call fires after a suggestion is
+   * tapped and coords are returned alongside the description. On fetch error
+   * or missing `location`, coords is `null` and the consumer decides how to
+   * surface the error (never swallowed silently). Added S163 for ServiceArea
+   * editor — `onSelect` is still always called first so existing consumers
+   * (PostPhotoJob, PostStagingJob, EditProfile, CreateDealChat) are unaffected.
+   */
+  onSelectWithCoords?: (
+    description: string,
+    coords: { lat: number; lng: number } | null,
+  ) => void;
   placeholder?: string;
   label?: string;
 }
@@ -54,6 +66,7 @@ interface AddressAutocompleteInputProps {
 export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> = ({
   value,
   onSelect,
+  onSelectWithCoords,
   placeholder = 'Enter property address',
   label,
 }) => {
@@ -64,6 +77,9 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
   // AbortController guard — prevents stale fetch responses from overwriting fresh ones
   // when the user types faster than the network resolves.
   const fetchControllerRef = useRef<AbortController | null>(null);
+  // Separate controller for the Places Details call — runs independently of
+  // autocomplete fetch and gets aborted on unmount or a second suggestion tap.
+  const detailsControllerRef = useRef<AbortController | null>(null);
 
   const fetchSuggestions = async (input: string) => {
     if (fetchControllerRef.current) {
@@ -119,6 +135,55 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
     }
   };
 
+  // S163 — Places Details fetch for lat/lng. Fields restricted to `location`
+  // via X-Goog-FieldMask (tight budget + fewer permissions required).
+  // Returns null on non-OK, missing location, or abort — caller decides UX.
+  const fetchPlaceCoords = async (
+    placeId: string,
+  ): Promise<{ lat: number; lng: number } | null> => {
+    if (detailsControllerRef.current) detailsControllerRef.current.abort();
+    const controller = new AbortController();
+    detailsControllerRef.current = controller;
+
+    try {
+      const response = await fetch(
+        `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+            'X-Goog-FieldMask': 'location',
+          },
+          signal: controller.signal,
+        },
+      );
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.warn('[AddressAutocompleteInput] Places Details non-OK', {
+          status: response.status,
+          body: errorBody.slice(0, 500),
+        });
+        return null;
+      }
+      const data = await response.json();
+      if (controller.signal.aborted) return null;
+      const lat = data?.location?.latitude;
+      const lng = data?.location?.longitude;
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        console.warn('[AddressAutocompleteInput] Places Details missing location', { data });
+        return null;
+      }
+      return { lat, lng };
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return null;
+      console.warn('[AddressAutocompleteInput] Places Details threw', {
+        name: err?.name,
+        message: err?.message,
+      });
+      return null;
+    }
+  };
+
   const handleTextChange = (text: string) => {
     onSelect(text);
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -135,16 +200,30 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
     }, 400);
   };
 
-  const handleSuggestionSelect = (description: string) => {
-    onSelect(description);
+  const handleSuggestionSelect = async (suggestion: PlaceSuggestion) => {
+    // onSelect always fires first — preserves existing consumer contract
+    onSelect(suggestion.description);
     setSuggestions([]);
     setShowDropdown(false);
+
+    // Note: onSelectWithCoords captured at call time. If parent re-renders with
+    // a new callback reference during the Details fetch (100-500ms), the
+    // originally-captured reference still fires. Usually fine — if weird edge
+    // cases emerge, refactor to a ref pattern that tracks latest callback.
+    //
+    // S163 — opt-in coords callback. Error and "no location" both surface as
+    // coords=null; caller (ServiceAreaEditor) renders an inline error state.
+    if (onSelectWithCoords) {
+      const coords = await fetchPlaceCoords(suggestion.placeId);
+      onSelectWithCoords(suggestion.description, coords);
+    }
   };
 
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (fetchControllerRef.current) fetchControllerRef.current.abort();
+      if (detailsControllerRef.current) detailsControllerRef.current.abort();
     };
   }, []);
 
@@ -207,7 +286,7 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
               suggestions.map((s) => (
                 <Pressable
                   key={s.placeId}
-                  onPress={() => handleSuggestionSelect(s.description)}
+                  onPress={() => handleSuggestionSelect(s)}
                   style={({ pressed }) => ({
                     padding: 12,
                     paddingHorizontal: 14,

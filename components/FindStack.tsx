@@ -15,6 +15,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import FindTab from './FindTab';
 import ProProfile from './ProProfile';
 import type { ProProfileData } from './ProProfile';
+import ServiceAreaEditorScreen from './ServiceAreaEditorScreen';
 
 // ─────────────────────────────────────────────
 // TYPE DEFINITIONS
@@ -30,6 +31,9 @@ export type FindStackParamList = {
     profileId?: string;
     profile?: ProProfileData;
   };
+  // S163 — ATL-LOCATION-01: agent service area editor. No params — editor
+  // reads useMyProfile directly via getServiceArea (single cast point).
+  ServiceAreaEditor: undefined;
 };
 
 const Stack = createNativeStackNavigator<FindStackParamList>();
@@ -47,6 +51,11 @@ const FindStack: React.FC = () => (
   >
     <Stack.Screen name="FindMain" component={FindTab} />
     <Stack.Screen name="ProProfile" component={ProProfile} />
+    <Stack.Screen
+      name="ServiceAreaEditor"
+      component={ServiceAreaEditorScreen}
+      options={{ presentation: 'fullScreenModal' }}
+    />
   </Stack.Navigator>
 );
 
