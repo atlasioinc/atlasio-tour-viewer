@@ -34,7 +34,7 @@ import {
   StatusBar,
   DeviceEventEmitter,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
@@ -239,18 +239,19 @@ const ServiceAreaEditorScreen: React.FC = () => {
   // ─────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 + insets.top : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
       >
         {/* ── Header — 44×44 spacer + centered title + 44×44 X button ── */}
         <View
           style={{
-            height: 48,
+            paddingTop: 8 + insets.top,
+            paddingBottom: 8,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -415,7 +416,7 @@ const ServiceAreaEditorScreen: React.FC = () => {
           style={{
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: 16,
+            paddingBottom: Math.max(insets.bottom, 16),
             backgroundColor: COLORS.background,
             // 0.69 matches PostPhotoJobScreen sticky-CTA canonical per S159.
             // Header uses 0.68 (CLAUDE.md spec for headers/cards) — values
@@ -453,7 +454,7 @@ const ServiceAreaEditorScreen: React.FC = () => {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
