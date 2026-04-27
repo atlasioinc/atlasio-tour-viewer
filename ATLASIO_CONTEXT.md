@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S164 — April 25, 2026)
-- **RPCs:** 71 (1 verified deployed, 1 NOT verified — S165 blocker). +2 S163: `rpc_find_pros` ✅ verified deployed (circle-overlap math via earthdistance), `rpc_update_service_area` ❌ NOT verified deployed (silently partial-failed in S163 Block C multi-statement DDL — Save flow currently returns `Could not find the function public.rpc_update_service_area(...) in the schema cache.`). Pre-S163 baseline 69.
-- **Hooks:** 70 (+1 S163: `useUpdateServiceArea`; `useFindPros` migrated PostgREST → RPC, no count change). Pre-S163 baseline 69.
+## Current Metrics (updated S166 v2 — April 27, 2026)
+- **RPCs:** 73 (+2 S166: `rpc_get_recommended_pros`, `rpc_get_trending_pros` — earthdistance-filtered. `rpc_get_recommended_pros` redesigned mid-session with squad-gap tier logic + `is_gap_fill` column). All deployed RPCs verified. S165 baseline 71.
+- **Hooks:** 70 (no count change S166 — `useRecommendedPros` + `useTrendingPros` rewritten in place to call new RPCs and read service area from `useMyProfile`). Pre-S163 baseline 69.
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 S163 (ServiceAreaEditorScreen — fullScreenModal in FindStack); +1 S129 (PaymentSettingsScreen)
@@ -74,6 +74,107 @@ LIVE_SQUAD_SHARE: false
 PARTNER_TRACK_ENABLED: false (Phase 2)
 DEAL_CREATION_ENABLED: false (Phase 2)
 ```
+
+---
+
+## S166 — ATL-LOCATION-04: Location-Aware Recommended & Trending Pros + Squad-Gap Badge (April 27, 2026)
+
+### Branch
+`feat/atl-location-04-s166`
+
+### What shipped (v2 — combined v1 location-aware wiring + v2 squad-gap badge)
+- `useRecommendedPros` (`hooks/useData.ts`) rewritten — calls `rpc_get_recommended_pros` with agent service area read internally from `useMyProfile()` via `getServiceArea()`. Gates on a complete lat/lng/radius triple. Returns narrow `RecommendedPro[]` shape.
+- `useTrendingPros` (`hooks/useData.ts`) rewritten — calls `rpc_get_trending_pros` (limit 8, ordered by `last_active_at`). Same gating + shape semantics. Returns `TrendingPro[]`.
+- `queryKeys.recommendedPros` / `queryKeys.trendingPros` — extended to functions taking `(lat, lng, radius)` so a service-area change is a different cache entry (matches S163 `findPros` key pattern).
+- `lib/typeAdapters.ts` — added `mapRecommendedProToProCard(p: RecommendedPro): FindProCard`. The new RPCs return a narrower projection than `Profile`, so `adaptProfileToProCard` could not be reused. `verification_level` derived from `license_status === 'verified' ? 'verified' : undefined`.
+- `types/index.ts` — added `RecommendedPro` and `TrendingPro` interfaces.
+- `components/FindTab.tsx`:
+  - Consumer mapping switched to `mapRecommendedProToProCard`. Live mode never falls back to mock arrays — empty array on RPC error or no qualifying pros.
+  - Recommended and Trending sections now hide entirely (no header, no scroll) when `!USE_MOCK_DATA && !isLoading && length === 0`.
+  - `ProCardSkeletonRow` parameterized with `count` prop — Recommended renders 3 skeleton cards, Trending renders 4. Card dimensions match live ProCard exactly (325 width, 14 borderRadius, 0.68 borderWidth) so layout doesn't shift on data load.
+- `lib/featureFlags.ts` — resolved BUG-S165-A merge conflict markers (cosmetic, was carried from `feat/atl-location-01-s163` merge). Single `DEV_SHOW_PASSWORD_LOGIN: false` line retained.
+
+### v2 additions (squad-gap badge)
+- `rpc_get_recommended_pros` redesigned mid-session: now returns `is_gap_fill boolean` and orders Tier 1 (gap fills) before Tier 2 (covered roles), both by `vouch_count DESC`. Squad-gap detection driven by `connections.is_in_squad = true` (NOT `squad_members` table — that is Phase 2 structured squad builder).
+- `RecommendedPro` interface in `types/index.ts` — added `is_gap_fill: boolean`. `TrendingPro` inherits the field via `extends`; Trending render does not consume it.
+- `FindProCard` interface in `lib/typeAdapters.ts` — added optional `is_gap_fill?: boolean`. `mapRecommendedProToProCard` threads `p.is_gap_fill ?? false`. `adaptProfileToProCard` (FindPros consumer) leaves it undefined → no badge for FindPros results.
+- Local `ProCard` interface in `components/FindTab.tsx` — added optional `is_gap_fill?: boolean` to stay structurally compatible with `FindProCard`.
+- Mock data: `RECOMMENDED_PROS` now `ALL_PROS.slice(0, 5).map((p, i) => ({ ...p, is_gap_fill: i < 2 }))` so badge is visible in demo mode on the first 2 cards. `TRENDING_PROS` cloned without the flag.
+- Recommended carousel render: each `ProCardComponent` is now wrapped in `<View style={{ position: 'relative' }}>` with `key` on the wrapper. When `pro.is_gap_fill === true`, an absolutely positioned badge renders at `top: 8 / left: 8` — `COLORS.primary` text on `COLORS.tagBg` (consistent with Lightning headline pill chrome), 11pt `fontWeight: '600'`, `borderRadius: 6`, `paddingHorizontal: 6 / paddingVertical: 2`. Badge text: `"For Your Squad"`. Wrapper-overlay pattern (not a ProCard prop) — production handoff comment notes future migration to `badgeLabel` prop on the shared component.
+- Trending carousel and "Available in [City]" list intentionally untouched — no badge there.
+
+### Key decisions
+- **Narrow RPC shape, not widened** — backend was deployed pre-session and not modified. Frontend mapper fills missing ProCard fields (`company: ''`, `rating: 0`, `tags: []`, etc.) rather than reshaping the RPC.
+- **No internal `USE_MOCK_DATA` short-circuit** — hook always calls the RPC; mock branching stays at the consumer (FindTab), matching `useFindPros` architecture.
+- **`enabled: !!sa` gate** — prevents an unfiltered fetch on mount before `useMyProfile` resolves; mirrors the FindTab `enabled: !isProfileLoading` pattern from S163.
+- **Section hide-when-empty** — per spec, no empty horizontal scroll; LOADING STATE RULE (S151) compliance — never flashes mock during live load.
+
+### Tickets closed
+- ATL-LOCATION-04 → ✅ Done
+- BUG-S165-A (featureFlags.ts duplicate-line cleanup) → ✅ Done (resolved as side-effect)
+
+### Gates
+- `npx tsc --noEmit` — 0 errors
+- `npx expo lint` — 0 errors / 8 pre-existing warnings (none introduced this session)
+
+### Current flags on branch (QA mode)
+- `USE_MOCK_DATA: false`
+- `DEV_BYPASS_AUTH: false`
+Reset to demo defaults (`USE_MOCK_DATA: true`) before merge to main.
+
+### S167 next objectives
+1. × clear button on ServiceAreaEditorScreen city input (carried from S165 deferred)
+2. CHORE-PROFILES-ORPHAN-CLEANUP — 11+ orphan rows pre-launch
+3. ATL-LOADING-FLASH-FILTERED-LIST — FindTab filtered/searched view still flashes 16-mock-row fallback during initial fetch
+4. BUG-S163-A — Alex Morgan `display_role='agent'` literal cleanup (low priority)
+5. ATL-CTA-AUDIT — primary CTA pattern audit across all forms (carried from S159)
+
+---
+
+## S165 — ATL-LOCATION-01 Close-out + ATL-FIND-PILLS-PHASE1 (April 26, 2026)
+
+### Branch
+`feat/atl-location-01-s163` → merged to `main` at `d381490`
+
+### Commits (in order)
+- `6485ec3` — fix(find-tab): Phase 1 role pills + snake_case filter fix (ATL-FIND-PILLS-PHASE1)
+- `7688073` — fix(service-area-editor): KAV offset += insets.top for fullScreenModal keyboard gap [SUPERSEDED]
+- (subsequent commits) — fullScreenModal safe area pattern iterations
+- final keyboard fix — dynamic CTA paddingBottom (16 keyboard up, Math.max(insets.bottom,16) keyboard down)
+- fix(find-tab): strip ', USA' from chip label, remove location pin icon
+- `d381490` — chore(s165): flag reset to demo defaults (merge commit to main)
+
+### What shipped
+- `rpc_update_service_area` — deployed and verified live (was silently partial-failed since S163)
+- `sql/schema.sql` — updated with rpc_update_service_area definition
+- EAS dev client rebuild — @react-native-community/slider@5.1.2 native module now linked
+- ATL-LOCATION-01 QA Scenarios 2–9 — all passed on iPhone 16 Pro
+- ATL-FIND-PILLS-PHASE1 — ROLE_PILLS revised to Phase 1 scope [All, Contractor, Stager, Photographer]
+  + ROLE_PILL_MAP added, matchesRole now compares snake_case → snake_case
+- ServiceAreaEditorScreen keyboard gap — resolved via canonical fullScreenModal pattern:
+  header outside KAV, KAV offset=0, flow sibling CTA, dynamic paddingBottom
+- FindTab chip — stripped ', USA' suffix, removed LocationPinIcon
+
+### Tickets closed
+- ATL-LOCATION-01 → ✅ Done
+- ATL-FIND-PILLS-PHASE1 → ✅ Done
+
+### Known issues / deferred
+- Duplicate DEV_SHOW_PASSWORD_LOGIN line in lib/featureFlags.ts (merge artifact, cosmetic)
+- × clear button on city input in ServiceAreaEditorScreen (polish, not blocking)
+- Scenario 5 empty state only triggers at truly out-of-range location (by design — confirmed correct)
+- BUG-S163-A — Alex Morgan display_role='agent' literal (low priority)
+
+### Current flags on main (demo defaults)
+- USE_MOCK_DATA: true
+- DEV_BYPASS_AUTH: false
+- DEV_SHOW_PASSWORD_LOGIN: false
+
+### Next session priorities
+1. ATL-LOCATION-04 — useRecommendedPros/useTrendingPros not location-aware
+2. × clear button on ServiceAreaEditorScreen city input
+3. featureFlags.ts duplicate line cleanup
+4. CHORE-PROFILES-ORPHAN-CLEANUP — 11+ orphan rows pre-launch
 
 ---
 

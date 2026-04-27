@@ -791,3 +791,34 @@ export interface SquadShareResult {
   pdfUrl?: string;   // SMS path only — public Supabase Storage URL
   error?: string;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// FIND — Location-aware Recommended / Trending Pros (S166)
+// @backend rpc_get_recommended_pros / rpc_get_trending_pros
+// Narrow row shapes returned by the two earthdistance-filtered RPCs.
+// Distinct from the full Profile interface — these RPCs intentionally
+// project a small subset for list rendering.
+// ═══════════════════════════════════════════════════════════════
+export interface RecommendedPro {
+  id: string;
+  name: string;
+  display_role: string;
+  role: string;
+  avatar_url: string | null;
+  avatar_color: string;
+  vouch_count: number;
+  service_area_label: string | null;
+  service_area_radius: number | null;
+  service_area_lat: number | null;
+  service_area_lng: number | null;
+  license_status: string | null;
+  // S166 v2 — true when this pro's role fills a gap in the agent's squad
+  // (no existing connection with `is_in_squad = true` covering the role).
+  // RPC orders Tier 1 (gap fills) before Tier 2 (covered roles), both by
+  // vouch_count DESC. Surfaced as a "For Your Squad" badge in FindTab.
+  is_gap_fill: boolean;
+}
+
+export interface TrendingPro extends RecommendedPro {
+  last_active_at: string;
+}

@@ -16,6 +16,7 @@ import type {
   Vouch,
   Notification as GlobalNotification,
   VerificationLevel,
+  RecommendedPro,
 } from '../types';
 import { COLORS } from './tokens';
 
@@ -169,6 +170,9 @@ interface FindProCard {
   closingDays?: number;
   distanceMi?: number;
   verification_level?: VerificationLevel;
+  // S166 v2 — Recommended-section squad-gap badge. Optional because
+  // adaptProfileToProCard (FindPros consumer) doesn't carry the field.
+  is_gap_fill?: boolean;
 }
 
 export const adaptProfileToProCard = (profile: Profile): FindProCard => ({
@@ -186,6 +190,25 @@ export const adaptProfileToProCard = (profile: Profile): FindProCard => ({
   avatarUrl: profile.avatar_url ?? null,
   closingDays: profile.typical_close_days ?? undefined,
   verification_level: profile.verification_level,
+});
+
+// S166 — narrow RPC row → ProCard for Recommended/Trending sections.
+// rpc_get_recommended_pros / rpc_get_trending_pros project a smaller column
+// set than the full Profile (no company/rating/tags/trade/typical_close_days).
+// Missing fields default safely so ProCard renders without layout breakage.
+export const mapRecommendedProToProCard = (p: RecommendedPro): FindProCard => ({
+  id: p.id,
+  name: p.name ?? '',
+  company: '',
+  role: p.display_role ?? '',
+  rating: 0,
+  vouches: p.vouch_count ?? 0,
+  tags: [],
+  headline: null,
+  avatarColor: p.avatar_color ?? COLORS.primary,
+  avatarUrl: p.avatar_url ?? null,
+  verification_level: p.license_status === 'verified' ? 'verified' : undefined,
+  is_gap_fill: p.is_gap_fill ?? false,
 });
 
 // ─────────────────────────────────────────────

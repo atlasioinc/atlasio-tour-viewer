@@ -50,7 +50,7 @@ import RequestConnectModal from './RequestConnectModal';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useFindPros, useRecommendedPros, useTrendingPros, useMyProfile } from '../hooks/useData';
-import { adaptProfileToProCard, getServiceArea } from '../lib/typeAdapters';
+import { adaptProfileToProCard, getServiceArea, mapRecommendedProToProCard } from '../lib/typeAdapters';
 import { Avatar, VerificationBadge, SkeletonBlock, EmptyState, SuccessToast } from './shared';
 import { useSuccessToast } from '../hooks/useSuccessToast';
 import { DisplayTag } from './DisplayTag';
@@ -227,6 +227,10 @@ interface ProCard {
   /** @backend profiles.accepting_clients BOOLEAN — read from partner profile data
    *  @demo use mock profile data with accepting_clients field */
   accepting_clients?: boolean;
+  /** @backend rpc_get_recommended_pros.is_gap_fill — true when role fills a
+   *  squad gap (no `is_in_squad = true` connection covers the role). Drives
+   *  the "For Your Squad" badge in the Recommended carousel only. (S166 v2) */
+  is_gap_fill?: boolean;
 }
 
 const ALL_PROS: ProCard[] = [
@@ -390,13 +394,16 @@ const ProCardSkeleton = () => (
   </View>
 );
 
-const ProCardSkeletonRow = () => (
+// S166 — `count` controls visible skeleton cards: 3 for Recommended, 4 for Trending.
+// Card dimensions match the live ProCard row exactly (325 width, 14 borderRadius,
+// 0.68 borderWidth, 16 padding, 12 gap) so layout doesn't shift on data load.
+const ProCardSkeletonRow: React.FC<{ count?: number }> = ({ count = 2 }) => (
   <ScrollView
     horizontal
     showsHorizontalScrollIndicator={false}
     contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}
   >
-    {[0, 1].map(i => (
+    {Array.from({ length: count }).map((_, i) => (
       <View key={i} style={{
         width: 325,
         borderRadius: 14,
@@ -467,16 +474,19 @@ const FindTab: React.FC = () => {
     serviceArea?.radius ?? null,
     { enabled: !isProfileLoading },
   );
+  // S166 — location-aware: hooks read service area from useMyProfile internally
+  // and gate on a complete lat/lng/radius triple. Live mode returns empty array
+  // when RPC fails — never falls back to mock (LOADING STATE RULE, S151).
   const { data: liveRecommended, isLoading: isLoadingRecommended } = useRecommendedPros();
-  const { data: liveTrending, isLoading: isLoadingTrending } = useTrendingPros();
+  const { data: liveTrending,    isLoading: isLoadingTrending    } = useTrendingPros();
 
   const recommendedPros = FEATURE_FLAGS.USE_MOCK_DATA
     ? RECOMMENDED_PROS
-    : (liveRecommended?.map(adaptProfileToProCard) ?? RECOMMENDED_PROS);
+    : (liveRecommended ?? []).map(mapRecommendedProToProCard);
 
   const trendingPros = FEATURE_FLAGS.USE_MOCK_DATA
     ? TRENDING_PROS
-    : (liveTrending?.map(adaptProfileToProCard) ?? TRENDING_PROS);
+    : (liveTrending ?? []).map(mapRecommendedProToProCard);
 
   // ── Apply preset params from Quick Actions (cross-stack navigation) ──
   useEffect(() => {
@@ -701,12 +711,15 @@ const FindTab: React.FC = () => {
 
         {!isSearching ? (
           <View style={{ paddingTop: 16, paddingBottom: 16, gap: 24 }}>
+            {/* S166 — hide section when live mode resolves with no qualifying pros.
+                Mock mode and loading state always render so the layout stays stable. */}
+            {(FEATURE_FLAGS.USE_MOCK_DATA || isLoadingRecommended || recommendedPros.length > 0) && (
             <View style={{ gap: 12 }}>
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>Recommended for You</Text>
                 <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>Based on your squad gaps and recent jobs</Text>
               </View>
-              {isLoadingRecommended ? <ProCardSkeletonRow /> : (
+              {isLoadingRecommended ? <ProCardSkeletonRow count={3} /> : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}>
                 {recommendedPros.map((pro) => (
                   <ProCardComponent key={pro.id} pro={pro} width={325}
@@ -716,12 +729,14 @@ const FindTab: React.FC = () => {
               </ScrollView>
               )}
             </View>
+            )}
+            {(FEATURE_FLAGS.USE_MOCK_DATA || isLoadingTrending || trendingPros.length > 0) && (
             <View style={{ gap: 12 }}>
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>Trending This Week</Text>
                 <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}>Most vouched pros in the last 7 days</Text>
               </View>
-              {isLoadingTrending ? <ProCardSkeletonRow /> : (
+              {isLoadingTrending ? <ProCardSkeletonRow count={4} /> : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingVertical: 4, gap: 12 }}>
                 {trendingPros.map((pro) => (
                   <ProCardComponent key={`trending-${pro.id}`} pro={pro} width={325}
@@ -731,6 +746,7 @@ const FindTab: React.FC = () => {
               </ScrollView>
               )}
             </View>
+            )}
 
             {/* ── S164 — Available in [City] ──
                 What:   Vertical list of service-area-qualified pros on the "All" pill.

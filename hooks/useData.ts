@@ -82,8 +82,11 @@ import type {
   ThreadMessage,
   ClosedDeal,
   AgentActiveJob,
+  RecommendedPro,
+  TrendingPro,
 } from '../types';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { getServiceArea } from '../lib/typeAdapters';
 
 // ═══════════════════════════════════════════════════════════════
 // QUERY KEYS — centralized for cache invalidation
@@ -137,8 +140,11 @@ export const queryKeys = {
     agentRadius: number | null,
   ) => ['find-pros', query, role, sort, agentLat, agentLng, agentRadius] as const,
   searchPros: (query: string, role: string) => ['search-pros', query, role] as const,
-  recommendedPros: ['recommended-pros'] as const,
-  trendingPros: ['trending-pros'] as const,
+  // S166: include service area triple so a location change refetches.
+  recommendedPros: (lat: number | null, lng: number | null, radius: number | null) =>
+    ['recommended-pros', lat, lng, radius] as const,
+  trendingPros: (lat: number | null, lng: number | null, radius: number | null) =>
+    ['trending-pros', lat, lng, radius] as const,
 
   // Squads
   squadMembers: (squadId: string) => ['squad-members', squadId] as const,
@@ -1935,25 +1941,31 @@ export const useFindPros = (
 };
 
 /**
- * Fetch recommended pros (highest-rated, top 5)
+ * Fetch recommended pros — location-aware, service-area filtered (S166).
+ * Reads agent service area from useMyProfile; gates the query until all three
+ * lat/lng/radius are present. Returns top 5 sorted by vouch_count DESC.
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (RPC, S166 — location-aware, narrow row shape)
+// @backend rpc_get_recommended_pros(p_agent_lat, p_agent_lng, p_agent_radius_miles, p_limit)
 export const useRecommendedPros = () => {
+  const { data: myProfile } = useMyProfile();
+  const sa = getServiceArea(myProfile);
   return useQuery({
-    queryKey: queryKeys.recommendedPros,
-    queryFn: async (): Promise<Profile[]> => {
+    queryKey: queryKeys.recommendedPros(sa?.lat ?? null, sa?.lng ?? null, sa?.radius ?? null),
+    enabled: !!sa,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<RecommendedPro[]> => {
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .neq('role', 'agent')
-          .eq('is_visible', true)
-          .order('rating', { ascending: false })
-          .limit(5);
+        const { data, error } = await supabase.rpc('rpc_get_recommended_pros', {
+          p_agent_lat:          sa!.lat,
+          p_agent_lng:          sa!.lng,
+          p_agent_radius_miles: sa!.radius,
+          p_limit:              5,
+        });
         if (error) throw error;
-        return (data ?? []) as Profile[];
+        return (data ?? []) as RecommendedPro[];
       } catch (err) {
-        console.warn('[useRecommendedPros] Supabase failed, using mock fallback', err);
+        console.warn('[useRecommendedPros] rpc_get_recommended_pros failed, returning empty', err);
         return [];
       }
     },
@@ -1961,26 +1973,30 @@ export const useRecommendedPros = () => {
 };
 
 /**
- * Fetch trending pros (most-vouched, top 5)
- * TODO: Filter to vouches received in last 7 days once an RPC or view exists
+ * Fetch trending pros — service-area pros with most recent awarded/in_progress
+ * job activity (S166). Returns up to 8 sorted by last_active_at DESC.
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (RPC, S166 — location-aware, narrow row shape)
+// @backend rpc_get_trending_pros(p_agent_lat, p_agent_lng, p_agent_radius_miles, p_limit)
 export const useTrendingPros = () => {
+  const { data: myProfile } = useMyProfile();
+  const sa = getServiceArea(myProfile);
   return useQuery({
-    queryKey: queryKeys.trendingPros,
-    queryFn: async (): Promise<Profile[]> => {
+    queryKey: queryKeys.trendingPros(sa?.lat ?? null, sa?.lng ?? null, sa?.radius ?? null),
+    enabled: !!sa,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<TrendingPro[]> => {
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .neq('role', 'agent')
-          .eq('is_visible', true)
-          .order('vouch_count', { ascending: false })
-          .limit(5);
+        const { data, error } = await supabase.rpc('rpc_get_trending_pros', {
+          p_agent_lat:          sa!.lat,
+          p_agent_lng:          sa!.lng,
+          p_agent_radius_miles: sa!.radius,
+          p_limit:              8,
+        });
         if (error) throw error;
-        return (data ?? []) as Profile[];
+        return (data ?? []) as TrendingPro[];
       } catch (err) {
-        console.warn('[useTrendingPros] Supabase failed, using mock fallback', err);
+        console.warn('[useTrendingPros] rpc_get_trending_pros failed, returning empty', err);
         return [];
       }
     },

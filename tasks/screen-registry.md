@@ -409,7 +409,7 @@
 **Role:** Agent only (contractors/partners don't see Find tab)
 **Nav Type:** Tab root (Find tab)
 **Feature Flag:** None
-**Wiring:** ✅ Live / branched render tree (S163-S164: curated carousels + service-area list on default browse view; filtered list on pill/search). `useFindPros` migrated to `rpc_find_pros` RPC S163. `useMyProfile` drives proximity filter via `getServiceArea(profile)` typeAdapter helper.
+**Wiring:** ✅ Live / branched render tree (S163-S164-S166: curated carousels + service-area list on default browse view; filtered list on pill/search). `useFindPros` migrated to `rpc_find_pros` RPC S163. `useRecommendedPros` and `useTrendingPros` migrated to `rpc_get_recommended_pros` / `rpc_get_trending_pros` location-aware RPCs S166. All three hooks read service area via `getServiceArea(profile)` typeAdapter helper from `useMyProfile`.
 
 **What's on this screen:**
 - City chip (S163): `getServiceArea(myProfile)?.label` (e.g., "Denver · 25mi"); empty state "Set service area" → tap opens ServiceAreaEditor
@@ -417,8 +417,8 @@
 - SearchField
 - Filter chips (FilterChip — NOT shared SelectableChip)
 - **Default browse view** (`activeRole === 'All' && !isSearching`):
-  - Recommended for You carousel (horizontal) — ⚠️ NOT location-aware (ATL-LOCATION-04)
-  - Trending this week carousel (horizontal) — ⚠️ NOT location-aware (ATL-LOCATION-04)
+  - Recommended for You carousel (horizontal) — ✅ location-aware S166 via `useRecommendedPros` → `rpc_get_recommended_pros` (top 5 with squad-gap tiering: Tier 1 gap fills first, then Tier 2 covered roles, both by vouch_count). "For Your Squad" badge overlaid on cards where `is_gap_fill === true` (top-left, COLORS.primary text on COLORS.tagBg, 11pt). Section hides when live RPC returns empty. Skeleton: 3 ProCardSkeletonRow cards.
+  - Trending this week carousel (horizontal) — ✅ location-aware S166 via `useTrendingPros` → `rpc_get_trending_pros` (top 8 by last_active_at). Section hides when live RPC returns empty. Skeleton: 4 ProCardSkeletonRow cards.
   - **"Available in [City]" section (S164):** vertical list of `livePros` from `useFindPros`. Header from `getServiceArea(myProfile)?.label` first segment, fallback "Pros in your area". Skeleton-gated (`FindTabSearchSkeleton`, 3 ProCardSkeleton rows). Empty state: "Adjust service area" CTA → ServiceAreaEditor.
 - **Filtered/searched view:** vertical list only (no carousels) — ⚠️ ATL-LOADING-FLASH-FILTERED-LIST: still flashes 16-mock-row fallback for ~500ms during initial fetch
 - "accepting_clients" DisplayTag ghost badge on partner ProCards
