@@ -37,7 +37,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA:            false,            // @demo — S159 reset to demo default
+  USE_MOCK_DATA:            true,            // @demo — S159 reset to demo default
   LIVE_ONBOARDING:          true,   // permanent since S140d — rpc_complete_onboarding deployed + verified
   LIVE_CONTRACTOR_HOOKS:    true,   // true = contractor hooks call live RPCs (permanent since S36)
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)
