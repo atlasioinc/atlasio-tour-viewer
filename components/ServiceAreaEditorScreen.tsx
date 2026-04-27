@@ -34,7 +34,7 @@ import {
   StatusBar,
   DeviceEventEmitter,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
@@ -98,6 +98,7 @@ const PinIcon: React.FC<{ color?: string }> = ({ color = COLORS.primary }) => (
 
 const ServiceAreaEditorScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<FindStackParamList>>();
+  const insets = useSafeAreaInsets();
   const { data: myProfile } = useMyProfile();
   const initial = useMemo(() => getServiceArea(myProfile), [myProfile]);
 
@@ -244,7 +245,7 @@ const ServiceAreaEditorScreen: React.FC = () => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 + insets.top : 0}
       >
         {/* ── Header — 44×44 spacer + centered title + 44×44 X button ── */}
         <View
