@@ -35,6 +35,7 @@ import {
   LayoutAnimation,
   UIManager,
   Animated,
+  DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -48,8 +49,8 @@ import SearchField from './SearchField';
 import RequestConnectModal from './RequestConnectModal';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { useFindPros, useRecommendedPros, useTrendingPros } from '../hooks/useData';
-import { adaptProfileToProCard } from '../lib/typeAdapters';
+import { useFindPros, useRecommendedPros, useTrendingPros, useMyProfile } from '../hooks/useData';
+import { adaptProfileToProCard, getServiceArea } from '../lib/typeAdapters';
 import { Avatar, VerificationBadge, SkeletonBlock, EmptyState, SuccessToast } from './shared';
 import { useSuccessToast } from '../hooks/useSuccessToast';
 import { DisplayTag } from './DisplayTag';
@@ -430,7 +431,32 @@ const FindTab: React.FC = () => {
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
 
   // ── Live data hooks (keep cache warm) ──
-  const { data: livePros, isLoading: isLoadingPros } = useFindPros(searchText, activeRole, selectedSort);
+  // S163: myProfile drives the proximity filter on useFindPros. Null-safe —
+  // when agent has no service area set, all three location params are null and
+  // rpc_find_pros falls through the no-filter branch (shows everyone).
+  //
+  // `enabled: !isProfileLoading` prevents an unfiltered-then-filtered flash on
+  // mount: useFindPros is blocked until myProfile resolves, then fires once
+  // with correct location params. No flicker for Matthew's demo.
+  const { data: myProfile, isLoading: isProfileLoading } = useMyProfile();
+  const serviceArea = getServiceArea(myProfile);
+  // S164 — short city label for the "Available in [City]" section header.
+  // Take the first comma-separated segment of the full label (e.g.
+  // "Denver, CO" → "Denver"). Falls back to generic copy when the agent
+  // has no service area set.
+  const serviceAreaCity = serviceArea?.label?.split(',')[0].trim() || '';
+  const availableHeader = serviceAreaCity
+    ? `Available in ${serviceAreaCity}`
+    : 'Pros in your area';
+  const { data: livePros, isLoading: isLoadingPros } = useFindPros(
+    searchText,
+    activeRole,
+    selectedSort,
+    serviceArea?.lat    ?? null,
+    serviceArea?.lng    ?? null,
+    serviceArea?.radius ?? null,
+    { enabled: !isProfileLoading },
+  );
   const { data: liveRecommended, isLoading: isLoadingRecommended } = useRecommendedPros();
   const { data: liveTrending, isLoading: isLoadingTrending } = useTrendingPros();
 
@@ -483,6 +509,26 @@ const FindTab: React.FC = () => {
   // @ux success feedback — SuccessToast wired S149b
   // @demo connection mutation is stubbed in FindTab — real mutation lives in ProProfile.handleSendConnect
   const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
+
+  // S163 — listen for ServiceAreaEditor dismissal success signal.
+  // Editor dismisses immediately on save; this surfaces the toast on FindTab
+  // (where the user is landing). Namespace: atlasio.<domain>.<verb>.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      'atlasio.serviceArea.updated',
+      ({ label }: { label: string }) => {
+        showSuccess(`Service area updated to ${label}`);
+      },
+    );
+    return () => sub.remove();
+  }, [showSuccess]);
+
+  // S164 — Empty-state CTA on the "Available in [City]" section.
+  // Routes the user to the service-area editor so they can widen their
+  // radius or change their city if the current filter returns zero pros.
+  const handleAdjustServiceAreaFromEmptyState = () => {
+    navigation.navigate('ServiceAreaEditor');
+  };
 
   const handleSendConnect = (message: string) => {
     console.log('📤 Connection request sent to:', connectPro?.name);
@@ -558,9 +604,35 @@ const FindTab: React.FC = () => {
       {/* ── STICKY HEADER ── */}
       <View style={{ backgroundColor: COLORS.background, borderBottomWidth: 0.69, borderBottomColor: COLORS.border, paddingTop: 0, paddingBottom: 0 }}>
         <View style={{ paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.5 : 1 })}>
+          {/* S163 — live service-area chip. Reads from useMyProfile via
+              getServiceArea; taps open the ServiceAreaEditor fullScreenModal.
+              Empty state when agent has no service area set. */}
+          <Pressable
+            onPress={() => navigation.navigate('ServiceAreaEditor')}
+            accessibilityRole="button"
+            accessibilityLabel={
+              serviceArea
+                ? `Service area ${serviceArea.label}, ${serviceArea.radius} miles. Tap to edit.`
+                : 'Set your service area'
+            }
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              opacity: pressed ? 0.5 : 1,
+            })}
+          >
             <LocationPinIcon />
-            <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>Denver</Text>
+            {serviceArea ? (
+              <Text style={{ fontSize: 14, fontWeight: '400', lineHeight: 20 }}>
+                <Text style={{ color: COLORS.darkText }}>{serviceArea.label}</Text>
+                <Text style={{ color: COLORS.textTertiary }}>{` · ${serviceArea.radius} mi`}</Text>
+              </Text>
+            ) : (
+              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
+                Set your service area
+              </Text>
+            )}
           </Pressable>
           <SearchField value={searchText} onChangeText={setSearchText} placeholder="Search for any pro" />
           <Pressable onPress={() => setShowSortDropdown(true)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
@@ -648,6 +720,48 @@ const FindTab: React.FC = () => {
                     onInviteToJob={() => openInviteModal(pro)} onRequestConnect={() => openConnectModal(pro)} />
                 ))}
               </ScrollView>
+              )}
+            </View>
+
+            {/* ── S164 — Available in [City] ──
+                What:   Vertical list of service-area-qualified pros on the "All" pill.
+                Who:    Agents on the default browse view (no search, no role filter).
+                Why:    Recommended/Trending show only 5 each; this delivers discoverability
+                        for the full service-area set and makes ATL-LOCATION-01 visible to users.
+                Where:  FindTab, below Trending, only when activeRole === 'All' and not searching.
+                @backend rpc_find_pros via useFindPros — service-area filtered server-side
+                @demo   sortedPros computed from livePros (USE_MOCK_DATA=false) or ALL_PROS (mock) */}
+            <View style={{ gap: 12 }}>
+              <View style={{ paddingHorizontal: 16 }}>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>
+                  {availableHeader}
+                </Text>
+              </View>
+              {isLoadingPros ? (
+                <FindTabSearchSkeleton />
+              ) : sortedPros.length > 0 ? (
+                <View style={{ paddingHorizontal: 16, gap: 12 }}>
+                  {sortedPros.map((pro) => (
+                    <ProCardComponent
+                      key={`available-${pro.id}`}
+                      pro={pro}
+                      onPress={() => navigation.navigate('ProProfile', { profile: mapFindProToProfile(pro) })}
+                      onInviteToJob={() => openInviteModal(pro)}
+                      onRequestConnect={() => openConnectModal(pro)}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={{ paddingHorizontal: 16 }}>
+                  <EmptyState
+                    illustration="find"
+                    title="No pros in your area yet"
+                    body="Expand your service area to see more pros available near you."
+                    ctaLabel="Adjust service area"
+                    onCta={handleAdjustServiceAreaFromEmptyState}
+                    style={{ flex: 0, paddingVertical: 32 }}
+                  />
+                </View>
               )}
             </View>
           </View>

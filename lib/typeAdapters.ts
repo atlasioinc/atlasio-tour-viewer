@@ -401,3 +401,47 @@ function formatNotificationTimestamp(isoString: string): string {
   if (diffDays < 7) return `${diffDays}d ago`;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+// ─────────────────────────────────────────────
+// S163 — ServiceArea accessor (single cast point)
+// ─────────────────────────────────────────────
+
+/**
+ * Single cast point for service_area_lat / service_area_lng / service_area_radius /
+ * service_area_label columns that exist in Postgres but are not yet declared on
+ * the Profile TypeScript interface (per CLAUDE.md "Known Type Gaps" rule — same
+ * precedent as insurance_status since S54).
+ *
+ * Returns null when any of the four geocoded fields is missing, so consumers can
+ * branch on "has service area set" in one check. Consumers must NEVER cast
+ * Profile to any directly — always go through this helper.
+ *
+ * @backend — remove the internal `as any` and inline the field reads once
+ * types/index.ts Profile interface gains these four fields in a dedicated
+ * cleanup session post-launch.
+ */
+export function getServiceArea(profile: Profile | null | undefined): {
+  lat: number;
+  lng: number;
+  radius: number;
+  label: string;
+} | null {
+  // The runtime Profile from PostgREST contains these 4 columns — see the
+  // S163 schema migration. TypeScript's Profile interface doesn't declare
+  // them yet (post-launch cleanup). Cast narrows the runtime gap.
+  const p = profile as any;
+  if (
+    p?.service_area_lat == null ||
+    p?.service_area_lng == null ||
+    p?.service_area_radius == null ||
+    !p?.service_area_label
+  ) {
+    return null;
+  }
+  return {
+    lat: Number(p.service_area_lat),
+    lng: Number(p.service_area_lng),
+    radius: Number(p.service_area_radius),
+    label: String(p.service_area_label),
+  };
+}

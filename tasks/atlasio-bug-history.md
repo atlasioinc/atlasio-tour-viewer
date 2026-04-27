@@ -1,8 +1,38 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S162c-patch ATL-MOCK-DEAL-CHAT-METADATA + visual-consistency pass | April 19, 2026
+**Last updated:** S164 ATL-LOCATION-01 Jessica Wong missing from FindTab (NOT a bug — layout gap) | April 25, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
+
+---
+
+## ATL-LOCATION-01 — Jessica Wong missing from FindTab (S163–S164)
+
+**Screen:** `components/FindTab.tsx`
+**Status:** 🟢 Resolved in S164 — turned out NOT to be a bug. Resolution was a product/layout addition (the new "Available in [City]" section), not a code bug fix.
+
+### Symptom
+Jessica Wong (home_stager, Boulder CO) appeared absent from the Find tab "All" pill view despite being in `livePros` and within Alex Morgan's 25-mile radius. Marcus, Mike, Sarah rendered (curated carousels); Jessica did not visibly appear anywhere on the screen.
+
+### Root cause
+NOT a bug in code — a layout gap. The "All" pill rendered ONLY the Recommended for You + Trending this week horizontal carousels. The vertical list of `filteredPros` (which correctly contained Jessica) was rendered only in the filtered-list branch (active when `activeRole !== 'All'` or `searchText.length > 0`). On "All" with no search, there was no vertical list anywhere — `filteredPros` was computed but never consumed by the render tree.
+
+Misdiagnosis came from interpreting "missing on screen" as "missing from data." Diagnostic logs (S164 Prompt 2, since removed) confirmed `filteredHasJessica: true` on every render.
+
+### Resolution (S164)
+Added a new "Available in [City]" section below Recommended/Trending on the "All" pill, fed by `sortedPros` (the same `filteredPros` already computed). Section renders only when `activeRole === 'All'` and `!isSearching`. Empty-state shows CTA routing to ServiceAreaEditor. Loading skeleton gates the section while `livePros` resolves to prevent mock-flash.
+
+### Known limitations / follow-ups
+- Filtered-list branch (when user taps a non-"All" pill or searches) still has the `?? ALL_PROS` flash — **ATL-LOADING-FLASH-FILTERED-LIST**.
+- Tapping non-"All" pills with display-string ROLE_PILLS still drops Stager/Photographer profiles — **ATL-FIND-PILLS-PHASE1** (elevated to MVP blocker).
+- Recommended/Trending are NOT location-aware — **ATL-LOCATION-04** (elevated to high priority).
+- Service Area Editor Save flow broken (deferred to S165 — `rpc_update_service_area` not deployed, slider native module not built).
+
+### Do NOT
+- Treat "no card visible" as "no data" without checking the render tree first.
+- Skip diagnostic logs for "obvious" cases — they cost minutes, save hours.
+- Default-branch a list view to a mock fallback array without a loading-state gate.
+- Compare display strings to snake_case role enums in client filters.
 
 ---
 

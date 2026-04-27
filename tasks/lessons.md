@@ -517,3 +517,92 @@ logic on a SECURITY DEFINER RPC will rediscover it the hard way.
 investigated S103b, all 7 .map() calls confirmed to have unique keys.
 Source is React Navigation internals, not app code. Safe to ignore permanently.
 
+---
+
+## S163-S164 — ATL-LOCATION-01 lessons (added April 21 + April 25, 2026)
+
+The following rules were extracted from S163 (initial deploy) and S164 (the post-deploy fallout that surfaced the gaps). Several were directly responsible for hours of debug time.
+
+### Database / RPCs
+
+**RULE — Verify RPC creation after every deploy (S163-S164).**
+Multi-statement DDL silently partial-fails. Always run `SELECT proname FROM pg_proc WHERE proname = '<fn>'` after `CREATE OR REPLACE FUNCTION`. S163 Block C deployed `rpc_find_pros` correctly but `rpc_update_service_area` silently did not persist — caught only when S164 device QA hit `Could not find the function public.rpc_update_service_area(...) in the schema cache`. The verification step takes 5 seconds; the missing verification cost a full session.
+**When to apply:** every time SQL containing `CREATE OR REPLACE FUNCTION` is executed in Supabase SQL Editor, regardless of how the editor reports success.
+
+**RULE — Test RPCs end-to-end on device, not via SQL Editor only (S164).**
+Schema cache lag and PostgREST reload are real failure modes. An RPC that runs from `psql` may not yet be callable via supabase-js until the schema cache reloads (~30s). End-to-end device test is the only signal that a deploy is actually live for the app.
+
+**RULE — RPC null params via supabase-js: omit, don't pass null (S163).**
+When in doubt, omit null keys from the call object and let the function's `DEFAULT NULL` fire. supabase-js + PostgREST handle type inference correctly when function signatures have typed defaults; explicit nulls can occasionally cause Postgres to type params as `unknown` and fail function resolution.
+
+**RULE — DDL before DML in multi-block SQL workflows (S163).**
+Verify column existence via `information_schema.columns` before running data blocks. Block D in S163 partial-applied because schema migration hadn't completed.
+
+**RULE — Always paste a verification SELECT after UPDATE/INSERT (S163-S164).**
+When asked to "verify SQL is deployed," run an explicit verification SELECT and paste the actual rows back, not just the query text. Catches partial applies and silent failures.
+
+**RULE — QA setup SQL lives with the scenario (S163-S164).**
+Never run preparatory SQL prematurely. Pair every SQL block with the scenario it sets up; otherwise you'll forget what state the database is in when QA fails.
+
+**RULE — TanStack Query cache staleness on schema migrations (S163).**
+Sign out / refetch after column adds. Stale cache will serve old shape after schema changes. Hit during S163 when the new `service_area_*` columns weren't visible until cache invalidation.
+
+### Test data
+
+**RULE — Phase 1 mock→live flip surfaces latent data (S163).**
+Every screen reveals 2-5 latent data issues at flag flip (orphan rows, role mismatches, null fields). Plan 15-30 min of data hygiene per screen during Phase 1 readiness audits. Not a setback — the screen graduating from prototype to production.
+
+**RULE — Dashboard auth users default to `role='agent'` (S163).**
+Supabase Dashboard's "Add User" fires `handle_new_user` trigger which inserts a profile with the default role. No onboarding runs. When seeding via Dashboard, always follow with explicit `role` + `display_role` UPDATE. Verify via `SELECT id, email, role FROM profiles JOIN auth.users` before running any filter-dependent query.
+
+### Native modules / EAS
+
+**RULE — Native modules require dev client rebuild (S163).**
+Adding any native module beyond pure-JS to `package.json` doesn't link it. Trigger an EAS dev client rebuild IMMEDIATELY in the same session. Do not defer. The "Unimplemented component" error costs hours to diagnose if forgotten. S163 added `@react-native-community/slider@5.1.2` and deferred the rebuild — became an S165 blocker.
+
+**Pattern:** install native dep → kick off `eas build --profile development --platform ios` in parallel → continue code work → install new dev client when ready. Budget 20-30 min for the rebuild.
+
+### TanStack / Loading state
+
+**RULE — Loading-flash trap (S163-S164).**
+Any `liveData ?? MOCK_ARRAY` fallback that renders into a list view will flash the mock for ~500ms during TanStack initial fetch. Always gate the consuming render branch on `isLoading[Hook]` and show a skeleton. The "Available in [City]" section in S164 was gated correctly; the filtered-list branch in FindTab was not (ATL-LOADING-FLASH-FILTERED-LIST).
+
+### UI / Render
+
+**RULE — Default browse view must render the full service-area list, not just curated rows (S164).**
+Curated alone hides the underlying filter from the default UX. The "All" pill on FindTab was missing this for S163-S164 — caused the Jessica-missing bug perception. Future browse surfaces should default to "curated rows + full vertical list" pattern, not "curated rows only."
+
+**RULE — Treating "no card visible" as "no data" is a misdiagnosis trap (S164).**
+Always check the render tree first. `filteredX` may be computed but never consumed by the active branch. Verify the data layer with diagnostic logs BEFORE touching layout code.
+
+**RULE — Diagnostic log convention (S164).**
+Prefix all temporary debug logs with `[<SESSION>-DIAG-<TAG>]` (e.g., `[S164-DIAG-JW]`). Wrap in `if (__DEV__)`. Removal at session end is one grep + cleanup. Never commit unprefixed diagnostic logs.
+
+**RULE — Compare snake_case role enums to snake_case role enums in client filters (S164).**
+Never display strings like 'Stager' to `role === 'home_stager'`. Display-string vs enum mismatch is a recurring class of bug across Atlasio (ATL-FIND-PILLS-PHASE1, CHORE-ROLE-COMPARE-NORMALIZE).
+
+### Cross-screen events
+
+**RULE — DeviceEventEmitter pattern for cross-screen success signals (S163).**
+Emit `atlasio.<domain>.<verb>` from source screen on action, listen on destination screen to fire toast / refetch. Avoids "stuck modal" perceived-latency. Modal dismisses instantly, toast appears on landing screen. Used for ServiceAreaEditor save → FindTab toast in S163.
+
+### Type adapters
+
+**RULE — Single cast point pattern for off-interface columns (S163).**
+When adding columns to a table whose TypeScript interface hasn't been regenerated, centralize the cast in `lib/typeAdapters.ts` (e.g., `getServiceArea(profile)` for `service_area_*` columns). Returns null when any field is missing → consumers branch on a single check. Numeric coercion via `Number(...)` handles Postgres `NUMERIC` returning as strings via PostgREST. Mark with `@backend` annotation for post-launch removal once the interface gains the columns.
+
+### Editor screen architecture
+
+**RULE — Editor reads `useMyProfile` directly, not via route params (S163).**
+Keeps the editor fully self-contained. Caller calls `navigation.navigate('Editor')` with no args. Cache hit on `useMyProfile` means zero extra network. Editor stays reusable from any future entry point without param plumbing. Used for ServiceAreaEditor in S163.
+
+### Verification
+
+**RULE — Verify version-sensitive claims against `package.json`, not `CLAUDE.md` (S163).**
+`CLAUDE.md` drifts; `package.json` is the truth. Discovered S163: CLAUDE.md said SDK 54/RN 0.81.5; actual is SDK 55/RN 0.83.4 — backlogged as CHORE-CLAUDE-MD-SDK-AUDIT.
+
+### ServiceArea field semantics
+
+**RULE — `service_area` TEXT field is overwritten by ServiceAreaEditor post-S163.**
+The new geocoded fields (`service_area_label`, `service_area_lat`, `service_area_lng`, `service_area_radius`) are the source of truth. Legacy TEXT field is kept for backwards compat but should not be relied upon.
+

@@ -126,8 +126,16 @@ export const queryKeys = {
   unreadCount: ['notifications', 'unread-count'] as const,
 
   // Find / Search
-  findPros: (query: string, role: string, sort: string) =>
-    ['find-pros', query, role, sort] as const,
+  // S163: includes agent's lat/lng/radius so a service-area change is a
+  // different cache entry (refetch after rpc_update_service_area).
+  findPros: (
+    query: string,
+    role: string,
+    sort: string,
+    agentLat: number | null,
+    agentLng: number | null,
+    agentRadius: number | null,
+  ) => ['find-pros', query, role, sort, agentLat, agentLng, agentRadius] as const,
   searchPros: (query: string, role: string) => ['search-pros', query, role] as const,
   recommendedPros: ['recommended-pros'] as const,
   trendingPros: ['trending-pros'] as const,
@@ -269,6 +277,54 @@ export const useUpdateProfile = () => {
     onSuccess: (data) => {
       qc.setQueryData(queryKeys.myProfile, data);
       qc.invalidateQueries({ queryKey: queryKeys.myProfile });
+    },
+  });
+};
+
+/**
+ * Update current user's geocoded service area
+ * S163 — ATL-LOCATION-01. Requires all four fields — partial updates not supported
+ * (RPC raises on NULL). On success, invalidates myProfile + find-pros so Find tab
+ * refetches with the new center/radius.
+ */
+// STATUS: wired (RPC, no fallback — S163)
+// @backend rpc_update_service_area — see sql/schema.sql
+export const useUpdateServiceArea = () => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationKey: ['rpc_update_service_area'],
+    mutationFn: async (args: {
+      lat: number;
+      lng: number;
+      radius: number;
+      label: string;
+    }): Promise<void> => {
+      const { error } = await supabase.rpc('rpc_update_service_area', {
+        p_lat:    args.lat,
+        p_lng:    args.lng,
+        p_radius: args.radius,
+        p_label:  args.label,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_data, args) => {
+      // Optimistic patch so the Find tab chip updates before the refetch lands.
+      // Fields are off-interface (see getServiceArea in lib/typeAdapters.ts) —
+      // cast required until Profile interface gains service_area_* fields.
+      const current = qc.getQueryData<Profile>(queryKeys.myProfile);
+      if (current) {
+        qc.setQueryData(queryKeys.myProfile, {
+          ...current,
+          service_area: args.label,
+          service_area_lat: args.lat,
+          service_area_lng: args.lng,
+          service_area_radius: args.radius,
+          service_area_label: args.label,
+        } as Profile);
+      }
+      qc.invalidateQueries({ queryKey: queryKeys.myProfile });
+      qc.invalidateQueries({ queryKey: ['find-pros'] });
     },
   });
 };
@@ -1834,37 +1890,47 @@ export const useSearchPros = (query: string, role: string) => {
 };
 
 /**
- * Search for pros (FindTab) — legacy alias with sort param
+ * Search for pros (FindTab) — calls rpc_find_pros with optional proximity overlap filter.
+ * S163: agent's service area (lat/lng/radius) is read from useMyProfile at the consumer
+ * level via getServiceArea() and passed in. When any of the three is null, the RPC
+ * falls through the no-location-filter branch server-side.
+ *
+ * `options.enabled` gates the initial fetch so consumers can wait for useMyProfile
+ * to resolve before firing — prevents an unfiltered-then-filtered flash on mount.
  */
-// STATUS: wired (with mock fallback)
-export const useFindPros = (query: string, role: string, sort: string) => {
+// STATUS: wired (RPC, S163 — no fallback for location params; empty array on RPC error)
+// @backend rpc_find_pros — see sql/schema.sql
+export const useFindPros = (
+  query: string,
+  role: string,
+  sort: string,
+  agentLat: number | null,
+  agentLng: number | null,
+  agentRadius: number | null,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
-    queryKey: queryKeys.findPros(query, role, sort),
+    queryKey: queryKeys.findPros(query, role, sort, agentLat, agentLng, agentRadius),
     queryFn: async (): Promise<Profile[]> => {
       try {
-        let q = supabase
-          .from('profiles')
-          .select('*')
-          .neq('role', 'agent')
-          .eq('is_visible', true);
-
-        if (role !== 'All') q = q.eq('display_role', role);
-        if (query) q = q.or(`name.ilike.%${query}%,company.ilike.%${query}%`);
-
-        switch (sort) {
-          case 'Most Vouched': q = q.order('vouch_count', { ascending: false }); break;
-          case 'Highest Rated': q = q.order('rating', { ascending: false }); break;
-        }
-
-        const { data, error } = await q.limit(30);
+        const { data, error } = await supabase.rpc('rpc_find_pros', {
+          p_query:        query || null,
+          p_role:         role  || null,
+          p_sort:         sort,
+          p_agent_lat:    agentLat,
+          p_agent_lng:    agentLng,
+          p_agent_radius: agentRadius,
+        });
         if (error) throw error;
         return (data ?? []) as Profile[];
       } catch (err) {
-        console.warn('[useFindPros] Supabase failed, using mock fallback', err);
-        // TODO: [PRODUCTION] Remove mock fallback
+        console.warn('[useFindPros] rpc_find_pros failed, returning empty', err);
+        // Intentional: no mock fallback. Editor-driven feature — if the RPC
+        // fails we render the empty state, not a misleading mock list.
         return [];
       }
     },
+    enabled: options?.enabled ?? true,
   });
 };
 
