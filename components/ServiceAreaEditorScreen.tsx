@@ -33,6 +33,7 @@ import {
   ActivityIndicator,
   StatusBar,
   DeviceEventEmitter,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -99,6 +100,12 @@ const PinIcon: React.FC<{ color?: string }> = ({ color = COLORS.primary }) => (
 const ServiceAreaEditorScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<FindStackParamList>>();
   const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', () => setIsKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setIsKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const { data: myProfile } = useMyProfile();
   const initial = useMemo(() => getServiceArea(myProfile), [myProfile]);
 
@@ -416,7 +423,7 @@ const ServiceAreaEditorScreen: React.FC = () => {
           style={{
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: 16,
+            paddingBottom: isKeyboardVisible ? 16 : Math.max(insets.bottom, 16),
             backgroundColor: COLORS.background,
             borderTopWidth: 0.69,
             borderTopColor: COLORS.border,
