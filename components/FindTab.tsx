@@ -107,10 +107,20 @@ const LightningIcon: React.FC = () => (
 // ROLE PILLS / SORT OPTIONS
 // ─────────────────────────────────────────────
 
-const ROLE_PILLS = [
-  'All', 'Mortgage Pro', 'Title/Escrow', 'Home Inspector',
-  'Appraiser', 'Transaction Coordinator', 'Contractor', 'Warranty', 'Attorney',
-];
+// Phase 1 scope: job-eligible roles only + All
+// Phase 2 will restore partner roles (Mortgage Pro, Title/Escrow, etc.)
+// @backend role values must match profiles.role snake_case enums exactly via ROLE_PILL_MAP below
+const ROLE_PILLS = ['All', 'Contractor', 'Stager', 'Photographer'];
+
+// Maps display label → profiles.role snake_case enum for filter comparison.
+// NEVER compare display strings directly to role enums — they will never match.
+// Permanent rule: lessons.md S164 "Compare snake_case role enums to snake_case."
+const ROLE_PILL_MAP: Record<string, string> = {
+  All:          'all',
+  Contractor:   'contractor',
+  Stager:       'home_stager',
+  Photographer: 'real_estate_photographer',
+};
 
 const SORT_OPTIONS = ['Most Vouched', 'Fastest Closing', 'Highest Rated', 'Nearest'];
 
@@ -553,7 +563,7 @@ const FindTab: React.FC = () => {
 
   const prosPool = FEATURE_FLAGS.USE_MOCK_DATA ? ALL_PROS : (livePros?.map(adaptProfileToProCard) ?? ALL_PROS);
   const filteredPros = prosPool.filter((pro) => {
-    const matchesRole = activeRole === 'All' || pro.role === activeRole;
+    const matchesRole = activeRole === 'All' || pro.role === ROLE_PILL_MAP[activeRole];
     const matchesSearch = searchText.length === 0 ||
       pro.name.toLowerCase().includes(searchText.toLowerCase()) ||
       pro.company.toLowerCase().includes(searchText.toLowerCase()) ||
