@@ -2447,8 +2447,257 @@ $$;
 
 GRANT EXECUTE ON FUNCTION rpc_update_profile TO authenticated;
 
+-- ── rpc_update_service_area (S163 — ATL-LOCATION-01, deployed S165) ──────────
+-- Called by useUpdateServiceArea on ServiceAreaEditorScreen save.
+-- Updates the calling user's geocoded service area on profiles.
+CREATE OR REPLACE FUNCTION rpc_update_service_area(
+  p_lat    NUMERIC,
+  p_lng    NUMERIC,
+  p_radius INTEGER,
+  p_label  TEXT
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+BEGIN
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated');
+  END IF;
+  IF p_radius < 1 OR p_radius > 500 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Radius must be between 1 and 500 miles');
+  END IF;
+  UPDATE profiles SET
+    service_area_lat    = p_lat,
+    service_area_lng    = p_lng,
+    service_area_radius = p_radius,
+    service_area_label  = p_label,
+    updated_at          = NOW()
+  WHERE id = v_user_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Profile not found');
+  END IF;
+  RETURN jsonb_build_object('success', true);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION rpc_update_service_area TO authenticated;
+
+-- ═════════════════════════════════════════════════════════════
+-- Location-Aware Find RPCs (earthdistance, S163–S166)
+-- ═════════════════════════════════════════════════════════════
+
+-- Deployed S163, April 21 2026
+DROP FUNCTION IF EXISTS rpc_find_pros(float8, float8, float8, text, int);
+
+CREATE OR REPLACE FUNCTION rpc_find_pros(
+  p_agent_lat          float8,
+  p_agent_lng          float8,
+  p_agent_radius_miles float8,
+  p_role_filter        text DEFAULT NULL,
+  p_limit              int  DEFAULT 20
+)
+RETURNS TABLE (
+  id                  uuid,
+  name                text,
+  display_role        text,
+  role                text,
+  avatar_url          text,
+  avatar_color        text,
+  vouch_count         int,
+  service_area_label  text,
+  service_area_radius float8,
+  service_area_lat    float8,
+  service_area_lng    float8,
+  license_status      text
+)
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT
+    p.id,
+    p.name,
+    p.display_role,
+    p.role,
+    p.avatar_url,
+    p.avatar_color,
+    COALESCE(p.vouch_count, 0) AS vouch_count,
+    p.service_area_label,
+    p.service_area_radius,
+    p.service_area_lat,
+    p.service_area_lng,
+    p.license_status
+  FROM profiles p
+  WHERE
+    p.id <> auth.uid()
+    AND p.role IN ('contractor', 'real_estate_photographer', 'home_stager')
+    AND (p_role_filter IS NULL OR p.role = p_role_filter)
+    AND p.service_area_lat IS NOT NULL
+    AND p.service_area_lng IS NOT NULL
+    AND p.service_area_radius IS NOT NULL
+    AND earth_distance(
+          ll_to_earth(p_agent_lat, p_agent_lng),
+          ll_to_earth(p.service_area_lat, p.service_area_lng)
+        ) <= (p_agent_radius_miles + p.service_area_radius) * 1609.34
+  ORDER BY COALESCE(p.vouch_count, 0) DESC
+  LIMIT p_limit;
+$$;
+
+-- Deployed S166, April 27 2026
+CREATE OR REPLACE FUNCTION rpc_get_recommended_pros(
+  p_agent_lat          float8,
+  p_agent_lng          float8,
+  p_agent_radius_miles float8,
+  p_limit              int DEFAULT 5
+)
+RETURNS TABLE (
+  id                  uuid,
+  name                text,
+  display_role        text,
+  role                text,
+  avatar_url          text,
+  avatar_color        text,
+  vouch_count         int,
+  service_area_label  text,
+  service_area_radius float8,
+  service_area_lat    float8,
+  service_area_lng    float8,
+  license_status      text,
+  is_gap_fill         boolean
+)
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  WITH squad_roles AS (
+    SELECT DISTINCT p.role
+    FROM connections c
+    JOIN profiles p ON p.id = CASE
+      WHEN c.requester_id = auth.uid() THEN c.responder_id
+      ELSE c.requester_id
+    END
+    WHERE (c.requester_id = auth.uid() OR c.responder_id = auth.uid())
+      AND c.status = 'accepted'
+      AND c.is_in_squad = true
+      AND p.role IN ('contractor', 'real_estate_photographer', 'home_stager')
+  ),
+  scored_pros AS (
+    SELECT
+      p.id,
+      p.name,
+      p.display_role,
+      p.role,
+      p.avatar_url,
+      p.avatar_color,
+      COALESCE(p.vouch_count, 0)  AS vouch_count,
+      p.service_area_label,
+      p.service_area_radius,
+      p.service_area_lat,
+      p.service_area_lng,
+      p.license_status,
+      CASE WHEN p.role NOT IN (SELECT role FROM squad_roles)
+        THEN true ELSE false
+      END AS is_gap_fill
+    FROM profiles p
+    WHERE
+      p.id <> auth.uid()
+      AND p.role IN ('contractor', 'real_estate_photographer', 'home_stager')
+      AND p.service_area_lat  IS NOT NULL
+      AND p.service_area_lng  IS NOT NULL
+      AND p.service_area_radius IS NOT NULL
+      AND earth_distance(
+            ll_to_earth(p_agent_lat, p_agent_lng),
+            ll_to_earth(p.service_area_lat, p.service_area_lng)
+          ) <= (p_agent_radius_miles + p.service_area_radius) * 1609.34
+  )
+  SELECT *
+  FROM scored_pros
+  ORDER BY
+    is_gap_fill DESC,
+    vouch_count DESC
+  LIMIT p_limit;
+$$;
+
+-- Deployed S166, April 27 2026
+CREATE OR REPLACE FUNCTION rpc_get_trending_pros(
+  p_agent_lat          float8,
+  p_agent_lng          float8,
+  p_agent_radius_miles float8,
+  p_limit              int DEFAULT 8
+)
+RETURNS TABLE (
+  id                  uuid,
+  name                text,
+  display_role        text,
+  role                text,
+  avatar_url          text,
+  avatar_color        text,
+  vouch_count         int,
+  service_area_label  text,
+  service_area_radius float8,
+  service_area_lat    float8,
+  service_area_lng    float8,
+  license_status      text,
+  last_active_at      timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT
+    p.id,
+    p.name,
+    p.display_role,
+    p.role,
+    p.avatar_url,
+    p.avatar_color,
+    COALESCE(p.vouch_count, 0) AS vouch_count,
+    p.service_area_label,
+    p.service_area_radius,
+    p.service_area_lat,
+    p.service_area_lng,
+    p.license_status,
+    MAX(j.updated_at) AS last_active_at
+  FROM profiles p
+  INNER JOIN bids b
+    ON b.contractor_id = p.id
+    AND b.status = 'accepted'
+  INNER JOIN jobs j
+    ON j.awarded_bid_id = b.id
+    AND j.status IN ('awarded', 'in_progress')
+  WHERE
+    p.id <> auth.uid()
+    AND p.role IN ('contractor', 'real_estate_photographer', 'home_stager')
+    AND p.service_area_lat IS NOT NULL
+    AND p.service_area_lng IS NOT NULL
+    AND p.service_area_radius IS NOT NULL
+    AND earth_distance(
+          ll_to_earth(p_agent_lat, p_agent_lng),
+          ll_to_earth(p.service_area_lat, p.service_area_lng)
+        ) <= (p_agent_radius_miles + p.service_area_radius) * 1609.34
+  GROUP BY
+    p.id,
+    p.name,
+    p.display_role,
+    p.role,
+    p.avatar_url,
+    p.avatar_color,
+    p.vouch_count,
+    p.service_area_label,
+    p.service_area_radius,
+    p.service_area_lat,
+    p.service_area_lng,
+    p.license_status
+  ORDER BY last_active_at DESC NULLS LAST
+  LIMIT p_limit;
+$$;
+
 -- ═════════════════════════════════════════════════════════════
 -- DONE
--- Last verified against live Supabase: March 26, 2026 (S116b)
+-- Last verified against live Supabase: April 27, 2026 (S166)
 -- S143 appended April 13, 2026 — run SQL block manually in Supabase SQL Editor
 -- ═════════════════════════════════════════════════════════════
