@@ -292,7 +292,7 @@ const ServiceAreaEditorScreen: React.FC = () => {
         {/* ── Scrollable form ── */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 120 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 24 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -411,13 +411,9 @@ const ServiceAreaEditorScreen: React.FC = () => {
           ) : null}
         </ScrollView>
 
-        {/* ── Sticky Save CTA — position absolute inside KAV (canonical fullScreenModal pattern) ── */}
+        {/* ── Sticky Save CTA — flow sibling of ScrollView so KAV padding lifts it with keyboard ── */}
         <View
           style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
             paddingHorizontal: 16,
             paddingTop: 12,
             paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 16) : 16,
