@@ -606,3 +606,32 @@ Keeps the editor fully self-contained. Caller calls `navigation.navigate('Editor
 **RULE — `service_area` TEXT field is overwritten by ServiceAreaEditor post-S163.**
 The new geocoded fields (`service_area_label`, `service_area_lat`, `service_area_lng`, `service_area_radius`) are the source of truth. Legacy TEXT field is kept for backwards compat but should not be relied upon.
 
+---
+
+## S165 Permanent Rules
+
+1. **fullScreenModal KAV pattern (definitive):**
+   - Header: OUTSIDE KAV, `paddingTop: 8 + insets.top`
+   - KAV: `behavior='padding'`, `keyboardVerticalOffset={0}`
+   - ScrollView: `flex: 1`, first child of KAV
+   - Sticky CTA: flow sibling of ScrollView (NOT position:absolute) when CTA must rise with keyboard
+   - CTA paddingBottom: DYNAMIC — `isKeyboardVisible ? 16 : Math.max(insets.bottom, 16)`
+   - Use `keyboardWillShow` / `keyboardWillHide` for smooth padding transition
+   - Outer wrapper: plain `<View>` NOT `<SafeAreaView>`
+   - `position: absolute` CTA does NOT rise with keyboard — only use when CTA can be covered
+
+2. **Role pill filter rule:**
+   Compare snake_case role enums to snake_case role enums ALWAYS.
+   Never compare display strings ('Stager') to role enums ('home_stager').
+   Use a ROLE_PILL_MAP constant as the single mapping point.
+
+3. **rpc_update_service_area silently partial-fails:**
+   Multi-statement DDL in Supabase SQL Editor can report success while only
+   persisting the first statement. ALWAYS verify with:
+   `SELECT proname FROM pg_proc WHERE proname = '<fn_name>';`
+   Must return exactly 1 row. Zero rows = not deployed despite success banner.
+
+4. **Chip label cleanup pattern:**
+   Google Places API returns labels with ', USA' suffix.
+   Strip at display time with `.replace(', USA', '')` — never strip from stored data.
+

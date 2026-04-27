@@ -1,8 +1,68 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S164 ATL-LOCATION-01 Jessica Wong missing from FindTab (NOT a bug — layout gap) | April 25, 2026
+**Last updated:** S165 — ServiceAreaEditor keyboard gap + ATL-FIND-PILLS-PHASE1 resolved | April 26, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
+
+---
+
+## ATL-S165-KAV-GAP — ServiceAreaEditorScreen keyboard gap (S165)
+
+**Screen:** `components/ServiceAreaEditorScreen.tsx`
+**Status:** 🟢 Resolved in S165 — canonical fullScreenModal KAV pattern applied.
+
+### Symptom
+On iPhone 16 Pro, tapping the city input in the Service Area editor raised the keyboard but left a ~34–103px gap between the Save CTA and the keyboard top. Multiple fix attempts (offset=44, offset=44+insets.top, position:absolute CTA) failed.
+
+### Root cause
+Two coupled structural mismatches with the canonical `PostPhotoJobScreen` fullScreenModal pattern:
+1. Header rendered INSIDE the `KeyboardAvoidingView` instead of as a sibling above it.
+2. `keyboardVerticalOffset` set to `44` (or `44 + insets.top`) instead of `0`.
+3. CTA `paddingBottom: Math.max(insets.bottom, 16)` was static — leaving a 34px gap on iPhone 16 Pro when the keyboard was up.
+
+### Resolution (S165)
+- Outer wrapper: plain `<View>` (not `<SafeAreaView>`).
+- Header: sibling of KAV, `paddingTop: 8 + insets.top`.
+- KAV: `behavior='padding'`, `keyboardVerticalOffset={0}`.
+- ScrollView: `flex: 1`, first child of KAV.
+- Sticky CTA: flow sibling of ScrollView (NOT `position: absolute`).
+- CTA paddingBottom: DYNAMIC — `isKeyboardVisible ? 16 : Math.max(insets.bottom, 16)` driven by `keyboardWillShow` / `keyboardWillHide` listeners.
+
+### Do NOT
+- Use `position: absolute` on a CTA that must rise with the keyboard (it stays pinned, keyboard covers it).
+- Place the header inside the KAV when on `fullScreenModal` presentation.
+- Use `keyboardVerticalOffset` > 0 unless there's a verified ancestor consuming layout space.
+- Wrap the screen in `<SafeAreaView>` for a `fullScreenModal` — the screen owns its own top inset.
+
+---
+
+## ATL-FIND-PILLS-PHASE1 — Role pill display-string vs snake_case mismatch (S164–S165)
+
+**Screen:** `components/FindTab.tsx`
+**Status:** 🟢 Resolved in S165.
+
+### Symptom
+Tapping the "Stager" or "Photographer" pill on FindTab silently dropped all matching profiles from the filtered list. Only "Contractor" worked.
+
+### Root cause
+`ROLE_PILLS` carried display strings (`'Stager'`, `'Photographer'`); profile `display_role` is stored as snake_case (`'home_stager'`, `'real_estate_photographer'`). The `matchesRole` predicate compared display string to snake_case enum — never matched.
+
+### Resolution (S165)
+- `ROLE_PILLS` revised to Phase 1 scope: `['All', 'Contractor', 'Stager', 'Photographer']`.
+- Added `ROLE_PILL_MAP` constant as the single display-string → snake_case mapping point.
+- `matchesRole` now compares snake_case to snake_case via the map.
+
+### Do NOT
+- Compare display strings to snake_case role enums in client filters — always normalize through `ROLE_PILL_MAP`.
+
+---
+
+## BUG-S165-A — featureFlags.ts duplicate DEV_SHOW_PASSWORD_LOGIN line
+- Session: S165
+- Status: OPEN (cosmetic)
+- Cause: Merge conflict resolution in lib/featureFlags.ts left duplicate line
+- Fix: Remove the duplicate DEV_SHOW_PASSWORD_LOGIN line manually
+- Priority: Low — does not affect runtime behavior
 
 ---
 
