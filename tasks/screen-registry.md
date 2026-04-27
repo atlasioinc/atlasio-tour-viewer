@@ -409,14 +409,20 @@
 **Role:** Agent only (contractors/partners don't see Find tab)
 **Nav Type:** Tab root (Find tab)
 **Feature Flag:** None
-**Wiring:** ✅ Live (contractor search via Supabase, avatar_url flowing through adaptProfileToProCard S133)
+**Wiring:** ✅ Live / branched render tree (S163-S164: curated carousels + service-area list on default browse view; filtered list on pill/search). `useFindPros` migrated to `rpc_find_pros` RPC S163. `useMyProfile` drives proximity filter via `getServiceArea(profile)` typeAdapter helper.
 
 **What's on this screen:**
-- Role toggle: Contractors / Mortgage Pro / Title & Escrow / Inspector
+- City chip (S163): `getServiceArea(myProfile)?.label` (e.g., "Denver · 25mi"); empty state "Set service area" → tap opens ServiceAreaEditor
+- ROLE_PILLS: All / Contractor / Mortgage Pro / Title & Escrow / Inspector — ⚠️ ATL-FIND-PILLS-PHASE1: display-string vs snake_case mismatch silently drops Stager/Photographer profiles
 - SearchField
 - Filter chips (FilterChip — NOT shared SelectableChip)
-- ProCard list results (tap → ProProfile)
+- **Default browse view** (`activeRole === 'All' && !isSearching`):
+  - Recommended for You carousel (horizontal) — ⚠️ NOT location-aware (ATL-LOCATION-04)
+  - Trending this week carousel (horizontal) — ⚠️ NOT location-aware (ATL-LOCATION-04)
+  - **"Available in [City]" section (S164):** vertical list of `livePros` from `useFindPros`. Header from `getServiceArea(myProfile)?.label` first segment, fallback "Pros in your area". Skeleton-gated (`FindTabSearchSkeleton`, 3 ProCardSkeleton rows). Empty state: "Adjust service area" CTA → ServiceAreaEditor.
+- **Filtered/searched view:** vertical list only (no carousels) — ⚠️ ATL-LOADING-FLASH-FILTERED-LIST: still flashes 16-mock-row fallback for ~500ms during initial fetch
 - "accepting_clients" DisplayTag ghost badge on partner ProCards
+- Cross-screen sync: listens for `DeviceEventEmitter.atlasio.serviceArea.updated` → success toast + `useFindPros` invalidation
 
 **Entry Points:**
 - Bottom tab
@@ -427,6 +433,33 @@
 - → RequestConnectModal (Connect button on ProCard) — modal
 - → InviteToJobModal (Invite to Job on ProCard) — modal
 - → ChatScreen (Message button on ProCard) — cross-stack via CommonActions to InboxStack
+- → ServiceAreaEditor (city chip tap OR empty-state CTA on "Available in [City]" section) — fullScreenModal in FindStack (NEW S163)
+
+---
+
+#### ServiceAreaEditor
+**File:** `components/ServiceAreaEditorScreen.tsx`
+**Role:** Agent only (Phase 1 — contractor-side editor scope deferred)
+**Nav Type:** fullScreenModal (FindStack)
+**Feature Flag:** None
+**Wiring:** ⚠️ UI complete + wired, BLOCKED in S165: (1) `rpc_update_service_area` not verified deployed (silently partial-failed in S163 Block C multi-statement DDL), (2) EAS dev client rebuild required for `@react-native-community/slider@5.1.2` native module. Save flow currently returns `Could not find the function public.rpc_update_service_area(...) in the schema cache.`
+
+**What's on this screen:**
+- Header: "Service area" title + X dismiss (fullScreenModal Header Rules — 3-element row)
+- City picker: `AddressAutocompleteInput` with `onSelectWithCoords` (S163 — returns label + lat + lng, no second geocoding round-trip)
+- Radius slider: `@react-native-community/slider@5.1.2` (1–500 mi). Three-tier graduated haptics — Light every 5mi, Medium at 25/50/75, Rigid at 5/100 edges
+- Save CTA (sticky bottom): triggers `useUpdateServiceArea` mutation. No-op detection compares form to current profile and dismisses without RPC if identical
+- S159 KAV/SafeArea pattern (top-only safe-area edges, behavior='padding')
+
+**Entry Points:**
+- FindTab → city chip tap (S163)
+- FindTab → "Adjust service area" CTA on empty-state of "Available in [City]" section (S164)
+
+**Exit Points:**
+- Save success → optimistic patch to `useMyProfile` cache → `DeviceEventEmitter.emit('atlasio.serviceArea.updated')` → modal dismisses → FindTab listener fires success toast
+- Cancel (X) → modal dismisses without write
+
+**Architecture note:** Editor reads `useMyProfile` directly (no route params from caller). Caller calls `navigation.navigate('ServiceAreaEditor')` with no args. Cache hit on `useMyProfile` means zero extra network. Editor stays reusable from any future entry point without param plumbing.
 
 ---
 
@@ -1217,7 +1250,8 @@ RootNavigator
     │
     ├── FindTab (FindStack) — Agent only
     │   ├── FindMain [root]
-    │   └── ProProfile [push]
+    │   ├── ProProfile [push]
+    │   └── ServiceAreaEditor [fullScreenModal — NEW S163]
     │
     ├── JobsTab (ContractorJobsStack) — Contractor only
     │   ├── JobTrackerTab [root]

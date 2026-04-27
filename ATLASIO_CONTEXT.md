@@ -40,19 +40,98 @@
 
 ---
 
-## Current Metrics (updated S162c — April 19, 2026)
-- **RPCs:** 69 (+1 S161: rpc_get_inbox_threads updated to return `members[]`; +1 S160: rpc_create_deal_thread — creates deal_chat thread + seeds thread_members for agent + participants; +1 S157b: rpc_cancel_job; +1 S157: rpc_set_job_photos; +1 S143: rpc_update_profile; +1 S133: rpc_get_profile_stats; includes 4 messaging RPCs S104b, 2 completion RPCs S85, get_user_thread_ids S106, rpc_archive_thread S115e, rpc_update_transaction S116, rpc_close_transaction + rpc_cancel_transaction S121a, and others S91-S103)
-- **Hooks:** 69 (+1 S162: useIsThreadCreator; +1 S161: useUpdateThreadName; +1 S160: useCreateDealThread; +1 S157b: useCancelJob; +1 S157: useSetJobPhotos; useData.ts grep-authoritative count; partner hooks in usePartnerData.ts tracked separately. Pre-S162 actual count was 68 — S161 entry drifted by 1; this S162 number is the corrected, grep-authoritative post-session value.)
+## Current Metrics (updated S164 — April 25, 2026)
+- **RPCs:** 71 (1 verified deployed, 1 NOT verified — S165 blocker). +2 S163: `rpc_find_pros` ✅ verified deployed (circle-overlap math via earthdistance), `rpc_update_service_area` ❌ NOT verified deployed (silently partial-failed in S163 Block C multi-statement DDL — Save flow currently returns `Could not find the function public.rpc_update_service_area(...) in the schema cache.`). Pre-S163 baseline 69.
+- **Hooks:** 70 (+1 S163: `useUpdateServiceArea`; `useFindPros` migrated PostgREST → RPC, no count change). Pre-S163 baseline 69.
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
-- **Screens:** +1 (PaymentSettingsScreen S129)
-- **Shared Components:** +1 S144 (AddressAutocompleteInput); +1 S147 (PhotoLightbox — full-screen photo viewer extracted from ContractorJobDetails)
+- **Screens:** +1 S163 (ServiceAreaEditorScreen — fullScreenModal in FindStack); +1 S129 (PaymentSettingsScreen)
+- **Shared Components:** +1 S144 (AddressAutocompleteInput — extended S163 with `onSelectWithCoords`); +1 S147 (PhotoLightbox); +2 S162c (GroupAvatar, UnreadIndicator)
 - **Storage Buckets:** 7
-- **Tables:** 22+ (schema.sql documents 22 as of S93; messaging tables predate tracking)
-- **COLORS tokens:** 142 (+1 S162c: textTertiary for sender names / chat metadata; +16 S148b: category color palette for CategoryMapScreen)
-- **Shared Components:** +2 S162c (GroupAvatar extracted from InboxList — now reused by ContractorInboxList for deal_chat multi-avatar rows; UnreadIndicator added in S162c-patch — shared primitive for dot/count × primary/danger unread rendering across agent + contractor + partner Inbox surfaces)
+- **Tables:** 24 (S163 added no new tables; profiles +4 columns: service_area_lat, service_area_lng, service_area_radius, service_area_label)
+- **Postgres Extensions:** 2 (NEW S163 — `cube`, `earthdistance` for circle-overlap math)
+- **Profile Columns:** +4 S163 (service_area_lat NUMERIC, service_area_lng NUMERIC, service_area_radius INTEGER CHECK 1-500, service_area_label TEXT)
+- **GiST Indexes:** +1 S163 (partial index on `ll_to_earth(service_area_lat, service_area_lng)` only when both non-null)
+- **Dependencies:** +1 S163 (`@react-native-community/slider@5.1.2` — EAS dev client rebuild PENDING S165, currently renders "Unimplemented component" on device)
+- **Canonical contractor test accounts:** 5 — Marcus Rivera (Denver), Mike Torres (Aurora), Sarah Chen (Lakewood), Jessica Wong (Boulder), Carlos Ramirez (Colorado Springs out-of-radius reference). Vouch counts seeded S164: Marcus 34, Mike 22, Sarah 18, Jessica 11, Carlos 7.
+- **COLORS tokens:** 142
 - **Lifestyle Categories:** 16
 - **tsc:** 0 errors
+- **Lint:** 0 new (7 pre-existing warnings — unchanged from S162 baseline)
+
+### Feature Flags (demo defaults, current state on `main`)
+```
+USE_MOCK_DATA: true
+DEV_BYPASS_AUTH: false
+DEV_SHOW_PASSWORD_LOGIN: false
+LIVE_PROFILE_HOOKS: true (permanent since S133)
+LIVE_CONTRACTOR_HOOKS: true (permanent since S36)
+LIVE_ONBOARDING: true (permanent since S140d)
+LIVE_VERIFICATION_HOOKS: false
+LIVE_INSURANCE_HOOKS: false
+LIVE_NEIGHBORHOOD_HOOKS: false
+LIVE_SQUAD_SHARE: false
+PARTNER_TRACK_ENABLED: false (Phase 2)
+DEAL_CREATION_ENABLED: false (Phase 2)
+```
+
+---
+
+## S164 — ATL-LOCATION-01 partial: "Available in [City]" + vouch seeds (April 25, 2026)
+
+**Branch:** `feat/atl-location-01-s163` (commit `4a78a0e`, pending merge to main)
+**Status:** ⚠️ Partial completion — two blockers deferred to S165
+
+**Files modified:** 3
+- `components/FindTab.tsx` — +58 lines net (derived city values, empty-state handler, new "Available in [City]" section, skeleton-gated `livePros`, DeviceEventEmitter listener for save-success toast)
+- `hooks/useData.ts` — no net change (diagnostic log added then removed)
+- `components/ServiceAreaEditorScreen.tsx` — 2 apostrophe escapes (pre-existing S163 lint debt)
+
+**SQL run manually in Supabase (not committed):**
+- 5 vouch_count UPDATEs for canonical contractors (Marcus 34, Mike 22, Sarah 18, Jessica 11, Carlos 7) for deterministic demo ordering
+
+**Outcome:** Jessica Wong "missing from FindTab" deferred from S163 turned out NOT to be a bug — recon + diagnostic logs proved it was a layout gap. `filteredPros` was computed but never consumed by the render tree on the "All" pill default browse view. Pivoted from bug-fix to product decision (Path 3 quick-win): added "Available in [City]" vertical list section below Recommended/Trending. 5 bonus tickets surfaced via recon-first discipline. Two S163 deployment gaps deferred to S165.
+
+**Gates:** tsc 0, expo lint 0 errors / 7 pre-existing warnings, grep `S164-DIAG-JW` = 0 matches.
+
+**Deferred to S165 (blockers):**
+1. `rpc_update_service_area` not deployed — Service Area Editor Save broken (`Could not find the function public.rpc_update_service_area(...) in the schema cache.`)
+2. EAS dev client rebuild required — slider renders "Unimplemented component"
+
+**New backlog tickets:** ATL-FIND-PILLS-PHASE1 (MVP blocker), ATL-LOADING-FLASH-FILTERED-LIST, CHORE-ROLE-COMPARE-NORMALIZE, CHORE-SCREEN-REGISTRY-FINDTAB-NEW-SECTION, ATL-LOCATION-04 (high priority), CHORE-BUILD-LOG-RENAME-AND-FRONTEND-PHASE, CHORE-LIVE-BUILD-STATE-CLEANUP.
+
+**Permanent rules added (lessons.md):** 6 — default browse view layout (curated + full vertical list, not curated alone), diagnostic log convention (`[<SESSION>-DIAG-<TAG>]` prefix + `__DEV__` wrap), RPC verification SELECT after deploy, EAS rebuild discipline (immediate, never deferred), loading-flash trap on `liveData ?? MOCK_ARRAY`, SQL verification SELECTs alongside writes.
+
+---
+
+## S163 — ATL-LOCATION-01: Agent Service Area Filtering (April 21, 2026) [LOGGED RETROACTIVELY S164]
+
+**Branch:** `feat/atl-location-01-s163` (still pending merge as of S164 close)
+**Status:** ⚠️ Code complete, most data work shipped, two blockers carried into S164/S165
+
+**Files created/modified:** 7 source files modified, 1 new file
+- NEW `components/ServiceAreaEditorScreen.tsx` — fullScreenModal with autocomplete city + slider radius + Save CTA. Three-tier graduated haptics (Light every 5mi, Medium at 25/50/75, Rigid at 5/100 edges). S159 KAV/SafeArea pattern. Reads `useMyProfile` directly (no route params from caller).
+- `components/shared/AddressAutocompleteInput.tsx` — extended with `onSelectWithCoords` callback (returns label + lat + lng so callers persist coords without second geocoding round-trip)
+- `lib/typeAdapters.ts` — new `getServiceArea()` helper (single cast point pattern for off-interface columns; numeric coercion via `Number(...)` handles Postgres NUMERIC returning as strings via PostgREST)
+- `hooks/useData.ts` — new `useUpdateServiceArea` mutation hook with optimistic cache patch. `useFindPros` rewritten from PostgREST to RPC call with `enabled` gate (`!isProfileLoading`).
+- `components/FindStack.tsx` — registered `ServiceAreaEditor` as fullScreenModal
+- `components/FindTab.tsx` — replaced hardcoded "Denver" chip with live `getServiceArea(myProfile)` read. Empty-state copy. DeviceEventEmitter listener for save-success toast.
+- `package.json` — `@react-native-community/slider@5.1.2` added
+
+**SQL deployed (Supabase SQL Editor):**
+- 2 Postgres extensions enabled: `cube`, `earthdistance` (required for `earth_distance(ll_to_earth(...))` circle-overlap math)
+- 4 columns added to `profiles`: `service_area_lat NUMERIC`, `service_area_lng NUMERIC`, `service_area_radius INTEGER` (CHECK 1-500), `service_area_label TEXT`
+- GiST partial index on `ll_to_earth(lat, lng)` (only rows with non-null coords)
+- 2 RPCs: `rpc_find_pros` ✅ verified deployed (circle-overlap math, role IN allow-list `'contractor', 'home_stager', 'real_estate_photographer'`), `rpc_update_service_area` ❌ NOT verified — silently partial-failed during multi-block deploy (S164/S165 blocker)
+- 5 contractor profiles seeded (Marcus/Denver, Mike/Aurora, Sarah/Lakewood, Jessica/Boulder, Carlos/Colorado Springs out-of-radius) + Alex Morgan agent service area (Denver / 25mi)
+
+**Phase 1 launch strategy codified mid-session:** Contractor-first launch. Phase 1 = contractor revenue loop + agent service-area discovery + Neighborhood Intelligence retention. Phase 2 (NOT launching) = closing tracker, deal tracker, partner track, deal chat threads.
+
+**Bugs surfaced:** 8 distinct (6 resolved in-session, 1 deferred to S164 — Jessica missing — turned out to be S164 layout gap, 1 low-priority — BUG-S163-A Alex display_role literal).
+
+**Permanent rules added (lessons.md):** 11 — RPC null params handling, verify RPC creation via `pg_proc`, mock→live flip data-hygiene plan, DDL before DML, Dashboard auth user role default, DeviceEventEmitter cross-screen success pattern, ServiceArea TEXT field semantics post-S163, package.json as source of truth (not CLAUDE.md), SQL verification SELECT discipline, TanStack cache staleness on schema migrations, native module dev client rebuild discipline.
+
+**New backlog tickets:** ATL-LOCATION-02, ATL-LOCATION-03, ATL-LOCATION-04, ATL-FIND-PILLS-PHASE1, BUG-S163-A, CHORE-CLAUDE-MD-SDK-AUDIT, CHORE-PROFILES-ORPHAN-CLEANUP, CHORE-DEVCLIENT-REBUILD-S163, ATL-CHIP-EMPTY-STATE-POLISH, ATL-BORDER-WIDTH-AUDIT.
 
 ---
 
@@ -104,15 +183,27 @@
 
 **Metrics:** RPCs 69 (unchanged). Hooks 69 (unchanged — no new hooks). Edge Functions 11 (unchanged). Feature Flags 11 (unchanged). Shared Components +2 (GroupAvatar extracted in S162c; UnreadIndicator added in S162c-patch). COLORS tokens +1 (textTertiary — no new tokens in S162c-patch).
 
-### S163 — Next Objectives
-- **ATL-DEAL-THREAD-02** — Archive deal chat (next in deal-thread sequence)
-- **ATL-LOCATION-01** — Service area filtering for contractors
+### S165 — Next Objectives (priority order)
+
+**Critical — ATL-LOCATION-01 close-out (immediate):**
+1. **Deploy `rpc_update_service_area` to production** — paste SQL into Supabase SQL Editor, verify with `SELECT proname FROM pg_proc WHERE proname = 'rpc_update_service_area'` (must return 1 row).
+2. **Trigger EAS dev client rebuild** — `eas build --profile development --platform ios` for `@react-native-community/slider@5.1.2` native module. Wait ~15-25 min, install on device.
+3. **Run QA Scenarios 2-9** for ATL-LOCATION-01 (chip tap, radius drag + haptics + save, city change via autocomplete, empty state + rehydration, keyboard behavior, iOS swipe-back, TanStack cache invalidation, role pill composition).
+4. If pass → move ATL-LOCATION-01 to ✅ Done on sprint board. Otherwise iterate.
+5. Update `sql/schema.sql` to reflect deployed RPC body.
+
+**Phase 1 critical path (after ATL-LOCATION-01 closes):**
+6. **ATL-FIND-PILLS-PHASE1** (MVP blocker) — small UI ticket. Add Stager and Photographer pills. Fix display-string vs snake_case role compare in FindTab filter.
+7. **ATL-LOCATION-04** (high priority) — `useRecommendedPros` / `useTrendingPros` not location-aware. Likely 1-2 new RPCs.
+
+**Carried over from S163 plan (re-prioritize after Phase 1 critical path):**
+- **ATL-DEAL-THREAD-02** — Archive deal chat (Phase 2)
 - **ATL-CONTRACTOR-TRADES-3** — PostJobWizard tradesMap migration
 - **ATL-CTA-AUDIT** — Primary CTA button audit
 - **GroupAvatar +N overflow badge** (4+ members) — component now in shared, ready for extension
-- **ContractorInboxList rename** → `PartnerContractorInboxList.tsx` (deferred from S162b)
-- **"Deal" pill variant** for deal_chat rows in ContractorInboxList (replaces current status-badge suppression)
-- **`rpc_get_inbox_threads` past-threads extension** (returns completed + cancelled threads)
+- **ContractorInboxList rename** → `PartnerContractorInboxList.tsx`
+- **"Deal" pill variant** for deal_chat rows in ContractorInboxList
+- **`rpc_get_inbox_threads` past-threads extension**
 - Hook-count + metrics audit session
 
 ---
