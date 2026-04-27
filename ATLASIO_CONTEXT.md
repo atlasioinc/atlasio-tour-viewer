@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S169 — April 27, 2026)
-- **RPCs:** 75 (unchanged S169 — code-only migration to `lib/tradesMap.ts`).
-- **Hooks:** 70 (unchanged S169).
+## Current Metrics (updated S171 — April 27, 2026)
+- **RPCs:** 76 (+1 S171: `rpc_get_contractors_for_job`).
+- **Hooks:** 71 (+1 S171: `useContractorsForJob`).
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 S163 (ServiceAreaEditorScreen — fullScreenModal in FindStack); +1 S129 (PaymentSettingsScreen)
@@ -145,7 +145,61 @@ DEAL_CREATION_ENABLED: false (Phase 2)
 
 ---
 
-## S169 — ATL-CONTRACTOR-TRADES-3 + CHORE-PROFILES-ORPHAN-CLEANUP (April 27, 2026)
+## S171 — ATL-LOCATION-03: Contractors Near This Job (April 27, 2026)
+
+### Branch
+`feat/atl-location-03-s171`
+
+### Files modified
+- `types/index.ts` — added `ContractorForJob` interface (snake_case mirror of `rpc_get_contractors_for_job` row shape).
+- `hooks/useData.ts` — added `useContractorsForJob(jobLat, jobLng)` hook (gated on both coords non-null, 5min staleTime, empty array fallback) + `queryKeys.contractorsForJob` + `ContractorForJob` import.
+- `components/RepairJobDetails.tsx` — wired `useContractorsForJob` (lat/lng read via `(jobData as any)?.job_lat`/`.job_lng` per CLAUDE.md Known Type Gaps pattern). Added zero-bid nearby-contractors nudge inside the existing `EmptyState` branch (`COLORS.backgroundInfo` panel + primary left-border, taps `handleOpenInviteModal`). Extracted inline `setShowInviteModal(true)` into named `handleOpenInviteModal` (single source of truth for action-menu + nudge). Passes `nearbyContractors` to `<InviteContractorsModal>`.
+- `components/InviteContractorsModal.tsx` — new optional `nearbyContractors?: ContractorForJob[]` prop. Adapter `nearbyAsNetwork` (useMemo) maps `ContractorForJob → NetworkContractor` shape (service_area_label→company, vouch_count→rating, trade→trades singleton, avatar_color→avatarColor with `COLORS.primary` fallback) and dedupes by ID against `MOCK_NETWORK_CONTRACTORS`. `nearbyFiltered` (useMemo) applies the same search filter. `FlatList` → `SectionList` with `Your Network` + `Near This Job` sections; section headers only render when nearby has results (preserves pre-S171 single-list look otherwise). Row component reused unchanged with one micro-tweak: rating cell hides when `item.rating === 0` (vouch_count of 0 → no `0 ★` artifact). `handleSendInvites` now collects from both pools.
+
+### Key decisions
+- **Ships dark until ATL-GEOCODE-01 backfills `job_lat`/`job_lng`.** Hook is `enabled: jobLat != null && jobLng != null`; `showNearbyNudge` false-by-default. Feature is fully wired but invisible on every existing job until coords are written on creation. Confirmed before implementation — Path A approved over a scope-expanded geocode patch.
+- **`(jobData as any)?.job_lat` cast** per CLAUDE.md Known Type Gaps pattern. Did NOT add `job_lat`/`job_lng` to the `Job` interface — that's a dedicated cleanup session (cascades across many call sites).
+- **Option α (single row component, adapter at section boundary)** chosen over Option β (discriminated-union row) per prompt requirement "reuse the exact same contractor row component … do NOT create a new card component."
+- **Rating-cell hide on 0** is the only row-component change. Network rows always have a star rating; nearby rows pass `vouch_count` as `rating`, which can legitimately be 0 — hiding the cell is cleaner than rendering "0 ★".
+- **Section headers gated on `nearbyFiltered.length > 0`** — when the prop is absent, empty, or fully deduped, the modal is visually identical to pre-S171.
+- **Single named handler `handleOpenInviteModal`** introduced because no such function existed before — the action-menu's `setShowInviteModal(true)` was inline. Both call sites (action-menu + nudge) now flow through it.
+- **Tokens used:** `COLORS.backgroundInfo` (exists at `lib/tokens.ts:45`) for nudge bg; `COLORS.darkText` for nudge headline; `COLORS.primary` for CTA + left border; `COLORS.screenBg` for section header bg; `COLORS.textTertiary` for section header text. No new tokens; no hex.
+
+### Out of scope (deferred / unchanged)
+- `PostJobWizard.tsx` — Step 2 "Invite Specific Pros" surface deferred to a follow-up ticket.
+- `rpc_invite_contractors` — accepts any UUID, no changes needed.
+- `Job` interface — `job_lat`/`job_lng` not added (Known Type Gaps pattern).
+- Geocode write path — see ATL-GEOCODE-01.
+
+### Architecture rules applied
+- **Reuse over recreate** — single row component shared via lossy adapter, no new card.
+- **Conversion at the boundary** — `ContractorForJob` enters the modal as-is and is adapted only at the section-rendering edge.
+- **Minimum blast radius** — 4 files touched, no refactor of existing flows.
+- **Schema-first verification** — RPC param names (`p_job_lat`, `p_job_lng`) match prompt's deployed signature exactly.
+
+### Tickets closed / opened
+- ATL-LOCATION-03 → ✅ Done (wiring complete; ships dark until ATL-GEOCODE-01).
+- **ATL-GEOCODE-01 → ⚠️ ELEVATED to critical path** (S172 priority #1). Newly-posted jobs need lat/lng written during `rpc_create_job` (or post-create geocode in `PostJobWizard`) before this feature surfaces in production.
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 errors / 8 pre-existing warnings (no new warnings introduced)
+
+### Metrics
+- RPCs: 76 (+1 `rpc_get_contractors_for_job`)
+- Hooks: 71 (+1 `useContractorsForJob`)
+- Edge Functions: 11 (unchanged)
+
+### Next priorities (S172)
+1. **ATL-GEOCODE-01** — write `job_lat`/`job_lng` on job creation (critical path, unlocks ATL-LOCATION-03 surface in production)
+2. CHORE-ONBOARDING-GATE — switch App.tsx gate from `display_role` to `onboarded_at`
+3. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL
+4. CHORE-GALLERY-ROLES-SNAKE-CASE
+5. CHORE-CLAUDE-MD-SDK-AUDIT
+
+---
+
+## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
 
 ### Branch
 `chore/s169-contractor-trades-3`

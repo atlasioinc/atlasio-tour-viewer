@@ -1,8 +1,35 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S170 — BUG-S163-A resolved + 2 follow-up chores filed | April 27, 2026
+**Last updated:** S171 — ATL-LOCATION-03 wired (ships dark) + ATL-GEOCODE-01 elevated to critical path | April 27, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
+
+---
+
+## ATL-GEOCODE-01 — Job creation does not write job_lat/job_lng (elevated S171)
+
+**Status:** ⚠️ ELEVATED to critical path — S172 priority #1.
+
+### Context
+S171 wired the agent-side "Contractors Near This Job" surface end-to-end:
+- `rpc_get_contractors_for_job(p_job_lat, p_job_lng)` deployed.
+- `useContractorsForJob` hook gated on both coords being non-null.
+- Zero-bid nudge in `RepairJobDetails` + "Near This Job" `SectionList` section in `InviteContractorsModal`.
+
+The feature is **fully wired and ships dark** because every job row currently has `job_lat = NULL` / `job_lng = NULL`. The `enabled: jobLat != null && jobLng != null` gate evaluates false for every existing job, the hook never fires, and the nudge / nearby section never surface.
+
+### Marker in code
+`components/PostJobWizard.tsx:887-889`:
+```
+// @demo TODO(ATL-GEOCODE-01): job_lat and job_lng are not set on job creation.
+// ...to geocode the job address and write job_lat/job_lng to the jobs row.
+```
+
+### Fix (S172)
+Either (a) extend `rpc_create_job` to accept `p_job_lat`/`p_job_lng` and have `PostJobWizard.handlePostJob` pass coords from the Google Places autocomplete result already captured on the address field, or (b) add a post-create geocode step in `PostJobWizard` that calls a small RPC to write coords on the freshly-created row. Either approach unblocks the S171 feature in production.
+
+### Risk if deferred
+S171 ships invisible to users. The wiring code is correct but cannot be visually verified end-to-end until coords flow.
 
 ---
 

@@ -21,7 +21,7 @@ import {
   Text,
   Pressable,
   Modal,
-  FlatList,
+  SectionList,
   TextInput,
   Alert,
   KeyboardAvoidingView,
@@ -32,6 +32,7 @@ import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { Avatar } from './shared';
 import SearchField from './SearchField';
+import type { ContractorForJob } from '../types';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -117,6 +118,9 @@ interface InviteContractorsModalProps {
   jobCategory: string; // trade to filter by
   mode?: 'post-job' | 'pre-job'; // default: 'post-job'
   onConfirm?: (contractors: NetworkContractor[]) => void; // required when mode='pre-job'
+  // S171 — ATL-LOCATION-03: contractors whose service area covers the job point.
+  // Adapted to NetworkContractor shape internally so the row component is shared.
+  nearbyContractors?: ContractorForJob[];
 }
 
 const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
@@ -126,6 +130,7 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   jobCategory,
   mode = 'post-job',
   onConfirm,
+  nearbyContractors,
 }) => {
   const [searchText, setSearchText] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -148,6 +153,38 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
       c.company.toLowerCase().includes(searchText.toLowerCase())
     );
   }, [searchText, jobCategory]);
+
+  // S171 — ATL-LOCATION-03: adapt ContractorForJob → NetworkContractor shape
+  // so the existing row component renders both lists identically.
+  // Field mapping (lossy, intentional):
+  //   service_area_label → company (shown as subtitle in row)
+  //   vouch_count        → rating  (hidden when 0 — see row render below)
+  //   trade              → trades  (singleton array or empty)
+  //   avatar_color       → avatarColor (fallback: COLORS.primary)
+  // Dedup: contractors already in MOCK_NETWORK_CONTRACTORS are excluded.
+  const nearbyAsNetwork: NetworkContractor[] = useMemo(() => {
+    const networkIds = new Set(MOCK_NETWORK_CONTRACTORS.map(c => c.id));
+    return (nearbyContractors ?? [])
+      .filter(c => !networkIds.has(c.id))
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        company: c.service_area_label ?? '',
+        trades: c.trade ? [c.trade] : [],
+        rating: c.vouch_count,
+        avatarColor: c.avatar_color ?? COLORS.primary,
+      }));
+  }, [nearbyContractors]);
+
+  const nearbyFiltered: NetworkContractor[] = useMemo(() => {
+    if (searchText.length === 0) return nearbyAsNetwork;
+    const q = searchText.toLowerCase();
+    return nearbyAsNetwork.filter(
+      c =>
+        c.name.toLowerCase().includes(q) ||
+        c.company.toLowerCase().includes(q),
+    );
+  }, [nearbyAsNetwork, searchText]);
 
   // ── Toggle contractor selection ──
   const toggleSelect = useCallback((id: string) => {
@@ -173,7 +210,10 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   const handleSendInvites = useCallback(() => {
     if (selectedIds.size === 0) return;
 
-    const selectedContractors = MOCK_NETWORK_CONTRACTORS.filter((c) => selectedIds.has(c.id));
+    // S171 — selection pool now spans both Your Network and Near This Job lists.
+    const selectedContractors = [...MOCK_NETWORK_CONTRACTORS, ...nearbyAsNetwork].filter(
+      (c) => selectedIds.has(c.id),
+    );
 
     // Pre-job mode: return selected contractors to parent — no RPC, no Alert
     if (mode === 'pre-job' && onConfirm) {
@@ -199,7 +239,7 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
       `${selectedIds.size} contractor${selectedIds.size > 1 ? 's' : ''} invited to "${jobTitle}"`,
       [{ text: 'OK', onPress: () => { setSelectedIds(new Set()); onClose(); } }]
     );
-  }, [selectedIds, jobTitle, note, onClose, mode, onConfirm]);
+  }, [selectedIds, jobTitle, note, onClose, mode, onConfirm, nearbyAsNetwork]);
 
   // ── Reset state when modal closes ──
   const handleClose = useCallback(() => {
@@ -271,10 +311,12 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
           </View>
         </View>
 
-        {/* Rating */}
-        <Text style={{ fontSize: 14, fontWeight: '400', color: '#D08700', lineHeight: 20 }}>
-          {item.rating} ★
-        </Text>
+        {/* Rating — hidden when 0 (S171: nearby rows pass vouch_count, may be 0) */}
+        {item.rating > 0 && (
+          <Text style={{ fontSize: 14, fontWeight: '400', color: '#D08700', lineHeight: 20 }}>
+            {item.rating} ★
+          </Text>
+        )}
       </Pressable>
     );
   };
@@ -340,12 +382,39 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
         </View>
 
         {/* ══════════════════════════════════════════
-            CONTRACTOR LIST
+            CONTRACTOR LIST — S171: SectionList with Your Network + Near This Job
+            Section headers only render when nearby section exists, preserving
+            the pre-S171 single-list look when nearbyContractors is absent/empty.
             ══════════════════════════════════════════ */}
-        <FlatList
-          data={filteredContractors}
+        <SectionList
+          sections={[
+            { title: 'Your Network', data: filteredContractors },
+            ...(nearbyFiltered.length > 0
+              ? [{ title: 'Near This Job', data: nearbyFiltered }]
+              : []),
+          ].filter(s => s.data.length > 0)}
           keyExtractor={(item) => item.id}
-          renderItem={renderContractor}
+          renderItem={({ item }) => renderContractor({ item })}
+          renderSectionHeader={({ section: { title } }) =>
+            nearbyFiltered.length > 0 ? (
+              <View style={{
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                backgroundColor: COLORS.screenBg,
+              }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: COLORS.textTertiary,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}>
+                  {title}
+                </Text>
+              </View>
+            ) : null
+          }
+          stickySectionHeadersEnabled={false}
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
           ListEmptyComponent={

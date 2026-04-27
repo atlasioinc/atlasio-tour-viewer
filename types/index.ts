@@ -822,3 +822,21 @@ export interface RecommendedPro {
 export interface TrendingPro extends RecommendedPro {
   last_active_at: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// CONTRACTOR FOR JOB (S171 — ATL-LOCATION-03)
+// Returned by rpc_get_contractors_for_job(p_job_lat, p_job_lng).
+// snake_case field names match RPC output directly.
+// @backend rpc_get_contractors_for_job
+// ─────────────────────────────────────────────────────────────────────
+export interface ContractorForJob {
+  id: string;
+  name: string;
+  role: string;
+  avatar_url: string | null;
+  avatar_color: string | null;
+  vouch_count: number;
+  service_area_label: string | null;
+  trade: string | null;
+  is_verified: boolean;
+}

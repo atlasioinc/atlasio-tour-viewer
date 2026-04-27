@@ -270,6 +270,7 @@
 - Edit button → EditRepairJob
 - Invite button → InviteContractorsModal
 - Status timeline
+- **S171:** Zero-bid nearby-contractors nudge (info-color panel below `EmptyState`, "N contractors work near this job → Invite Contractors"). Renders only when `useContractorsForJob(job_lat, job_lng)` returns ≥1. Ships dark until ATL-GEOCODE-01 backfills coords. Taps `handleOpenInviteModal` (same handler as action-menu Invite item).
 
 **Entry Points:**
 - HomeTabAgent → tap repair / photography / staging card (all three job types land here)
@@ -279,11 +280,13 @@
 
 **Exit Points:**
 - → EditRepairJob (Edit button) — `navigation.push`
-- → InviteContractorsModal (Invite button) — modal
+- → InviteContractorsModal (Invite button + S171 zero-bid nudge) — modal, now passes `nearbyContractors` prop
 - Photo tile → `<PhotoLightbox>` (Modal, not a nav push)
 - ← Back
 
 **Shared components:** Avatar, VerificationBanner, DisplayTag, **PhotoLightbox (S147)**
+
+**S171 update — InviteContractorsModal:** `FlatList` → `SectionList`. New optional `nearbyContractors?: ContractorForJob[]` prop. Shape adapted to `NetworkContractor` internally so the row component is shared (single row, no new card). When the prop is non-empty after dedup against `MOCK_NETWORK_CONTRACTORS`, a "Near This Job" section appears below "Your Network" with section headers. When the prop is absent/empty/fully deduped, the modal is visually identical to pre-S171.
 
 ---
 

@@ -51,7 +51,7 @@ import type { Job, BidWithProfile, BidStatus, JobStatus } from '../types';
 import InviteContractorsModal from './InviteContractorsModal';
 import InfoBanner from './InfoBanner';
 import { COLORS } from '../lib/tokens';
-import { useJob, useJobBids } from '../hooks/useData';
+import { useJob, useJobBids, useContractorsForJob } from '../hooks/useData';
 import { supabase } from '../lib/supabase';
 import { useRealtimeBids } from '../hooks/useRealtime';
 import { Avatar, PhotoLightbox, VerificationBanner, EmptyState, MomentBanner } from './shared';
@@ -544,6 +544,17 @@ const RepairJobDetails: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const { showBanner: showVerifyBanner, level: verifyLevel } = useVerificationGate();
 
+  // S171 — ATL-LOCATION-03: nearby contractors lookup.
+  // Cast via 'as any' per CLAUDE.md Known Type Gaps pattern — job_lat/job_lng
+  // not yet on Job interface (cleanup: dedicated session).
+  // Ships dark until ATL-GEOCODE-01 writes coords on job creation.
+  // @demo TODO(ATL-GEOCODE-01): showNearbyNudge always false until geocoding wired
+  const jobLat = (jobData as any)?.job_lat as number | null | undefined;
+  const jobLng = (jobData as any)?.job_lng as number | null | undefined;
+  const { data: nearbyContractors } = useContractorsForJob(jobLat, jobLng);
+  const nearbyCount = nearbyContractors?.length ?? 0;
+  const showNearbyNudge = nearbyCount > 0 && jobLat != null && jobLng != null;
+
   // Seed local job state when live fetch resolves
   useEffect(() => {
     if (jobData) {
@@ -714,6 +725,10 @@ const RepairJobDetails: React.FC = () => {
       userRole: 'contractor',
     });
   };
+
+  // S171 — single entry point for opening invite modal.
+  // Replaces inline setShowInviteModal(true) — used by action-menu + zero-bid nudge.
+  const handleOpenInviteModal = () => setShowInviteModal(true);
 
   // Navigate to RepairChatScreen (job thread) for a specific bidder
   const handleOpenRepairChat = (bid: BidWithProfile) => {
@@ -1288,12 +1303,46 @@ const RepairJobDetails: React.FC = () => {
 
           {effectiveJobStatus === 'open' && sortedBids.length === 0 ? (
             /* ── Empty State — S149a — only when job is still open and has no bids ── */
-            <EmptyState
-              illustration="job_bids"
-              title="No bids yet"
-              body="Your job is live. Bids will appear here once contractors respond."
-              style={{ flex: 0, paddingVertical: 32 }}
-            />
+            /* S171: zero-bid nearby-contractors nudge stacks below empty state when surfaced */
+            <View style={{ gap: 12 }}>
+              <EmptyState
+                illustration="job_bids"
+                title="No bids yet"
+                body="Your job is live. Bids will appear here once contractors respond."
+                style={{ flex: 0, paddingVertical: 32 }}
+              />
+              {showNearbyNudge && (
+                <Pressable
+                  onPress={handleOpenInviteModal}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    backgroundColor: COLORS.backgroundInfo,
+                    borderRadius: 10,
+                    borderLeftWidth: 3,
+                    borderLeftColor: COLORS.primary,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '500',
+                    color: COLORS.darkText,
+                    lineHeight: 20,
+                  }}>
+                    {nearbyCount} contractor{nearbyCount !== 1 ? 's' : ''} work near this job
+                  </Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: COLORS.primary,
+                    marginTop: 4,
+                    lineHeight: 20,
+                  }}>
+                    Invite Contractors →
+                  </Text>
+                </Pressable>
+              )}
+            </View>
           ) : (
             sortedBids.map((bid) => (
               <BidCard
@@ -1433,7 +1482,7 @@ const RepairJobDetails: React.FC = () => {
             <TouchableOpacity
               onPress={() => {
                 setShowActionMenu(false);
-                setShowInviteModal(true);
+                handleOpenInviteModal();
               }}
               activeOpacity={0.7}
               style={{
@@ -1502,6 +1551,7 @@ const RepairJobDetails: React.FC = () => {
         onClose={() => setShowInviteModal(false)}
         jobTitle={job.title}
         jobCategory={job.category ?? ''}
+        nearbyContractors={nearbyContractors}
       />
 
       {/* ═══════════════════════════════════════════════════════════════

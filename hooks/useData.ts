@@ -84,6 +84,7 @@ import type {
   AgentActiveJob,
   RecommendedPro,
   TrendingPro,
+  ContractorForJob,
 } from '../types';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { getServiceArea } from '../lib/typeAdapters';
@@ -156,6 +157,10 @@ export const queryKeys = {
 
   // Contractor Dashboard
   matchingJobs: (limit: number) => ['matchingJobs', limit] as const,
+  contractorsForJob: (
+    lat: number | null | undefined,
+    lng: number | null | undefined,
+  ) => ['contractors_for_job', lat ?? null, lng ?? null] as const,
   contractorEarnings: ['contractorEarnings'] as const,
   marketPulse: ['marketPulse'] as const,
 } as const;
@@ -2402,6 +2407,45 @@ export const useMatchingJobs = (limit = 20) => {
         return liveRows.map(adaptMatchingJob);
       } catch (err) {
         console.warn('[useMatchingJobs] Supabase RPC failed, returning empty', err);
+        return [];
+      }
+    },
+  });
+};
+
+/**
+ * useContractorsForJob
+ * Returns contractors whose service area circle contains the given job point.
+ * Sorted by vouch_count DESC. Limit 10 (RPC-enforced).
+ *
+ * Gated: only runs when both jobLat and jobLng are non-null.
+ * Ships dark until ATL-GEOCODE-01 backfills job_lat/job_lng on job rows.
+ *
+ * @backend rpc_get_contractors_for_job(p_job_lat, p_job_lng)
+ * @demo TODO(ATL-GEOCODE-01): will return empty until job coords are set
+ */
+// STATUS: wired (RPC, S171 — empty array on RPC error)
+export const useContractorsForJob = (
+  jobLat: number | null | undefined,
+  jobLng: number | null | undefined,
+) => {
+  return useQuery<ContractorForJob[]>({
+    queryKey: queryKeys.contractorsForJob(jobLat, jobLng),
+    enabled: jobLat != null && jobLng != null,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.rpc(
+          'rpc_get_contractors_for_job',
+          { p_job_lat: jobLat, p_job_lng: jobLng },
+        );
+        if (error) throw error;
+        return (data ?? []) as ContractorForJob[];
+      } catch (err) {
+        console.warn(
+          '[useContractorsForJob] rpc_get_contractors_for_job failed, returning []',
+          err,
+        );
         return [];
       }
     },
