@@ -632,10 +632,9 @@ const FindTab: React.FC = () => {
               opacity: pressed ? 0.5 : 1,
             })}
           >
-            <LocationPinIcon />
             {serviceArea ? (
               <Text style={{ fontSize: 14, fontWeight: '400', lineHeight: 20 }}>
-                <Text style={{ color: COLORS.darkText }}>{serviceArea.label}</Text>
+                <Text style={{ color: COLORS.darkText }}>{serviceArea.label.replace(', USA', '')}</Text>
                 <Text style={{ color: COLORS.textTertiary }}>{` · ${serviceArea.radius} mi`}</Text>
               </Text>
             ) : (
