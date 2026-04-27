@@ -33,8 +33,9 @@ import {
   ActivityIndicator,
   StatusBar,
   DeviceEventEmitter,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
@@ -98,6 +99,13 @@ const PinIcon: React.FC<{ color?: string }> = ({ color = COLORS.primary }) => (
 
 const ServiceAreaEditorScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<FindStackParamList>>();
+  const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', () => setIsKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setIsKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const { data: myProfile } = useMyProfile();
   const initial = useMemo(() => getServiceArea(myProfile), [myProfile]);
 
@@ -238,27 +246,23 @@ const ServiceAreaEditorScreen: React.FC = () => {
   // ─────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
+      {/* ── Header — outside KAV (canonical fullScreenModal pattern) ── */}
+      <View
+        style={{
+          paddingTop: 8 + insets.top,
+          paddingBottom: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 4,
+          borderBottomWidth: 0.68,
+          borderBottomColor: COLORS.border,
+          backgroundColor: COLORS.background,
+        }}
       >
-        {/* ── Header — 44×44 spacer + centered title + 44×44 X button ── */}
-        <View
-          style={{
-            height: 48,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 4,
-            borderBottomWidth: 0.68,
-            borderBottomColor: COLORS.border,
-            backgroundColor: COLORS.background,
-          }}
-        >
           <View style={{ width: 44, height: 44 }} />
           <Text
             style={{
@@ -283,10 +287,15 @@ const ServiceAreaEditorScreen: React.FC = () => {
               opacity: pressed ? 0.5 : isSaving ? 0.4 : 1,
             })}
           >
-            <XIcon />
-          </Pressable>
-        </View>
+          <XIcon />
+        </Pressable>
+      </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
         {/* ── Scrollable form ── */}
         <ScrollView
           style={{ flex: 1 }}
@@ -409,16 +418,13 @@ const ServiceAreaEditorScreen: React.FC = () => {
           ) : null}
         </ScrollView>
 
-        {/* ── Sticky Save CTA (S159 canonical pattern — sibling of ScrollView) ── */}
+        {/* ── Sticky Save CTA — flow sibling of ScrollView so KAV padding lifts it with keyboard ── */}
         <View
           style={{
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: 16,
+            paddingBottom: isKeyboardVisible ? 16 : Math.max(insets.bottom, 16),
             backgroundColor: COLORS.background,
-            // 0.69 matches PostPhotoJobScreen sticky-CTA canonical per S159.
-            // Header uses 0.68 (CLAUDE.md spec for headers/cards) — values
-            // differ by 0.01 intentionally across the two reference patterns.
             borderTopWidth: 0.69,
             borderTopColor: COLORS.border,
           }}
@@ -452,7 +458,7 @@ const ServiceAreaEditorScreen: React.FC = () => {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
