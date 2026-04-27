@@ -908,6 +908,11 @@ const PostJobWizard: React.FC = () => {
         ? form.dueDate.toISOString().split('T')[0]
         : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
+      // @demo TODO(ATL-GEOCODE-01): job_lat and job_lng are not set on job creation.
+      // For launch: call a geocoding service (e.g. Google Maps Geocoding API via Edge Function)
+      // with the job address and write job_lat/job_lng to the jobs row.
+      // Until then, newly posted jobs will not appear in contractor proximity feeds.
+      // Existing test job (id: a630f04a) has coordinates seeded manually.
       const jobId = await createJob.mutateAsync({
         p_job_type: 'repair',
         p_title: form.jobTitle.trim(),

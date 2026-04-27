@@ -49,10 +49,11 @@ import Svg, { Path } from 'react-native-svg';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
-import { useMyProfile } from '../hooks/useData';
+import { useMyProfile, useMatchingJobs } from '../hooks/useData';
+import type { MatchingJob } from '../hooks/useData';
 import { DisplayTag } from './DisplayTag';
 import { CardButton } from './Button';
-import { Avatar, EmptyState } from './shared';
+import { Avatar, EmptyState, SkeletonBlock } from './shared';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -92,22 +93,8 @@ interface JobInvite {
   hasBid?: boolean;
 }
 
-interface MatchingJob {
-  id: string;
-  title: string;
-  address: string;
-  tradeNeeded: string;
-  budgetRange: string;
-  distanceMi: number;
-  dueDate: string;
-  bidCount: number;
-  isUrgent: boolean;
-  postedTime: string;
-  /** Whether the contractor has already submitted a bid.
-   *  When true: chat icon appears, CTA changes to "View Bid".
-   *  @backend Derived: EXISTS(bid WHERE job_id AND contractor_id) */
-  hasBid?: boolean;
-}
+// MatchingJob lifted to hooks/useData.ts as the single source of truth (S168).
+// Keep imports aligned: `import type { MatchingJob } from '../hooks/useData';`
 
 interface EarningsData {
   monthTotal: number;
@@ -375,6 +362,9 @@ const MOCK_INVITATIONS: JobInvite[] = [
  *     })
  *     .order('due_date', { ascending: true })
  */
+// @demo retained as reference for the camelCase MatchingJob shape — live path
+// is useMatchingJobs() (S168). Do not delete: per CLAUDE.md, mock data is preserved.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MOCK_MATCHING_JOBS: MatchingJob[] = [
   {
     id: 'mj1',
@@ -689,6 +679,15 @@ const NewJobCard: React.FC<{ job: MatchingJob; onPress: () => void }> = ({ job, 
       {job.address}
     </Text>
 
+    {/* Row 3b: Distance — only when service area resolves a value (S168).
+        Omitted entirely when distanceMi is null (e.g. contractor with no
+        service area set → graceful fallback shows job without distance). */}
+    {job.distanceMi != null && (
+      <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, marginBottom: 8 }}>
+        {job.distanceMi.toFixed(1)} mi away
+      </Text>
+    )}
+
     {/* Row 4: Budget label — GROUPED with price (4px) */}
     <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textTransform: 'uppercase', marginBottom: 2 }}>
       Budget
@@ -935,6 +934,9 @@ const InviteEmptyIcon = (
   </Svg>
 );
 
+// Retained for future re-use if the inline empty message is replaced with
+// the bordered EmptyStateCallout pattern again.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const JobsEmptyIcon = (
   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
     <Path
@@ -1098,7 +1100,13 @@ const ContractorHomeTab: React.FC = () => {
   // ── Data (conditional on demo toggle) ──
   const activeJobs = isFilled ? MOCK_ACTIVE_JOBS : [];
   const invitations = isFilled ? MOCK_INVITATIONS : [];
-  const matchingJobs = isFilled ? MOCK_MATCHING_JOBS : [];
+  // @backend rpc_get_matching_jobs() — proximity-filtered live job feed (S168).
+  // Live data is NOT gated by the isFilled demo toggle — feed is core, not a mock.
+  const {
+    data: matchingJobs = [],
+    isLoading: isLoadingJobs,
+    isFetching: isFetchingJobs,
+  } = useMatchingJobs();
   const earnings = isFilled ? MOCK_EARNINGS : null;
   const marketPulse = isFilled ? MOCK_MARKET_PULSE : null;
 
@@ -1209,7 +1217,11 @@ const ContractorHomeTab: React.FC = () => {
             {greeting}, {firstName} 👋
           </Text>
           <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20, marginTop: 4 }}>
-            {invitations.length} {invitations.length === 1 ? 'invite' : 'invites'} · {matchingJobs.length} new jobs · {activeJobs.length} active
+            {invitations.length} {invitations.length === 1 ? 'invite' : 'invites'}
+            {' · '}
+            {isLoadingJobs ? '…' : matchingJobs.length} new job{matchingJobs.length === 1 ? '' : 's'}
+            {' · '}
+            {activeJobs.length} active
           </Text>
         </View>
 
@@ -1323,12 +1335,15 @@ const ContractorHomeTab: React.FC = () => {
 
         {/* ══════════════════════════════════════════
             SECTION 2 — NEW JOBS FOR YOU (horizontal scroll)
+            S168: 3-branch render — loading / empty / data.
+            Loading-flash trap (lessons.md S163-S164): skeleton gates first
+            paint, then empty state, then live data. Never falls back to mock.
             ══════════════════════════════════════════ */}
         <View style={{ paddingBottom: 24 }}>
           {/* Section header */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
             <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 26 }}>
-              New Jobs for You ({matchingJobs.length})
+              New Jobs for You ({isLoadingJobs ? '…' : matchingJobs.length})
             </Text>
             <Pressable onPress={() => navigation.navigate('Jobs')} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
               <Text style={{ fontSize: 14, fontWeight: '500', color: COLORS.primary, lineHeight: 20 }}>
@@ -1337,7 +1352,33 @@ const ContractorHomeTab: React.FC = () => {
             </Pressable>
           </View>
 
-          {matchingJobs.length > 0 ? (
+          {isLoadingJobs || isFetchingJobs ? (
+            <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 12 }}>
+              {[0, 1].map((i) => (
+                <View
+                  key={`new-job-skel-${i}`}
+                  style={{
+                    width: 320,
+                    backgroundColor: COLORS.background,
+                    borderRadius: DIMENSIONS.cardRadius,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    padding: 16,
+                    gap: 8,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <SkeletonBlock width={70} height={20} borderRadius={9999} />
+                    <SkeletonBlock width={50} height={14} borderRadius={4} />
+                  </View>
+                  <SkeletonBlock width="80%" height={20} borderRadius={6} />
+                  <SkeletonBlock width="60%" height={14} borderRadius={6} />
+                  <SkeletonBlock width={100} height={20} borderRadius={6} />
+                  <SkeletonBlock width={120} height={14} borderRadius={6} />
+                </View>
+              ))}
+            </View>
+          ) : matchingJobs.length > 0 ? (
             <FlatList
               horizontal
               data={matchingJobs.slice(0, 50)}
@@ -1357,19 +1398,10 @@ const ContractorHomeTab: React.FC = () => {
               removeClippedSubviews={true}
             />
           ) : (
-            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-              <View style={{
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                borderRadius: DIMENSIONS.cardRadius,
-                overflow: 'hidden',
-              }}>
-                <EmptyStateCallout
-                  icon={JobsEmptyIcon}
-                  headline="No jobs in your area yet"
-                  subtext="New repair jobs matching your trade will show up here as agents post them."
-                />
-              </View>
+            <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+              <Text style={{ fontSize: 14, color: COLORS.secondaryText, textAlign: 'center' }}>
+                No open jobs in your area right now
+              </Text>
             </View>
           )}
         </View>

@@ -87,6 +87,7 @@ import type {
 } from '../types';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { getServiceArea } from '../lib/typeAdapters';
+import { TRADE_ENUM_TO_LABEL } from '../lib/tradesMap';
 
 // ═══════════════════════════════════════════════════════════════
 // QUERY KEYS — centralized for cache invalidation
@@ -2289,24 +2290,117 @@ export const useStartJob = () => {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Fetch jobs matching the contractor's trades.
- * @backend supabase.rpc('rpc_get_matching_jobs', { p_limit })
- * → returns { success, jobs: Array<{ id, title, description, address, job_type,
- *   status, trades, budget_min, budget_max, due_date, is_urgent, bid_deadline,
- *   created_at, agent: { id, name, company, rating, avatar_color } }> }
+ * UI-shape for a matching job card on ContractorHomeTab.
+ * camelCase by design — adapter at the hook layer maps the snake_case RPC
+ * row to this shape (S168 Path A). Single source of truth so MOCK_MATCHING_JOBS
+ * and the live adapter cannot drift.
  */
-// STATUS: wired (with mock fallback)
+export interface MatchingJob {
+  id: string;
+  title: string;
+  address: string;
+  tradeNeeded: string;
+  budgetRange: string;
+  /** null when the contractor has no service area set (graceful fallback) */
+  distanceMi: number | null;
+  dueDate: string;
+  postedTime: string;
+  bidCount?: number;
+  isUrgent?: boolean;
+  hasBid?: boolean;
+}
+
+/** Raw RPC row — mirrors rpc_get_matching_jobs output exactly. */
+interface MatchingJobLive {
+  id: string;
+  title: string | null;
+  description: string | null;
+  address: string | null;
+  job_type: string | null;
+  status: string | null;
+  trades: string[] | null;
+  budget_min: number | null;
+  budget_max: number | null;
+  due_date: string | null;
+  is_urgent: boolean | null;
+  bid_deadline: string | null;
+  created_at: string | null;
+  distance_mi: number | null;
+  agent: {
+    id: string | null;
+    name: string | null;
+    company: string | null;
+    rating: number | null;
+    avatar_color: string | null;
+  } | null;
+}
+
+const formatBudgetRange = (min: number | null, max: number | null): string => {
+  if (min != null && max != null) return `$${min.toLocaleString()} – $${max.toLocaleString()}`;
+  if (min != null) return `From $${min.toLocaleString()}`;
+  if (max != null) return `Up to $${max.toLocaleString()}`;
+  return 'Negotiable';
+};
+
+const formatDueDate = (iso: string | null): string => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const formatPostedTime = (iso: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const adaptMatchingJob = (live: MatchingJobLive): MatchingJob => {
+  const trades = live.trades ?? [];
+  const tradeEnum = trades[0] ?? '';
+  const tradeLabel = TRADE_ENUM_TO_LABEL[tradeEnum] ?? (tradeEnum || 'General');
+  return {
+    id: live.id ?? '',
+    title: live.title ?? '',
+    address: live.address ?? '',
+    tradeNeeded: tradeLabel,
+    budgetRange: formatBudgetRange(live.budget_min, live.budget_max),
+    distanceMi: live.distance_mi ?? null,
+    dueDate: formatDueDate(live.due_date),
+    postedTime: formatPostedTime(live.created_at),
+    isUrgent: !!live.is_urgent,
+  };
+};
+
+/**
+ * Fetch jobs matching the contractor's trades + service area.
+ * Server-side proximity filter — contractor coords resolved from auth.uid()
+ * inside the RPC (no client-passed lat/lng).
+ * @backend supabase.rpc('rpc_get_matching_jobs', { p_limit })
+ * → returns { success, jobs: MatchingJobLive[] }
+ */
+// STATUS: wired (empty fallback on error)
 export const useMatchingJobs = (limit = 20) => {
-  return useQuery({
+  return useQuery<MatchingJob[]>({
     queryKey: queryKeys.matchingJobs(limit),
     queryFn: async () => {
       try {
         const { data, error } = await supabase
           .rpc('rpc_get_matching_jobs', { p_limit: limit });
         if (error) throw error;
-        return data?.jobs ?? [];
+        const liveRows: MatchingJobLive[] = data?.jobs ?? [];
+        return liveRows.map(adaptMatchingJob);
       } catch (err) {
-        console.warn('[useMatchingJobs] Supabase RPC failed, using mock fallback', err);
+        console.warn('[useMatchingJobs] Supabase RPC failed, returning empty', err);
         return [];
       }
     },

@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S166 v2 — April 27, 2026)
-- **RPCs:** 73 (+2 S166: `rpc_get_recommended_pros`, `rpc_get_trending_pros` — earthdistance-filtered. `rpc_get_recommended_pros` redesigned mid-session with squad-gap tier logic + `is_gap_fill` column). All deployed RPCs verified. S165 baseline 71.
-- **Hooks:** 70 (no count change S166 — `useRecommendedPros` + `useTrendingPros` rewritten in place to call new RPCs and read service area from `useMyProfile`). Pre-S163 baseline 69.
+## Current Metrics (updated S168 — April 27, 2026)
+- **RPCs:** 75 (+1 S168: `rpc_get_matching_jobs` — earthdistance-filtered contractor job feed, deployed pre-session. S167 baseline 74).
+- **Hooks:** 70 (no count change S168 — `useMatchingJobs` already exported pre-session; rewritten with typed adapter + `MatchingJob` lifted to single source of truth in `hooks/useData.ts`). Pre-S163 baseline 69.
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 S163 (ServiceAreaEditorScreen — fullScreenModal in FindStack); +1 S129 (PaymentSettingsScreen)
@@ -74,6 +74,61 @@ LIVE_SQUAD_SHARE: false
 PARTNER_TRACK_ENABLED: false (Phase 2)
 DEAL_CREATION_ENABLED: false (Phase 2)
 ```
+
+---
+
+## S168 — ATL-LOCATION-02: Contractor Job Feed Proximity Filtering (April 27, 2026)
+
+### Branch
+`feat/atl-location-02-s168`
+
+### What shipped
+- **`hooks/useData.ts`** — `useMatchingJobs` rewritten end-to-end:
+  - `MatchingJob` interface lifted from `ContractorHomeTab.tsx` and exported as the single source of truth (matches the S163 single-cast-point pattern). `distanceMi: number | null` to support graceful fallback when contractor has no service area set.
+  - New internal `MatchingJobLive` interface mirrors the snake_case RPC return shape exactly.
+  - Adapter (`adaptMatchingJob`) maps live → UI shape: `budget_min/max` → `budgetRange` string via `formatBudgetRange`, `due_date` → `dueDate` (`MMM D` via local-date format — no `toISOString` per S158 timezone rule), `created_at` → `postedTime` (relative time helper inline), `trades[0]` → `tradeNeeded` via `TRADE_ENUM_TO_LABEL` from `lib/tradesMap` (S148a/S157b pattern), `distance_mi` passes through nullable.
+  - Hook now `useQuery<MatchingJob[]>` — typed end-to-end. Empty-array fallback on RPC error (no mock fallback — this is core, not a demo path).
+- **`components/ContractorHomeTab.tsx`** — mock-to-live swap:
+  - Removed local `MatchingJob` interface; now `import type { MatchingJob } from '../hooks/useData'`.
+  - `matchingJobs` line — replaced `isFilled ? MOCK_MATCHING_JOBS : []` with the live hook. `isFilled` toggle no longer gates job feed (other mock sections still gated).
+  - Subtitle — pluralization fix (`new job` vs `new jobs`) plus `…` placeholder during loading to avoid 0→N flash.
+  - Section 2 ("New Jobs for You") — 3-branch render gated on `isLoadingJobs || isFetchingJobs`: skeleton → empty inline message → live FlatList. Skeleton composed from shared `<SkeletonBlock />` rectangles inside `NewJobCard`-shaped wrapper (no inline animation; reuses S138 component per S148b shared-component rule). Empty state inline text per spec ("No open jobs in your area right now"), `COLORS.secondaryText`, 14pt centered.
+  - `NewJobCard` — added `distanceMi` row below address. `!= null` guard so James-Foster fallback (NULL service area) omits the row entirely instead of rendering "null mi away".
+  - `MOCK_MATCHING_JOBS` and `JobsEmptyIcon` retained per CLAUDE.md "mock data is never deleted" — eslint-disable comments added (matches existing `JobTrackerSkeleton` pattern in `JobTrackerTab.tsx`).
+- **`components/PostJobWizard.tsx`** — `@demo TODO(ATL-GEOCODE-01)` marker added above `createJob.mutateAsync` documenting that `job_lat`/`job_lng` are not set on creation. No logic change. `PostPhotoJobScreen` and `PostStagingJobScreen` intentionally left unmarked — staying inside spec scope.
+
+### Files NOT touched (scope discipline)
+- `JobTrackerTab.tsx` — confirmed mock-only via separate `rpc_get_contractor_jobs` (S130 deferred). Never opened.
+- `types/index.ts` — `MatchingJob` lives in `hooks/useData.ts`, not the global types barrel.
+- `lib/featureFlags.ts` — uncommitted `USE_MOCK_DATA: false` carried forward as the QA-mode state on the branch (will reset to `true` on merge per branch workflow).
+
+### Architecture rules applied
+- **Loading-flash trap (S163-S164):** never `liveData ?? MOCK_ARRAY`. Skeleton gates first paint; empty state on settled-no-data; live data otherwise.
+- **Single source of truth:** `MatchingJob` type lifted to hook layer; ContractorHomeTab and any future consumer import from there.
+- **Path A camelCase adapter:** RPC snake_case mapped at the hook layer; UI types unchanged. Smallest blast radius, matches `getServiceArea` adapter pattern (S163).
+- **No client-passed coords:** contractor lat/lng/radius resolved from `auth.uid()` server-side. Hook signature stays `useMatchingJobs(limit?)`.
+- **All tokens from `lib/tokens.ts`:** `COLORS.skeletonBase` (via `<SkeletonBlock />`), `COLORS.secondaryText`, `COLORS.background`, `COLORS.border`. No inline hex.
+- **RPC Consumer Audit (lessons.md:123):** every array `?? []`, every nullable string `?? ''`, every nullable number kept nullable. No `!` non-null assertions.
+- **No `toISOString` for date display:** `formatDueDate` uses `toLocaleDateString` to avoid the S158 negative-offset timezone bug.
+
+### QA scenarios (live RPC backend already verified by Tony pre-session)
+- Marcus Rivera (Denver, 20mi) → Brighton Blvd Kitchen Reno renders with "1.4 mi away".
+- Carlos Ramirez (Colorado Springs, 20mi) → empty inline message ("No open jobs in your area right now").
+- James Foster (NULL service area) → fallback path returns all open jobs; distance row omitted on each card.
+- `USE_MOCK_DATA: true` → job feed still calls live RPC (not mock-gated by design).
+
+### Tickets closed
+- ATL-LOCATION-02 → ✅ Done (backend deployed pre-session, frontend wired this session)
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 errors / 8 pre-existing warnings (none introduced this session — `MOCK_MATCHING_JOBS` + `JobsEmptyIcon` silenced with eslint-disable per CLAUDE.md mock-retention rule)
+
+### Next priorities
+1. ATL-GEOCODE-01 — geocoding on job creation (PostJobWizard + PostPhotoJobScreen + PostStagingJobScreen). Until shipped, newly-posted jobs do not appear in proximity feeds.
+2. CHORE-PROFILES-ORPHAN-CLEANUP — 11+ orphan rows pre-launch
+3. ATL-CONTRACTOR-TRADES-3
+4. BUG-S163-A — Alex Morgan `display_role='agent'` literal cleanup
 
 ---
 

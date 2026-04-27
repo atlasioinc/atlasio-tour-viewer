@@ -821,7 +821,10 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
   - Budget + due date + agent info
   - "See All" → Jobs tab
 - New Jobs horizontal scroll (NewJobCard × N → ContractorJobDetails)
-  - Marketplace opportunities matching contractor's trade
+  - Marketplace opportunities matching contractor's trade — ✅ live S168 via `useMatchingJobs` → `rpc_get_matching_jobs` (proximity-filtered by contractor service area; NULL service area → graceful all-jobs fallback)
+  - 3-branch render gated on `isLoadingJobs || isFetchingJobs`: SkeletonBlock cards (2) → inline empty message ("No open jobs in your area right now") → live FlatList
+  - `distanceMi` row on each `NewJobCard` shows "X.X mi away" when non-null; omitted on null (graceful fallback case)
+  - `isFilled` demo toggle does NOT gate this section — feed is core, not a mock
   - "See All" → Find tab
 - Active Work vertical stack (ActiveJobCard × N → ContractorJobDetails)
   - Progress bars
