@@ -416,7 +416,7 @@ const ServiceAreaEditorScreen: React.FC = () => {
           style={{
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 16) : 16,
+            paddingBottom: 16,
             backgroundColor: COLORS.background,
             borderTopWidth: 0.69,
             borderTopColor: COLORS.border,
