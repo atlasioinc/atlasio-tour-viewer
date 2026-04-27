@@ -87,6 +87,7 @@ import type {
 } from '../types';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { getServiceArea } from '../lib/typeAdapters';
+import { roleLabel } from '../lib/roleDisplay';
 import { TRADE_ENUM_TO_LABEL } from '../lib/tradesMap';
 
 // ═══════════════════════════════════════════════════════════════
@@ -480,7 +481,7 @@ export const useNetworkContacts = (tab: 'partners' | 'contractors') => {
           profile_id: row.profile?.id ?? row.responder_id,
           name: row.profile?.name ?? '',
           company: row.profile?.company ?? '',
-          role: row.profile?.display_role ?? row.profile?.role ?? '',
+          role: roleLabel(row.profile?.role ?? ''),
           group: row.profile?.role === 'contractor' ? 'Contractors' : 'Partners',
           tags: row.profile?.tags ?? [],
           avatar_color: row.profile?.avatar_color ?? '#7BA3C9',
@@ -1278,7 +1279,7 @@ export const useVouchFeed = (filter: string = 'All') => {
           author_name: row.author?.name ?? row.author_name ?? '',
           recipient_name: row.recipient?.name ?? row.recipient_name ?? '',
           recipient_company: row.recipient?.company ?? row.recipient_company ?? null,
-          recipient_role: row.recipient?.display_role ?? row.recipient_role ?? null,
+          recipient_role: row.recipient?.role ?? row.recipient_role ?? null,
           avatar_color: row.author?.avatar_color ?? row.avatar_color ?? '#7BA3C9',
           author: undefined,
           recipient: undefined,
@@ -1435,7 +1436,7 @@ export const useChatRecipients = () => {
         // Query both directions of accepted connections
         const { data, error } = await supabase
           .from('connections')
-          .select('requester_id, responder_id, requester:profiles!requester_id(id, name, company, display_role, avatar_color), responder:profiles!responder_id(id, name, company, display_role, avatar_color)')
+          .select('requester_id, responder_id, requester:profiles!requester_id(id, name, company, display_role, role, avatar_color), responder:profiles!responder_id(id, name, company, display_role, role, avatar_color)')
           .or(`requester_id.eq.${userId},responder_id.eq.${userId}`)
           .eq('status', 'accepted');
         if (error) throw error;
@@ -1446,7 +1447,7 @@ export const useChatRecipients = () => {
             id: other?.id ?? '',
             name: other?.name ?? '',
             company: other?.company ?? '',
-            role: other?.display_role ?? '',
+            role: roleLabel(other?.role ?? ''),
             avatar_color: other?.avatar_color ?? '#7BA3C9',
           };
         }).filter((r: Recipient) => r.id) as Recipient[];
@@ -3488,7 +3489,7 @@ export function useUpdateTransaction() {
 // Returns accepted partner connections for the current agent.
 // Used by DealCreationSheet to populate the "Add to Deal" partner list.
 // @backend Direct query on `connections` table (RLS: "View own connections" policy)
-//   Joins `profiles` for partner name, display_role, avatar_color.
+//   Joins `profiles` for partner name, role (snake_case enum, S170), avatar_color.
 // @demo mock: returns MOCK_CONNECTED_PARTNERS (3 hardcoded partners)
 
 interface PartnerConnection {
@@ -3519,7 +3520,7 @@ export function useAgentPartnerConnections() {
         // @backend Query accepted connections where agent is requester
         const { data: asRequester, error: e1 } = await supabase
           .from('connections')
-          .select('responder_id, profiles!connections_responder_id_fkey(id, name, display_role, avatar_color)')
+          .select('responder_id, profiles!connections_responder_id_fkey(id, name, display_role, role, avatar_color)')
           .eq('requester_id', userId)
           .eq('status', 'accepted');
         if (e1) throw e1;
@@ -3527,7 +3528,7 @@ export function useAgentPartnerConnections() {
         // @backend Query accepted connections where agent is responder
         const { data: asResponder, error: e2 } = await supabase
           .from('connections')
-          .select('requester_id, profiles!connections_requester_id_fkey(id, name, display_role, avatar_color)')
+          .select('requester_id, profiles!connections_requester_id_fkey(id, name, display_role, role, avatar_color)')
           .eq('responder_id', userId)
           .eq('status', 'accepted');
         if (e2) throw e2;
@@ -3540,7 +3541,7 @@ export function useAgentPartnerConnections() {
             partners.push({
               id: p.id,
               name: p.name ?? '',
-              role: p.display_role ?? '',
+              role: roleLabel(p.role ?? ''),
               avatar_color: p.avatar_color ?? '#7BA3C9',
             });
           }
@@ -3552,7 +3553,7 @@ export function useAgentPartnerConnections() {
             partners.push({
               id: p.id,
               name: p.name ?? '',
-              role: p.display_role ?? '',
+              role: roleLabel(p.role ?? ''),
               avatar_color: p.avatar_color ?? '#7BA3C9',
             });
           }

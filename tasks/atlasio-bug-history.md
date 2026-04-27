@@ -1,8 +1,54 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S165 — ServiceAreaEditor keyboard gap + ATL-FIND-PILLS-PHASE1 resolved | April 26, 2026
+**Last updated:** S170 — BUG-S163-A resolved + 2 follow-up chores filed | April 27, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
+
+---
+
+## CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL — Legacy display strings in vouches.recipient_role (filed S170)
+
+**Status:** 📌 Filed — pre-launch SQL cleanup.
+
+### Context
+S170 (BUG-S163-A) changed `Vouch.recipient_role` semantics from a display string
+(e.g. `'Real Estate Agent'`) to a snake_case role enum (e.g. `'agent'`). Conversion
+to display happens at the adapter boundary (`typeAdapters.ts:316 → roleLabel()`).
+
+### Risk
+For legacy vouch rows where the `recipient` profile join is NULL at read time but
+the denormalized `vouches.recipient_role` column still holds a stale display string,
+`roleLabel('Real Estate Agent')` falls into its capitalize-first-letter fallback
+and renders as `'Real estate agent'` — visibly wrong.
+
+### Fix (pre-launch)
+One-time SQL backfill: normalize all `vouches.recipient_role` values from display
+strings to snake_case enums using the same `ROLE_DISPLAY` map (reverse direction).
+Defer until pre-launch — affects display only, no data corruption.
+
+---
+
+## CHORE-GALLERY-ROLES-SNAKE-CASE — FindTabProCard.role data model (filed S170)
+
+**Status:** 📌 Filed — separate refactor, not a bug.
+
+### Context
+S170 chose Option B for `proProfileHelpers.ts` GALLERY_ROLES (line 32 array stays
+as display labels). Reason: `mapFindProToProfile` line 90 receives `pro.role` as a
+display string from the typeAdapter chain (`adaptProfileToProCard` returns
+`roleLabel(profile.role)`), so switching the array to snake_case would silently
+break contractor portfolio galleries on FindTab → ProProfile.
+
+### Future cleanup
+Unify `FindTabProCard.role` to carry the snake_case enum end-to-end. Two options:
+1. Extend `FindTabProCard` with an explicit `roleEnum` field threaded through every
+   adapter producing the type (`adaptProfileToProCard`, `mapRecommendedProToProCard`,
+   `mapFindProToProfile` consumers).
+2. Revert the typeAdapters role-to-display conversion, store the snake_case enum on
+   the type, and call `roleLabel()` at every render site instead of at the adapter.
+
+Once unified, both GALLERY_ROLES call sites (lines 90 and 182) can compare against
+snake_case directly — no `roleLabel()` round-trip needed.
 
 ---
 

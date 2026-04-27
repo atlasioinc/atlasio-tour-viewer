@@ -39,6 +39,7 @@ import { useNavigation } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { ROLE_DISPLAY } from '../lib/roleDisplay';
 import { useMyProfile, useProfileVouches } from '../hooks/useData';
 // @backend Reverse trades_enum → UI label map for Z1 hero trade pill (S148a)
 import { TRADE_ENUM_TO_LABEL } from '../lib/tradesMap';
@@ -129,23 +130,8 @@ const VouchCard: React.FC<VouchCardProps> = ({ name, role, quote }) => (
 );
 
 // ─────────────────────────────────────────────
-// ROLE DISPLAY HELPERS
+// ROLE DISPLAY HELPERS — imported from lib/roleDisplay (S170)
 // ─────────────────────────────────────────────
-
-const ROLE_DISPLAY: Record<string, string> = {
-  agent: 'Real Estate Agent',
-  mortgage_pro: 'Mortgage Pro',
-  title_escrow: 'Title & Escrow',
-  home_inspector: 'Home Inspector',
-  contractor: 'Contractor',
-  appraiser: 'Appraiser',
-  transaction_coordinator: 'Transaction Coordinator',
-  attorney: 'Attorney',
-  warranty: 'Home Warranty',
-  home_stager: 'Home Stager',
-  real_estate_photographer: 'Real Estate Photographer',
-  other: 'Professional',
-};
 
 // ─────────────────────────────────────────────
 // @demo MOCK CONTRACTOR PROFILE

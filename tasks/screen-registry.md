@@ -1321,5 +1321,26 @@ Before building PaymentSettingsScreen, confirm:
 
 ---
 
+## 6. S170 — Role Label Source-of-Truth Migration (April 27, 2026)
+
+BUG-S163-A. Role-label rendering on the following screens migrated from the unreliable
+`profile.display_role` column to `roleLabel(profile.role)` from the new
+`lib/roleDisplay.ts` single source of truth. No layout, copy, or navigation changes —
+the user-visible label is identical for every role currently in `ROLE_DISPLAY`.
+
+| Screen | What changed |
+|---|---|
+| ProProfile | `mapProfileToProProfileData` role + trade fallback + portfolio gallery gate |
+| FindTab (ProCard) | `adaptProfileToProCard` + `mapRecommendedProToProCard` role label |
+| NetworkTab | `adaptConnectionToNetworkContact` role + group via `roleLabel(conn.profile.role)`; `useNetworkContacts` consumer |
+| ConnectionRequests | `adaptConnectionToRequest` role label |
+| NewMessageScreen | `useChatRecipients` SELECT widened + consumer uses `roleLabel(role)` |
+| VouchFeedSection | Author + recipient role labels via `roleLabel`; `Vouch.recipient_role` now carries snake_case enum end-to-end |
+| CreateDealChat (partner picker) | `liveContacts` builder uses `roleLabel(conn.profile.role)`; search-filter consistency restored |
+| HomeTabAgent (partner connections) | `useAgentPartnerConnections` SELECTs widened + consumers use `roleLabel(p.role)` |
+| ProfileTab | Local `ROLE_DISPLAY` map replaced by import from `lib/roleDisplay`; usages unchanged |
+
+---
+
 *Generated S129 — April 4, 2026*
 *Next update: after S129 build complete (add PaymentSettingsScreen entry)*

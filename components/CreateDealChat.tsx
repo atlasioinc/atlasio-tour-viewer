@@ -35,6 +35,7 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { InboxStackParamList } from './InboxStack';
 import { COLORS } from '../lib/tokens';
+import { roleLabel } from '../lib/roleDisplay';
 import { Avatar, AddressAutocompleteInput } from './shared';
 import { useCreateDealThread, useConnections } from '../hooks/useData';
 
@@ -202,7 +203,7 @@ const CreateDealChat: React.FC = () => {
         id: conn.profile.id,
         name: conn.profile.name ?? '',
         company: conn.profile.company ?? '',
-        role: conn.profile.display_role ?? conn.profile.role ?? '',
+        role: roleLabel(conn.profile.role ?? ''),
         avatarColor: conn.profile.avatar_color ?? COLORS.primary,
       })),
     [connections],

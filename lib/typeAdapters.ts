@@ -19,6 +19,7 @@ import type {
   RecommendedPro,
 } from '../types';
 import { COLORS } from './tokens';
+import { roleLabel } from './roleDisplay';
 
 // ─────────────────────────────────────────────
 // InboxList: ChatThreadView → local ChatThread
@@ -179,7 +180,7 @@ export const adaptProfileToProCard = (profile: Profile): FindProCard => ({
   id: profile.id,
   name: profile.name,
   company: profile.company,
-  role: profile.display_role,
+  role: roleLabel(profile.role ?? ''),
   trade: profile.trade ?? undefined,
   secondary_trades: profile.trades?.length ? profile.trades.slice(1) : undefined,
   rating: profile.rating,
@@ -200,7 +201,7 @@ export const mapRecommendedProToProCard = (p: RecommendedPro): FindProCard => ({
   id: p.id,
   name: p.name ?? '',
   company: '',
-  role: p.display_role ?? '',
+  role: roleLabel(p.role ?? ''),
   rating: 0,
   vouches: p.vouch_count ?? 0,
   tags: [],
@@ -235,8 +236,8 @@ export const adaptConnectionToNetworkContact = (
   id: conn.profile?.id ?? conn.responder_id,
   name: conn.profile.name,
   company: conn.profile.company,
-  role: conn.profile.display_role,
-  group: conn.profile.display_role,
+  role: roleLabel(conn.profile.role ?? ''),
+  group: roleLabel(conn.profile.role ?? ''),
   tags: conn.profile.tags as string[],
   avatarColor: conn.profile.avatar_color,
   tab: CONTRACTOR_ROLES.has(conn.profile.role) ? 'contractors' : 'partners',
@@ -262,7 +263,7 @@ export const adaptConnectionToRequest = (
   id: conn.id,
   name: conn.requester.name,
   company: conn.requester.company,
-  role: conn.requester.display_role,
+  role: roleLabel(conn.requester.role ?? ''),
   avatarColor: conn.requester.avatar_color,
   note: conn.note ?? undefined,
   mutualConnections: 0, // TODO: compute mutual connections via separate query
@@ -302,7 +303,7 @@ export const adaptVouchToFeedItem = (vouch: Vouch & { author?: Profile; recipien
     avatar_url: vouch.author?.avatar_url ?? null,
     avatar_color: vouch.author?.avatar_color ?? vouch.avatar_color,
     company: vouch.author?.company ?? '',
-    role: vouch.author?.display_role ?? '',
+    role: roleLabel(vouch.author?.role ?? ''),
     trade: vouch.author?.trade ?? undefined,
     is_verified: vouch.author?.is_verified ?? false,
     vouches_count: vouch.author?.vouch_count ?? 0,
@@ -313,7 +314,7 @@ export const adaptVouchToFeedItem = (vouch: Vouch & { author?: Profile; recipien
     avatar_url: vouch.recipient?.avatar_url ?? null,
     avatar_color: vouch.recipient?.avatar_color ?? vouch.avatar_color,
     company: vouch.recipient?.company ?? vouch.recipient_company ?? '',
-    role: vouch.recipient?.display_role ?? vouch.recipient_role ?? '',
+    role: roleLabel(vouch.recipient_role ?? ''),
     trade: vouch.recipient?.trade ?? undefined,
     is_verified: vouch.recipient?.is_verified ?? false,
     vouches_count: vouch.recipient?.vouch_count ?? 0,

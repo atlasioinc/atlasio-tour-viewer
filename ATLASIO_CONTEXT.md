@@ -77,6 +77,74 @@ DEAL_CREATION_ENABLED: false (Phase 2)
 
 ---
 
+## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
+
+### Branch
+`fix/bug-s163a-s170`
+
+### Files created
+- `lib/roleDisplay.ts` — single source of truth for role → human-readable label mapping. Exports `ROLE_DISPLAY` (12 roles) and `roleLabel(role)` helper. Extracted from the local map at `components/ProfileTab.tsx` lines 135–148. Permanent decision (S146): the DB `display_role` column is unreliable; never read it for display.
+
+### Files modified
+- `components/ProfileTab.tsx` — local `ROLE_DISPLAY` map deleted; `import { ROLE_DISPLAY } from '../lib/roleDisplay'` added. All existing call sites resolve via the import unchanged.
+- `components/proProfileHelpers.ts` — `mapProfileToProProfileData` now reads `roleLabel(p.role ?? '')` for both `role` (line 163) and `trade` fallback (line 164). `GALLERY_ROLES` array stays as display labels (Option B); line 182 portfolio-photos gate switched to `GALLERY_ROLES.includes(roleLabel(p.role ?? ''))`. Line 90 in `mapFindProToProfile` intentionally untouched.
+- `lib/typeAdapters.ts` — 7 sites switched from `display_role` reads to `roleLabel(role)`: `adaptProfileToProCard` (line 182), `mapRecommendedProToProCard` (line 203), `adaptConnectionToNetworkContact` role + group (lines 238/239), `adaptConnectionToRequest` (line 265), `adaptVouchToFeedItem` author (line 305) and recipient (line 316). `roleLabel` import added.
+- `components/CreateDealChat.tsx` — `liveContacts` builder line 205 now reads `roleLabel(conn.profile.role ?? '')`. The downstream search-filter at line 221 (filters by `c.role.toLowerCase()`) becomes consistent — always matches against display labels rather than racing `display_role`/raw role.
+- `hooks/useData.ts` — 6 sites + 3 SELECT widenings: `useNetworkContacts` (line 483), `useVouchFeed` `recipient_role` (line 1281, paired with adapter line 316), `useChatRecipients` SELECT (line 1438) + consumer (line 1449), `useAgentPartnerConnections` two SELECTs (lines 3522/3530) + two consumers (lines 3543/3555). `roleLabel` import added.
+- `types/index.ts` — line 226 comment-only update on `Vouch.recipient_role`: `// snake_case role enum; convert via roleLabel() for display` to reflect Fix 6b's semantic change.
+
+### Coupled changes
+- `Vouch.recipient_role` semantics changed from display string → snake_case enum. `useVouchFeed` write path (Fix 6b) and `adaptVouchToFeedItem` read path (Fix 4g) shipped together. `roleLabel()` is the conversion boundary.
+
+### Key decisions
+- **Single source of truth for role labels** — `lib/roleDisplay.ts`. All role → display mapping flows through `roleLabel()`. The DB `display_role` column is no longer read anywhere outside SELECT projections (kept temporarily for backwards compatibility) and intentional mock data.
+- **GALLERY_ROLES Option B** — array stays as display label strings; line 182 wraps `p.role` in `roleLabel()` before comparing. This preserves the existing `mapFindProToProfile` line 90 call site (where `pro.role` is already a display string from the typeAdapter chain). FindTab portfolio gallery does not regress.
+- **`Vouch.recipient_role` semantic change** — now carries snake_case role enum; conversion happens at the adapter boundary. Comment in `types/index.ts:226` updated. Edge case (legacy rows where `recipient` join is null and `recipient_role` column still holds a display string) accepted for S170 — `CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL` filed for pre-launch SQL cleanup.
+- **`Mortgage Pro` label kept** (not `Mortgage Professional`) for consistency with existing UI copy.
+- **App.tsx onboarding gate left as-is** — `CHORE-ONBOARDING-GATE` filed to switch from `display_role` to `onboarded_at`.
+
+### Files NOT touched (scope discipline)
+- `App.tsx:142,146` — onboarding presence check (`CHORE-ONBOARDING-GATE`).
+- `components/SquadSlotPicker.tsx` — has its own `ROLE_DISPLAY_LABELS` map; unification deferred.
+- `proProfileHelpers.ts:90` — `mapFindProToProfile` GALLERY_ROLES call site (Option B).
+- `proProfileHelpers.ts:32` GALLERY_ROLES array contents — stays as display labels.
+- Mock data (`useData.ts:191,232`; `ProfileTab.tsx` mock contractor/partner blocks).
+- `types/index.ts:155, 805` — `display_role` field declarations (still required while SELECTs project the column).
+- `useData.ts:2513` — `p_display_role: params.role` RPC param (intentional, schema convention).
+- All comment-only references.
+
+### Architecture rules applied
+- **Single source of truth** — one map, one helper, one import everywhere.
+- **Conversion at the boundary** — store snake_case enum end-to-end; convert to display string only at the render layer.
+- **Minimum blast radius** — Option B chosen over a wider type refactor on `FindTabProCard`.
+- **Mock data preserved** — no mock fields removed.
+
+### Tickets
+- BUG-S163-A → ✅ Done (closes the Alex Morgan `display_role='agent'` literal leak class)
+- CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL → 📌 Filed (pre-launch SQL)
+- CHORE-GALLERY-ROLES-SNAKE-CASE → 📌 Filed (FindTabProCard data model unification, separate refactor)
+- CHORE-ONBOARDING-GATE → 📌 Carried forward
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 errors / 8 pre-existing warnings (none in files touched this session)
+
+### Metrics
+- RPCs: 75 (unchanged)
+- Hooks: 70 (unchanged)
+- Edge Functions: 11 (unchanged)
+- Files: +1 (`lib/roleDisplay.ts`)
+
+### Next priorities (S171)
+1. ATL-LOCATION-03 — agent "find contractors for this job address"
+2. CHORE-ONBOARDING-GATE — switch App.tsx gate from `display_role` to `onboarded_at`
+3. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL — pre-launch SQL cleanup of legacy display strings in `vouches.recipient_role`
+4. CHORE-GALLERY-ROLES-SNAKE-CASE — unify `FindTabProCard.role` to snake_case enum end-to-end
+5. CHORE-CLAUDE-MD-SDK-AUDIT
+6. CHORE-LIVE-BUILD-STATE-CLEANUP
+
+---
+
 ## S169 — ATL-CONTRACTOR-TRADES-3 + CHORE-PROFILES-ORPHAN-CLEANUP (April 27, 2026)
 
 ### Branch

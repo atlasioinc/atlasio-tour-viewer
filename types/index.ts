@@ -223,7 +223,7 @@ export interface Vouch {
   author_name: string;                 // denormalized for feed display
   recipient_name: string;              // denormalized for feed display
   recipient_company: string | null;    // denormalized for display
-  recipient_role: string | null;       // denormalized for display
+  recipient_role: string | null;       // snake_case role enum; convert via roleLabel() for display
   quote: string;                       // the vouch text
   tag: string;                         // category label (e.g., "Contractors")
   tags: string[];                      // additional tags

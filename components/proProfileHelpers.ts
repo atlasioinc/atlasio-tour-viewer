@@ -11,6 +11,7 @@
 
 import type { ProProfileData } from './ProProfile';
 import type { Profile, PerformanceStats as DbPerformanceStats } from '../types';
+import { roleLabel } from '../lib/roleDisplay';
 
 // ─────────────────────────────────────────────
 // MOCK PORTFOLIO PHOTOS (demo only)
@@ -160,8 +161,8 @@ export const mapProfileToProProfileData = (
   rating: p.rating,
   vouches: p.vouch_count,
   active_since: p.active_since || '',
-  role: p.display_role,
-  trade: p.trade || p.display_role,
+  role: roleLabel(p.role ?? ''),
+  trade: p.trade ?? roleLabel(p.role ?? ''),
   secondary_trades: p.trades?.length > 1 ? p.trades.slice(1).map(String) : undefined,
   licensed: p.licensed || '',
   distance: '—', // TODO: compute from geolocation
@@ -179,7 +180,7 @@ export const mapProfileToProProfileData = (
   recent_vouches: [], // TODO: fetch from vouches join
   is_connected: false, // TODO: check connection status
   is_own_profile: false, // TODO: compare with current user
-  portfolio_photos: GALLERY_ROLES.includes(p.display_role) ? MOCK_PORTFOLIO_PHOTOS : [],
+  portfolio_photos: GALLERY_ROLES.includes(roleLabel(p.role ?? '')) ? MOCK_PORTFOLIO_PHOTOS : [],
   verification_level: p.verification_level,
   license_verified: p.license_verified,
   insurance_uploaded: p.insurance_uploaded,
