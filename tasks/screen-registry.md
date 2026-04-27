@@ -318,6 +318,7 @@
 - Step 2: "Invite Specific Pros" toggle → InviteContractorsModal
 - In-place success state (CheckCircleIcon, "Job Posted", View Job + Done)
 - Google Places autocomplete on address field
+- Trades chip grid sourced from `lib/tradesMap.ts` `ALL_TRADE_LABELS` (S169, mirrors EditRepairJob S157b). RPC boundary maps UI labels → `trades_enum` via `TRADE_LABEL_TO_ENUM`.
 
 **Entry Points:**
 - HomeTabAgent → QuickActionsRow → "Get Repair Bids" card

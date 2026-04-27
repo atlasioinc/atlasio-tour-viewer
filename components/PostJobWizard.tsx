@@ -58,6 +58,7 @@ import InviteContractorsModal from './InviteContractorsModal';
 import type { NetworkContractor } from './InviteContractorsModal';
 import { Avatar, AddressAutocompleteInput } from './shared';
 import { COLORS } from '../lib/tokens';
+import { ALL_TRADE_LABELS, TRADE_LABEL_TO_ENUM } from '../lib/tradesMap';
 import { useCreateJob, useInviteContractors, useSetJobPhotos } from '../hooks/useData';
 
 // Simple progress bar matching Figma header spec (4px track, no label)
@@ -91,33 +92,8 @@ export interface PostJobFormData {
   inviteSpecificPros: boolean;
 }
 
-// ─────────────────────────────────────────────
-// TRADE OPTIONS (Figma Step 2)
-// ─────────────────────────────────────────────
-const TRADE_OPTIONS = [
-  'General Contractor',
-  'Electrical',
-  'Plumbing',
-  'HVAC',
-  'Roofing',
-  'Carpentry / Handyman',
-  'Painting',
-  'Flooring',
-  'Windows & Doors',
-  'Foundation / Structural',
-  'Drywall / Sheetrock',
-  'Pest Control / Termite',
-  'Mold Remediation',
-  'Sewer / Septic',
-  'Pool & Spa',
-  'Chimney / Fireplace',
-  'Garage Door',
-  'Appliances',
-  'Landscaping / Drainage',
-  'Locksmith / Re-key',
-  'Cleaning / Junk Removal',
-  'Other',
-] as const;
+// Trades sourced from lib/tradesMap.ts (ALL_TRADE_LABELS) — S169 ATL-CONTRACTOR-TRADES-3
+// Matches EditRepairJob.tsx S157b fix. No local array — tradesMap is single source of truth.
 
 // ─────────────────────────────────────────────
 // SVG ICONS
@@ -531,7 +507,7 @@ const StepDetails: React.FC<StepProps> = ({ form, setForm, showErrors, onInviteT
           Trade(s) <Text style={{ color: '#FB2C36' }}>*</Text>
         </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {TRADE_OPTIONS.map((trade) => {
+          {ALL_TRADE_LABELS.map((trade) => {
             const isActive = form.selectedTrades.has(trade);
             return (
               <Pressable
@@ -920,7 +896,9 @@ const PostJobWizard: React.FC = () => {
         p_due_date: dueDateISO,
         p_description: form.description.trim(),
         p_is_urgent: false,
-        p_trades: Array.from(form.selectedTrades) as import('../types').TradeEnum[],
+        p_trades: Array.from(form.selectedTrades)
+          .map((label) => TRADE_LABEL_TO_ENUM[label] ?? label)
+          .filter(Boolean) as import('../types').TradeEnum[],
         p_budget_min: form.budgetMin ? Number(form.budgetMin) : undefined,
         p_budget_max: form.budgetMax ? Number(form.budgetMax) : undefined,
         p_bid_deadline_hours: form.bidWindowHours ? Number(form.bidWindowHours) : 48,

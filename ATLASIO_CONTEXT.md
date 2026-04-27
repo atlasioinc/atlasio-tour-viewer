@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S168 — April 27, 2026)
-- **RPCs:** 75 (+1 S168: `rpc_get_matching_jobs` — earthdistance-filtered contractor job feed, deployed pre-session. S167 baseline 74).
-- **Hooks:** 70 (no count change S168 — `useMatchingJobs` already exported pre-session; rewritten with typed adapter + `MatchingJob` lifted to single source of truth in `hooks/useData.ts`). Pre-S163 baseline 69.
+## Current Metrics (updated S169 — April 27, 2026)
+- **RPCs:** 75 (unchanged S169 — code-only migration to `lib/tradesMap.ts`).
+- **Hooks:** 70 (unchanged S169).
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 S163 (ServiceAreaEditorScreen — fullScreenModal in FindStack); +1 S129 (PaymentSettingsScreen)
@@ -74,6 +74,41 @@ LIVE_SQUAD_SHARE: false
 PARTNER_TRACK_ENABLED: false (Phase 2)
 DEAL_CREATION_ENABLED: false (Phase 2)
 ```
+
+---
+
+## S169 — ATL-CONTRACTOR-TRADES-3 + CHORE-PROFILES-ORPHAN-CLEANUP (April 27, 2026)
+
+### Branch
+`chore/s169-contractor-trades-3`
+
+### Files modified
+- `components/PostJobWizard.tsx` — replaced hardcoded local `TRADE_OPTIONS` (22 entries) with `ALL_TRADE_LABELS` from `lib/tradesMap.ts`. RPC boundary in `handlePostJob` now maps UI labels → Postgres `trades_enum` values via `TRADE_LABEL_TO_ENUM` before the `p_trades` cast (mirrors `EditRepairJob.tsx` S157b). `@demo TODO(ATL-GEOCODE-01)` marker added in S168 preserved unchanged.
+
+### SQL-only (no code)
+- CHORE-PROFILES-ORPHAN-CLEANUP: deleted 10 `@test.atlasio.com` profile rows + auth users. Final canonical accounts: 9 `@atlasioapp.com` accounts confirmed clean.
+
+### Key decisions
+- `lib/tradesMap.ts` is the single source of truth for all trade label ↔ enum mapping. PostJobWizard was the last hold-out with a drifted local array; now consistent with `EditRepairJob` (S157b) and `EditProfileScreen` (S148a).
+- Chip count: 22 → 26. Five UI labels converged to contractor-profile labels (`Electrical`→`Electrician`, `Plumbing`→`Plumber`, `Roofing`→`Roofer`, `Painting`→`Painter`, `Landscaping / Drainage`→`Landscaper`). Four new chips appear (`Driveway / Paving`, `Carpentry`, `Handyman`, `Concrete / Masonry`). This convergence is the intended outcome — it closes the silent-enum-cast bug class.
+
+### Architecture rules applied
+- Postgres enum values at the RPC boundary — never pass display labels to the DB.
+- Mirror `EditRepairJob.tsx` exactly — no new pattern.
+- Minimal blast radius — 4 surgical edits, 1 file only.
+
+### Tickets closed
+- ATL-CONTRACTOR-TRADES-3 → ✅ Done (latent bug from S148a/S157b backlog now closed across all agent job-trades surfaces)
+- CHORE-PROFILES-ORPHAN-CLEANUP → ✅ Done (SQL-only)
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 errors / 8 pre-existing warnings (no new warnings introduced)
+
+### Next priorities
+1. ATL-GEOCODE-01 — geocoding on job creation; until shipped, newly-posted jobs won't appear in proximity feeds (S168 marker)
+2. BUG-S163-A — Alex Morgan `display_role='agent'` literal cleanup
+3. ATL-LOCATION-03
 
 ---
 
