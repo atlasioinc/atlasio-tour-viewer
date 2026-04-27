@@ -712,8 +712,9 @@ const FindTab: React.FC = () => {
         {!isSearching ? (
           <View style={{ paddingTop: 16, paddingBottom: 16, gap: 24 }}>
             {/* S166 — hide section when live mode resolves with no qualifying pros.
-                Mock mode and loading state always render so the layout stays stable. */}
-            {(FEATURE_FLAGS.USE_MOCK_DATA || isLoadingRecommended || recommendedPros.length > 0) && (
+                Mock mode and loading state (profile OR RPC) always render so the
+                layout stays stable across cold-mount and warm-cache transitions. */}
+            {(FEATURE_FLAGS.USE_MOCK_DATA || isProfileLoading || isLoadingRecommended || recommendedPros.length > 0) && (
             <View style={{ gap: 12 }}>
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>Recommended for You</Text>
@@ -730,7 +731,7 @@ const FindTab: React.FC = () => {
               )}
             </View>
             )}
-            {(FEATURE_FLAGS.USE_MOCK_DATA || isLoadingTrending || trendingPros.length > 0) && (
+            {(FEATURE_FLAGS.USE_MOCK_DATA || isProfileLoading || isLoadingTrending || trendingPros.length > 0) && (
             <View style={{ gap: 12 }}>
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '600', color: COLORS.darkText, lineHeight: 28 }}>Trending This Week</Text>

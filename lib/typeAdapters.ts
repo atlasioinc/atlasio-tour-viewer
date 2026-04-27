@@ -207,6 +207,7 @@ export const mapRecommendedProToProCard = (p: RecommendedPro): FindProCard => ({
   headline: null,
   avatarColor: p.avatar_color ?? COLORS.primary,
   avatarUrl: p.avatar_url ?? null,
+  // Only 'verified' renders the badge; pending/expired/rejected suppress it.
   verification_level: p.license_status === 'verified' ? 'verified' : undefined,
   is_gap_fill: p.is_gap_fill ?? false,
 });
