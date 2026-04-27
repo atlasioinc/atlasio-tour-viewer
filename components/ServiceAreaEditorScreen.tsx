@@ -242,25 +242,20 @@ const ServiceAreaEditorScreen: React.FC = () => {
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
+      {/* ── Header — outside KAV (canonical fullScreenModal pattern) ── */}
+      <View
+        style={{
+          paddingTop: 8 + insets.top,
+          paddingBottom: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 4,
+          borderBottomWidth: 0.68,
+          borderBottomColor: COLORS.border,
+          backgroundColor: COLORS.background,
+        }}
       >
-        {/* ── Header — 44×44 spacer + centered title + 44×44 X button ── */}
-        <View
-          style={{
-            paddingTop: 8 + insets.top,
-            paddingBottom: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 4,
-            borderBottomWidth: 0.68,
-            borderBottomColor: COLORS.border,
-            backgroundColor: COLORS.background,
-          }}
-        >
           <View style={{ width: 44, height: 44 }} />
           <Text
             style={{
@@ -285,14 +280,19 @@ const ServiceAreaEditorScreen: React.FC = () => {
               opacity: pressed ? 0.5 : isSaving ? 0.4 : 1,
             })}
           >
-            <XIcon />
-          </Pressable>
-        </View>
+          <XIcon />
+        </Pressable>
+      </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
         {/* ── Scrollable form ── */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 120 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -411,16 +411,17 @@ const ServiceAreaEditorScreen: React.FC = () => {
           ) : null}
         </ScrollView>
 
-        {/* ── Sticky Save CTA (S159 canonical pattern — sibling of ScrollView) ── */}
+        {/* ── Sticky Save CTA — position absolute inside KAV (canonical fullScreenModal pattern) ── */}
         <View
           style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: Math.max(insets.bottom, 16),
+            paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 16) : 16,
             backgroundColor: COLORS.background,
-            // 0.69 matches PostPhotoJobScreen sticky-CTA canonical per S159.
-            // Header uses 0.68 (CLAUDE.md spec for headers/cards) — values
-            // differ by 0.01 intentionally across the two reference patterns.
             borderTopWidth: 0.69,
             borderTopColor: COLORS.border,
           }}
