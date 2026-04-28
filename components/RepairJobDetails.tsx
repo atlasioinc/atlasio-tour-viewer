@@ -899,6 +899,16 @@ const RepairJobDetails: React.FC = () => {
     );
   }
 
+  // S172 — `budget_range` may be null on jobs created via the new wizard
+  // (PostJobWizard sends min/max but no formatted range). Fall back to formatting
+  // budget_min/budget_max here so the row never renders blank. Mirrors
+  // AgentJobDetailScreen.tsx pattern.
+  const budgetDisplay =
+    job.budget_range ??
+    (job.budget_min != null && job.budget_max != null
+      ? `$${job.budget_min.toLocaleString()}–$${job.budget_max.toLocaleString()}`
+      : 'Not set');
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
@@ -1009,7 +1019,7 @@ const RepairJobDetails: React.FC = () => {
             <View style={{ gap: 4 }}>
               <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
                 Budget:{' '}
-                <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{job.budget_range}</Text>
+                <Text style={{ fontWeight: '500', color: COLORS.headingText }}>{budgetDisplay}</Text>
               </Text>
               <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }}>
                 {job.address}
@@ -1309,7 +1319,8 @@ const RepairJobDetails: React.FC = () => {
                 illustration="job_bids"
                 title="No bids yet"
                 body="Your job is live. Bids will appear here once contractors respond."
-                style={{ flex: 0, paddingVertical: 32 }}
+                compact
+                style={{ flex: 0 }}
               />
               {showNearbyNudge && (
                 <Pressable

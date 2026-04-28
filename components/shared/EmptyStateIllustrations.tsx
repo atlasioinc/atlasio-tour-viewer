@@ -225,8 +225,10 @@ export const NotificationsIllustration: React.FC = () => (
 );
 
 // ─── 8. JOB BIDS — speech bubble + clock ───
-export const JobBidsIllustration: React.FC = () => (
-  <Svg {...svgProps}>
+// Optional `size` prop (S172) — viewBox is preserved so SVG content scales.
+// Default 160 keeps every existing caller byte-identical.
+export const JobBidsIllustration: React.FC<{ size?: number }> = ({ size = SIZE }) => (
+  <Svg width={size} height={size} viewBox={VIEW_BOX}>
     {/* Bubble */}
     <Rect x={22} y={32} width={92} height={64} rx={8}
       fill={EMPTY_PALETTE.fill} stroke={EMPTY_PALETTE.primary}

@@ -320,8 +320,10 @@
 - 3-step wizard: basics (address, trade, budget, notes) → details → review
 - Step 2: "Invite Specific Pros" toggle → InviteContractorsModal
 - In-place success state (CheckCircleIcon, "Job Posted", View Job + Done)
-- Google Places autocomplete on address field
+- Google Places autocomplete on address field — captures BOTH address (`onSelect`) and coords (`onSelectWithCoords`) since S172
 - Trades chip grid sourced from `lib/tradesMap.ts` `ALL_TRADE_LABELS` (S169, mirrors EditRepairJob S157b). RPC boundary maps UI labels → `trades_enum` via `TRADE_LABEL_TO_ENUM`.
+
+**S172 — `job_lat` / `job_lng` now wired (ATL-GEOCODE-01):** Step 1 captures `{ lat, lng }` from `AddressAutocompleteInput.onSelectWithCoords` into local `useState<number | null>` slots in the parent wizard, threaded into `StepBasics` via new optional `setJobLat` / `setJobLng` props on `StepProps`. `createJob.mutateAsync` passes `p_job_lat: jobLat ?? null` and `p_job_lng: jobLng ?? null`. Unblocks the S171 zero-bid nudge + "Near This Job" surface in `RepairJobDetails` for newly-posted repair jobs. Photo + staging screens still write NULL coords — see `ATL-GEOCODE-02` in `tasks/atlasio-bug-history.md`.
 
 **Entry Points:**
 - HomeTabAgent → QuickActionsRow → "Get Repair Bids" card
@@ -330,7 +332,7 @@
 - → RepairJobDetails ("View Job") — navigate
 - ← X → goBack()
 
-**@backend:** rpc_create_job + rpc_invite_contractors
+**@backend:** rpc_create_job (now accepts `p_job_lat`, `p_job_lng` — S172) + rpc_invite_contractors
 
 ---
 

@@ -1,35 +1,80 @@
 # Atlasio — Persistent Bug History
-**Last updated:** S171 — ATL-LOCATION-03 wired (ships dark) + ATL-GEOCODE-01 elevated to critical path | April 27, 2026
+**Last updated:** S172 — ATL-GEOCODE-01 resolved (PostJobWizard) + ATL-GEOCODE-02 filed (PostPhoto/PostStaging) | April 27, 2026
 
 This document tracks bugs that have required multiple fix attempts.
 Use this before writing any fix prompt to avoid repeating failed approaches.
 
 ---
 
-## ATL-GEOCODE-01 — Job creation does not write job_lat/job_lng (elevated S171)
+## ✅ RESOLVED — ATL-GEOCODE-01 — Job creation does not write job_lat/job_lng (S172, April 27, 2026)
 
-**Status:** ⚠️ ELEVATED to critical path — S172 priority #1.
+**Status:** ✅ Resolved for repair jobs (PostJobWizard). Photo + staging jobs tracked under ATL-GEOCODE-02.
+
+### Resolution (S172)
+Path A — extend `rpc_create_job` signature. Backend deployed two new optional params (`p_job_lat float8 DEFAULT NULL`, `p_job_lng float8 DEFAULT NULL`). Client wiring:
+
+- `hooks/useData.ts` — `CreateJobInputBase` interface gained `p_job_lat?: number | null` and `p_job_lng?: number | null`. Applies to all three job types (repair, photography, staging) via the discriminated union base.
+- `components/PostJobWizard.tsx`:
+  - `jobLat` / `jobLng` `useState<number | null>(null)` declared in the parent wizard.
+  - `StepProps` extended with optional `setJobLat` / `setJobLng` setters; threaded into `<StepBasics>` only (Step 1).
+  - `AddressAutocompleteInput` now receives both `onSelect` (existing — required prop, captures address into form state) AND `onSelectWithCoords` (new — captures coords). Both fire on suggestion tap; component contract preserved.
+  - `createJob.mutateAsync` call appends `p_job_lat: jobLat ?? null, p_job_lng: jobLng ?? null`.
+  - `@demo TODO(ATL-GEOCODE-01)` block at the call site removed.
+
+### Why "coexistence" instead of "replace"
+`AddressAutocompleteInput.onSelect` is typed as required. The component contract (lines 50-57) specifies `onSelect` always fires first, then `onSelectWithCoords` if provided — preserving existing consumers (PostPhoto, PostStaging, EditProfile, CreateDealChat). Replacing `onSelect` would have required modifying the component itself, which was explicitly out of scope.
+
+### Verification (Tony)
+After posting a new repair job from `PostJobWizard` with a Denver address, run:
+```sql
+SELECT id, title, job_lat, job_lng FROM jobs ORDER BY created_at DESC LIMIT 3;
+```
+Most recent row should have non-null `job_lat` and `job_lng`. Then sign in as `tony@atlasioapp.com` (agent), open that job in `RepairJobDetails` — zero-bid nudge should surface "X contractors work near this job".
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 new warnings (8 pre-existing, none in modified files)
+
+---
+
+## 📌 FILED — ATL-GEOCODE-02 — PostPhotoJobScreen + PostStagingJobScreen still write NULL coords (filed S172)
+
+**Status:** 📌 Filed — follow-up to ATL-GEOCODE-01.
 
 ### Context
-S171 wired the agent-side "Contractors Near This Job" surface end-to-end:
-- `rpc_get_contractors_for_job(p_job_lat, p_job_lng)` deployed.
-- `useContractorsForJob` hook gated on both coords being non-null.
-- Zero-bid nudge in `RepairJobDetails` + "Near This Job" `SectionList` section in `InviteContractorsModal`.
+S172 closed ATL-GEOCODE-01 for repair jobs only. Photography and staging jobs posted via `PostPhotoJobScreen` and `PostStagingJobScreen` still write `job_lat = NULL` / `job_lng = NULL` because those screens use `<AddressAutocompleteInput onSelect={setAddress}>` (no `onSelectWithCoords` wiring) and their `createJob.mutateAsync` calls do not pass `p_job_lat` / `p_job_lng`.
 
-The feature is **fully wired and ships dark** because every job row currently has `job_lat = NULL` / `job_lng = NULL`. The `enabled: jobLat != null && jobLng != null` gate evaluates false for every existing job, the hook never fires, and the nudge / nearby section never surface.
+Impact is currently low because:
+- `useContractorsForJob` is consumed by `RepairJobDetails`, not by the photo/staging detail equivalents.
+- The S171 nudge surface is repair-only.
 
-### Marker in code
-`components/PostJobWizard.tsx:887-889`:
-```
-// @demo TODO(ATL-GEOCODE-01): job_lat and job_lng are not set on job creation.
-// ...to geocode the job address and write job_lat/job_lng to the jobs row.
-```
+But the same proximity surfaces will land on photo/staging jobs eventually, and the same drift bug class (RPC accepts coords, client doesn't pass them) is now latent in two more files.
 
-### Fix (S172)
-Either (a) extend `rpc_create_job` to accept `p_job_lat`/`p_job_lng` and have `PostJobWizard.handlePostJob` pass coords from the Google Places autocomplete result already captured on the address field, or (b) add a post-create geocode step in `PostJobWizard` that calls a small RPC to write coords on the freshly-created row. Either approach unblocks the S171 feature in production.
+### Call sites
+- `components/PostPhotoJobScreen.tsx:161` — `createJob.mutateAsync({ p_job_type: 'photography', ... })`. Address selector at line 304-306 uses `onSelect={setAddress}` — no coords captured.
+- `components/PostStagingJobScreen.tsx:176` — `createJob.mutateAsync({ p_job_type: 'staging', ... })`. Address selector at line 322-324 uses `onSelect={setAddress}` — no coords captured.
+
+### Fix
+Mirror the S172 PostJobWizard pattern in both files:
+1. Add `lat: number | null` / `lng: number | null` `useState`.
+2. Wrap the existing `onSelect` to ALSO clear coords on every text change — `onSelectWithCoords` will re-set them when the user picks from autocomplete. This prevents the address/coord desync caught by `/review` in S172 (typing after picking would leave stale coords paired with new address text). The exact pattern:
+   ```tsx
+   onSelect={(address) => {
+     setAddress(address);
+     setLat(null);
+     setLng(null);
+   }}
+   onSelectWithCoords={(_, coords) => {
+     setLat(coords?.lat ?? null);
+     setLng(coords?.lng ?? null);
+   }}
+   ```
+3. Pass `p_job_lat: lat ?? null, p_job_lng: lng ?? null` in `createJob.mutateAsync`.
+
+`hooks/useData.ts CreateJobInputBase` already accepts the params (added S172) — no type changes needed.
 
 ### Risk if deferred
-S171 ships invisible to users. The wiring code is correct but cannot be visually verified end-to-end until coords flow.
+Photo + staging jobs invisible to any future proximity surface. No production impact today.
 
 ---
 

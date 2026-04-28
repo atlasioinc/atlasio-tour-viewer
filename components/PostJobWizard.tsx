@@ -287,12 +287,15 @@ interface StepProps {
   form: PostJobFormData;
   setForm: React.Dispatch<React.SetStateAction<PostJobFormData>>;
   showErrors: boolean;
+  // Step 1 only — ATL-GEOCODE-01 (S172) coords capture
+  setJobLat?: (lat: number | null) => void;
+  setJobLng?: (lng: number | null) => void;
   // Invite toggle props (Step 2 only)
   onInviteToggle?: (value: boolean) => void;
   selectedInvitedContractors?: NetworkContractor[];
 }
 
-const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
+const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors, setJobLat, setJobLng }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   return (
@@ -319,7 +322,17 @@ const StepBasics: React.FC<StepProps> = ({ form, setForm, showErrors }) => {
         </Text>
         <AddressAutocompleteInput
           value={form.propertyAddress}
-          onSelect={(address) => setForm((p) => ({ ...p, propertyAddress: address }))}
+          onSelect={(address) => {
+            setForm((p) => ({ ...p, propertyAddress: address }));
+            // S172 — any text change invalidates prior coords.
+            // onSelectWithCoords re-sets them when user picks from autocomplete.
+            setJobLat?.(null);
+            setJobLng?.(null);
+          }}
+          onSelectWithCoords={(_address, coords) => {
+            setJobLat?.(coords?.lat ?? null);
+            setJobLng?.(coords?.lng ?? null);
+          }}
           placeholder="Search address..."
         />
         {showErrors && form.propertyAddress.trim().length === 0 && (
@@ -811,6 +824,10 @@ const PostJobWizard: React.FC = () => {
   const inviteContractors = useInviteContractors();
   const setJobPhotos = useSetJobPhotos();
 
+  // ATL-GEOCODE-01 (S172) — captured from AddressAutocompleteInput onSelectWithCoords in Step 1
+  const [jobLat, setJobLat] = useState<number | null>(null);
+  const [jobLng, setJobLng] = useState<number | null>(null);
+
   const [form, setForm] = useState<PostJobFormData>({
     jobTitle: '',
     propertyAddress: '',
@@ -884,11 +901,6 @@ const PostJobWizard: React.FC = () => {
         ? form.dueDate.toISOString().split('T')[0]
         : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
-      // @demo TODO(ATL-GEOCODE-01): job_lat and job_lng are not set on job creation.
-      // For launch: call a geocoding service (e.g. Google Maps Geocoding API via Edge Function)
-      // with the job address and write job_lat/job_lng to the jobs row.
-      // Until then, newly posted jobs will not appear in contractor proximity feeds.
-      // Existing test job (id: a630f04a) has coordinates seeded manually.
       const jobId = await createJob.mutateAsync({
         p_job_type: 'repair',
         p_title: form.jobTitle.trim(),
@@ -902,6 +914,8 @@ const PostJobWizard: React.FC = () => {
         p_budget_min: form.budgetMin ? Number(form.budgetMin) : undefined,
         p_budget_max: form.budgetMax ? Number(form.budgetMax) : undefined,
         p_bid_deadline_hours: form.bidWindowHours ? Number(form.bidWindowHours) : 48,
+        p_job_lat: jobLat ?? null,
+        p_job_lng: jobLng ?? null,
       });
 
       setNewJobId(jobId);
@@ -1088,7 +1102,7 @@ const PostJobWizard: React.FC = () => {
               </View>
 
               {/* ── Step content ── */}
-              {currentStep === 0 && <StepBasics form={form} setForm={setForm} showErrors={showErrors} />}
+              {currentStep === 0 && <StepBasics form={form} setForm={setForm} showErrors={showErrors} setJobLat={setJobLat} setJobLng={setJobLng} />}
               {currentStep === 1 && <StepDetails form={form} setForm={setForm} showErrors={showErrors} onInviteToggle={handleInviteToggle} selectedInvitedContractors={selectedInvitedContractors} />}
               {currentStep === 2 && <StepReview form={form} selectedInvitedContractors={selectedInvitedContractors} />}
             </View>

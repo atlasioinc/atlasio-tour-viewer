@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S171 — April 27, 2026)
-- **RPCs:** 76 (+1 S171: `rpc_get_contractors_for_job`).
-- **Hooks:** 71 (+1 S171: `useContractorsForJob`).
+## Current Metrics (updated S172 — April 27, 2026)
+- **RPCs:** 76 (S172 extended `rpc_create_job` signature with `p_job_lat`, `p_job_lng` — no new RPCs).
+- **Hooks:** 71 (S172: `CreateJobInputBase` extended with optional coords; `useCreateJob` consumer count unchanged).
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 S163 (ServiceAreaEditorScreen — fullScreenModal in FindStack); +1 S129 (PaymentSettingsScreen)
@@ -196,6 +196,75 @@ DEAL_CREATION_ENABLED: false (Phase 2)
 3. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL
 4. CHORE-GALLERY-ROLES-SNAKE-CASE
 5. CHORE-CLAUDE-MD-SDK-AUDIT
+
+---
+
+## S172 — ATL-GEOCODE-01: Wire job_lat/job_lng in PostJobWizard (April 27, 2026)
+
+### Branch
+`feat/atl-geocode-01-s172`
+
+### Files modified
+- `hooks/useData.ts` — `CreateJobInputBase` interface extended with two optional fields: `p_job_lat?: number | null` and `p_job_lng?: number | null`. Applies to all three job types (repair, photography, staging) via the discriminated union base. `useCreateJob` body unchanged — supabase-js forwards the params transparently to the deployed `rpc_create_job` signature.
+- `components/PostJobWizard.tsx`:
+  - `jobLat` / `jobLng` `useState<number | null>(null)` declared in the parent wizard component (sibling state, not folded into `PostJobFormData` — coords are derived metadata, not user-typed form fields).
+  - `StepProps` interface gained optional `setJobLat?: (lat: number | null) => void` and `setJobLng?: (lng: number | null) => void` (Step 1 only — mirrors how `onInviteToggle` is passed to Step 2).
+  - `StepBasics` destructures both setters; threaded via `<StepBasics setJobLat={setJobLat} setJobLng={setJobLng} ... />` at the render site.
+  - `<AddressAutocompleteInput>` receives BOTH `onSelect` (existing — required prop, captures address into form state) AND new `onSelectWithCoords` (captures coords only, address arg ignored as `_address`). Component contract preserves both — `onSelect` always fires first, `onSelectWithCoords` follows if defined.
+  - `createJob.mutateAsync` call appends `p_job_lat: jobLat ?? null, p_job_lng: jobLng ?? null` after `p_bid_deadline_hours`.
+  - `@demo TODO(ATL-GEOCODE-01)` 5-line block at the call site removed.
+
+### Key decisions
+- **Path A (extend RPC signature) over Path B (post-create geocode RPC).** Backend deployed `p_job_lat float8 DEFAULT NULL`, `p_job_lng float8 DEFAULT NULL` on `rpc_create_job` ahead of session. Single round-trip; lat/lng captured at suggestion-tap time from Google Places Details (already returned by `AddressAutocompleteInput.onSelectWithCoords` since S163).
+- **Coexistence not replacement on `AddressAutocompleteInput`.** `onSelect` is typed required by the component contract — replacing it would have required modifying `AddressAutocompleteInput` (out of scope). The component's own contract (lines 50-57) explicitly preserves `onSelect` for existing consumers. Two handlers, single tap, no redundancy at runtime.
+- **Coords as sibling state, not in `PostJobFormData`.** They're not user-typed; they're derived from a Places API response. Adding to the form interface would force every `setForm` callsite to think about coords. Sibling `useState` slots + optional `StepProps` setters keep the blast radius to Step 1.
+- **`hooks/useData.ts` boundary is in scope.** The single-file constraint excluded "rpc_create_job or any Supabase backend." `CreateJobInputBase` is a client-side TS type, not backend, and adding the params is the correct boundary update — this is the same shape PostPhoto and PostStaging will use under ATL-GEOCODE-02.
+
+### Out of scope (ATL-GEOCODE-02 follow-up)
+- `components/PostPhotoJobScreen.tsx:161` — `createJob.mutateAsync({ p_job_type: 'photography', ... })` still writes NULL coords. Address selector at line 304 uses `onSelect` only.
+- `components/PostStagingJobScreen.tsx:176` — same pattern. Address selector at line 322 uses `onSelect` only.
+- Filed in `tasks/atlasio-bug-history.md` as `ATL-GEOCODE-02` with the exact 3-step fix recipe (mirror S172 PostJobWizard pattern; type boundary already accepts the params).
+
+### Architecture rules applied
+- **Single-Value Principle** — coords flow from Google Places → `AddressAutocompleteInput` → wizard state → RPC call in their final backend-ready format (`number | null`), no translation layers.
+- **Schema-first verification** — `CreateJobInputBase` mirrors deployed `rpc_create_job` param names (`p_job_lat`, `p_job_lng`) exactly.
+- **Minimum blast radius** — 2 files touched. AddressAutocompleteInput component, all other consumers (PostPhoto, PostStaging, EditProfile, CreateDealChat, ServiceAreaEditor), and the Supabase backend untouched.
+- **Null safety at the boundary** — `?? null` at the call site guarantees `p_job_lat` / `p_job_lng` are always `number | null`, never `undefined`. supabase-js forwards `null` correctly and the RPC default fires when the field is omitted (which can't happen with our coalesce, but is now provably safe).
+
+### S172 addendum — RepairJobDetails UI fixes (post-QA)
+Two UI bugs caught on device while verifying ATL-GEOCODE-01 and fixed in the same session:
+
+**Bug 1 — Budget row rendering blank.** `components/RepairJobDetails.tsx` Job Info Card read `{job.budget_range}` directly. For wizard-created jobs `budget_range` is null (the wizard sends `p_budget_min` / `p_budget_max` but no formatted range), so the row rendered "Budget: " bare and the address `<Text>` on the next line appeared to be the budget value. Fix: precompute `budgetDisplay` after the loading guard with the same fallback chain `AgentJobDetailScreen.tsx` already uses (`job.budget_range ?? ($min–$max) ?? null`); render `{budgetDisplay}` at the read site. No conditional hide of the row, no hook/RPC change — `budget_min`/`budget_max` already flow from the live SELECT.
+
+**Bug 2 — Zero-bid empty-state illustration too tall.** `<EmptyState illustration="job_bids" />` rendered at the default 160×160 pushed the new "N contractors work near this job" nudge below the fold on a 375×812 iPhone. Added an opt-in `compact` mode to the shared `EmptyState` component (additive, fully back-compat — defaults reproduce existing behavior for all 10 current consumers):
+- `components/shared/EmptyStateIllustrations.tsx` — `JobBidsIllustration` accepts optional `size?: number` (default 160). `viewBox` preserved → SVG content scales perfectly. Other illustrations unchanged.
+- `components/shared/EmptyState.tsx` — new `compact?: boolean` prop. When true: illustration wrapper 80×80 with marginBottom 12, container `paddingVertical: 16`. Pipes `size` into `renderIllustration`; only size-aware illustrations (currently `job_bids`) consume it, others ignore.
+- `components/RepairJobDetails.tsx` — pass `compact` and drop the `paddingVertical: 32` style override (compact mode owns padding). "No bids yet" copy and the nearby-contractors nudge `<Pressable>` block unchanged.
+
+Resulting empty-state height drops from ~232pt to ~144pt, clearing the nudge above the fold on standard iPhone heights.
+
+### Tickets
+- ATL-GEOCODE-01 → ✅ Done (closes the S171 "ships dark" gap for repair jobs).
+- ATL-GEOCODE-01 UI fixes → ✅ Done (budget render + empty-state size).
+- ATL-GEOCODE-02 → 📌 Filed (PostPhotoJobScreen + PostStagingJobScreen mirror).
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 new warnings (8 pre-existing, none in modified files)
+
+### Metrics
+- RPCs: 76 (signature extended on `rpc_create_job`, no new functions)
+- Hooks: 71 (unchanged)
+- Edge Functions: 11 (unchanged)
+- Files modified: 5 (`hooks/useData.ts`, `components/PostJobWizard.tsx`, `components/RepairJobDetails.tsx`, `components/shared/EmptyState.tsx`, `components/shared/EmptyStateIllustrations.tsx`)
+
+### Next priorities (S173)
+1. **ATL-GEOCODE-02** — mirror S172 wiring in `PostPhotoJobScreen` + `PostStagingJobScreen` (small, mechanical; type boundary already accepts the params)
+2. End-to-end device QA of S171 nudge + "Near This Job" section against a freshly-posted repair job (verify coords flow through, verify nearby contractors render)
+3. CHORE-ONBOARDING-GATE — switch App.tsx gate from `display_role` to `onboarded_at`
+4. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL
+5. CHORE-GALLERY-ROLES-SNAKE-CASE
+6. CHORE-CLAUDE-MD-SDK-AUDIT
 
 ---
 

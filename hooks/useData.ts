@@ -1061,6 +1061,8 @@ interface CreateJobInputBase {
   p_description?: string;
   p_is_urgent?: boolean;
   p_bid_deadline_hours?: number;               // default 48
+  p_job_lat?: number | null;                   // ATL-GEOCODE-01 (S172) — geocoded from address
+  p_job_lng?: number | null;                   // ATL-GEOCODE-01 (S172) — geocoded from address
 }
 
 interface CreateRepairJobInput extends CreateJobInputBase {

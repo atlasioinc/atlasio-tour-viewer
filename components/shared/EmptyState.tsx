@@ -61,10 +61,17 @@ export interface EmptyStateProps {
   ctaLabel?: string;          // optional — some states have no CTA
   onCta?: () => void;         // required if ctaLabel provided
   style?: ViewStyle;          // outer container override
+  compact?: boolean;          // S172 — shrink illustration to 80×80 + tighter padding
+                              // for card-embedded contexts (e.g. RepairJobDetails zero-bid
+                              // state above the "Near This Job" nudge). Only the
+                              // `job_bids` illustration is size-aware in S172;
+                              // others render at default 160 regardless.
 }
 
 // ─── ILLUSTRATIONS ───
-const renderIllustration = (key: EmptyStateIllustration): React.ReactElement => {
+// `size` (S172) only flows to size-aware illustrations (currently `job_bids`);
+// others ignore it and render at their default 160.
+const renderIllustration = (key: EmptyStateIllustration, size: number): React.ReactElement => {
   switch (key) {
     case 'inbox':            return <InboxIllustration />;
     case 'find':             return <FindIllustration />;
@@ -73,7 +80,7 @@ const renderIllustration = (key: EmptyStateIllustration): React.ReactElement => 
     case 'contractor_home':  return <ContractorHomeIllustration />;
     case 'agent_deals':      return <AgentDealsIllustration />;
     case 'notifications':    return <NotificationsIllustration />;
-    case 'job_bids':         return <JobBidsIllustration />;
+    case 'job_bids':         return <JobBidsIllustration size={size} />;
     case 'vouch_feed':       return <VouchFeedIllustration />;
     case 'profile_vouches':  return <ProfileVouchesIllustration />;
   }
@@ -81,12 +88,15 @@ const renderIllustration = (key: EmptyStateIllustration): React.ReactElement => 
 
 // ─── LAYOUT ───
 const EmptyState: React.FC<EmptyStateProps> = ({
-  illustration, title, body, ctaLabel, onCta, style,
+  illustration, title, body, ctaLabel, onCta, style, compact,
 }) => {
   const showCta = !!ctaLabel && !!onCta;
+  const illustrationSize = compact ? 80 : 160;
   return (
-    <View style={[styles.container, style]}>
-      <View style={styles.illustration}>{renderIllustration(illustration)}</View>
+    <View style={[styles.container, compact && styles.containerCompact, style]}>
+      <View style={[styles.illustration, compact && styles.illustrationCompact]}>
+        {renderIllustration(illustration, illustrationSize)}
+      </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
       {showCta && (
@@ -111,12 +121,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 48,
   },
+  containerCompact: {
+    paddingVertical: 16,
+  },
   illustration: {
     width: 160,
     height: 160,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+  },
+  illustrationCompact: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
   },
   title: {
     fontSize: 17,
