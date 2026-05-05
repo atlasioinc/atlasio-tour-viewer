@@ -95,6 +95,8 @@
 **Mock:** VouchFeedSection, QuickActionsRow
 **@demo:** Subtitle "Y jobs posted" only (active deals count deferred)
 
+**Note (S172b):** `isFilled` demo toggle removed. `hasActiveRepair` now derives from live query data only (`!isLoadingJobs && !isFetchingJobs && activeJobs.length > 0`). Denver location label is static (non-tappable).
+
 ---
 
 #### AgentDealsScreen

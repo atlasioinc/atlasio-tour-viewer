@@ -6,12 +6,12 @@
 // Change a flag value, save the file — app hot-reloads instantly.
 // No rebuild required.
 //
-// Before ANY investor demo: verify USE_MOCK_DATA = true,
-// all LIVE_* hooks = false (except LIVE_ONBOARDING + LIVE_CONTRACTOR_HOOKS which are permanent).
+// Before ANY investor demo: verify all LIVE_* hooks = false
+// (except LIVE_ONBOARDING + LIVE_CONTRACTOR_HOOKS which are permanent).
 //
 // Flags:
-//   USE_MOCK_DATA           — true: hooks return mock data (demo mode)
-//                             false: hooks query live Supabase
+//   USE_MOCK_DATA           — PERMANENT PRODUCTION DEFAULT: false (live data only).
+//                             Demo mode toggle retired S172b — no longer flipped for demos.
 //
 //   LIVE_ONBOARDING         — true: OnboardingComplete calls rpc_complete_onboarding
 //                             false: console.log only (safe for demos)
@@ -37,7 +37,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 export const FEATURE_FLAGS = {
-  USE_MOCK_DATA:            false,           // permanent — live data only
+  USE_MOCK_DATA:            false,           // permanent production default — live data only (S172b)
   LIVE_ONBOARDING:          true,   // permanent since S140d — rpc_complete_onboarding deployed + verified
   LIVE_CONTRACTOR_HOOKS:    true,   // true = contractor hooks call live RPCs (permanent since S36)
   LIVE_VERIFICATION_HOOKS:  false,  // true = VerificationScreen calls live RPC (S47)

@@ -321,6 +321,43 @@ Resulting empty-state height drops from ~232pt to ~144pt, clearing the nudge abo
 
 ---
 
+## S172b — Remove Demo Toggle from HomeTabAgent (May 4, 2026)
+
+### Branch
+`chore/remove-demo-toggle-s172b`
+
+### Files modified
+- `components/HomeTabAgent.tsx` — removed `isFilled` `useState`; removed dual-path `hasActiveRepair` ternary in favor of single live-data expression `!isLoadingJobs && !isFetchingJobs && activeJobs.length > 0`; replaced Denver `Pressable` (which was a hidden toggle for `isFilled`) with a static non-tappable `View`; deleted the Empty / Filled segmented-control DEMO TOGGLE block; removed now-unused `FEATURE_FLAGS` import; updated file-header `@backend` / `@demo` markers.
+- `lib/featureFlags.ts` — `USE_MOCK_DATA` comment block updated to reflect permanent production default (value was already `false` since `aa784c7`).
+- `tasks/screen-registry.md` — HomeTabAgent entry annotated with S172b note.
+
+### Key decisions
+- **Demo toggle retired permanently.** The Empty / Filled segmented control (and the secret Denver tap-to-toggle) were dev-time scaffolding for the filled vs empty home-screen states. With `USE_MOCK_DATA` permanently `false`, the live data path is the only path — the toggle has no remaining purpose.
+- **`hasActiveRepair` collapsed to single expression.** No more `FEATURE_FLAGS.USE_MOCK_DATA` branching in this component. The S152 dual-path comment was removed because the divergence it documented no longer exists.
+- **Denver label is static.** No location picker yet — kept the visual element but stripped its hidden mock-toggle behavior.
+
+### Architecture rules applied
+- **Minimal blast radius** — only `HomeTabAgent.tsx` + `featureFlags.ts` comments + screen-registry doc note. ContractorHomeTab and HomeTabPartner untouched.
+- **No backwards-compat hacks** — `FEATURE_FLAGS` import deleted (not aliased) once its only consumer was removed.
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 new warnings (8 pre-existing in unrelated files)
+
+### Metrics
+- RPCs: 76 (unchanged)
+- Hooks: 71 (unchanged)
+- Edge Functions: 11 (unchanged)
+- Feature flags: 11 → 11 (no flag count change; `USE_MOCK_DATA` semantics tightened in comments only)
+
+### Next priorities (S173) — unchanged from S172
+1. ATL-GEOCODE-01 verification on a fresh TestFlight build
+2. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL
+3. CHORE-GALLERY-ROLES-SNAKE-CASE
+4. ATL-GEOCODE-02 (PostPhotoJobScreen + PostStagingJobScreen mirror)
+
+---
+
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
 
 ### Branch

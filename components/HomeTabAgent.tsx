@@ -42,7 +42,6 @@ import type { HomeStackParamList } from './HomeStack';
 import type { AgentActiveJob, JobStatus } from '../types';
 import { COLORS, SHADOWS } from '../lib/tokens';
 import { DEAL_CREATION_ENABLED } from '../lib/config';
-import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { useMyProfile, useAgentActiveDeals, useAgentActiveJobs } from '../hooks/useData';
 import VouchFeedSection, { VouchFeedProfile } from './VouchFeedSection';
 import { Avatar, VerificationBanner, SkeletonBlock, ErrorToast, MomentBanner } from './shared';
@@ -498,7 +497,6 @@ const ActiveJobCard: React.FC<{ job: AgentActiveJob; onPress: () => void }> = ({
 // ═══════════════════════════════════════════════════════════════
 
 const HomeTabAgent: React.FC = () => {
-  const [isFilled, setIsFilled] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
   const [activeRepairPill, setActiveRepairPill] = useState<string | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -508,16 +506,11 @@ const HomeTabAgent: React.FC = () => {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const { canPostJob } = useVerificationGate();
 
-  // @backend rpc_get_agent_active_jobs() — deployed S135b
-  // @demo MOCK_AGENT_ACTIVE_JOBS in hooks/useData.ts when USE_MOCK_DATA: true
+  // @backend rpc_get_agent_active_jobs() — live data drives hasActiveRepair.
+  // Demo toggle (isFilled) removed S172b — production only.
   const { data: activeJobs = [], isLoading: isLoadingJobs, isFetching: isFetchingJobs, refetch: refetchJobs } = useAgentActiveJobs();
-  // @demo S151 — empty state fires only after query settles; mock path always has items
-  // S152 Bug 3: restored dual-path — mock mode uses isFilled toggle so the
-  // demo "filled" state shows repair cards; live mode derives from query data.
-  // Do NOT collapse these into a single expression — they serve different purposes.
-  const hasActiveRepair = FEATURE_FLAGS.USE_MOCK_DATA
-    ? isFilled // @demo — demo toggle drives mock repairs section
-    : (!isLoadingJobs && !isFetchingJobs && activeJobs.length > 0); // @backend — live data
+  // @backend — derives from live query data. Demo toggle removed S172b.
+  const hasActiveRepair = !isLoadingJobs && !isFetchingJobs && activeJobs.length > 0;
 
   // ── Active Deals (S63) ──
   // @backend rpc_get_deal_board_for_agent — params: { p_agent_id: auth.uid() }
@@ -713,15 +706,7 @@ const HomeTabAgent: React.FC = () => {
         }}
       >
         {/* Location */}
-        <Pressable
-          onPress={() => setIsFilled((prev) => !prev)}
-          style={({ pressed }) => ({
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            opacity: pressed ? 0.5 : 1,
-          })}
-        >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <LocationPinIcon />
           <Text
             style={{
@@ -731,9 +716,9 @@ const HomeTabAgent: React.FC = () => {
               lineHeight: 20,
             }}
           >
-            {isFilled ? 'Denver \u2726' : 'Denver'}
+            Denver
           </Text>
-        </Pressable>
+        </View>
 
         <SearchField
           value={searchText}
@@ -800,67 +785,6 @@ const HomeTabAgent: React.FC = () => {
             />
           </View>
         )}
-
-        {/* ── DEMO TOGGLE — visible on pull down ── */}
-        <View
-          style={{
-            backgroundColor: COLORS.screenBg,
-            paddingVertical: 8,
-            paddingHorizontal: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 0,
-          }}
-        >
-          <Pressable
-            onPress={() => setIsFilled(false)}
-            style={{
-              paddingHorizontal: 20,
-              paddingVertical: 8,
-              backgroundColor: !isFilled ? COLORS.primary : 'transparent',
-              borderRadius: 8,
-              borderTopRightRadius: 0,
-              borderBottomRightRadius: 0,
-              borderWidth: 1,
-              borderColor: COLORS.primary,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: !isFilled ? COLORS.background : COLORS.primary,
-              }}
-            >
-              Empty
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setIsFilled(true)}
-            style={{
-              paddingHorizontal: 20,
-              paddingVertical: 8,
-              backgroundColor: isFilled ? COLORS.primary : 'transparent',
-              borderRadius: 8,
-              borderTopLeftRadius: 0,
-              borderBottomLeftRadius: 0,
-              borderWidth: 1,
-              borderLeftWidth: 0,
-              borderColor: COLORS.primary,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: isFilled ? COLORS.background : COLORS.primary,
-              }}
-            >
-              Filled
-            </Text>
-          </Pressable>
-        </View>
 
         {/* ── Greeting header ── */}
         <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16 }}>
