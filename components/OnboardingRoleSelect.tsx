@@ -3,10 +3,10 @@
 // Onboarding Step 2 of 5 — "Choose Your Role" (437 lines)
 // 3 role cards — each card IS the navigation trigger (no bottom CTA)
 //
-// Role branching (single-value principle — formData.role = backend enum):
-//   Agent card       → role='real_estate_agent' → OnboardingScreen3 (3/5)
+// Role branching (single-value principle — formData.role = backend user_role enum):
+//   Agent card       → role='agent'             → OnboardingScreen3 (3/5)
 //   Contractor card  → role='contractor'        → ContractorProfileBasics (3/6)
-//   Partner card     → role='partner'           → OnboardingScreen3 (3/5)
+//   Partner card     → role=''  (sub-role picked → user_role enum value) → OnboardingScreen3 (3/5)
 //
 // Sections: Local Types, Design Tokens, SVG Icons, Reusable Components,
 //           Role Values, Navigation Types, Main Component
@@ -232,7 +232,7 @@ const ROLE_CARDS: RoleCard[] = [
     icon: <HouseIcon />,
     title: 'Real Estate Agent',
     description: 'Post repair jobs, build your squad of trusted pros',
-    role: 'Agent',
+    role: 'agent',
     navigateTo: 'Onboarding3',
   },
   {
@@ -240,7 +240,7 @@ const ROLE_CARDS: RoleCard[] = [
     icon: <WrenchIcon />,
     title: 'Contractor',
     description: 'Bid on repair jobs, grow your business with agent leads',
-    role: 'Contractor',
+    role: 'contractor',
     navigateTo: 'ContractorProfileBasics',
   },
   {

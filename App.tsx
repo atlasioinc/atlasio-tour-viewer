@@ -8,7 +8,7 @@
 //
 // Key behaviors:
 // - Auth state machine determines which screen tree to render
-// - Profile check (display_role) distinguishes new users from onboarded users
+// - Profile check (onboarded_at) distinguishes new users from onboarded users
 // - Deep link listener extracts access_token/refresh_token from URL fragment
 // - OnboardingFormData accumulates through route params across onboarding screens
 // - Role-branching: contractors get 6-step flow, agents/partners get 5-step flow
@@ -20,9 +20,9 @@
 //    - No session → authState = 'unauthenticated' → LoginScreen
 //    - SIGNED_OUT → authState = 'unauthenticated', queryClient cleared
 //    - SIGNED_IN / INITIAL_SESSION / TOKEN_REFRESHED → checkProfile(userId)
-// 3. checkProfile queries profiles.display_role:
-//    - display_role exists → authState = 'authenticated' → MainApp (BottomTabNavigator)
-//    - display_role missing or profile missing → authState = 'onboarding' → Onboarding1
+// 3. checkProfile queries profiles.onboarded_at:
+//    - onboarded_at set → authState = 'authenticated' → MainApp (BottomTabNavigator)
+//    - onboarded_at null or profile missing → authState = 'onboarding' → Onboarding1
 // 4. Deep link (separate useEffect):
 //    - atlasio://login-callback#access_token=...&refresh_token=...
 //    - Extracts tokens → supabase.auth.setSession() → triggers onAuthStateChange
@@ -39,7 +39,7 @@
 //   OnboardingComplete      — Role-specific completion + CTA (final step)
 //   MainApp                 — BottomTabNavigator (role passed via params)
 //
-// @backend: supabase.auth.onAuthStateChange, profiles.display_role query
+// @backend: supabase.auth.onAuthStateChange, profiles.onboarded_at query
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';
@@ -116,8 +116,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 // AUTH STATE MACHINE
 // loading          → initial state, shows spinner while checking session
 // unauthenticated  → no session, renders LoginScreen (outside NavigationContainer)
-// onboarding       → session exists but display_role is null, starts onboarding flow
-// authenticated    → session + display_role present, renders MainApp
+// onboarding       → session exists but onboarded_at is null, starts onboarding flow
+// authenticated    → session + onboarded_at present, renders MainApp
 // ─────────────────────────────────────────────
 type AuthState = 'loading' | 'unauthenticated' | 'onboarding' | 'authenticated';
 
@@ -139,12 +139,12 @@ export default function App() {
         try {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('role, display_role')
+            .select('role, onboarded_at')
             .eq('id', userId)
             .single();
 
-          if (profile && profile.display_role) {
-            // User has completed onboarding (display_role is set during onboarding)
+          if (profile && profile.onboarded_at) {
+            // User has completed onboarding (onboarded_at set atomically by rpc_complete_onboarding)
             setUserRole(profile.role);
             setAuthState('authenticated');
           } else {

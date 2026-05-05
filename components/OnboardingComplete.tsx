@@ -80,11 +80,12 @@ type OnboardingFormData = {
 // Determines which onboarding screens to show based on selected role.
 // This is a display concern, not a data concern.
 // ─────────────────────────────────────────────
-const CONTRACTOR_ROLES = ['Contractor'];
+// Values must match user_role enum (snake_case) — formData.role is the backend enum value
+const CONTRACTOR_ROLES = ['contractor'];
 const PARTNER_ROLES = [
-  'Mortgage Pro', 'Title/Escrow', 'Home Inspector', 'Appraiser',
-  'Transaction Coordinator', 'Warranty', 'Attorney', 'Home Stager',
-  'Real Estate Photographer',
+  'mortgage_pro', 'title_escrow', 'home_inspector', 'appraiser',
+  'transaction_coordinator', 'warranty', 'attorney', 'home_stager',
+  'real_estate_photographer', 'other',
 ];
 
 const getOnboardingPath = (role: string): 'agent' | 'contractor' | 'partner' => {

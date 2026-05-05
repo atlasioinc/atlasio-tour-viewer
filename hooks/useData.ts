@@ -2536,9 +2536,11 @@ export const useMarketPulse = () => {
  * formData.role is already a backend enum value (single-value principle).
  *
  * @backend supabase.rpc('rpc_complete_onboarding', {
- *   p_display_role, p_full_name, p_company_name,
+ *   p_role, p_full_name, p_company_name,
  *   p_primary_trade, p_secondary_trades, p_location
  * })
+ * p_role must be a valid user_role enum value (snake_case).
+ * Writes profiles.role + profiles.onboarded_at atomically.
  */
 // STATUS: wired (with mock fallback)
 export const useCompleteOnboarding = () => {
@@ -2557,7 +2559,7 @@ export const useCompleteOnboarding = () => {
         if (!userId) throw new Error('Not authenticated');
 
         const { error } = await supabase.rpc('rpc_complete_onboarding', {
-          p_display_role: params.role,
+          p_role: params.role,
           p_full_name: params.fullName,
           p_company_name: params.company ?? null,
           p_primary_trade: params.primaryTrade ?? null,

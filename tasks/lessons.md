@@ -2,6 +2,21 @@
 
 Updated after each correction.
 
+### S172 — Onboarding role pipeline (permanent rule)
+
+- `profiles.role` is a `user_role` Postgres enum. All values must be
+  snake_case enum strings (e.g. `'contractor'`, `'real_estate_photographer'`).
+  Never pass display strings ('Contractor', 'Mortgage Pro') to any RPC.
+- `rpc_complete_onboarding` is the single place that writes `profiles.role`
+  and `profiles.onboarded_at`. Both must be set atomically in the same RPC.
+- `App.tsx` onboarding gate uses `onboarded_at` (not `display_role`) as the
+  canonical "has this user completed onboarding" signal.
+- `OnboardingRoleSelect` card `role` values must match `user_role` enum exactly.
+- `OnboardingScreen3` `PARTNER_OPTIONS` values must match `user_role` enum exactly.
+- When adding a new role: (1) add to `user_role` enum in DB, (2) add to
+  `PARTNER_OPTIONS` or role cards with snake_case value, (3) add to
+  `lib/roleDisplay.ts` ROLE_DISPLAY map, (4) verify RPC enum cast handles it.
+
 ## RULE — fullScreenModal ancestor leak (added S155, April 15 2026)
 
 `navigation.replace` does NOT escape a `fullScreenModal` ancestor on iOS native-stack.

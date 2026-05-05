@@ -158,14 +158,14 @@ interface DropdownOption {
 
 // Partner sub-role options — values are backend user_role enum values (single-value principle)
 const PARTNER_OPTIONS: DropdownOption[] = [
-  { label: 'Mortgage Lender', value: 'Mortgage Pro' },
-  { label: 'Title Officer / Escrow', value: 'Title/Escrow' },
-  { label: 'Home Inspector', value: 'Home Inspector' },
-  { label: 'Appraiser', value: 'Appraiser' },
-  { label: 'Real Estate Attorney', value: 'Attorney' },
-  { label: 'Real Estate Photographer', value: 'Real Estate Photographer' },
-  { label: 'Home Stager', value: 'Home Stager' },
-  { label: 'Other Partner', value: 'Other' },
+  { label: 'Mortgage Lender', value: 'mortgage_pro' },
+  { label: 'Title Officer / Escrow', value: 'title_escrow' },
+  { label: 'Home Inspector', value: 'home_inspector' },
+  { label: 'Appraiser', value: 'appraiser' },
+  { label: 'Real Estate Attorney', value: 'attorney' },
+  { label: 'Real Estate Photographer', value: 'real_estate_photographer' },
+  { label: 'Home Stager', value: 'home_stager' },
+  { label: 'Other Partner', value: 'other' },
 ];
 
 

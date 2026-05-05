@@ -40,9 +40,10 @@
 
 ---
 
-## Current Metrics (updated S172 — April 27, 2026)
-- **RPCs:** 76 (S172 extended `rpc_create_job` signature with `p_job_lat`, `p_job_lng` — no new RPCs).
-- **Hooks:** 71 (S172: `CreateJobInputBase` extended with optional coords; `useCreateJob` consumer count unchanged).
+## Current Metrics (updated S172 — May 4, 2026)
+- **RPCs:** 76 (S172 onboarding: `rpc_complete_onboarding` redeployed with `p_role` param; now writes `profiles.role` + `profiles.onboarded_at` atomically — count unchanged. Earlier S172 ATL-GEOCODE: extended `rpc_create_job` signature with `p_job_lat`, `p_job_lng`).
+- **Hooks:** 71 (S172 onboarding: `useCompleteOnboarding` switched to `p_role` — count unchanged. Earlier S172: `CreateJobInputBase` extended with optional coords).
+- **Profile Columns:** +1 S172 onboarding (`onboarded_at TIMESTAMPTZ`).
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
 - **Screens:** +1 S163 (ServiceAreaEditorScreen — fullScreenModal in FindStack); +1 S129 (PaymentSettingsScreen)
@@ -265,6 +266,58 @@ Resulting empty-state height drops from ~232pt to ~144pt, clearing the nudge abo
 4. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL
 5. CHORE-GALLERY-ROLES-SNAKE-CASE
 6. CHORE-CLAUDE-MD-SDK-AUDIT
+
+---
+
+## S172 — CHORE-ONBOARDING-GATE + CHORE-ONBOARDING-ROLE-VALUES (May 4, 2026)
+
+### Branch
+`chore/onboarding-role-pipeline-s172`
+
+### Files modified
+- `components/OnboardingRoleSelect.tsx` — `ROLE_CARDS[].role`: `'Agent'` → `'agent'`, `'Contractor'` → `'contractor'`. Routing comment block at top normalized (`'real_estate_agent'` → `'agent'`).
+- `components/OnboardingScreen3.tsx` — `PARTNER_OPTIONS[].value`: all 8 entries normalized to `user_role` enum snake_case (`'Mortgage Pro'` → `'mortgage_pro'`, `'Title/Escrow'` → `'title_escrow'`, `'Home Inspector'` → `'home_inspector'`, `'Appraiser'` → `'appraiser'`, `'Attorney'` → `'attorney'`, `'Real Estate Photographer'` → `'real_estate_photographer'`, `'Home Stager'` → `'home_stager'`, `'Other'` → `'other'`). Labels untouched.
+- `components/OnboardingComplete.tsx` — `CONTRACTOR_ROLES` and `PARTNER_ROLES` arrays normalized to snake_case enum values so `getOnboardingPath()` correctly routes to role-specific completion content. `'other'` added to PARTNER_ROLES (paired with new PARTNER_OPTIONS entry).
+- `hooks/useData.ts` — `useCompleteOnboarding`: RPC param renamed `p_display_role` → `p_role`. Doc-block updated to note enum-cast requirement and atomic write of `role` + `onboarded_at`.
+- `App.tsx` — `checkProfile` SELECT: `display_role` → `onboarded_at`. Gate condition: `if (profile && profile.onboarded_at)`. File-header docstring (lines 11, 23–25, 42, 119–120) updated to match new gate semantics. `setUserRole(profile.role)` unchanged.
+- `tasks/lessons.md` — new permanent "S172 — Onboarding role pipeline" rule block.
+
+### SQL deployed (separately, before this code session — DO NOT re-run)
+- `ALTER TABLE profiles ADD COLUMN onboarded_at TIMESTAMPTZ`.
+- `rpc_complete_onboarding` recreated with `p_role text` (replaces `p_display_role`); now writes `profiles.role` + `profiles.onboarded_at = NOW()` atomically; contractor trade-required check switched to `v_role = 'contractor'`.
+- All existing test accounts backfilled with `onboarded_at = NOW()`.
+
+### Key decisions
+- **Onboarded gate signal switched to `onboarded_at`.** `display_role` is no longer the source of truth for "did this user complete onboarding"; it was historically nullable and inconsistently set. `onboarded_at` is the canonical signal, written atomically by the RPC.
+- **Single source of truth for role values.** Every UI surface that produces `formData.role` now produces a `user_role` enum snake_case string. The RPC enum cast no longer silently fails on display strings.
+- **`OnboardingComplete.PARTNER_ROLES` includes `'other'`.** Defensive: if a future user picks "Other Partner", the completion screen routes them to partner-specific content instead of falling through to the agent fallback.
+- **Notion update deferred to Claude Chat.** Per CLAUDE.md task-tracking rules, Live Build State is updated by Tony in Claude Chat, not from Claude Code.
+
+### Architecture rules applied
+- **Single-value principle** — `formData.role` is the backend `user_role` enum value at every stage of the onboarding wizard.
+- **Conversion at the boundary** — display labels stay in `PARTNER_OPTIONS.label`; enum values flow through `value` and the RPC.
+- **Minimum blast radius** — 5 source files modified, 1 doc, 1 lessons entry. No type changes, no shared component changes, no new files.
+
+### Tickets closed
+- CHORE-ONBOARDING-GATE → ✅ Done
+- CHORE-ONBOARDING-ROLE-VALUES → ✅ Done
+
+### Gates
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 new warnings
+
+### Metrics
+- RPCs: 76 (`rpc_complete_onboarding` redeployed, count unchanged)
+- Hooks: 71 (unchanged)
+- Edge Functions: 11 (unchanged)
+- Profile columns: +1 (`onboarded_at TIMESTAMPTZ`)
+- Files modified: 5 source + 1 lessons + 1 context
+
+### Next priorities (S173)
+1. ATL-GEOCODE-01 verification on a fresh TestFlight build (post-S172 onboarded users)
+2. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL (pre-launch SQL cleanup)
+3. CHORE-GALLERY-ROLES-SNAKE-CASE (FindTabProCard data model unification)
+4. ATL-GEOCODE-02 (PostPhotoJobScreen + PostStagingJobScreen mirror)
 
 ---
 

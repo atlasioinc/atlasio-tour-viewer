@@ -1017,6 +1017,21 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 
 ---
 
+#### App.tsx Auth Gate (root)
+**File:** `App.tsx` (`checkProfile`, lines ~138–156)
+**Role:** All users (root state machine)
+**Nav Type:** Conditional render — switches between LoginScreen / OnboardingStack / MainApp based on `authState`
+**Wiring:** ✅ Live
+
+**What it does:**
+- Listens to `supabase.auth.onAuthStateChange`
+- On SIGNED_IN / INITIAL_SESSION / TOKEN_REFRESHED → calls `checkProfile(userId)`
+- `checkProfile` SELECTs `role, onboarded_at` from `profiles`
+- S172: gate now checks `profile.onboarded_at` (was `display_role`). `onboarded_at` is written atomically by `rpc_complete_onboarding`; `display_role` was historically nullable and unreliable
+- Branch: `onboarded_at` set → `authState='authenticated'` → MainApp; null/missing → `authState='onboarding'` → Onboarding1
+
+---
+
 #### OnboardingScreen1 (Splash)
 **Role:** New users (all roles)
 **Nav Type:** Stack screen (replaces main stack until onboarded_at set)
@@ -1036,10 +1051,27 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 **What's on this screen:**
 - 3 large tappable cards: Agent / Contractor / Partner
 - GradientIconBox icons, haptic feedback, pressed state (blue border + scale)
+- S172: card `role` values are `user_role` enum snake_case (`'agent'`, `'contractor'`, `''` for partner — sub-role picked on Onboarding3)
 
 **Exit Points:**
 - → Onboarding3 (Agent/Partner path)
 - → ContractorProfileBasics (Contractor path)
+
+---
+
+#### OnboardingScreen3
+**File:** `OnboardingScreen3.tsx`
+**Role:** Agent + Partner only (step 3/5)
+**Nav Type:** Stack screen
+**Wiring:** ✅ Live
+
+**What's on this screen:**
+- Conditional Partner sub-role dropdown (only when `formData.role === ''`)
+- Required form fields: Full Name, Company, Service Area
+- S172: `PARTNER_OPTIONS` values are `user_role` enum snake_case — sub-role selection becomes `formData.role` directly (single-value principle)
+
+**Exit Points:**
+- → Onboarding4 (with accumulated formData)
 
 ---
 
