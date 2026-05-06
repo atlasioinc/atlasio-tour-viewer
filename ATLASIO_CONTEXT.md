@@ -393,6 +393,46 @@ S174 next: device QA on photo + staging job posts (verify non-null coords in Sup
 
 ---
 
+## S175 — ATL-LOCATION-03: Wire InviteContractorsModal to Live Data (May 6, 2026)
+
+### Branch
+`feat/atl-location-03-s175`
+
+### Files modified
+- `hooks/useData.ts` — `useInviteContractors`: fixed `invited_by: ''` (invalid empty UUID, silently violated RLS) → `await getCurrentUserId()` with auth guard. `@backend TODO` comment for future `rpc_invite_contractors p_note` extension.
+- `components/InviteContractorsModal.tsx` — removed `MOCK_NETWORK_CONTRACTORS` (10 hardcoded Denver contractors); wired `useNetworkContacts('contractors')` for the `Your Network` section with `NetworkContact → NetworkContractor` adapter (id = `c.profile_id` per permanent arch rule); 3-row `SkeletonBlock` placeholder during initial load (Loading-flash trap rule from lessons.md S163-S164); `useInviteContractors.mutateAsync` wiring on send with try/catch + `Alert.alert` on error; `DeviceEventEmitter.emit('atlasio.job.contractorsInvited', { jobId, count })` on success. New optional props: `jobId?: string` (required for post-job mode), `jobTrades?: TradeEnum[] | null` (passed for ATL-LOCATION-04 trade-filter wiring; currently unused). `@cleanup` marker added on the local `NetworkContractor` shadow type. Empty-state copy updated. Nearby-section dedupe switched from `MOCK_NETWORK_CONTRACTORS` → `networkAsLocal`.
+- `components/RepairJobDetails.tsx` — added `DeviceEventEmitter`, `SuccessToast`, `useSuccessToast` imports. New `useEffect` listener on `'atlasio.job.contractorsInvited'` (jobId-filtered) → `showSuccess('N invitation(s) sent')`. Modal call site now passes `jobId={job.id}` + `jobTrades={job.trades}`. `<SuccessToast>` mounted at root with null-guard.
+
+### Key decisions
+- **Task 4 deferred to ATL-LOCATION-04** — no `PhotoJobDetails`/`StagingJobDetails` screens exist; `PostPhoto/StagingJobScreen` both `goBack()` after submit. Building those screens is a multi-file scope expansion outside S175 scope. Filed.
+- **Option (c) for invite plumbing** — kept `useInviteContractors` calling `append_invited_contractors` + manual `job_invitations.upsert`. Fixed only the `invited_by` UUID. Switching to `rpc_invite_contractors` would have required dropping the note (RPC has no `p_note` param) — preserved instead with `@backend TODO`.
+- **`useNetworkContacts('contractors')` over `useConnectedPros('contractor')`** — lighter shape, no responder-side join bug. Known limitation: requester-only (matches NetworkTab); doesn't return contractors who connected TO the agent. `@backend TODO` for ATL-LOCATION-04.
+- **Local `NetworkContractor` type kept** — shadows `types/index.ts` canonical type. Migration deferred (`@cleanup` marker) to avoid cascading changes through the row component.
+- **`jobTrades` plumbed through but not used** — accepts `Job.trades: TradeEnum[] | null` from RepairJobDetails. Filter pattern documented inline for ATL-LOCATION-04.
+- **`atlasio.job.contractorsInvited` cross-screen signal** — modal dismisses immediately, RepairJobDetails surfaces toast on landing. Mirrors `atlasio.serviceArea.updated` pattern from S163.
+- **Loading-flash trap** — three `SkeletonBlock` rows during initial fetch via sentinel-prefix routing in `renderItem`. Avoids the empty-list flash before live data arrives.
+
+### Verification
+- `npx tsc --noEmit` → 0 errors.
+- `npx expo lint` → 0 new warnings (8 pre-existing on untouched files).
+- `[S175-DIAG-NTJ]` transient log was added to `RepairJobDetails`, used for device QA verification, and removed before commit (grep clean).
+
+### Metrics
+- RPCs: 76 (unchanged)
+- Hooks: 71 (unchanged — `useInviteContractors` already existed, only `invited_by` fix)
+- Edge Functions: 11 (unchanged)
+
+### Next priorities (S176)
+1. **ATL-LOCATION-04** — agent open-jobs surface (PhotoJobDetails + StagingJobDetails screens) + InviteContractorsModal parity for photo/staging jobs. Includes RPC extensions: `rpc_get_contractors_for_job` add `p_role` param, `rpc_invite_contractors` add `p_note` param, extend `useNetworkContacts` to bidirectional connections, then wire `jobTrades` filter in modal.
+2. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL — pre-launch SQL cleanup of legacy display strings in `vouches.recipient_role`.
+3. CHORE-GALLERY-ROLES-SNAKE-CASE — unify `FindTabProCard.role` to snake_case enum end-to-end.
+4. CHORE-CLAUDE-MD-SDK-AUDIT — `package.json` says SDK 55/RN 0.83.4; CLAUDE.md still says SDK 54/RN 0.81.5.
+
+### Gates
+- tsc 0 errors, expo lint 0 new warnings, no MOCK_NETWORK_CONTRACTORS remaining, no inline hex, all tokens from `lib/tokens.ts`, Avatar/SkeletonBlock/SuccessToast imported from `components/shared`, `@backend`/`@demo`/`@cleanup` markers present, profile UUIDs (not connection row IDs) passed to invite mutation, `[S175-DIAG-NTJ]` removed.
+
+---
+
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
 
 ### Branch

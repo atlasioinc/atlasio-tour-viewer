@@ -40,6 +40,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  DeviceEventEmitter,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
@@ -54,8 +55,9 @@ import { COLORS } from '../lib/tokens';
 import { useJob, useJobBids, useContractorsForJob } from '../hooks/useData';
 import { supabase } from '../lib/supabase';
 import { useRealtimeBids } from '../hooks/useRealtime';
-import { Avatar, PhotoLightbox, VerificationBanner, EmptyState, MomentBanner } from './shared';
+import { Avatar, PhotoLightbox, VerificationBanner, EmptyState, MomentBanner, SuccessToast } from './shared';
 import { useMomentBanner } from '../hooks/useMomentBanner';
+import { useSuccessToast } from '../hooks/useSuccessToast';
 import { DisplayTag } from './DisplayTag';
 import { useVerificationGate } from '../hooks/useVerificationGate';
 
@@ -554,6 +556,22 @@ const RepairJobDetails: React.FC = () => {
   const { data: nearbyContractors } = useContractorsForJob(jobLat, jobLng);
   const nearbyCount = nearbyContractors?.length ?? 0;
   const showNearbyNudge = nearbyCount > 0 && jobLat != null && jobLng != null;
+
+  // S175 — listen for InviteContractorsModal success signal.
+  // Modal dismisses immediately on success; this surfaces the toast on this screen.
+  // @backend useInviteContractors invalidates the repair-job query on success,
+  //   so the bid list and counters refresh automatically — no extra refetch here.
+  const { successMessage, showSuccess, clearSuccess } = useSuccessToast();
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      'atlasio.job.contractorsInvited',
+      ({ jobId: inviteJobId, count }: { jobId: string; count: number }) => {
+        if (inviteJobId !== jobId) return; // ignore other jobs' events
+        showSuccess(`${count} invitation${count > 1 ? 's' : ''} sent`);
+      },
+    );
+    return () => sub.remove();
+  }, [jobId, showSuccess]);
 
   // Seed local job state when live fetch resolves
   useEffect(() => {
@@ -1560,8 +1578,10 @@ const RepairJobDetails: React.FC = () => {
       <InviteContractorsModal
         visible={showInviteModal}
         onClose={() => setShowInviteModal(false)}
+        jobId={job.id}
         jobTitle={job.title}
         jobCategory={job.category ?? ''}
+        jobTrades={job.trades}
         nearbyContractors={nearbyContractors}
       />
 
@@ -2081,6 +2101,10 @@ const RepairJobDetails: React.FC = () => {
         accentColor={firstBidBannerConfig?.accentColor}
         onDismiss={clearFirstBidBanner}
       />
+      {/* S175 — invitation success toast (cross-screen signal from modal) */}
+      {successMessage ? (
+        <SuccessToast message={successMessage} onDismiss={clearSuccess} />
+      ) : null}
     </View>
   );
 };

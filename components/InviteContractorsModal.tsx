@@ -2,17 +2,17 @@
 // components/InviteContractorsModal.tsx
 // Invite Contractors Modal — Agent View
 //
-// Searchable list of network contractors filtered by job trade.
+// Searchable list of network contractors with optional Near-This-Job section.
 // Multi-select up to 5 contractors with optional note.
-// Triggered from RepairJobDetails → "Invite Pros" button.
+// Triggered from RepairJobDetails → "Invite Pros" button (S175).
 //
-// @demo: uses MOCK_NETWORK_CONTRACTORS hardcoded array (10 contractors).
-//        handleSendInvites logs to console + shows Alert (no backend call).
-// @backend TODO: replace mock data with useInviteContractors hook
-//   Query: supabase.from('connections').select('*, profiles(*)')
-//          .eq('status', 'accepted').eq('profiles.role', 'contractor')
-//   Mutation: useInviteContractors → append_invited_contractors RPC
-//             + create job_invitations + send notifications
+// @backend useNetworkContacts('contractors') → connections + profiles join (S175)
+// @backend useInviteContractors → append_invited_contractors RPC + job_invitations upsert
+// @backend TODO: extend rpc_invite_contractors with p_note param (ATL-LOCATION-04)
+// @backend TODO: useNetworkContacts is requester-only — extend to bidirectional
+//          (matches NetworkTab behavior; misses contractors who connected to the agent)
+// On success: emits DeviceEventEmitter 'atlasio.job.contractorsInvited' { jobId, count }
+//             — RepairJobDetails listens to surface SuccessToast.
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -26,13 +26,15 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
-import { Avatar } from './shared';
+import { Avatar, SkeletonBlock } from './shared';
 import SearchField from './SearchField';
-import type { ContractorForJob } from '../types';
+import type { ContractorForJob, NetworkContact, TradeEnum } from '../types';
+import { useNetworkContacts, useInviteContractors } from '../hooks/useData';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -40,8 +42,13 @@ import type { ContractorForJob } from '../types';
 
 const MAX_INVITES = 5;
 
+// S175 — sentinel ID prefix for skeleton rows. renderItem branches on this prefix.
+const SKELETON_ID_PREFIX = '__skeleton_';
+
 // ─────────────────────────────────────────────
 // CONTRACTOR TYPE
+// @cleanup — local NetworkContractor type shadows types/index.ts NetworkContractor.
+//            Migrate to canonical type when modal is refactored (ATL-LOCATION-04).
 // ─────────────────────────────────────────────
 
 export interface NetworkContractor {
@@ -53,28 +60,13 @@ export interface NetworkContractor {
   avatarColor: string;
 }
 
-// ─────────────────────────────────────────────
-// @demo MOCK NETWORK CONTRACTORS
-// @backend TODO: Replace with useNetworkContractors or similar query:
-//   supabase.from('connections').select('*, profiles(*)')
-//     .eq('status', 'accepted').eq('profiles.role', 'contractor')
-// ─────────────────────────────────────────────
-
-// @demo hardcoded — 10 Denver contractors covering all TRADE_OPTIONS from PostJobWizard
-// Every trade in PostJobWizard (General Contractor, Electrical, Plumbing, HVAC, Roofing,
-// Carpentry / Handyman, Painting, Flooring) has ≥2 contractors so the list is never empty.
-// @backend TODO: replace with useNetworkContractors query (connections + profiles)
-const MOCK_NETWORK_CONTRACTORS: NetworkContractor[] = [
-  { id: 'nc-1', name: 'Mike Torres', company: 'Torres Electric', trades: ['Electrical', 'General Contractor'], rating: 4.9, avatarColor: '#E8D5B7' },
-  { id: 'nc-2', name: 'Sarah Chen', company: 'ProBuild Contractors', trades: ['Electrical', 'Plumbing', 'General Contractor'], rating: 4.8, avatarColor: '#A8C5DA' },
-  { id: 'nc-3', name: 'David Park', company: 'Park & Sons Electric', trades: ['Electrical', 'HVAC'], rating: 4.7, avatarColor: '#B5D4A8' },
-  { id: 'nc-4', name: 'James Wilson', company: 'Wilson Home Services', trades: ['General Contractor', 'Plumbing', 'HVAC'], rating: 4.6, avatarColor: '#D4A8B5' },
-  { id: 'nc-5', name: 'Carlos Rivera', company: 'Rivera Roofing', trades: ['Roofing', 'Carpentry / Handyman'], rating: 4.9, avatarColor: '#C4A882' },
-  { id: 'nc-6', name: 'Tom Anderson', company: 'Anderson HVAC', trades: ['HVAC', 'Plumbing'], rating: 4.8, avatarColor: '#C5D4A8' },
-  { id: 'nc-7', name: 'Brian Cooper', company: 'Summit Roofing', trades: ['Roofing', 'General Contractor'], rating: 4.7, avatarColor: '#7BA3C9' },
-  { id: 'nc-8', name: 'Lisa Martinez', company: 'Precision Plumbing', trades: ['Plumbing', 'General Contractor'], rating: 5.0, avatarColor: '#B8A8D4' },
-  { id: 'nc-9', name: 'Jake Thompson', company: 'Thompson Handyman', trades: ['Carpentry / Handyman', 'Painting', 'Flooring'], rating: 4.8, avatarColor: '#A8C4B8' },
-  { id: 'nc-10', name: 'Angela Kim', company: 'Denver Electric Pros', trades: ['Electrical', 'Painting', 'Flooring'], rating: 4.9, avatarColor: '#D4C5A8' },
+// S175 — three skeleton placeholder rows shown while useNetworkContacts loads.
+// Loading-flash trap rule (lessons.md S163-S164): never render an empty list
+// while live data is loading.
+const SKELETON_ROWS: NetworkContractor[] = [
+  { id: `${SKELETON_ID_PREFIX}1`, name: '', company: '', trades: [], rating: 0, avatarColor: '' },
+  { id: `${SKELETON_ID_PREFIX}2`, name: '', company: '', trades: [], rating: 0, avatarColor: '' },
+  { id: `${SKELETON_ID_PREFIX}3`, name: '', company: '', trades: [], rating: 0, avatarColor: '' },
 ];
 
 // ─────────────────────────────────────────────
@@ -107,15 +99,22 @@ const CheckboxFilled: React.FC = () => (
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
-// @demo mode='post-job' (default): logs invites to console + shows Alert (existing behavior from RepairJobDetails)
-// @demo mode='pre-job': returns selected contractors to parent via onConfirm — no RPC call, no Alert
-// @backend mode='post-job': will wire to useInviteContractors mutation (append_invited_contractors RPC)
-// @backend mode='pre-job': parent collects IDs and passes them to rpc_create_job → rpc_invite_contractors
+// @backend mode='post-job' (default): wires to useInviteContractors mutation
+//   (append_invited_contractors + job_invitations.upsert with note).
+// @demo mode='pre-job': returns selected contractors to parent via onConfirm —
+//   no RPC call, no Alert (job not yet created).
 interface InviteContractorsModalProps {
   visible: boolean;
   onClose: () => void;
+  // S175 — required for post-job mode (passes jobId to invite RPC + job_invitations).
+  // Optional in pre-job mode (job not yet created — onConfirm returns selection).
+  jobId?: string;
   jobTitle: string;
-  jobCategory: string; // trade to filter by
+  jobCategory: string; // currently used in subtitle copy + Alert; trade filter dropped S175
+  // S175 — passed for future trade filtering when useNetworkContacts
+  // joins contractor trades (ATL-LOCATION-04).
+  // Currently unused — no per-contact trade data available to match against.
+  jobTrades?: TradeEnum[] | null;
   mode?: 'post-job' | 'pre-job'; // default: 'post-job'
   onConfirm?: (contractors: NetworkContractor[]) => void; // required when mode='pre-job'
   // S171 — ATL-LOCATION-03: contractors whose service area covers the job point.
@@ -126,8 +125,10 @@ interface InviteContractorsModalProps {
 const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   visible,
   onClose,
+  jobId,
   jobTitle,
   jobCategory,
+  jobTrades: _jobTrades, // S175 — unused; kept for ATL-LOCATION-04 trade-filter wiring
   mode = 'post-job',
   onConfirm,
   nearbyContractors,
@@ -137,22 +138,44 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   const [note, setNote] = useState(`Check this ${jobCategory.toLowerCase()} job?`);
   const [noteIsFocused, setNoteIsFocused] = useState(false);
 
-  // ── Filter contractors by trade match + search text ──
-  // Production: this filtering happens server-side via query params
-  const filteredContractors = useMemo(() => {
-    const tradeFiltered = MOCK_NETWORK_CONTRACTORS.filter((c) =>
-      c.trades.some((t) => t.toLowerCase() === jobCategory.toLowerCase())
-    );
-    // Fallback: if no contractors match the selected trade, show all
-    // (handles pre-job mode where agent may not have picked a trade yet)
-    const baseList = tradeFiltered.length > 0 ? tradeFiltered : MOCK_NETWORK_CONTRACTORS;
+  // S175 — live network hook (replaces MOCK_NETWORK_CONTRACTORS).
+  // @backend useNetworkContacts('contractors') → connections + profiles join.
+  // Limitation: requester-only (matches NetworkTab); doesn't return contractors
+  // who connected TO the agent. Tracked for ATL-LOCATION-04 follow-up.
+  const { data: networkContacts, isLoading: isLoadingNetwork } =
+    useNetworkContacts('contractors');
 
-    if (searchText.length === 0) return baseList;
-    return baseList.filter((c) =>
-      c.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      c.company.toLowerCase().includes(searchText.toLowerCase())
+  // Adapter: NetworkContact → local NetworkContractor (the shape the row renders).
+  // id = contractor profile UUID (not connections.id) — required by
+  // rpc_invite_contractors and permanent arch rule.
+  // @backend NetworkContact has no per-row trade list — we don't have one to map,
+  //   so trades = [] and the trade-filter falls back to "show all" (same fallback
+  //   behaviour the mock code used when nothing matched).
+  const networkAsLocal: NetworkContractor[] = useMemo(() => {
+    return (networkContacts ?? []).map((c: NetworkContact) => ({
+      id: c.profile_id, // id = contractor profile UUID (not connections.id) — required by rpc_invite_contractors and permanent arch rule
+      name: c.name,
+      company: c.company,
+      trades: [], // NetworkContact carries no trades — trade-pill highlight no-ops
+      rating: 0, // hidden by row when 0 (same gate used by nearby section)
+      avatarColor: c.avatar_color,
+    }));
+  }, [networkContacts]);
+
+  // Search-text filter only.
+  // @backend TODO (ATL-LOCATION-04): filter networkAsLocal by jobTrades when
+  // useNetworkContacts returns contractor trades. Pattern:
+  //   .filter(c => !jobTrades?.length || c.trades.some(t => jobTrades.includes(t)))
+  // Currently no-ops — NetworkContact carries no trades array.
+  const filteredContractors = useMemo(() => {
+    if (searchText.length === 0) return networkAsLocal;
+    const q = searchText.toLowerCase();
+    return networkAsLocal.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.company.toLowerCase().includes(q),
     );
-  }, [searchText, jobCategory]);
+  }, [networkAsLocal, searchText]);
 
   // S171 — ATL-LOCATION-03: adapt ContractorForJob → NetworkContractor shape
   // so the existing row component renders both lists identically.
@@ -161,12 +184,13 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   //   vouch_count        → rating  (hidden when 0 — see row render below)
   //   trade              → trades  (singleton array or empty)
   //   avatar_color       → avatarColor (fallback: COLORS.primary)
-  // Dedup: contractors already in MOCK_NETWORK_CONTRACTORS are excluded.
+  // Dedup: contractors already in the live "Your Network" list are excluded
+  // (S175 — was MOCK_NETWORK_CONTRACTORS pre-S175).
   const nearbyAsNetwork: NetworkContractor[] = useMemo(() => {
-    const networkIds = new Set(MOCK_NETWORK_CONTRACTORS.map(c => c.id));
+    const networkIds = new Set(networkAsLocal.map((c) => c.id));
     return (nearbyContractors ?? [])
-      .filter(c => !networkIds.has(c.id))
-      .map(c => ({
+      .filter((c) => !networkIds.has(c.id))
+      .map((c) => ({
         id: c.id,
         name: c.name,
         company: c.service_area_label ?? '',
@@ -174,7 +198,7 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
         rating: c.vouch_count,
         avatarColor: c.avatar_color ?? COLORS.primary,
       }));
-  }, [nearbyContractors]);
+  }, [nearbyContractors, networkAsLocal]);
 
   const nearbyFiltered: NetworkContractor[] = useMemo(() => {
     if (searchText.length === 0) return nearbyAsNetwork;
@@ -206,16 +230,19 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
     });
   }, []);
 
+  // S175 — invite mutation. Hook handles invalidateQueries(repairJob) on success.
+  const inviteContractors = useInviteContractors();
+
   // ── Handle send invites / confirm selection ──
-  const handleSendInvites = useCallback(() => {
+  const handleSendInvites = useCallback(async () => {
     if (selectedIds.size === 0) return;
 
-    // S171 — selection pool now spans both Your Network and Near This Job lists.
-    const selectedContractors = [...MOCK_NETWORK_CONTRACTORS, ...nearbyAsNetwork].filter(
+    // S171 — selection pool spans both Your Network (live) and Near This Job lists.
+    const selectedContractors = [...networkAsLocal, ...nearbyAsNetwork].filter(
       (c) => selectedIds.has(c.id),
     );
 
-    // Pre-job mode: return selected contractors to parent — no RPC, no Alert
+    // Pre-job mode: return selected contractors to parent — no RPC, no Alert.
     if (mode === 'pre-job' && onConfirm) {
       onConfirm(selectedContractors);
       setSelectedIds(new Set());
@@ -223,23 +250,33 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
       return;
     }
 
-    // Post-job mode: existing behavior — log + Alert + close
-    // @backend TODO: wire to useInviteContractors mutation:
-    //   1. RPC append_invited_contractors(p_job_id, p_contractor_ids)
-    //   2. Insert job_invitations rows for tracking
-    //   3. Auto-notification: "[Agent] invited you to bid on [Job]"
-    console.log('Invites sent:', {
-      contractors: selectedContractors.map((c) => c.name),
-      jobTitle,
-      note: note.trim(),
-    });
+    // Post-job mode: invoke real RPC.
+    if (!jobId) {
+      console.warn('[InviteContractorsModal] post-job mode but no jobId provided');
+      return;
+    }
 
-    Alert.alert(
-      'Invites Sent!',
-      `${selectedIds.size} contractor${selectedIds.size > 1 ? 's' : ''} invited to "${jobTitle}"`,
-      [{ text: 'OK', onPress: () => { setSelectedIds(new Set()); onClose(); } }]
-    );
-  }, [selectedIds, jobTitle, note, onClose, mode, onConfirm, nearbyAsNetwork]);
+    // @backend useInviteContractors → append_invited_contractors(p_job_id, p_contractor_ids)
+    //   + job_invitations upsert with note. invited_by uses auth.uid() (S175 fix).
+    // contractorIds are profile UUIDs (NetworkContact.profile_id, ContractorForJob.id).
+    try {
+      await inviteContractors.mutateAsync({
+        jobId,
+        contractorIds: selectedContractors.map((c) => c.id),
+        note: note.trim() || undefined,
+      });
+      // Success: emit cross-screen signal so RepairJobDetails surfaces a toast.
+      DeviceEventEmitter.emit('atlasio.job.contractorsInvited', {
+        jobId,
+        count: selectedContractors.length,
+      });
+      setSelectedIds(new Set());
+      onClose();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      Alert.alert('Failed to send invitations', message);
+    }
+  }, [selectedIds, jobId, note, onClose, mode, onConfirm, networkAsLocal, nearbyAsNetwork, inviteContractors]);
 
   // ── Reset state when modal closes ──
   const handleClose = useCallback(() => {
@@ -249,6 +286,29 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
     setNoteIsFocused(false);
     onClose();
   }, [onClose, jobCategory]);
+
+  // S175 — skeleton row matching the same row layout (44px avatar + 2 text lines).
+  const renderSkeletonRow = (key: string) => (
+    <View
+      key={key}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: COLORS.background,
+        borderBottomWidth: 0.69,
+        borderBottomColor: COLORS.border,
+      }}
+    >
+      <SkeletonBlock width={44} height={44} borderRadius={9999} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <SkeletonBlock width={'60%'} height={16} />
+        <SkeletonBlock width={'40%'} height={14} />
+      </View>
+    </View>
+  );
 
   // ── Render contractor row ──
   const renderContractor = ({ item }: { item: NetworkContractor }) => {
@@ -388,13 +448,24 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
             ══════════════════════════════════════════ */}
         <SectionList
           sections={[
-            { title: 'Your Network', data: filteredContractors },
+            // S175 — skeleton placeholders during initial network fetch.
+            // Loading-flash trap rule (lessons.md S163-S164): never render an
+            // empty/mock list while live data is loading.
+            ...(isLoadingNetwork && !networkContacts
+              ? [{ title: 'Your Network', data: SKELETON_ROWS }]
+              : filteredContractors.length > 0
+                ? [{ title: 'Your Network', data: filteredContractors }]
+                : []),
             ...(nearbyFiltered.length > 0
               ? [{ title: 'Near This Job', data: nearbyFiltered }]
               : []),
-          ].filter(s => s.data.length > 0)}
+          ]}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => renderContractor({ item })}
+          renderItem={({ item }) =>
+            item.id.startsWith(SKELETON_ID_PREFIX)
+              ? renderSkeletonRow(item.id)
+              : renderContractor({ item })
+          }
           renderSectionHeader={({ section: { title } }) =>
             nearbyFiltered.length > 0 ? (
               <View style={{
@@ -418,14 +489,16 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
           ListEmptyComponent={
-            <View style={{ padding: 32, alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.bodyText }}>
-                No matching contractors
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.lightText, textAlign: 'center' }}>
-                No contractors in your network match {'"'}{jobCategory}{'"'}. Try broadening your search.
-              </Text>
-            </View>
+            isLoadingNetwork ? null : (
+              <View style={{ padding: 32, alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.bodyText }}>
+                  No contractors yet
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.lightText, textAlign: 'center' }}>
+                  Connect with contractors in your network to invite them to jobs.
+                </Text>
+              </View>
+            )
           }
         />
 

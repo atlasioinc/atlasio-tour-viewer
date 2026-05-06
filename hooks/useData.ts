@@ -1235,10 +1235,16 @@ export const useInviteContractors = () => {
         if (rpcError) throw rpcError;
 
         // Create job_invitations records for tracking
+        // S175 — fix: invited_by must be the agent's profile UUID (auth.uid()).
+        // Empty string here was inserting an invalid UUID and silently violating RLS.
+        // @backend TODO: extend rpc_invite_contractors with p_note param so this
+        //   manual upsert can be replaced with a single RPC call (ATL-LOCATION-04).
+        const userId = await getCurrentUserId();
+        if (!userId) throw new Error('Not authenticated');
         const invitations = contractorIds.map((cId) => ({
           job_id: jobId,
           contractor_id: cId,
-          invited_by: '', // filled by RLS default or trigger
+          invited_by: userId,
           note: note ?? null,
         }));
         await supabase.from('job_invitations').upsert(invitations, { onConflict: 'job_id,contractor_id' });
