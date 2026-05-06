@@ -478,12 +478,24 @@ export const useNetworkContacts = (tab: 'partners' | 'contractors') => {
         if (!userId) throw new Error('Not authenticated');
         const { data, error } = await supabase
           .from('connections')
-          .select('*, profile:profiles!responder_id(id, name, company, display_role, role, tags, avatar_color)')
+          .select('*, profile:profiles!responder_id(id, name, company, display_role, role, tags, avatar_color, trade)')
           .eq('requester_id', userId)
           .eq('status', 'accepted');
         if (error) throw error;
+        // S177 — partner roles must never appear in contractor invite lists.
+        // profiles.role is a snake_case user_role enum — compare to enum values, never display strings.
+        const CONTRACTOR_ELIGIBLE_ROLES = new Set([
+          'contractor',
+          'home_stager',
+          'real_estate_photographer',
+        ]);
+        const eligibleRows = tab === 'contractors'
+          ? (data ?? []).filter((row: any) =>
+              CONTRACTOR_ELIGIBLE_ROLES.has(row.profile?.role ?? ''),
+            )
+          : (data ?? []);
         // Map join result to flat NetworkContact shape
-        return (data ?? []).map((row: any) => ({
+        return eligibleRows.map((row: any) => ({
           id: row.id,
           profile_id: row.profile?.id ?? row.responder_id,
           name: row.profile?.name ?? '',
@@ -494,6 +506,7 @@ export const useNetworkContacts = (tab: 'partners' | 'contractors') => {
           avatar_color: row.profile?.avatar_color ?? '#7BA3C9',
           is_in_squad: row.is_in_squad ?? false,
           tab: tab,
+          trade: row.profile?.trade ?? null,
         })) as NetworkContact[];
       } catch (err) {
         console.warn('[useNetworkContacts] Supabase failed, using mock fallback', err);

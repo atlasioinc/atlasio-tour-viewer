@@ -32,9 +32,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS } from '../lib/tokens';
 import { Avatar, SkeletonBlock } from './shared';
+import { DisplayTag } from './DisplayTag';
 import SearchField from './SearchField';
 import type { ContractorForJob, NetworkContact, TradeEnum } from '../types';
 import { useNetworkContacts, useInviteContractors } from '../hooks/useData';
+import { TRADE_ENUM_TO_LABEL } from '../lib/tradesMap';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -58,6 +60,10 @@ export interface NetworkContractor {
   trades: string[]; // e.g., ['Electrical', 'HVAC']
   rating: number;
   avatarColor: string;
+  // S177 — bug fix pass: trade label subtitle + nearby distance + service-area label
+  tradeLabel?: string | null;       // display label from TRADE_ENUM_TO_LABEL
+  distanceMi?: number | null;       // @backend rpc_get_contractors_for_job distance_mi
+  serviceAreaLabel?: string | null; // @backend rpc_get_contractors_for_job service_area_label
 }
 
 // S175 — three skeleton placeholder rows shown while useNetworkContacts loads.
@@ -148,17 +154,17 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   // Adapter: NetworkContact → local NetworkContractor (the shape the row renders).
   // id = contractor profile UUID (not connections.id) — required by
   // rpc_invite_contractors and permanent arch rule.
-  // @backend NetworkContact has no per-row trade list — we don't have one to map,
-  //   so trades = [] and the trade-filter falls back to "show all" (same fallback
-  //   behaviour the mock code used when nothing matched).
+  // @backend S177: NetworkContact.trade (snake_case trades_enum) → tradeLabel via
+  //   TRADE_ENUM_TO_LABEL. Used as the Line-2 subtitle on Your Network rows.
   const networkAsLocal: NetworkContractor[] = useMemo(() => {
     return (networkContacts ?? []).map((c: NetworkContact) => ({
       id: c.profile_id, // id = contractor profile UUID (not connections.id) — required by rpc_invite_contractors and permanent arch rule
       name: c.name,
       company: c.company,
-      trades: [], // NetworkContact carries no trades — trade-pill highlight no-ops
+      trades: [], // legacy — pill row dropped on Your Network rows S177
       rating: 0, // hidden by row when 0 (same gate used by nearby section)
       avatarColor: c.avatar_color,
+      tradeLabel: c.trade ? (TRADE_ENUM_TO_LABEL[c.trade] ?? null) : null,
     }));
   }, [networkContacts]);
 
@@ -193,10 +199,14 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
       .map((c) => ({
         id: c.id,
         name: c.name,
-        company: c.service_area_label ?? '',
-        trades: c.trade ? [c.trade] : [],
+        company: c.service_area_label ?? '', // legacy — preserved for back-compat (S177: not rendered, locationLine uses serviceAreaLabel directly)
+        trades: c.trade ? [c.trade] : [],    // legacy — pill row dropped on Near This Job rows S177 (DisplayTag used instead)
         rating: c.vouch_count,
         avatarColor: c.avatar_color ?? COLORS.primary,
+        // @backend rpc_get_contractors_for_job — trade + distance_mi + service_area_label S177
+        tradeLabel: c.trade ? (TRADE_ENUM_TO_LABEL[c.trade] ?? null) : null,
+        distanceMi: c.distance_mi ?? null,
+        serviceAreaLabel: c.service_area_label ?? null,
       }));
   }, [nearbyContractors, networkAsLocal]);
 
@@ -311,9 +321,24 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
   );
 
   // ── Render contractor row ──
-  const renderContractor = ({ item }: { item: NetworkContractor }) => {
+  // S177 — layout branches by section:
+  //   Your Network    : name + tradeLabel subtitle
+  //   Near This Job   : name + (location · distance) + bottom row [DisplayTag] [vouch ★]
+  // Avatar is non-interactive in both sections — no profile routing from this modal.
+  const renderContractor = ({ item, sectionTitle }: { item: NetworkContractor; sectionTitle: string }) => {
     const isSelected = selectedIds.has(item.id);
     const isDisabled = !isSelected && selectedIds.size >= MAX_INVITES;
+    const isNearby = sectionTitle === 'Near This Job';
+
+    // Near This Job — compose "City, ST · 3.4 mi away" from the new RPC fields.
+    const locationLine = isNearby
+      ? [
+          item.serviceAreaLabel,
+          item.distanceMi != null ? `${item.distanceMi} mi away` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : '';
 
     return (
       <Pressable
@@ -333,7 +358,7 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
         {/* Checkbox */}
         {isSelected ? <CheckboxFilled /> : <CheckboxEmpty />}
 
-        {/* Avatar — no avatar_url on NetworkContractor type yet, initials fallback */}
+        {/* Avatar — non-interactive (S177): no onPress, no profile routing from this modal */}
         <Avatar uri={null} name={item.name} size={44} color={item.avatarColor} />
 
         {/* Info */}
@@ -341,42 +366,54 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
           <Text style={{ fontSize: 16, fontWeight: '500', color: COLORS.headingText, lineHeight: 24 }}>
             {item.name}
           </Text>
-          <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.bodyText, lineHeight: 20 }} numberOfLines={1}>
-            {item.company}
-          </Text>
-          {/* Trade pills */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
-            {item.trades.map((trade) => (
-              <View
-                key={trade}
-                style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  backgroundColor: trade.toLowerCase() === jobCategory.toLowerCase() ? COLORS.selectedBg : COLORS.chipBg,
-                  borderRadius: 9999,
-                  borderWidth: trade.toLowerCase() === jobCategory.toLowerCase() ? 0.68 : 0,
-                  borderColor: COLORS.primary,
-                }}
-              >
-                <Text style={{
-                  fontSize: 11,
-                  fontWeight: '400',
-                  color: trade.toLowerCase() === jobCategory.toLowerCase() ? COLORS.primary : COLORS.statText,
-                  lineHeight: 16,
-                }}>
-                  {trade}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
 
-        {/* Rating — hidden when 0 (S171: nearby rows pass vouch_count, may be 0) */}
-        {item.rating > 0 && (
-          <Text style={{ fontSize: 14, fontWeight: '400', color: '#D08700', lineHeight: 20 }}>
-            {item.rating} ★
-          </Text>
-        )}
+          {isNearby ? (
+            <>
+              {/* Line 2 — location + distance, render only if non-empty */}
+              {locationLine.length > 0 && (
+                <Text
+                  style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}
+                  numberOfLines={1}
+                >
+                  {locationLine}
+                </Text>
+              )}
+
+              {/* Bottom row — DisplayTag (left) + vouch count (right) */}
+              {(item.tradeLabel || item.rating > 0) && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: 4,
+                  }}
+                >
+                  {item.tradeLabel ? (
+                    <DisplayTag label={item.tradeLabel} variant="default" fontSize={12} />
+                  ) : (
+                    <View />
+                  )}
+                  {item.rating > 0 && (
+                    <Text style={{ fontSize: 14, fontWeight: '400', color: COLORS.starText, lineHeight: 20 }}>
+                      {item.rating} ★
+                    </Text>
+                  )}
+                </View>
+              )}
+            </>
+          ) : (
+            // Your Network — Line 2: plain trade label subtitle (rendered only if non-null)
+            item.tradeLabel && (
+              <Text
+                style={{ fontSize: 14, fontWeight: '400', color: COLORS.secondaryText, lineHeight: 20 }}
+                numberOfLines={1}
+              >
+                {item.tradeLabel}
+              </Text>
+            )
+          )}
+        </View>
       </Pressable>
     );
   };
@@ -461,10 +498,10 @@ const InviteContractorsModal: React.FC<InviteContractorsModalProps> = ({
               : []),
           ]}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) =>
+          renderItem={({ item, section }) =>
             item.id.startsWith(SKELETON_ID_PREFIX)
               ? renderSkeletonRow(item.id)
-              : renderContractor({ item })
+              : renderContractor({ item, sectionTitle: section.title })
           }
           renderSectionHeader={({ section: { title } }) =>
             nearbyFiltered.length > 0 ? (

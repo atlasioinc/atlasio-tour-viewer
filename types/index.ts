@@ -287,6 +287,7 @@ export interface NetworkContact {
   avatar_color: string;
   is_in_squad: boolean;
   tab: 'partners' | 'contractors';
+  trade: string | null;                // snake_case trades_enum value (S177) — null for partners
 }
 
 // Contractor subset (for invite modal)
@@ -868,4 +869,5 @@ export interface ContractorForJob {
   service_area_label: string | null;
   trade: string | null;
   is_verified: boolean;
+  distance_mi: number | null; // @backend rpc_get_contractors_for_job — added S177
 }
