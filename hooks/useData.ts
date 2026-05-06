@@ -852,21 +852,17 @@ export const useJobBids = (jobId: string) => {
  * Accept a bid — awards the job and rejects all other bids
  * RPC: rpc_accept_bid(p_bid_id UUID, p_job_id UUID) → VOID
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (S176 — mock fallback removed; real RPC errors propagate)
+// @backend — rpc_accept_bid(p_bid_id, p_job_id)
 export const useAcceptBid = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ bidId, jobId }: { bidId: string; jobId: string }) => {
-      try {
-        const { error } = await supabase.rpc('rpc_accept_bid', {
-          p_bid_id: bidId,
-          p_job_id: jobId,
-        });
-        if (error) throw error;
-      } catch (err) {
-        console.warn('[useAcceptBid] Supabase RPC failed, using mock fallback', err);
-        await new Promise((r) => setTimeout(r, 300));
-      }
+      const { error } = await supabase.rpc('rpc_accept_bid', {
+        p_bid_id: bidId,
+        p_job_id: jobId,
+      });
+      if (error) throw error;
     },
     onSuccess: (_, { jobId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
@@ -879,7 +875,8 @@ export const useAcceptBid = () => {
  * Counter a bid — sets counter_amount and status to 'countered'
  * RPC: rpc_counter_bid(p_bid_id UUID, p_job_id UUID, p_counter_amount INTEGER) → VOID
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (S176 — mock fallback removed; real RPC errors propagate)
+// @backend — rpc_counter_bid(p_bid_id, p_job_id, p_counter_amount)
 export const useCounterBid = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -892,17 +889,12 @@ export const useCounterBid = () => {
       jobId: string;
       counterAmount: number; // cents
     }) => {
-      try {
-        const { error } = await supabase.rpc('rpc_counter_bid', {
-          p_bid_id: bidId,
-          p_job_id: jobId,
-          p_counter_amount: counterAmount,
-        });
-        if (error) throw error;
-      } catch (err) {
-        console.warn('[useCounterBid] Supabase RPC failed, using mock fallback', err);
-        await new Promise((r) => setTimeout(r, 300));
-      }
+      const { error } = await supabase.rpc('rpc_counter_bid', {
+        p_bid_id: bidId,
+        p_job_id: jobId,
+        p_counter_amount: counterAmount,
+      });
+      if (error) throw error;
     },
     onSuccess: (_, { jobId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });
@@ -915,21 +907,17 @@ export const useCounterBid = () => {
  * Reject a bid
  * RPC: rpc_reject_bid(p_bid_id UUID, p_job_id UUID) → VOID
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (S176 — mock fallback removed; real RPC errors propagate)
+// @backend — rpc_reject_bid(p_bid_id, p_job_id)
 export const useRejectBid = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ bidId, jobId }: { bidId: string; jobId: string }) => {
-      try {
-        const { error } = await supabase.rpc('rpc_reject_bid', {
-          p_bid_id: bidId,
-          p_job_id: jobId,
-        });
-        if (error) throw error;
-      } catch (err) {
-        console.warn('[useRejectBid] Supabase RPC failed, using mock fallback', err);
-        await new Promise((r) => setTimeout(r, 300));
-      }
+      const { error } = await supabase.rpc('rpc_reject_bid', {
+        p_bid_id: bidId,
+        p_job_id: jobId,
+      });
+      if (error) throw error;
     },
     onSuccess: (_, { jobId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.repairJob(jobId) });

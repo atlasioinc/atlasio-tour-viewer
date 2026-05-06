@@ -433,6 +433,46 @@ S174 next: device QA on photo + staging job posts (verify non-null coords in Sup
 
 ---
 
+## S176 — ATL-BID-ACTIONS-01: Wire Bid Accept / Counter / Reject to Live Hooks (May 6, 2026)
+
+### Branch
+`feat/atl-bid-actions-01-s176`
+Supersedes ATL-122.
+
+### Files modified
+- `components/RepairJobDetails.tsx` — wired three live mutations: `useAcceptBid`/`useCounterBid`/`useRejectBid` imported from `hooks/useData`. Replaced the three `setTimeout(600) + console.log` `@demo` stubs in `handleAcceptBid` / `handleCounterBid` / `handleRejectBid` with `await mutateAsync(...)` calls; optimistic `setJob` preserved post-await for instant timeline flip while query invalidation reconciles. Error path now surfaces `Alert.alert('Failed to <action>', err?.message ?? 'Please try again.')` on real RPC failure (was `Alert.alert('Error', ...)` in catch with no error body). Counter handler now also writes `counter_amount: counterCents` into the optimistic bid update. Deleted dev-only scaffolding: `JOB_STATUS_SEQUENCE`, `handleSimulateProgress` function, and the fast-forward Pressable in the Job Progress card header. Removed dead helpers `centsToDisplay` and `calculateFee` (only the @demo console.logs consumed them). `@backend` markers added on all three call sites with exact RPC name + params. Top-of-file comment block updated. Local `job` state retained with new `@cleanup` comment near line 535 documenting the eventual removal.
+- `hooks/useData.ts` — `useAcceptBid` / `useCounterBid` / `useRejectBid`: removed the inner `try/catch` mock fallback (300ms `setTimeout` on RPC failure) so real Supabase RPC errors propagate to the call site and surface via the new `Alert.alert` handlers. Hook params, invalidation lists, and `onSuccess` behavior unchanged. STATUS comment updated to `wired (S176 — mock fallback removed; real RPC errors propagate)`. `@backend` marker added to each hook docstring.
+
+### Key decisions
+- **Local `job` state retained** — investigation report Section C confirmed ~50 JSX consumer sites depend on local state, plus the `effectiveJobStatus` derivation (line 654) and the photo signed-URL effect (line 585) key off `job?.*`. Removing it is a separate refactor; in-place wiring with optimistic post-await `setJob` matches S175 UX exactly with zero behavior regression.
+- **Mock fallback removed from hooks (Task 8)** — the inner `try/catch + 300ms setTimeout` was hiding real RPC errors and making `mutateAsync` resolve successfully on backend failure. With it gone, the new call-site `Alert.alert` actually fires on RPC errors. Risk: any path that quietly relied on the mock fallback now fails loudly — acceptable trade since `RepairJobDetails` is the only consumer of these three hooks (grep confirmed).
+- **No confirmation `Alert.alert` added to reject** — the @demo stub had none; the brief said "keep the existing dialog only if one exists." Destructive confirmation is a UX scope decision, not a wiring decision; flag for design review if desired.
+- **`handleSimulateProgress` deletion** — purely dev scaffolding, no production value. Grep clean post-delete; no other files reference it.
+- **No confirmation dialog regression** — `isSubmitting` already disables both modal CTAs (Cancel + primary) preventing double-tap; pattern preserved.
+
+### Verification
+- `npx tsc --noEmit` → 0 errors.
+- `npx expo lint` → 8 warnings (down from 10 baseline; the 2 new warnings I introduced — unused `centsToDisplay`/`calculateFee` — were fixed by removing the dead helpers). 0 new warnings on touched files.
+- `grep handleSimulateProgress` returns nothing.
+- `grep "centsToDisplay\|calculateFee"` in RepairJobDetails returns nothing (still defined locally in `ContractorJobDetails.tsx` and `BidSubmissionScreen.tsx` — separate copies, untouched).
+
+### Metrics
+- RPCs: 76 (unchanged — no SQL changes this session)
+- Hooks: 71 (unchanged — three existing hooks edited, none added)
+- Edge Functions: 11 (unchanged)
+
+### Next priorities (S177)
+1. **ATL-LOCATION-04** — agent open-jobs surface (PhotoJobDetails + StagingJobDetails screens) + InviteContractorsModal parity for photo/staging jobs. RPC extensions: `rpc_get_contractors_for_job` add `p_role` param, `rpc_invite_contractors` add `p_note` param, extend `useNetworkContacts` to bidirectional connections, wire `jobTrades` filter in modal.
+2. **REFACTOR-REPAIRJOBDETAILS-LOCAL-JOB-STATE** — eliminate `local job state` in `RepairJobDetails.tsx`; migrate ~50 JSX consumers to `jobData`/`liveBids` directly; remove the seed effect + `JobWithBidProfiles` shadow type. Tracked via the `@cleanup` marker added near line 535. Estimated 1 dedicated session.
+3. **CHATSCREEN BID ACTION AUDIT** — confirm whether `RepairChatScreen.tsx` should expose accept/counter/reject inline bid actions (currently has none); spec'd as a separate audit ticket. S176 grep confirmed zero overlap today.
+4. CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL — pre-launch SQL cleanup of legacy display strings in `vouches.recipient_role`.
+5. CHORE-CLAUDE-MD-SDK-AUDIT — `package.json` says SDK 55/RN 0.83.4; CLAUDE.md still says SDK 54/RN 0.81.5.
+
+### Gates
+- tsc 0 errors, expo lint 0 new warnings, `handleSimulateProgress`/`JOB_STATUS_SEQUENCE` deleted, three `@demo` markers replaced with three `@backend` markers, three `Alert.alert` failure paths surface real error messages, `isSubmitting` disables CTAs, mock fallback removed from all three hooks, feature flags untouched.
+
+---
+
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
 
 ### Branch

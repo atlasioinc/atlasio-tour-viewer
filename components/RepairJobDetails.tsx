@@ -17,11 +17,12 @@
 //
 // @backend: useJob(jobId), useJobBids(jobId) — live data with mock fallback
 // @backend: useRealtimeBids(jobId) — realtime subscription for bid updates
-// @demo: bid action handlers use 600ms setTimeout + optimistic UI updates.
-//        Mutations (useAcceptBid, useCounterBid, useRejectBid) exist in
-//        useData.ts but are NOT yet wired here — handlers use console.log.
-// @demo: DEV helpers (handleSimulateProgress, handleOpenContractorView)
-//        for testing job status progression and contractor view.
+// @backend: useAcceptBid → rpc_accept_bid(p_bid_id, p_job_id)        (S176)
+// @backend: useCounterBid → rpc_counter_bid(p_bid_id, p_job_id, p_counter_amount)  (S176)
+// @backend: useRejectBid → rpc_reject_bid(p_bid_id, p_job_id)        (S176)
+//        Optimistic setJob preserved post-await for instant UX; query
+//        invalidation reconciles to server truth shortly after.
+// @demo: DEV helper handleOpenContractorView — opens contractor JobCompletion view.
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -52,7 +53,7 @@ import type { Job, BidWithProfile, BidStatus, JobStatus } from '../types';
 import InviteContractorsModal from './InviteContractorsModal';
 import InfoBanner from './InfoBanner';
 import { COLORS } from '../lib/tokens';
-import { useJob, useJobBids, useContractorsForJob } from '../hooks/useData';
+import { useJob, useJobBids, useContractorsForJob, useAcceptBid, useCounterBid, useRejectBid } from '../hooks/useData';
 import { supabase } from '../lib/supabase';
 import { useRealtimeBids } from '../hooks/useRealtime';
 import { Avatar, PhotoLightbox, VerificationBanner, EmptyState, MomentBanner, SuccessToast } from './shared';
@@ -71,15 +72,6 @@ type BidActionModal = 'accept' | 'counter' | 'reject' | null;
 const priceToCents = (price: string): number => {
   const cleaned = price.replace(/[^0-9.]/g, '');
   return Math.round(parseFloat(cleaned) * 100);
-};
-
-const centsToDisplay = (cents: number): string => {
-  const dollars = cents / 100;
-  return `$${dollars.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-};
-
-const calculateFee = (amountCents: number): number => {
-  return Math.max(Math.round(amountCents * 0.03), 1500);
 };
 
 // Job with profile-enriched bids (for UI display)
@@ -523,14 +515,22 @@ const RepairJobDetails: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   // S157b — route param is now jobId (CLAUDE.md rule), live fetch via useJob.
-  // Local `job` state is preserved so existing @demo optimistic bid handlers
-  // (handleAcceptBid/handleCounterBid/handleRejectBid) keep working unchanged.
-  // Tech-debt: the 4 @demo bid handlers will be rewired to real hooks in a
-  // follow-up session (see Notion ATL-CONTRACTOR-TRADES-3 sibling ticket).
+  // S176 — bid handlers now call live mutations (useAcceptBid/useCounterBid/
+  // useRejectBid). Local `job` state remains: ~50 JSX consumer sites depend on
+  // it, and the optimistic setJob calls inside each handler give instant UX
+  // while query invalidation reconciles to server truth shortly after.
+  // @cleanup — local job state can be removed when all setJob() callers are
+  //   eliminated and JSX migrates to read jobData/liveBids directly. Tracked
+  //   as a follow-up to ATL-BID-ACTIONS-01 (see ATLASIO_CONTEXT.md S177).
   const { jobId } = route.params;
   const { data: jobData, isLoading: isLoadingJob } = useJob(jobId);
   const { data: liveBids } = useJobBids(jobId);
   useRealtimeBids(jobId);
+
+  // S176 — live bid action mutations
+  const acceptBid = useAcceptBid();
+  const counterBid = useCounterBid();
+  const rejectBid = useRejectBid();
 
   const [job, setJob] = useState<JobWithBidProfiles | null>(null);
   // Photos shown in strip + lightbox — signed URLs generated from private bucket paths.
@@ -722,20 +722,6 @@ const RepairJobDetails: React.FC = () => {
     }
   };
 
-  // @demo DEV: Simulate job status progression ──
-  const JOB_STATUS_SEQUENCE: JobStatus[] = [
-    'in_progress',
-    'pending_completion',
-    'completed',
-  ];
-
-  const handleSimulateProgress = () => {
-    const currentIndex = JOB_STATUS_SEQUENCE.indexOf(effectiveJobStatus);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % JOB_STATUS_SEQUENCE.length : 0;
-    const nextStatus = JOB_STATUS_SEQUENCE[nextIndex];
-    setJob((prev) => (prev ? { ...prev, status: nextStatus } : prev));
-  };
-
   // @demo DEV: Open contractor view directly ──
   const handleOpenContractorView = () => {
     navigation.navigate('JobCompletion', {
@@ -792,25 +778,21 @@ const RepairJobDetails: React.FC = () => {
   }, [activeBidAction]);
 
   // ─────────────────────────────────────────────
-  // BID ACTION HANDLERS
-  // @demo: all 3 handlers use setTimeout + console.log (optimistic UI only)
-  // @backend TODO: wire to useAcceptBid, useCounterBid, useRejectBid
+  // BID ACTION HANDLERS — S176 wired to live RPCs
+  // Optimistic setJob preserved post-await so the timeline card flips
+  // immediately; query invalidation reconciles to server truth.
+  // CTAs disabled while isSubmitting to prevent double-tap.
   // ─────────────────────────────────────────────
 
+  // @backend — useAcceptBid → rpc_accept_bid(p_bid_id, p_job_id)
   const handleAcceptBid = async () => {
     if (!selectedBid) return;
     setIsSubmitting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 600));
-      console.log('ACCEPT BID →', {
-        bidId: selectedBid.id,
-        jobId: job!.id,
-        amountCents: priceToCents(selectedBid.price),
-        feeCents: calculateFee(priceToCents(selectedBid.price)),
-      });
+      await acceptBid.mutateAsync({ bidId: selectedBid.id, jobId: job!.id });
 
-      // Optimistic UI: update bid status + job status
+      // Optimistic UI: update bid status + job status (server reconciles via invalidation)
       setJob(prev => prev ? ({
         ...prev,
         status: 'in_progress' as JobStatus,
@@ -823,13 +805,14 @@ const RepairJobDetails: React.FC = () => {
       }) : prev);
 
       closeBidAction();
-    } catch {
-      Alert.alert('Error', 'Failed to accept bid. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Failed to accept bid', err?.message ?? 'Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // @backend — useCounterBid → rpc_counter_bid(p_bid_id, p_job_id, p_counter_amount)
   const handleCounterBid = async () => {
     if (!selectedBid) return;
 
@@ -853,42 +836,36 @@ const RepairJobDetails: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 600));
-      console.log('COUNTER BID →', {
+      await counterBid.mutateAsync({
         bidId: selectedBid.id,
         jobId: job!.id,
-        originalCents,
-        counterCents,
-        counterDisplay: centsToDisplay(counterCents),
+        counterAmount: counterCents,
       });
 
       setJob(prev => prev ? ({
         ...prev,
         bids: prev.bids.map(b =>
           b.id === selectedBid.id
-            ? { ...b, status: 'countered' as BidStatus }
+            ? { ...b, status: 'countered' as BidStatus, counter_amount: counterCents }
             : b
         ) as BidWithProfile[],
       }) : prev);
 
       closeBidAction();
-    } catch {
-      Alert.alert('Error', 'Failed to send counter. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Failed to send counter offer', err?.message ?? 'Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // @backend — useRejectBid → rpc_reject_bid(p_bid_id, p_job_id)
   const handleRejectBid = async () => {
     if (!selectedBid) return;
     setIsSubmitting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 600));
-      console.log('REJECT BID →', {
-        bidId: selectedBid.id,
-        jobId: job!.id,
-      });
+      await rejectBid.mutateAsync({ bidId: selectedBid.id, jobId: job!.id });
 
       setJob(prev => prev ? ({
         ...prev,
@@ -900,8 +877,8 @@ const RepairJobDetails: React.FC = () => {
       }) : prev);
 
       closeBidAction();
-    } catch {
-      Alert.alert('Error', 'Failed to reject bid. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Failed to reject bid', err?.message ?? 'Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1217,25 +1194,6 @@ const RepairJobDetails: React.FC = () => {
                   Job Progress
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
-                  {/* Simulate Progress — fast-forward icon */}
-                  <Pressable
-                    onPress={handleSimulateProgress}
-                    hitSlop={6}
-                    style={({ pressed }) => ({
-                      width: 30,
-                      height: 30,
-                      borderRadius: 9999,
-                      backgroundColor: '#FFFBEB',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: pressed ? 0.5 : 1,
-                    })}
-                  >
-                    <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-                      <Path d="M3 3L8 8L3 13" stroke={COLORS.counterAmber} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M9 3L14 8L9 13" stroke={COLORS.counterAmber} strokeWidth={1.67} strokeLinecap="round" strokeLinejoin="round" />
-                    </Svg>
-                  </Pressable>
                   {/* Contractor View — hard hat / wrench icon */}
                   <Pressable
                     onPress={handleOpenContractorView}
