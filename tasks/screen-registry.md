@@ -1038,7 +1038,7 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 #### App.tsx Auth Gate (root)
 **File:** `App.tsx` (`checkProfile`, lines ~138–156)
 **Role:** All users (root state machine)
-**Nav Type:** Conditional render — switches between LoginScreen / OnboardingStack / MainApp based on `authState`
+**Nav Type:** Conditional render — switches between AuthStack / OnboardingStack / MainApp based on `authState`
 **Wiring:** ✅ Live
 
 **What it does:**
@@ -1047,6 +1047,70 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 - `checkProfile` SELECTs `role, onboarded_at` from `profiles`
 - S172: gate now checks `profile.onboarded_at` (was `display_role`). `onboarded_at` is written atomically by `rpc_complete_onboarding`; `display_role` was historically nullable and unreliable
 - Branch: `onboarded_at` set → `authState='authenticated'` → MainApp; null/missing → `authState='onboarding'` → Onboarding1
+- S178: `unauthenticated` branch renders `<AuthStack />` (was `<LoginScreen />`) — Apple/Google/email-password/magic-link transparent to this gate; auth-method-agnostic.
+
+---
+
+#### AuthStack *(NEW — S178)*
+**File:** `components/AuthStack.tsx` (~50 lines)
+**Role:** All users (pre-auth)
+**Nav Type:** Conditional render — local `useState<'login' | 'signup' | 'forgot-password'>` state machine, rendered outside NavigationContainer
+**Wiring:** ✅ Live (pure UI wrapper, no backend)
+
+**What it does:**
+- Renders `<LoginScreen />`, `<SignUpScreen />`, or `<ForgotPasswordScreen />` based on local state
+- Passes `onSignUp`, `onForgotPassword`, `onBack`, `onSignIn` callbacks down
+
+**Exit Points:**
+- Auth success in any child → `onAuthStateChange` in App.tsx unmounts this stack and routes to onboarding/MainApp
+
+---
+
+#### LoginScreen *(REBUILT — S178)*
+**File:** `components/LoginScreen.tsx` (~480 lines)
+**Role:** All users (pre-auth)
+**Nav Type:** Rendered by AuthStack
+**Wiring:** ✅ Live
+
+**Auth methods (in vertical order):**
+1. Sign in with Apple — `expo-apple-authentication` + `supabase.auth.signInWithIdToken({ provider: 'apple' })`
+2. Continue with Google — `@react-native-google-signin/google-signin` v16 + `supabase.auth.signInWithIdToken({ provider: 'google' })`
+3. Email + password — `supabase.auth.signInWithPassword`
+4. Forgot password link → `onForgotPassword()` → ForgotPasswordScreen
+5. Sign up footer link → `onSignUp()` → SignUpScreen
+6. Magic link tertiary fallback ("Sign in with email link instead") → `supabase.auth.signInWithOtp` (kept for beta)
+
+**Brand:** ATLASIO wordmark (36pt, weight 700, letterSpacing 7.2, COLORS.primary) + tagline "The network that gets the job done."
+
+**Native modules:** Apple + Google sign-in require new EAS build to function on device. Email+password and magic link work in OTA.
+
+**Removed in S178:** All `FEATURE_FLAGS.DEV_SHOW_PASSWORD_LOGIN` consumption (flag itself stays in `featureFlags.ts` for any other consumers).
+
+---
+
+#### SignUpScreen *(NEW — S178)*
+**File:** `components/SignUpScreen.tsx` (~280 lines)
+**Role:** All users (pre-auth)
+**Nav Type:** Rendered by AuthStack when user taps "Sign up"
+**Wiring:** ✅ Live
+
+**Fields:** First name, Last name, Email, Password (≥8 chars), Confirm password (must match)
+**RPC:** `supabase.auth.signUp({ email, password, options: { data: { first_name, last_name, full_name } } })`
+**Post-submit:** "Check your email" confirmation state — Supabase emails confirmation link
+**Validation:** Inline confirm-password mismatch error; submit disabled until all fields valid
+
+---
+
+#### ForgotPasswordScreen *(NEW — S178)*
+**File:** `components/ForgotPasswordScreen.tsx` (~210 lines)
+**Role:** All users (pre-auth)
+**Nav Type:** Rendered by AuthStack when user taps "Forgot password"
+**Wiring:** ✅ Live
+
+**Fields:** Email
+**RPC:** `supabase.auth.resetPasswordForEmail(email, { redirectTo: 'atlasio://reset-password' })`
+**Post-submit:** "Check your email" sent state with "Back to sign in" link
+**TODO future session:** ResetPasswordScreen + atlasio://reset-password deep link handler in App.tsx (out of scope for ATL-AUTH-02)
 
 ---
 

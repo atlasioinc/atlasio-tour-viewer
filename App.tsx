@@ -54,7 +54,7 @@ import { queryClient } from './lib/queryClient';
 import { supabase } from './lib/supabase';
 import { COLORS } from './lib/tokens';
 import { FEATURE_FLAGS } from './lib/featureFlags';
-import LoginScreen from './components/LoginScreen';
+import AuthStack from './components/AuthStack';
 import OnboardingScreen1 from './components/OnboardingScreen1';
 // OnboardingScreen2 retired — role selection moved to OnboardingRoleSelect
 // import OnboardingScreen2 from './components/OnboardingScreen2';
@@ -283,7 +283,7 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
           <SafeAreaProvider>
-            <LoginScreen />
+            <AuthStack />
           </SafeAreaProvider>
         </QueryClientProvider>
       </GestureHandlerRootView>

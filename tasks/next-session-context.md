@@ -14,7 +14,8 @@
 
 ## Active branches
 - `feat/atl-location-03-s175` @ af7c5c4 — S175 base + S177 modal fixes committed
-- `feat/atl-bid-actions-01-s176` @ [S178 final commit] — S176 base + S177 invite/bid wiring + S177 notification mock cleanup + **S178 BidSubmissionScreen audit fixes**
+- `feat/atl-bid-actions-01-s176` @ [S178 BidSubmission final commit] — S176 base + S177 invite/bid wiring + S177 notification mock cleanup + S178 BidSubmissionScreen audit fixes
+- `feat/atl-auth-02-s178` @ [S178 ATL-AUTH-02 final commit] — branched from `feat/atl-bid-actions-01-s176` HEAD. Adds AuthStack + LoginScreen rebuild + SignUpScreen + ForgotPasswordScreen + Apple/Google native deps + app.json entitlements & plugins.
 
 ## QA items pending (Build 57 — device required)
 
@@ -36,6 +37,20 @@
 - [ ] BidSubmissionScreen notes input → type past 500 characters → input hard-stops at 500 (counter no longer overflows)
 - [ ] BidSubmissionScreen close (X) icon → tap dead-center, top, bottom, edges of the icon area → all 44×44 pixels of the touch target dispatch goBack (was 12px hitSlop before)
 - [ ] Visual: header title centering — Fix 4 expanded the close Pressable to 44px wide while the right-side spacer at L229 stayed 20px. Confirm the title shift is acceptable on device; if not, raise the chore ticket sooner.
+
+### S178 ATL-AUTH-02 new (testable on Build 57 — Apple/Google require native build to function)
+- [ ] LoginScreen — ATLASIO wordmark renders with letterSpacing 7.2 + tagline "The network that gets the job done."
+- [ ] LoginScreen — "Sign in with Apple" button visible on iOS (hidden on Android), launches Apple sheet, completes auth roundtrip → onAuthStateChange routes to onboarding/MainApp
+- [ ] LoginScreen — "Continue with Google" custom button (white, hairline border, 4-color G logo) launches Google sheet, completes auth roundtrip
+- [ ] LoginScreen — Email + password sign-in works against existing `tony@atlasioapp.com` / `contractor@atlasioapp.com` test accounts
+- [ ] LoginScreen — "Forgot password?" link navigates to ForgotPasswordScreen
+- [ ] LoginScreen — "Sign up" footer link navigates to SignUpScreen
+- [ ] LoginScreen — "Sign in with email link instead" tertiary link still triggers the magic link flow (atlasio://login-callback deep link unchanged)
+- [ ] SignUpScreen — submit disabled until all 5 fields valid; passwords-mismatch error shows inline; "Check your email" confirmation state appears on success; Supabase confirmation email arrives
+- [ ] ForgotPasswordScreen — "Send Reset Link" sends email; sent state appears; reset email arrives at the entered address
+- [ ] AuthStack — back chevrons on SignUp + ForgotPassword return to LoginScreen
+- [ ] No crash on cold start when no session is cached — AuthStack mounts and shows LoginScreen
+- [ ] Cosmetic: Apple + Google buttons feel like a matched pair (50pt height, 12pt radius, vertical rhythm)
 
 ## If QA passes — merge sequence
 ```
@@ -67,6 +82,18 @@ git push origin main
 
 ## SQL deployed S178
 - None — S178 was code-only (no schema changes, no Edge Function deploys)
+
+## Native module changes S178 (require Build 57 to test on device)
+- `expo-apple-authentication` ~55.0.13 — installed
+- `@react-native-google-signin/google-signin` ^16.1.2 — installed (v16 discriminated-union API)
+- `app.json` plugins: added `expo-apple-authentication` + `@react-native-google-signin/google-signin` (with iOS reverse client ID `com.googleusercontent.apps.1083228224051-evac6li6a938mh2demlimmnb302e7slt`)
+- `app.json` ios: added `usesAppleSignIn: true` + `entitlements.com.apple.developer.applesignin: ["Default"]`
+
+## ATL-AUTH-02 follow-up (S179+)
+- ResetPasswordScreen + `atlasio://reset-password` deep link handler in App.tsx (final password-set step after email link tap — out of scope ATL-AUTH-02)
+- Move `GOOGLE_IOS_CLIENT_ID` from hardcoded constant in LoginScreen to EAS env var pre-launch
+- Apple JWT secret in Supabase Apple provider expires ~November 6 2026 — calendar reminder needed
+- `FEATURE_FLAGS.DEV_SHOW_PASSWORD_LOGIN` flag is now unreferenced — safe to delete from `lib/featureFlags.ts` (left in place per S178 plan agreement; sweep in a future cleanup session)
 
 ## Metrics to reconcile
 RPCs: 77 | Hooks: 72 | Edge Functions: 11

@@ -676,6 +676,76 @@ Supersedes ATL-122.
 
 ---
 
+## S178 — ATL-AUTH-02: Standard Auth (Apple/Google/Email-Password + ATLASIO Brand) (May 6, 2026)
+
+### Branch
+`feat/atl-auth-02-s178` (new branch from `feat/atl-bid-actions-01-s176` HEAD)
+
+### Files created
+- `components/AuthStack.tsx` (~50 lines) — pre-auth navigation wrapper. Local `useState<'login' | 'signup' | 'forgot-password'>` state machine. Renders one of three screens, passes `onSignUp` / `onForgotPassword` / `onBack` / `onSignIn` callbacks. Replaces direct `<LoginScreen />` render in App.tsx.
+- `components/SignUpScreen.tsx` (~290 lines) — registration form: first/last name, email, password (≥8), confirm password. Calls `supabase.auth.signUp` with `options.data.{first_name, last_name, full_name}`. Post-submit "Check your email" confirmation state. Inline confirm-mismatch error. Submit disabled until all fields valid.
+- `components/ForgotPasswordScreen.tsx` (~220 lines) — email input only. Calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: 'atlasio://reset-password' })`. Post-submit sent state. **TODO future session:** ResetPasswordScreen + atlasio://reset-password deep link handler in App.tsx (out of scope ATL-AUTH-02).
+
+### Files modified
+- `components/LoginScreen.tsx` — full rewrite (225 → ~480 lines). Layout: ATLASIO wordmark + tagline → Apple button (`AppleAuthentication.AppleAuthenticationButton`, BLACK, SIGN_IN, 50h, cornerRadius 12) → custom Google button (white, 1px `COLORS.border`, 4-color G SVG left + label optically centered) → "or" divider → email FormField → password FormField → forgot-password right-aligned link → Sign In CTA → "Don't have an account? Sign up" → magic link tertiary fallback ("Sign in with email link instead"). Removed all `FEATURE_FLAGS.DEV_SHOW_PASSWORD_LOGIN` consumption (flag itself stays in `featureFlags.ts`). `GoogleSignin.configure({ iosClientId })` in mount-time `useEffect`.
+- `App.tsx` — 2 lines: import swap (`LoginScreen` → `AuthStack`) and render swap (`<LoginScreen />` → `<AuthStack />`). No routing logic changes; `onAuthStateChange` already provider-agnostic.
+- `app.json` — added `expo-apple-authentication` plugin, `[@react-native-google-signin/google-signin, { iosUrlScheme }]` plugin (with iOS reverse client ID), `ios.usesAppleSignIn: true`, and `ios.entitlements.com.apple.developer.applesignin: ["Default"]`.
+
+### Dependencies installed
+- `expo-apple-authentication` ~55.0.13
+- `@react-native-google-signin/google-signin` ^16.1.2 — **v16 returns a discriminated union** (`{ type: 'success' | 'cancelled', data }`); cancellation is a returned response, NOT a thrown error. Handler uses `if (response.type === 'cancelled') return;` then reads `response.data.idToken`.
+
+### Brand treatment
+- Wordmark: `ATLASIO` literal (not `textTransform`), `fontSize: 36`, `fontWeight: '700'`, `letterSpacing: 7.2` (20% of 36pt), `color: COLORS.primary`. Applied identically on all 3 auth screens.
+- Tagline: "The network that gets the job done." — `TYPOGRAPHY.bodyL`, `COLORS.bodyText`, `marginTop: SPACING.md`.
+
+### Key decisions
+- **AuthStack pattern (not React Navigation)** — LoginScreen renders outside `NavigationContainer` (App.tsx:286). Local `useState` state machine + props is the cleanest pattern; no need to mount a separate `NavigationContainer` for 3 pre-auth screens.
+- **Google v16 discriminated union** — diverged from spec's `userInfo.data?.idToken` try/catch pattern after verifying installed type definitions in `node_modules/.../signIn/GoogleSignin.d.ts`. v16 idiom is type-safe; older try/catch on `statusCodes.SIGN_IN_CANCELLED` would still compile but not match runtime behavior.
+- **Magic link kept as tertiary fallback** ("Sign in with email link instead", `TYPOGRAPHY.caption`, `COLORS.secondaryText`) — preserves existing beta flow + atlasio://login-callback deep link handler in App.tsx.
+- **Apple button hidden on Android** — wrapped in `{Platform.OS === 'ios' && (...)}`. `expo-apple-authentication` is iOS-only; Android Apple sign-in deferred (and out of scope per spec).
+- **Google button design** — premium pair with Apple button: 50h, radius 12, full width, white bg, 1px `COLORS.border` hairline, 4-color G logo (20×20 SVG) left, label optically centered via `flex: 1, textAlign: 'center'` + matching 20×20 right-side spacer.
+- **`usesAppleSignIn: true` added** alongside `entitlements` block — `expo-apple-authentication` requires the former for prebuild to bootstrap; spec only mentioned entitlements but both are needed.
+- **Apple JWT secret expires ~November 6 2026** — `@demo` marker added to LoginScreen + SignUpScreen for the regenerate-in-Supabase reminder.
+
+### Architecture rules applied
+- All tokens from `lib/tokens.ts`. **One inline-hex exception:** the 4 Google brand colors (`#4285F4`/`#34A853`/`#FBBC05`/`#EA4335`) in the inline G logo SVG, flagged with `// @design Google brand colors — do not replace with tokens` per spec.
+- All buttons `borderRadius: 12` (matches Apple button cornerRadius); primary button height = `DIMENSIONS.buttonModalHeight` (48); social buttons = 50 (Apple HIG minimum).
+- Touch targets: Apple component compliant by Apple. Google button 50h × full-width. All back chevron Pressables explicit 44×44.
+- Body text ≥ 14pt; magic-link fallback at 12pt with `COLORS.secondaryText` (allowed by tokens.ts caption rule).
+- `SafeAreaView edges={['top']}` on all 3 auth screens.
+- `KeyboardAvoidingView` wraps `ScrollView`; primary CTAs sit inside `ScrollView` (no sticky CTA pattern needed — auth forms fit on one screen on all device classes).
+- `@backend` markers on every supabase.auth.* call. `@demo` markers on hardcoded GOOGLE_IOS_CLIENT_ID and Apple JWT expiry reminder.
+
+### Native module / build implication
+- Apple + Google sign-in ship native iOS code → **must be picked up by next EAS build (Build 57) before either button works on device.** Email+password and magic link still work in JS-only OTA.
+- `app.json` plugin + entitlements changes will trigger native code generation on next prebuild.
+
+### Tickets closed
+- `ATL-AUTH-02` — Standard Auth: Email/Password + Sign in with Apple + Google → ✅ Done
+
+### Gates
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → 0 new warnings (same 8 pre-existing baseline as S177/S178 BidSubmission session — none in new auth files)
+
+### Metrics
+- RPCs: 77 (unchanged) | Hooks: 72 (unchanged) | Edge Functions: 11 (unchanged)
+- Screens: +3 (SignUpScreen, ForgotPasswordScreen, AuthStack)
+- New dependencies: 2 (expo-apple-authentication, @react-native-google-signin/google-signin)
+
+### Out of scope (deferred)
+- ResetPasswordScreen + `atlasio://reset-password` deep link handler (final password-set step after email link tap)
+- Password strength indicator UI
+- Biometric / Face ID login
+- Phone number auth
+- Android Google Sign In configuration (iOS-first per spec)
+
+### Next priorities (S179 carryover from S178 BidSubmission session unchanged; ATL-AUTH-02 follow-ups added)
+- ATL-AUTH-02 device QA on Build 57: Apple sign-in roundtrip, Google sign-in roundtrip, email+password sign-in, sign up + email confirmation, password reset email roundtrip
+- ATL-AUTH-02 follow-up: implement ResetPasswordScreen + `atlasio://reset-password` deep link in App.tsx so the reset email link lands somewhere
+
+---
+
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
 
 ### Branch

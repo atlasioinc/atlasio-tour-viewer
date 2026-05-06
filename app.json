@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.atlasio-demo"
+      "bundleIdentifier": "com.anonymous.atlasio-demo",
+      "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,6 +35,13 @@
     "plugins": [
       "@react-native-community/datetimepicker",
       "expo-secure-store",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.1083228224051-evac6li6a938mh2demlimmnb302e7slt"
+        }
+      ],
       [
         "expo-image-picker",
         {
