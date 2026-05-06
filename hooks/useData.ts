@@ -65,6 +65,7 @@ import type {
   JobType,
   TradeEnum,
   Bid,
+  BidStatus,
   BidWithProfile,
   Vouch,
   VouchEntry,
@@ -2120,12 +2121,60 @@ export const useRemoveSquadMember = () => {
 export const LIVE_CONTRACTOR_HOOKS = true;
 
 /**
+ * Snake_case rpc_get_job_details JSON → camelCase ContractorJobDetail.
+ * @backend rpc_get_job_details — full field mapping S177 (ATL-BID-FLOW-01)
+ * Single cast point per lessons.md S163 RPC consumer audit rule.
+ */
+function adaptJobDetails(raw: any): ContractorJobDetail {
+  if (!raw) return raw;
+  return {
+    id:              raw.id,
+    title:           raw.title,
+    description:     raw.description,
+    address:         raw.address,
+    job_type:        raw.job_type,
+    jobStatus:       raw.status,
+    dueDate:         raw.due_date,
+    isUrgent:        raw.is_urgent ?? false,
+    photos:          raw.photo_urls ?? [],
+    budgetMin:       raw.budget_min ?? 0,
+    budgetMax:       raw.budget_max ?? 0,
+    trade:           Array.isArray(raw.trades) ? (raw.trades[0] ?? '') : (raw.trades ?? ''),
+    bidCount:        raw.bid_count ?? 0,
+    invitation_id:   raw.invitation_id ?? null,
+    agent_message:   raw.agent_message ?? null,
+    invited_at:      raw.invited_at ?? null,
+    agent: raw.agent
+      ? {
+          id:          raw.agent.id ?? '',
+          name:        raw.agent.name ?? '',
+          company:     raw.agent.company ?? '',
+          avatarColor: raw.agent.avatar_color ?? '',
+          avatarUrl:   raw.agent.avatar_url ?? null,
+          rating:      raw.agent.rating ?? 0,
+          vouchCount:  raw.agent.vouch_count ?? 0,
+        }
+      : { id: '', name: '', company: '', avatarColor: '', avatarUrl: null, rating: 0, vouchCount: 0 },
+    myBid: raw.my_bid
+      ? {
+          id:            raw.my_bid.id,
+          amount:        raw.my_bid.amount ?? 0,
+          timelineDays:  raw.my_bid.timeline ?? '',
+          notes:         raw.my_bid.message ?? '',
+          status:        raw.my_bid.status as BidStatus,
+          counterAmount: raw.my_bid.counter_amount ?? null,
+          counterNotes:  raw.my_bid.counter_notes ?? null,
+        }
+      : undefined,
+  };
+}
+
+/**
  * Fetch contractor's view of a single job.
  * @backend rpc_get_job_details(p_job_id) — name confirmed March 12 2026
  * Note: was previously called rpc_get_contractor_job_details — name mismatch fixed S50
- * @demo replaced mock return null with live Supabase RPC call
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (S177 — adapter added; null fallback retained for transient errors)
 export const useContractorJobDetails = (jobId: string) => {
   return useQuery<ContractorJobDetail>({
     queryKey: ['contractorJob', jobId],
@@ -2134,10 +2183,10 @@ export const useContractorJobDetails = (jobId: string) => {
         const { data, error } = await supabase
           .rpc('rpc_get_job_details', { p_job_id: jobId });
         if (error) throw error;
-        return data as ContractorJobDetail;
+        return adaptJobDetails(data);
       } catch (err) {
-        console.warn('[useContractorJobDetails] Supabase RPC failed, using mock fallback', err);
-        // @demo mock fallback — return null (screen handles loading/null states)
+        console.warn('[useContractorJobDetails] Supabase RPC failed, returning null', err);
+        // Pairs with the screen's `error || !job` guard — prevents crash on transient errors.
         return null as unknown as ContractorJobDetail;
       }
     },
@@ -2148,28 +2197,22 @@ export const useContractorJobDetails = (jobId: string) => {
 /**
  * Submit a bid on a job.
  * @backend rpc_submit_bid — submits contractor bid, invalidates job + contractor-jobs queries
- * @demo replaced console.log + setTimeout with live Supabase RPC call
+ * @backend LIVE — mock fallback removed S177
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (S177 — mock fallback removed; real RPC errors propagate)
 export const useSubmitBid = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { jobId: string; amount: number; timeline: string; notes: string }) => {
-      try {
-        const { error } = await supabase
-          .rpc('rpc_submit_bid', {
-            p_job_id: data.jobId,
-            p_amount: data.amount,
-            p_timeline: data.timeline ?? null,
-            p_quote: data.notes ?? null,
-            p_message: '',
-          });
-        if (error) throw error;
-      } catch (err) {
-        console.warn('[useSubmitBid] Supabase RPC failed, using mock fallback', err);
-        // @demo mock fallback — simulate success
-        await new Promise((r) => setTimeout(r, 500));
-      }
+      const { error } = await supabase
+        .rpc('rpc_submit_bid', {
+          p_job_id: data.jobId,
+          p_amount: data.amount,
+          p_timeline: data.timeline ?? null,
+          p_quote: data.notes ?? null,
+          p_message: '',
+        });
+      if (error) throw error;
     },
     onSuccess: (_, { jobId }) => {
       qc.invalidateQueries({ queryKey: ['contractorJob', jobId] });
@@ -2184,27 +2227,21 @@ export const useSubmitBid = () => {
  *   p_bid_id, p_action: 'accept' | 'counter' | 'decline', p_counter_amount?
  * })
  * → returns { success, action, bid_id }
+ * @backend LIVE — mock fallback removed S177
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (S177 — mock fallback removed; real RPC errors propagate)
 export const useRespondToCounter = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { bidId: string; action: 'accept' | 'counter' | 'decline'; newAmount?: number }) => {
-      try {
-        const { data: result, error } = await supabase
-          .rpc('rpc_respond_to_counter', {
-            p_bid_id: data.bidId,
-            p_action: data.action,
-            p_counter_amount: data.newAmount ?? null,
-          });
-        if (error) throw error;
-        return result;
-      } catch (err) {
-        console.warn('[useRespondToCounter] Supabase RPC failed, using mock fallback', err);
-        // @demo mock fallback — simulate success
-        await new Promise((r) => setTimeout(r, 500));
-        return { success: true, action: data.action, bid_id: data.bidId };
-      }
+      const { data: result, error } = await supabase
+        .rpc('rpc_respond_to_counter', {
+          p_bid_id: data.bidId,
+          p_action: data.action,
+          p_counter_amount: data.newAmount ?? null,
+        });
+      if (error) throw error;
+      return result;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contractorJob'] });
@@ -2217,23 +2254,17 @@ export const useRespondToCounter = () => {
  * Accept a job invitation.
  * @backend supabase.rpc('rpc_accept_invitation', { p_invitation_id })
  * → returns { success, invitation_id, job_id }
+ * @backend LIVE — mock fallback removed S177
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (S177 — mock fallback removed; real RPC errors propagate)
 export const useAcceptInvitation = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (params: { invitationId: string }) => {
-      try {
-        const { data, error } = await supabase
-          .rpc('rpc_accept_invitation', { p_invitation_id: params.invitationId });
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        console.warn('[useAcceptInvitation] Supabase RPC failed, using mock fallback', err);
-        // @demo mock fallback
-        await new Promise((r) => setTimeout(r, 500));
-        return { success: true, invitation_id: params.invitationId };
-      }
+      const { data, error } = await supabase
+        .rpc('rpc_accept_invitation', { p_invitation_id: params.invitationId });
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contractorJob'] });
@@ -2247,23 +2278,17 @@ export const useAcceptInvitation = () => {
  * Decline a job invitation.
  * @backend supabase.rpc('rpc_decline_invitation', { p_invitation_id })
  * → returns { success, invitation_id, job_id }
+ * @backend LIVE — mock fallback removed S177
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (S177 — mock fallback removed; real RPC errors propagate)
 export const useDeclineInvitation = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (params: { invitationId: string }) => {
-      try {
-        const { data, error } = await supabase
-          .rpc('rpc_decline_invitation', { p_invitation_id: params.invitationId });
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        console.warn('[useDeclineInvitation] Supabase RPC failed, using mock fallback', err);
-        // @demo mock fallback
-        await new Promise((r) => setTimeout(r, 500));
-        return { success: true, invitation_id: params.invitationId };
-      }
+      const { data, error } = await supabase
+        .rpc('rpc_decline_invitation', { p_invitation_id: params.invitationId });
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contractorJob'] });
@@ -2276,25 +2301,17 @@ export const useDeclineInvitation = () => {
  * Start work on an awarded job (contractor).
  * @backend supabase.rpc('rpc_start_job', { p_job_id })
  * → validates awarded contractor, transitions awarded → in_progress, notifies agent
+ * @backend LIVE — mock fallback removed S177
  */
-// STATUS: mock
-// @demo: mock 800ms delay, optimistic awarded → in_progress
-// @backend: rpc_start_job(p_job_id)
+// STATUS: wired (S177 — mock fallback removed; real RPC errors propagate)
 export const useStartJob = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (params: { jobId: string }) => {
-      try {
-        const { data, error } = await supabase
-          .rpc('rpc_start_job', { p_job_id: params.jobId });
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        console.warn('[useStartJob] Supabase RPC failed, using mock fallback', err);
-        // @demo mock fallback — 800ms delay
-        await new Promise((r) => setTimeout(r, 800));
-        return { success: true, job_id: params.jobId, status: 'in_progress' };
-      }
+      const { data, error } = await supabase
+        .rpc('rpc_start_job', { p_job_id: params.jobId });
+      if (error) throw error;
+      return data;
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['contractorJob', variables.jobId] });

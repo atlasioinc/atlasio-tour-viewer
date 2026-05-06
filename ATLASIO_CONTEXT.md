@@ -519,6 +519,50 @@ Supersedes ATL-122.
 
 ---
 
+## S177 — ATL-BID-FLOW-01: ContractorJobDetails Full Live Wiring (May 6, 2026)
+
+### Branch
+`feat/atl-bid-actions-01-s176` (continuation — same working branch as S176 / ATL-CONTRACTOR-INVITES-01)
+
+### Files modified
+- `types/index.ts` — `ContractorJobDetail` additive only: `invitation_id?` (top-level), `agent.avatarUrl?`, `myBid.timelineDays: number | string` (RPC returns TEXT). No renames. Existing `bidCount: number` left as required (not downgraded to optional per the spec — adapter populates always).
+- `hooks/useData.ts` — added `adaptJobDetails(raw: any): ContractorJobDetail` as a module-level function above `useContractorJobDetails`. Adapter is the **single cast point** (lessons.md S163 RPC consumer audit rule) — maps snake_case RPC JSON → camelCase, including `counterNotes: raw.my_bid.counter_notes ?? null` and top-level `invited_at: raw.invited_at ?? null` (both flagged before write because the spec's adapter body omitted them but UI consumed them — surfaced as blockers, user approved). `useContractorJobDetails` now calls `adaptJobDetails(data)` instead of `data as ContractorJobDetail`. Catch-block null fallback retained — pairs with the screen's new `error || !job` guard. Mock fallbacks **removed** from 5 hooks: `useSubmitBid`, `useRespondToCounter`, `useAcceptInvitation`, `useDeclineInvitation`, `useStartJob` — real RPC errors now propagate to call sites. `useStartJob` STATUS upgraded `mock` → `wired`. `BidStatus` added to imports.
+- `components/ContractorJobDetails.tsx` — replaced `const job = DEMO_STATES[demoStateIndex]` with live `useContractorJobDetails(jobId)`. Added loading + error guards (after all hooks per lessons.md S157b). Removed all demo scaffolding: 6 `MOCK_JOB_*` constants, `DEMO_STATES`, `DEMO_LABELS`, `JOB_ID_TO_STATE_INDEX`, `demoStateIndex`/`setDemoStateIndex`, the segmented control demo cycle button, the "DEMO STATES" header comment block, and the dead `import type { ContractorJobDetail }` line. `DEMO_PHOTOS` retained as render fallback per spec option (b) — `const photoSources = (job.photos && job.photos.length > 0) ? job.photos : DEMO_PHOTOS` with `@demo TODO` comment; replaces all 5 `DEMO_PHOTOS` references in the photo strip + `PhotoLightbox`. `handleDeclineInvite` rewritten per spec — prefers `job.invitation_id`, falls back to `route.params.invitationId`, short-circuits `goBack()` on missing ID. `handleStartWork` (Awarded state CTA) converted from `startJob.mutate` to `await startJob.mutateAsync` with `try/catch` + `Alert.alert` on failure (matches decline pattern). All four `navigation.navigate('BidSubmission', ...)` call sites converted to `navigation.push` per lessons.md permanent rule (`handleCounterBack`, invite-no-bid path, no-bid path, edit-bid path). Timeline render fixed to handle `timelineDays: number | string` correctly — TEXT path renders `Timeline: {string}`, numeric path keeps `day/days` suffix. Touch-up of 6 `@demo` comments → `@backend wired S177`. Imports: `ActivityIndicator` added, `useContractorJobDetails` added, `ContractorJobDetail` removed.
+
+### Key decisions
+- **`adaptJobDetails` as module-level adapter** — single cast point per lessons.md S163. Includes `counterNotes` and top-level `invited_at` (both omitted from spec but consumed by UI; flagged as blockers and approved before write).
+- **`bidCount: number` (required) not downgraded to optional** — spec said "add `bidCount?: number`" but the field already existed as required. Adapter sets `raw.bid_count ?? 0` so always defined; downgrading would be a regression. Flagged before write.
+- **`DEMO_PHOTOS` retained as fallback** — option (b) approved. Single-line ternary plus `@demo TODO`. Avoids broken photo strip if `rpc_get_job_details` returns empty/null `photo_urls` while signed-URL flow is verified on device. Mirrors the lessons.md S157 private-bucket caveat.
+- **All four `navigate` → `push`** — spec listed two; the other two were the same lessons.md violation. Approved before write.
+- **`useStartJob` flipped `STATUS: mock` → `STATUS: wired`** — the body always called the real RPC; only the catch was mock. Now the catch is gone too.
+- **`useContractorJobDetails` catch-block null fallback retained** — not in spec's removal list. Pairs with the screen's new `error || !job` guard so transient RPC errors render a friendly message instead of crashing.
+- **Timeline render mixed-type bug pre-empted** — RPC returns `my_bid.timeline` as TEXT (e.g. `"7 days"`); existing JSX appended `' day'`/`' days'` based on `=== 1` numeric comparison. Without this fix, live data would render `"7 days days"`. Fix is a typeof-narrowed render branch.
+- **Mock fallback removal from 5 mutation hooks** — real RPC errors now propagate and surface via `Alert.alert` at call sites (decline + start-work both wired with try/catch). Other call sites (RepairJobDetails accept/counter/reject from S176) already had Alert.alert wrappers.
+
+### Verification
+- `npx tsc --noEmit` → 0 errors.
+- `npx expo lint` → 0 new warnings (8 pre-existing, unchanged from session baseline). The transient `'ContractorJobDetail' is defined but never used` warning that appeared after demo removal was fixed by deleting the now-orphaned type import.
+- All 6 bid states (No Bid, Pending, Counter, Awarded, In Progress, Pending Confirmation) now driven by `rpc_get_job_details` → `adaptJobDetails` → screen render. Demo cycle button gone; user sees real state for the real `jobId`.
+
+### Metrics
+- RPCs: 77 (unchanged — `rpc_get_job_details` updated this session, not added)
+- Hooks: 72 (unchanged — `useContractorJobDetails` adapter added, no new hooks)
+- Edge Functions: 11 (unchanged)
+
+### Bug closed
+- ATL-BID-FLOW-01
+
+### Next priorities (S178)
+1. **Verify `rpc_get_job_details` returns signed `photo_urls`** on device. If it returns storage paths, swap to per-render `createSignedUrl()` per lessons.md S157 / S157b private-bucket pattern. Then drop `DEMO_PHOTOS` fallback entirely.
+2. **`BidSubmissionScreen` live wiring** — currently still mock; consumed by 4 `navigation.push('BidSubmission', ...)` paths from this screen (Submit Bid, Edit Bid, Counter Back, no-bid path). Same adapter pattern as `useContractorJobDetails`.
+3. **REFACTOR-REPAIRJOBDETAILS-LOCAL-JOB-STATE** (carryover from S176).
+4. **ATL-LOCATION-04** (carryover from S176) — agent open-jobs surface.
+
+### Gates
+- tsc 0 errors, expo lint 0 new warnings, all `MOCK_JOB_*` / `DEMO_STATES` / `JOB_ID_TO_STATE_INDEX` removed, `DEMO_PHOTOS` retained as render fallback only with `@demo TODO`, single adapter cast point in `useData.ts`, mock fallbacks removed from 5 hooks (`useSubmitBid` / `useRespondToCounter` / `useAcceptInvitation` / `useDeclineInvitation` / `useStartJob`), all 4 `navigate` → `push` per lessons.md, timeline render handles both numeric and TEXT paths, `@backend`/`@demo` markers refreshed, no inline hex.
+
+---
+
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
 
 ### Branch

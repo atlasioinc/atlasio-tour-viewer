@@ -428,18 +428,20 @@ export interface ContractorJobDetail {
   job_type?: 'open' | 'invite';       // @backend: rpc_get_job_details
   agent_message?: string | null;      // @backend: job_invitations.note
   invited_at?: string | null;         // @backend: rpc_get_job_details → job_invitations.created_at (ISO string)
+  invitation_id?: string | null;      // @backend rpc_get_job_details ji.id — S177
   agent: {
     id: string;
     name: string;
     company: string;
     avatarColor: string;
+    avatarUrl?: string | null;        // @backend rpc_get_job_details agent.avatar_url — S177
     rating: number;
     vouchCount: number;
   };
   myBid?: {
     id: string;
     amount: number;                    // cents
-    timelineDays: number;
+    timelineDays: number | string;     // RPC returns TEXT (e.g. "7 days") — S177
     notes: string;
     status: BidStatus;
     counterAmount?: number;            // cents

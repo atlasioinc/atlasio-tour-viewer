@@ -1,24 +1,20 @@
 // ContractorJobDetails.tsx
 // ═══════════════════════════════════════════════════════════════
 // WHAT: Full job detail screen for contractors. Shows job info,
-//       agent's budget (redesigned solid blue card), contractor's
-//       own bid state (3 card designs: no-bid / pending / countered),
-//       job photos strip with lightbox, and inline counter comparison.
+//       agent's budget (solid blue card), contractor's own bid state
+//       (no-bid / pending / countered cards), job photos strip with
+//       lightbox, and inline counter comparison.
 //
 // WHERE IN NAV:
 //   ContractorHomeStack:  ContractorHomeTab → ContractorJobDetails
 //   ContractorJobsStack:  JobTrackerTab → ContractorJobDetails
-//   Route param: { jobId: string }
+//   Route params: { jobId: string; invitationId?: string }
 //
-// DEMO STATES (toggle via segmented control hidden above scroll):
-//   Index 0 → MOCK_JOB_NO_BID       → no bid card, CTA = "Submit Bid"
-//   Index 1 → MOCK_JOB_BID_PENDING  → bid card (pending), CTA = "Edit Bid"
-//   Index 2 → MOCK_JOB_COUNTERED    → counter card, CTA = Decline/Counter/Accept
-//
-// @demo All job data is mock. Replace with:
-//   useContractorJobDetails(jobId) → jobs + bids join, filtered by contractor_id = auth.uid()
-// @backend RPC: rpc_submit_bid (via BidSubmissionScreen)
-// @backend RPC: rpc_respond_to_counter_offer (useRespondToCounter — already wired S30)
+// LIVE: data via useContractorJobDetails(jobId) → rpc_get_job_details
+//   adapter (S177 ATL-BID-FLOW-01). All 6 bid states driven by RPC.
+// @backend RPC: rpc_get_job_details (read), rpc_submit_bid (via BidSubmissionScreen),
+//   rpc_respond_to_counter (counter flow), rpc_decline_invitation (decline),
+//   rpc_start_job (Start Work CTA).
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -31,6 +27,7 @@ import {
   Alert,
   Image,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -40,8 +37,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { DisplayTag } from './DisplayTag';
-import type { ContractorJobDetail } from '../types';
-import { useRespondToCounter, useStartJob, useDeclineInvitation } from '../hooks/useData';
+import { useRespondToCounter, useStartJob, useDeclineInvitation, useContractorJobDetails } from '../hooks/useData';
 import { CounterButton, DangerButton } from './Button';
 import { Avatar, PhotoLightbox, SkeletonBlock, CelebrationScreen } from './shared';
 
@@ -211,138 +207,13 @@ const AgentMessageBanner: React.FC<AgentMessageBannerProps> = ({
 );
 
 // ─────────────────────────────────────────────
+// PHOTO FALLBACK
+// @demo TODO: remove DEMO_PHOTOS fallback after job.photos signed-URL flow
+// verified on device. Today the screen prefers job.photos and falls back to
+// these placeholders only when the array is empty.
+// @backend Storage bucket: job-photos (agent upload, 5MB limit, accessible
+// to bidding contractors).
 // ─────────────────────────────────────────────
-// @demo MOCK DATA — 3 states
-// ─────────────────────────────────────────────
-
-/**
- * @backend const { data: jobDetails } = useContractorJobDetails(jobId);
- *   → supabase.from('jobs')
- *     .select('*, profiles!agent_id(name, company, avatar_url, avatar_color, rating, vouch_count)')
- *     .eq('id', jobId)
- *     .single()
- *   + supabase.from('bids').select('*').eq('job_id', jobId).eq('contractor_id', auth.uid()).maybeSingle()
- */
-
-// @demo State 1: Invite job, no bid yet
-const MOCK_JOB_NO_BID: ContractorJobDetail = {
-  id: 'mj1',
-  title: 'Fix Leaking Kitchen Faucet & Under-Sink Pipes',
-  description: 'Kitchen faucet has been dripping for 2 weeks. The P-trap under the sink also has a slow leak. Need a licensed plumber to assess and fix both issues. Access is straightforward — first floor kitchen, standard cabinetry. Homeowner will be present.',
-  address: '742 Pine Avenue, Denver CO 80203',
-  trade: 'Plumber',
-  budgetMin: 20000, // $200
-  budgetMax: 60000, // $600
-  dueDate: 'Mar 10',
-  isUrgent: true,
-  photos: [],
-  bidCount: 3,
-  jobStatus: 'open',
-  job_type: 'invite',           // @demo — valid test value; real value comes from rpc_get_job_details
-  agent: {
-    id: 'agent-1',
-    name: 'Rachel Williams',
-    company: 'Keller Williams Denver',
-    avatarColor: '#C4A882',
-    rating: 4.9,
-    vouchCount: 24,
-  },
-};
-
-// @demo State 2: Bid submitted, pending
-const MOCK_JOB_BID_PENDING: ContractorJobDetail = {
-  ...MOCK_JOB_NO_BID,
-  id: 'mj2',
-  job_type: 'invite',            // @demo: explicit job_type — do not rely on spread inheritance for demo state clarity
-  bidCount: 4,
-  myBid: {
-    id: 'bid-1',
-    amount: 45000, // $450
-    timelineDays: 3,
-    notes: 'Can start tomorrow. Will bring replacement parts for both faucet and P-trap. Standard repair, should take 2-3 hours on site.',
-    status: 'pending',
-  },
-};
-
-// @demo State 3: Counter-offer received (marketplace job — no invite banner)
-const MOCK_JOB_COUNTERED: ContractorJobDetail = {
-  ...MOCK_JOB_NO_BID,
-  id: 'mj3',
-  job_type: 'open',
-  bidCount: 4,
-  myBid: {
-    id: 'bid-2',
-    amount: 45000, // $450
-    timelineDays: 3,
-    notes: 'Can start tomorrow. Will bring replacement parts for both faucet and P-trap.',
-    status: 'countered',
-    counterAmount: 38000, // $380
-    counterNotes: 'Great proposal! Could you work within $380? Another plumber quoted similar but we prefer your profile.',
-  },
-};
-
-// @demo State 4: Awarded — bid accepted, ready to start work
-// @demo hardcoded — replace with useContractorJobDetails(jobId)
-const MOCK_JOB_AWARDED: ContractorJobDetail = {
-  ...MOCK_JOB_NO_BID,
-  id: 'mj4',
-  address: '1203 Oak Lane, Denver CO 80203',
-  jobStatus: 'awarded',
-  job_type: 'invite',
-  bidCount: 4,
-  myBid: {
-    id: 'bid-3',
-    amount: 45000, // $450
-    timelineDays: 3,
-    notes: 'Can start tomorrow. Will bring replacement parts for both faucet and P-trap.',
-    status: 'accepted',
-  },
-};
-
-// @demo State 5: In Progress — contractor is working, proof of work section active
-// @demo hardcoded — replace with useContractorJobDetails(jobId)
-const MOCK_JOB_IN_PROGRESS: ContractorJobDetail = {
-  ...MOCK_JOB_NO_BID,
-  id: 'mj5',
-  jobStatus: 'in_progress',
-  job_type: 'invite',
-  bidCount: 4,
-  myBid: {
-    id: 'bid-4',
-    amount: 45000,
-    timelineDays: 3,
-    notes: 'Can start tomorrow. Will bring replacement parts for both faucet and P-trap.',
-    status: 'accepted',
-  },
-};
-
-// @demo State 6: Pending Confirmation — waiting for agent review
-// @demo hardcoded — replace with useContractorJobDetails(jobId)
-const MOCK_JOB_PENDING_CONFIRMATION: ContractorJobDetail = {
-  ...MOCK_JOB_NO_BID,
-  id: 'mj6',
-  address: '891 Birch Blvd, Denver CO 80203',
-  jobStatus: 'pending_completion',
-  job_type: 'invite',
-  bidCount: 4,
-  myBid: {
-    id: 'bid-5',
-    amount: 45000,
-    timelineDays: 3,
-    notes: 'Can start tomorrow. Will bring replacement parts for both faucet and P-trap.',
-    status: 'accepted',
-  },
-};
-
-// @demo Toggle states
-const DEMO_STATES: ContractorJobDetail[] = [
-  MOCK_JOB_NO_BID, MOCK_JOB_BID_PENDING, MOCK_JOB_COUNTERED,
-  MOCK_JOB_AWARDED, MOCK_JOB_IN_PROGRESS, MOCK_JOB_PENDING_CONFIRMATION,
-];
-const DEMO_LABELS = ['No Bid', 'Pending', 'Counter', 'Awarded', 'Active', 'Review'];
-
-// @demo picsum placeholder photos — replace with job.photos[] (signed Supabase storage URLs)
-// @backend Storage bucket: job-photos (agent upload, 5MB limit, accessible to bidding contractors)
 const DEMO_PHOTOS: string[] = [
   'https://picsum.photos/seed/repair1/800/600',
   'https://picsum.photos/seed/repair2/800/600',
@@ -429,18 +300,6 @@ const StatusTimeline: React.FC<{ steps: TimelineStep[] }> = ({ steps }) => (
   </View>
 );
 
-// @demo Demo routing — maps ContractorHomeTab mock job IDs to MOCK_JOB_* constants.
-// Production: ContractorJobDetails reads job status from useContractorJobDetails(jobId).
-//   'aj1' (742 Pine Ave, 60% progress)   → index 4 → MOCK_JOB_IN_PROGRESS (State 5)
-//   'aj2' (1203 Oak Lane, 30% progress)  → index 3 → MOCK_JOB_AWARDED (State 4)
-//   'aj3' (891 Birch Blvd, 85% progress) → index 5 → MOCK_JOB_PENDING_CONFIRMATION (State 6)
-// Fallback: 0 (State 1 — no bid submitted). Never default to a state that assumes an active job.
-const JOB_ID_TO_STATE_INDEX: Record<string, number> = {
-  aj1: 4,  // MOCK_JOB_IN_PROGRESS
-  aj2: 3,  // MOCK_JOB_AWARDED
-  aj3: 5,  // MOCK_JOB_PENDING_CONFIRMATION
-};
-
 // ─────────────────────────────────────────────
 // SKELETON LOADERS — shimmer placeholders matching header dimensions (S138)
 // ─────────────────────────────────────────────
@@ -464,25 +323,26 @@ const ContractorJobDetails: React.FC = () => {
   const route = useRoute<RouteProp<{ ContractorJobDetails: { jobId?: string; invitationId?: string } }, 'ContractorJobDetails'>>();
   const insets = useSafeAreaInsets();
 
-  // @demo State toggle (cycles through 6 mock states)
-  // Initialises from route param jobId when navigated from ContractorHomeTab active jobs
-  const initialIndex = route.params?.jobId ? (JOB_ID_TO_STATE_INDEX[route.params.jobId] ?? 0) : 0;
-  const [demoStateIndex, setDemoStateIndex] = useState(initialIndex);
+  // ── Live data ──
+  // @backend rpc_get_job_details — wired S177 (ATL-BID-FLOW-01)
+  const jobId = route.params?.jobId ?? '';
+  const { data: job, isLoading, error } = useContractorJobDetails(jobId);
 
   // Lightbox state for job photos
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const job = DEMO_STATES[demoStateIndex];
   const respondToCounter = useRespondToCounter();
   const startJob = useStartJob();
-  const declineInvite = useDeclineInvitation();
+  const { mutateAsync: declineInvite } = useDeclineInvitation();
 
-  const hasBid = !!job.myBid;
-  const isCountered = job.myBid?.status === 'countered';
-  const isAccepted = job.myBid?.status === 'accepted';
-  const isAwarded = job.jobStatus === 'awarded';
-  const isInProgress = job.jobStatus === 'in_progress';
-  const isPendingCompletion = job.jobStatus === 'pending_completion';
+  // Derived booleans use optional chaining so they're safe before the loading
+  // guard below (which depends on these in the celebration useEffect).
+  const hasBid = !!job?.myBid;
+  const isCountered = job?.myBid?.status === 'countered';
+  const isAccepted = job?.myBid?.status === 'accepted';
+  const isAwarded = job?.jobStatus === 'awarded';
+  const isInProgress = job?.jobStatus === 'in_progress';
+  const isPendingCompletion = job?.jobStatus === 'pending_completion';
 
   // ─── D1: Bid Accepted / Job Won celebration (S150) ──────────────────
   // Tier 1 delight moment — fires once when `job.myBid.status === 'accepted'`
@@ -498,6 +358,30 @@ const ContractorJobDetails: React.FC = () => {
       setShowJobWonCelebration(true);
     }
   }, [isAccepted]);
+
+  // ── Loading / error guards (after all hook calls per lessons.md S157b) ──
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+        <ActivityIndicator color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (error || !job) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+        <Text style={{ color: COLORS.secondaryText, fontSize: 15 }}>
+          Could not load job details.
+        </Text>
+      </View>
+    );
+  }
+
+  // @demo TODO: remove DEMO_PHOTOS fallback after job.photos signed-URL flow verified on device
+  // @backend job.photos = rpc_get_job_details photo_urls (signed Supabase storage URLs)
+  const photoSources: string[] = (job.photos && job.photos.length > 0) ? job.photos : DEMO_PHOTOS;
+
   const handleMessageAgent = () => {
     setShowJobWonCelebration(false);
     // @demo navigate to messaging thread — wire to actual thread route when
@@ -546,7 +430,7 @@ const ContractorJobDetails: React.FC = () => {
 
   const handleCounterBack = () => {
     if (!job.myBid) return;
-    navigation.navigate('BidSubmission', {
+    navigation.push('BidSubmission', {
       jobId: job.id,
       prefillAmount: job.myBid.counterAmount,
       prefillTimeline: job.myBid.timelineDays,
@@ -556,16 +440,18 @@ const ContractorJobDetails: React.FC = () => {
   };
 
   // ── Decline invite handler ──
-  // @backend rpc_decline_invitation — wired S177 (ATL-CONTRACTOR-INVITES-01)
-  // @demo TODO: invitation_id should ultimately come from rpc_get_job_details
-  //   once ContractorJobDetail.invitation_id is added server-side. For now it
-  //   flows through route params from ContractorHomeTab → push() with both
-  //   { jobId, invitationId }. Empty-string fallback prevents crash on direct
-  //   nav from JobTracker (no invitationId there) — RPC will reject cleanly.
-  const handleDeclineInvite = () => {
+  // @backend rpc_decline_invitation — ATL-BID-FLOW-01 S177
+  // invitation_id now flows from rpc_get_job_details (preferred) and falls
+  // back to route.params.invitationId for callers that pre-thread it.
+  const handleDeclineInvite = async () => {
+    const invitationId = job.invitation_id ?? route.params?.invitationId ?? '';
+    if (!invitationId) {
+      navigation.goBack();
+      return;
+    }
     Alert.alert(
-      'Decline Invitation',
-      'Are you sure you want to decline this job invitation?',
+      'Decline Invite?',
+      "You won't be able to bid on this job.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -573,9 +459,7 @@ const ContractorJobDetails: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await declineInvite.mutateAsync({
-                invitationId: route.params?.invitationId ?? '',
-              });
+              await declineInvite({ invitationId });
               navigation.goBack();
             } catch {
               Alert.alert('Could not decline', 'Please try again.');
@@ -671,7 +555,7 @@ const ContractorJobDetails: React.FC = () => {
               style={{ flex: 1 }}
             />
             <Pressable
-              onPress={() => navigation.navigate('BidSubmission', { jobId: job.id })}
+              onPress={() => navigation.push('BidSubmission', { jobId: job.id })}
               style={({ pressed }) => ({
                 flex: 2,
                 height: 48,
@@ -691,10 +575,10 @@ const ContractorJobDetails: React.FC = () => {
 
     if (!hasBid) {
       label = 'Submit Bid';
-      onPress = () => navigation.navigate('BidSubmission', { jobId: job.id });
+      onPress = () => navigation.push('BidSubmission', { jobId: job.id });
     } else if (job.myBid?.status === 'pending' || job.myBid?.status === 'edited') {
       label = 'Edit Bid';
-      onPress = () => navigation.navigate('BidSubmission', {
+      onPress = () => navigation.push('BidSubmission', {
         jobId: job.id,
         prefillAmount: job.myBid!.amount,
         prefillTimeline: job.myBid!.timelineDays,
@@ -711,11 +595,14 @@ const ContractorJobDetails: React.FC = () => {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Start Work',
-            onPress: () => {
+            onPress: async () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              // @backend rpc_start_job(p_job_id) — validates awarded contractor, transitions awarded → in_progress
-              // @demo: mock 800ms delay, optimistic status update
-              startJob.mutate({ jobId: job.id });
+              // @backend rpc_start_job(p_job_id) — wired live S177
+              try {
+                await startJob.mutateAsync({ jobId: job.id });
+              } catch {
+                Alert.alert('Could not start work', 'Please try again.');
+              }
             },
           },
         ],
@@ -817,43 +704,15 @@ const ContractorJobDetails: React.FC = () => {
         contentContainerStyle={{ paddingBottom: 80 + Math.max(insets.bottom, 24) }}
         contentOffset={{ x: 0, y: 50 }}
       >
-        {/* @demo Toggle — hidden above scroll start */}
-        <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-          <View style={{ flexDirection: 'row' }}>
-            {DEMO_LABELS.map((label, i) => (
-              <Pressable
-                key={label}
-                onPress={() => setDemoStateIndex(i)}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 6,
-                  backgroundColor: demoStateIndex === i ? COLORS.primary : 'transparent',
-                  borderWidth: 1,
-                  borderColor: COLORS.primary,
-                  borderLeftWidth: i === 0 ? 1 : 0,
-                  borderTopLeftRadius: i === 0 ? 8 : 0,
-                  borderBottomLeftRadius: i === 0 ? 8 : 0,
-                  borderTopRightRadius: i === DEMO_LABELS.length - 1 ? 8 : 0,
-                  borderBottomRightRadius: i === DEMO_LABELS.length - 1 ? 8 : 0,
-                }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '600', color: demoStateIndex === i ? '#FFFFFF' : COLORS.primary }}>
-                  {label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <View style={{ paddingHorizontal: 16, gap: 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 16 }}>
 
           {/* ── Agent Message Banner ── */}
-          {/* Conditional: only renders for invite jobs with a message (States 1 + 2) */}
+          {/* Conditional: only renders for invite jobs with a message */}
           {job.job_type === 'invite' && job.agent_message ? (
             <AgentMessageBanner
-              agentName={job.agent?.name ?? 'Agent'}          // @backend: rpc_get_job_details → agent.name
-              message={job.agent_message ?? ''}               // @backend: rpc_get_job_details → job_invitations.note
-              invitedAt={formatRelativeTime(job.invited_at ?? '')}  // @backend: rpc_get_job_details → job_invitations.created_at
+              agentName={job.agent?.name ?? 'Agent'}                // @backend: rpc_get_job_details → agent.name
+              message={job.agent_message ?? ''}                     // @backend: rpc_get_job_details → job_invitations.note
+              invitedAt={formatRelativeTime(job.invited_at ?? '')}  // @backend: rpc_get_job_details → invited_at — wired S177
             />
           ) : null}
 
@@ -875,8 +734,7 @@ const ContractorJobDetails: React.FC = () => {
           </Text>
 
           {/* ── 4. Budget Card ── */}
-          {/* @demo budgetMin/budgetMax from MOCK_JOB_* (stored in cents). Replace with job.budget_min / job.budget_max */}
-          {/* @backend fields: jobs.budget_min, jobs.budget_max (integer cents) */}
+          {/* @backend wired S177 — budgetMin/budgetMax from rpc_get_job_details (jobs.budget_min, jobs.budget_max, integer cents) */}
           <View style={{
             backgroundColor: COLORS.accentBlue,   // Solid fill — gradient flattened for RN (Figma spec: #155DFC→#1447E6)
             borderRadius: 14,
@@ -907,8 +765,7 @@ const ContractorJobDetails: React.FC = () => {
 
           {/* ── 8. Your Bid Card (all non-countered bid states) ── */}
           {/* States 2/4/5/6: in-place card with state-conditional badge + border */}
-          {/* @demo Renders for all MOCK_JOB_* with myBid except countered */}
-          {/* @backend myBid fields from bids table: amount, timeline_days, notes, status */}
+          {/* @backend wired S177 — myBid fields from rpc_get_job_details my_bid (bids table) */}
           {hasBid && !isCountered && (
             <View style={{
               backgroundColor: COLORS.background,
@@ -1002,9 +859,13 @@ const ContractorJobDetails: React.FC = () => {
               </View>
 
               {/* Row 2: Timeline */}
-              {/* @backend Replace timelineDays with job.myBid.timeline_days */}
+              {/* @backend wired S177 — my_bid.timeline (TEXT, e.g. "7 days"; falls through as-is) */}
               <Text style={{ fontSize: 14, color: COLORS.statText, lineHeight: 20, marginBottom: job.myBid!.notes ? 6 : 0 }}>
-                Timeline: {job.myBid!.timelineDays} {job.myBid!.timelineDays === 1 ? 'day' : 'days'}
+                {(() => {
+                  const t = job.myBid!.timelineDays;
+                  if (typeof t === 'number') return `Timeline: ${t} ${t === 1 ? 'day' : 'days'}`;
+                  return t ? `Timeline: ${t}` : 'Timeline: —';
+                })()}
               </Text>
 
               {/* Row 3: Notes (optional) */}
@@ -1065,8 +926,7 @@ const ContractorJobDetails: React.FC = () => {
           {/* ── 9. Counter-Offer Card ── */}
           {/* Shows when the agent has issued a counter-offer to this contractor's bid */}
           {/* ACTION BUTTONS (Accept / Counter / Decline) live in renderStickyCTA() — NOT here */}
-          {/* @demo Renders for MOCK_JOB_COUNTERED (demoStateIndex === 2) */}
-          {/* @backend counterAmount from job.myBid.counter_amount, counterNotes from job.myBid.counter_notes */}
+          {/* @backend wired S177 — counterAmount/counterNotes from rpc_get_job_details my_bid */}
           {isCountered && job.myBid && (
             <View style={{
               backgroundColor: COLORS.background,
@@ -1130,10 +990,9 @@ const ContractorJobDetails: React.FC = () => {
           )}
 
           {/* ── 4b. Job Photos Strip ── */}
-          {/* @demo Renders DEMO_PHOTOS (3 placeholder camera tiles). Replace with job.photos[] from useContractorJobDetails */}
-          {/* @backend job.photos is string[] of signed Supabase storage URLs from the job-photos bucket */}
-          {/* Render strip whenever photos exist. In demo, DEMO_PHOTOS.length > 0 always shows it. */}
-          {DEMO_PHOTOS.length > 0 && (
+          {/* @backend wired S177 — photoSources prefers job.photos (rpc_get_job_details photo_urls);
+                falls back to DEMO_PHOTOS while signed-URL flow is verified on device. */}
+          {photoSources.length > 0 && (
             <View style={{ marginHorizontal: -16 }}>
               {/* Negative margin breaks out of parent paddingHorizontal: 16 so strip reads edge-to-edge */}
               <ScrollView
@@ -1141,7 +1000,7 @@ const ContractorJobDetails: React.FC = () => {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
               >
-                {DEMO_PHOTOS.map((uri, index) => (
+                {photoSources.map((uri, index) => (
                   <Pressable
                     key={`${index}-${uri}`}
                     onPress={() => {
@@ -1159,7 +1018,7 @@ const ContractorJobDetails: React.FC = () => {
                   >
                     <Image source={{ uri }} style={{ width: 88, height: 88 }} resizeMode="cover" />
                     {/* Overflow overlay on 4th tile when more than 4 photos exist */}
-                    {index === 3 && DEMO_PHOTOS.length > 4 && (
+                    {index === 3 && photoSources.length > 4 && (
                       <View style={{
                         position: 'absolute',
                         top: 0, left: 0, right: 0, bottom: 0,
@@ -1168,7 +1027,7 @@ const ContractorJobDetails: React.FC = () => {
                         justifyContent: 'center',
                       }}>
                         <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.background }}>
-                          +{DEMO_PHOTOS.length - 4}
+                          +{photoSources.length - 4}
                         </Text>
                       </View>
                     )}
@@ -1215,7 +1074,7 @@ const ContractorJobDetails: React.FC = () => {
 
             {/* Bid count — show only when 1–3 bids. Hidden at 0 and at 4+. */}
             {/* Business rule: Low count is a competitive urgency signal. High count is discouraging — hide it. */}
-            {/* @demo bidCount is set per MOCK_JOB_* object. Replace with job.bids_count from useContractorJobDetails */}
+            {/* @backend wired S177 — bidCount from rpc_get_job_details bid_count */}
             {job.bidCount >= 1 && job.bidCount <= 3 && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <BidIcon />
@@ -1312,7 +1171,7 @@ const ContractorJobDetails: React.FC = () => {
       {/* ── Photo Lightbox ── shared component, same UX on RepairJobDetails */}
       <PhotoLightbox
         visible={lightboxVisible}
-        photos={DEMO_PHOTOS}
+        photos={photoSources}
         initialIndex={lightboxIndex}
         onClose={() => setLightboxVisible(false)}
       />

@@ -889,34 +889,37 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 **Role:** Contractor only
 **Nav Type:** Pushed screen (ContractorHomeStack + ContractorJobsStack)
 **Feature Flag:** None
-**Wiring:** ✅ Live (rpc_get_job_details)
+**Wiring:** ✅ Live — fully wired S177 (ATL-BID-FLOW-01)
 
 **What's on this screen:**
 - Custom 3-column header (back, address, more)
-- AgentMessageBanner (blue left border, when job_type: 'invite')
-- Budget card (accentBlue fill, white displayM amounts)
+- AgentMessageBanner (blue left border, when job_type: 'invite') — wired live S177
+- Budget card (accentBlue fill, white displayM amounts) — wired live S177
 - Your Bid card (3 bid states):
   - State 1 (open/invite): submit bid CTA row
   - State 2 (bid_sent): pending/countered bid display
   - State 3 (accepted): green badge, accepted amount, read-only
-- State 4 (awarded/accepted): amber banner + "Start Work" CTA → rpc_start_job
+- State 4 (awarded/accepted): amber banner + "Start Work" CTA → rpc_start_job (live, errors via Alert)
 - State 5 (in_progress): blue info card + proof photo strip (88×88 tiles, lightbox) + notes + "Mark Complete" CTA → JobCompletionScreen
 - State 6 (pending_completion): amber waiting banner + read-only proof + disabled CTA
-- Photos strip: horizontal scroll, 112×88 tiles, lightbox modal
+- Photos strip: horizontal scroll, 88×88 tiles, lightbox modal — `photoSources` prefers `job.photos`, falls back to `DEMO_PHOTOS` while signed-URL flow verified
 - Agent Card: avatar, name, rating, message button (40×40, red notification dot)
-- CTA bar: [Decline (invited only)] [Submit Bid] or state-based CTA
+- CTA bar: [Decline (invited only)] [Submit Bid] or state-based CTA — Decline wired to `rpc_decline_invitation` via `useDeclineInvitation`
+- Loading state (ActivityIndicator) and error state ("Could not load job details.") gated after all hook calls per lessons.md S157b
+
+**Data source:** `useContractorJobDetails(jobId)` → `rpc_get_job_details` → `adaptJobDetails` (single cast point, snake→camel). All 6 bid states driven by live RPC; demo cycle button removed S177.
 
 **Entry Points:**
-- ContractorHomeTab (any job card)
+- ContractorHomeTab (any job card; threads `invitationId` for invites)
 - JobTrackerTab (tap job)
 
 **Exit Points:**
-- → BidSubmissionScreen ("Submit Bid") — fullScreenModal
+- → BidSubmissionScreen — `navigation.push` from 4 paths (no-bid Submit, invite Submit, Edit Bid, Counter Back) per lessons.md permanent rule
 - → ChatScreen (Agent Card message button) — fullScreenModal to InboxStack
-- → JobCompletionScreen (State 5 "Mark Complete") — fullScreenModal
+- → JobCompletionScreen (State 5 "Mark Complete") — `navigation.push`
 - ← Back
 
-**Live hooks:** useJobDetails (rpc_get_job_details), useStartJob
+**Live hooks:** `useContractorJobDetails` (rpc_get_job_details), `useStartJob` (rpc_start_job), `useRespondToCounter` (rpc_respond_to_counter), `useDeclineInvitation` (rpc_decline_invitation). All five contractor mutation hooks (`useSubmitBid`, `useRespondToCounter`, `useAcceptInvitation`, `useDeclineInvitation`, `useStartJob`) had mock fallbacks removed S177 — real RPC errors propagate.
 
 ---
 
