@@ -41,7 +41,7 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, DIMENSIONS, SHADOWS, TYPOGRAPHY } from '../lib/tokens';
 import { DisplayTag } from './DisplayTag';
 import type { ContractorJobDetail } from '../types';
-import { useRespondToCounter, useStartJob } from '../hooks/useData';
+import { useRespondToCounter, useStartJob, useDeclineInvitation } from '../hooks/useData';
 import { CounterButton, DangerButton } from './Button';
 import { Avatar, PhotoLightbox, SkeletonBlock, CelebrationScreen } from './shared';
 
@@ -461,7 +461,7 @@ const JobDetailHeaderSkeleton = () => (
 
 const ContractorJobDetails: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const route = useRoute<RouteProp<{ ContractorJobDetails: { jobId?: string } }, 'ContractorJobDetails'>>();
+  const route = useRoute<RouteProp<{ ContractorJobDetails: { jobId?: string; invitationId?: string } }, 'ContractorJobDetails'>>();
   const insets = useSafeAreaInsets();
 
   // @demo State toggle (cycles through 6 mock states)
@@ -475,6 +475,7 @@ const ContractorJobDetails: React.FC = () => {
   const job = DEMO_STATES[demoStateIndex];
   const respondToCounter = useRespondToCounter();
   const startJob = useStartJob();
+  const declineInvite = useDeclineInvitation();
 
   const hasBid = !!job.myBid;
   const isCountered = job.myBid?.status === 'countered';
@@ -555,8 +556,12 @@ const ContractorJobDetails: React.FC = () => {
   };
 
   // ── Decline invite handler ──
-  // @demo: static copy — production should include agent name: "Decline [Agent Name]'s invitation?"
-  // @backend: replace navigation.goBack() with rpc_decline_job_invite(job_id, contractor_id, reason?) + success toast
+  // @backend rpc_decline_invitation — wired S177 (ATL-CONTRACTOR-INVITES-01)
+  // @demo TODO: invitation_id should ultimately come from rpc_get_job_details
+  //   once ContractorJobDetail.invitation_id is added server-side. For now it
+  //   flows through route params from ContractorHomeTab → push() with both
+  //   { jobId, invitationId }. Empty-string fallback prevents crash on direct
+  //   nav from JobTracker (no invitationId there) — RPC will reject cleanly.
   const handleDeclineInvite = () => {
     Alert.alert(
       'Decline Invitation',
@@ -566,7 +571,16 @@ const ContractorJobDetails: React.FC = () => {
         {
           text: 'Decline',
           style: 'destructive',
-          onPress: () => navigation.goBack(),
+          onPress: async () => {
+            try {
+              await declineInvite.mutateAsync({
+                invitationId: route.params?.invitationId ?? '',
+              });
+              navigation.goBack();
+            } catch {
+              Alert.alert('Could not decline', 'Please try again.');
+            }
+          },
         },
       ]
     );

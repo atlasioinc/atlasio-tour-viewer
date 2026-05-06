@@ -43,7 +43,7 @@
 //   SQUADS (3)           — useSquadMembers, useAssignSquadMember, useRemoveSquadMember
 //   CONTRACTOR JOBS (6)  — useContractorJobDetails, useSubmitBid, useRespondToCounter,
 //                          useAcceptInvitation, useDeclineInvitation, useStartJob
-//   CONTRACTOR DASHBOARD (3) — useMatchingJobs, useContractorEarnings, useMarketPulse
+//   CONTRACTOR DASHBOARD (4) — useJobInvitations, useMatchingJobs, useContractorEarnings, useMarketPulse
 //   ONBOARDING (1)       — useCompleteOnboarding
 //   ACCOUNT (1)          — useDeleteAccount
 //   SQUAD SHARE (1)      — useSquadShare (sendViaEmail + sendViaSms)
@@ -85,6 +85,7 @@ import type {
   RecommendedPro,
   TrendingPro,
   ContractorForJob,
+  JobInvitationRow,
 } from '../types';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { getServiceArea } from '../lib/typeAdapters';
@@ -156,6 +157,7 @@ export const queryKeys = {
   agentJobs: ['agent-jobs'] as const,
 
   // Contractor Dashboard
+  jobInvitations: ['job_invitations'] as const,
   matchingJobs: (limit: number) => ['matchingJobs', limit] as const,
   contractorsForJob: (
     lat: number | null | undefined,
@@ -2223,6 +2225,7 @@ export const useAcceptInvitation = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contractorJob'] });
       qc.invalidateQueries({ queryKey: queryKeys.matchingJobs(20) });
+      qc.invalidateQueries({ queryKey: queryKeys.jobInvitations });
     },
   });
 };
@@ -2251,6 +2254,7 @@ export const useDeclineInvitation = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contractorJob'] });
+      qc.invalidateQueries({ queryKey: queryKeys.jobInvitations });
     },
   });
 };
@@ -2406,6 +2410,25 @@ export const useMatchingJobs = (limit = 20) => {
         return [];
       }
     },
+  });
+};
+
+/**
+ * Fetch pending job invitations for the authenticated contractor.
+ * Joined view: job_invitations + jobs (open|bidding) + agent profile.
+ * @backend rpc_get_job_invitations() — ATL-CONTRACTOR-INVITES-01 S177
+ * Live-only — no mock fallback. RPC deployed and verified S177.
+ */
+// STATUS: wired (live-only)
+export const useJobInvitations = () => {
+  return useQuery<JobInvitationRow[]>({
+    queryKey: queryKeys.jobInvitations,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('rpc_get_job_invitations');
+      if (error) throw error;
+      return (data ?? []) as JobInvitationRow[];
+    },
+    staleTime: 30_000,
   });
 };
 

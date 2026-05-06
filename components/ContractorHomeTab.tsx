@@ -49,8 +49,9 @@ import Svg, { Path } from 'react-native-svg';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, TYPOGRAPHY, DIMENSIONS, SHADOWS } from '../lib/tokens';
-import { useMyProfile, useMatchingJobs } from '../hooks/useData';
+import { useMyProfile, useMatchingJobs, useJobInvitations } from '../hooks/useData';
 import type { MatchingJob } from '../hooks/useData';
+import type { JobInvitationRow } from '../types';
 import { DisplayTag } from './DisplayTag';
 import { CardButton } from './Button';
 import { Avatar, EmptyState, SkeletonBlock } from './shared';
@@ -295,7 +296,11 @@ const MOCK_ACTIVE_JOBS: ActiveJob[] = [
  *     .eq('contractor_id', auth.uid())
  *     .eq('status', 'pending')
  *     .order('created_at', { ascending: false })
+ *
+ * @demo retained as reference for the mock JobInvite shape — live path is
+ * useJobInvitations() (S177). Per CLAUDE.md, mock data is preserved.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MOCK_INVITATIONS: JobInvite[] = [
   {
     id: 'inv1',
@@ -543,102 +548,171 @@ const ActiveWorkCard: React.FC<{ job: ActiveJob; onPress: () => void }> = ({ job
 
 // ─────────────────────────────────────────────
 // JOB INVITE CARD
-// Vertical full-width card for agent invitations
+// Vertical card for agent invitations — consumes JobInvitationRow live shape.
+// Visual treatment (S177): 3px left accent bar, "✉ Invited" badge, light-blue
+// border, info-themed note block.
+// @backend rpc_get_job_invitations — ATL-CONTRACTOR-INVITES-01 S177
 // ─────────────────────────────────────────────
 
+// ── Inline formatters (kept local — single cast point per lessons.md S163) ──
+
+const formatInviteBudget = (min: number | null, max: number | null): string => {
+  if (min != null && max != null) return `$${min.toLocaleString()} – $${max.toLocaleString()}`;
+  if (min != null) return `From $${min.toLocaleString()}`;
+  if (max != null) return `Up to $${max.toLocaleString()}`;
+  return 'Negotiable';
+};
+
+const formatInviteDueDate = (iso: string | null): string => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const formatInviteRelativeTime = (iso: string): string => {
+  if (!iso) return '';
+  const past = new Date(iso);
+  if (Number.isNaN(past.getTime())) return '';
+  const diffMs = Date.now() - past.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+};
+
 const JobInviteCard: React.FC<{
-  invite: JobInvite;
+  invitation: JobInvitationRow;
+  invitationId: string;
+  note?: string | null;
   onPress: () => void;
-}> = ({ invite, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    style={({ pressed }) => ({
-      width: 320,
-      backgroundColor: COLORS.background,
-      borderRadius: DIMENSIONS.cardRadius,
-      borderWidth: 1, borderColor: COLORS.border,
-      padding: 16,
-      ...SHADOWS.card,
-      opacity: pressed ? 0.95 : 1,
-    })}
-  >
-    {/* Row 1: Trade badge + Timestamp — context group with title (4px) */}
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-      {/* @design: intentional 12pt exception — ambient/confirmatory context */}
-      <DisplayTag label={invite.tradeNeeded} fontSize={12} />
-      {/* @design: intentional 12pt exception — ambient/confirmatory context */}
-      <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText }}>
-        {invite.invitedAgo}
-      </Text>
-    </View>
+}> = ({ invitation, note, onPress }) => {
+  const trade = invitation.trade ?? 'General';
+  const invitedAgo = formatInviteRelativeTime(invitation.invited_at);
+  const budgetRange = formatInviteBudget(invitation.budget_min, invitation.budget_max);
+  const dueDate = formatInviteDueDate(invitation.due_date);
+  const agentColor = invitation.agent_avatar_color ?? COLORS.lightText;
 
-    {/* Row 2: Job title — GROUPED with address (4px) */}
-    <Text
-      style={{ ...TYPOGRAPHY.headingM, color: COLORS.darkText, marginBottom: 4 }}
-      numberOfLines={1}
-      ellipsizeMode="tail"
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 320,
+        backgroundColor: COLORS.background,
+        borderRadius: DIMENSIONS.cardRadius,
+        borderWidth: 1,
+        borderColor: COLORS.infoBorder,
+        flexDirection: 'row',
+        overflow: 'hidden',
+        ...SHADOWS.card,
+        opacity: pressed ? 0.95 : 1,
+      })}
     >
-      {invite.title}
-    </Text>
+      {/* Left accent bar — primary blue, 3px */}
+      <View style={{ width: 3, backgroundColor: COLORS.primary, alignSelf: 'stretch' }} />
 
-    {/* Row 3: Address */}
-    <Text
-      style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 10 }}
-      numberOfLines={1}
-      ellipsizeMode="tail"
-    >
-      {invite.address}
-    </Text>
+      {/* Card content */}
+      <View style={{ flex: 1, padding: 16 }}>
+        {/* Row 1: Trade pill + Invited badge + Timestamp */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+            {/* @design: intentional 12pt exception — ambient/confirmatory context */}
+            <DisplayTag label={trade} fontSize={12} />
+            <View style={{
+              backgroundColor: COLORS.backgroundInfo,
+              borderWidth: 0.5,
+              borderColor: COLORS.infoBorder,
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+            }}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: COLORS.infoText }}>
+                ✉ Invited
+              </Text>
+            </View>
+          </View>
+          {/* @design: intentional 12pt exception — ambient/confirmatory context */}
+          <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText }}>
+            {invitedAgo}
+          </Text>
+        </View>
 
-    {/* Row 4: Budget label — GROUPED with price (4px) */}
-    <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textTransform: 'uppercase', marginBottom: 2 }}>
-      Budget
-    </Text>
-
-    {/* Row 5: Price range */}
-    <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary, marginBottom: 8 }}>
-      {invite.budgetRange}
-    </Text>
-
-    {/* Row 6: Due date */}
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-      <CalendarIcon size={16} color={COLORS.secondaryText} />
-      <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginLeft: 6 }}>
-        Due {invite.dueDate}
-      </Text>
-    </View>
-
-    {/* Row 7: Agent info */}
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: invite.note ? 8 : 0 }}>
-      <Avatar name={invite.agentName} color={invite.agentAvatar} size={24} />
-      <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 8 }} numberOfLines={1}>
-        {invite.agentName}
-      </Text>
-      <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 4 }}>
-        {invite.agentRating}
-      </Text>
-      <StarIcon size={12} />
-    </View>
-
-    {/* Row 8 (optional): Agent comment — last element, no marginBottom */}
-    {/* @backend TODO: Show invite.note in ContractorJobDetails screen */}
-    {/* (deferred to future session - see S35 decision log) */}
-    {invite.note ? (
-      <View style={{
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        backgroundColor: COLORS.quoteBg,
-        borderRadius: 6,
-        borderLeftWidth: 3,
-        borderLeftColor: COLORS.primary,
-      }}>
-        <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, fontStyle: 'italic' }} numberOfLines={1} ellipsizeMode="tail">
-          {'"'}{invite.note}{'"'}
+        {/* Row 2: Job title — GROUPED with address (4px) */}
+        <Text
+          style={{ ...TYPOGRAPHY.headingM, color: COLORS.darkText, marginBottom: 4 }}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {invitation.title}
         </Text>
+
+        {/* Row 3: Address */}
+        <Text
+          style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginBottom: 10 }}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {invitation.address}
+        </Text>
+
+        {/* Row 4: Budget label — GROUPED with price (4px) */}
+        <Text style={{ ...TYPOGRAPHY.caption, color: COLORS.secondaryText, textTransform: 'uppercase', marginBottom: 2 }}>
+          Budget
+        </Text>
+
+        {/* Row 5: Price range */}
+        <Text style={{ ...TYPOGRAPHY.headingL, color: COLORS.primary, marginBottom: 8 }}>
+          {budgetRange}
+        </Text>
+
+        {/* Row 6: Due date */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <CalendarIcon size={16} color={COLORS.secondaryText} />
+          <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.secondaryText, marginLeft: 6 }}>
+            Due {dueDate}
+          </Text>
+        </View>
+
+        {/* Row 7: Agent info */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Avatar name={invitation.agent_name} color={agentColor} size={24} />
+          <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 8 }} numberOfLines={1}>
+            {invitation.agent_name}
+          </Text>
+          <Text style={{ ...TYPOGRAPHY.bodyM, color: COLORS.darkText, marginLeft: 4 }}>
+            {invitation.agent_rating.toFixed(1)}
+          </Text>
+          <StarIcon size={12} />
+        </View>
+
+        {/* Row 8 (optional): Agent note block — info-themed callout */}
+        {note ? (
+          <View style={{
+            backgroundColor: COLORS.backgroundInfo,
+            borderLeftWidth: 3,
+            borderLeftColor: COLORS.primary,
+            borderTopRightRadius: 4,
+            borderBottomRightRadius: 4,
+            paddingHorizontal: 10,
+            paddingVertical: 7,
+            marginTop: 10,
+          }}>
+            <Text
+              style={{ fontSize: 13, color: COLORS.infoText, fontStyle: 'italic', lineHeight: 18 }}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {'"'}{note}{'"'}
+            </Text>
+          </View>
+        ) : null}
       </View>
-    ) : null}
-  </Pressable>
-);
+    </Pressable>
+  );
+};
 
 // ─────────────────────────────────────────────
 // NEW JOB CARD (S35)
@@ -1099,7 +1173,9 @@ const ContractorHomeTab: React.FC = () => {
 
   // ── Data (conditional on demo toggle) ──
   const activeJobs = isFilled ? MOCK_ACTIVE_JOBS : [];
-  const invitations = isFilled ? MOCK_INVITATIONS : [];
+  // @backend rpc_get_job_invitations — ATL-CONTRACTOR-INVITES-01 S177
+  // Live-only feed of pending invitations. NOT gated by isFilled toggle.
+  const { data: invitations = [] } = useJobInvitations();
   // @backend rpc_get_matching_jobs() — proximity-filtered live job feed (S168).
   // Live data is NOT gated by the isFilled demo toggle — feed is core, not a mock.
   const {
@@ -1302,14 +1378,20 @@ const ContractorHomeTab: React.FC = () => {
               data={invitations}
               renderItem={({ item }) => (
                 <JobInviteCard
-                  invite={item}
+                  invitation={item}
+                  invitationId={item.invitation_id}
+                  note={item.note}
                   onPress={() => {
                     // @nav → ContractorJobDetails (invited job)
-                    navigation.navigate('ContractorJobDetails', { jobId: item.id });
+                    // push (not navigate) — fresh route params per lessons.md permanent rule
+                    navigation.push('ContractorJobDetails', {
+                      jobId: item.job_id,
+                      invitationId: item.invitation_id,
+                    });
                   }}
                 />
               )}
-              keyExtractor={(item) => `invite-${item.id}`}
+              keyExtractor={(item) => `invite-${item.invitation_id}`}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4, gap: 12 }}
               nestedScrollEnabled={true}

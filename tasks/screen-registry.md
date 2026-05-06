@@ -826,9 +826,12 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 **What's on this screen:**
 - Personalized greeting + first name
 - **🆕 S129 target:** Stripe Connect banner (amber, persistent until stripe_connected: true)
-- Job Invites horizontal scroll (JobInviteCard × N → ContractorJobDetails)
-  - Agent message (1-line truncated, blue left border)
-  - Budget + due date + agent info
+- Job Invites horizontal scroll (JobInviteCard × N → ContractorJobDetails) — ✅ live S177 via `useJobInvitations` → `rpc_get_job_invitations`
+  - Card visual treatment (S177): 3px primary left accent bar, light-blue (`COLORS.infoBorder`) outline, `✉ Invited` badge in top row, info-themed note block (`COLORS.backgroundInfo` + primary left rail) when agent included a note
+  - `JobInviteCard` consumes `JobInvitationRow` directly with top-level `invitationId` + `note` props
+  - Press → `navigation.push('ContractorJobDetails', { jobId, invitationId })` — fresh route params per lessons.md permanent rule
+  - Decline CTA on `ContractorJobDetails` wired to `useDeclineInvitation` (S177); accepts via existing `useAcceptInvitation`; both invalidate `queryKeys.jobInvitations` so the Home tab list updates
+  - `isFilled` demo toggle does NOT gate this section — feed is core, not a mock
   - "See All" → Jobs tab
 - New Jobs horizontal scroll (NewJobCard × N → ContractorJobDetails)
   - Marketplace opportunities matching contractor's trade — ✅ live S168 via `useMatchingJobs` → `rpc_get_matching_jobs` (proximity-filtered by contractor service area; NULL service area → graceful all-jobs fallback)

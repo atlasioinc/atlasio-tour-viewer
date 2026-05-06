@@ -473,6 +473,52 @@ Supersedes ATL-122.
 
 ---
 
+## S177 — ATL-CONTRACTOR-INVITES-01: Contractor Job Invitations Live Wiring + Card Treatment (May 6, 2026)
+
+### Branch
+`feat/atl-bid-actions-01-s176` (continuation — same working branch as S176)
+
+### Files modified
+- `types/index.ts` — added `JobInvitationRow` interface (RPC return shape for `rpc_get_job_invitations`, joined view of `job_invitations` + `jobs` + agent profile, 18 fields, snake_case). Distinct from existing `JobInvitation` (1:1 table-shape) — both coexist; `JobInvitation` had no consumers (grep clean).
+- `hooks/useData.ts` — added `useJobInvitations` query hook (live-only, no mock fallback; `staleTime: 30_000`); added `queryKeys.jobInvitations` (`['job_invitations']`); appended `jobInvitations` invalidation to `useAcceptInvitation` and `useDeclineInvitation` `onSuccess` blocks so the Home tab list updates after accept/decline; `JobInvitationRow` added to imports; CONTRACTOR DASHBOARD catalog header bumped (3) → (4).
+- `components/ContractorHomeTab.tsx` — replaced `MOCK_INVITATIONS` mock-gate with live `useJobInvitations()` (NOT gated by `isFilled`); rewrote `JobInviteCard` to consume `JobInvitationRow` directly with three new props (`invitation`, `invitationId`, `note`); added inline formatters `formatInviteBudget` / `formatInviteDueDate` / `formatInviteRelativeTime` (single cast point per lessons.md S163); applied invite card visual treatment — 3px primary left accent bar, light-blue (`COLORS.infoBorder`) outline, `✉ Invited` badge in top row, info-themed note block with `COLORS.backgroundInfo` + primary left rail; FlatList renderItem now uses `navigation.push()` (not `navigate`) per lessons.md permanent rule and threads `invitationId` through route params; `MOCK_INVITATIONS` retained with `eslint-disable-next-line` per CLAUDE.md mock-preservation rule.
+- `components/ContractorJobDetails.tsx` — wired `useDeclineInvitation` to the `Decline` CTA (was previously a stub `navigation.goBack()`); `route.params` widened to accept optional `invitationId`; `handleDeclineInvite` now awaits `mutateAsync` with route-param `invitationId` (empty-string fallback) and surfaces `Alert.alert` on failure; `@demo TODO` flagged for next session to add `invitation_id` to `ContractorJobDetail` server-side.
+
+### SQL deployed (S177, prior in-session)
+- `rpc_get_job_invitations()` — verified live (`pg_proc` lookup confirmed). Returns 18-field joined row per pending invite for `auth.uid()`. Backend Deployment Tracker S177 row: deployed + verified.
+
+### Key decisions
+- **`JobInvitationRow` (not `JobInvitation`) as the new interface name** — kept the existing 1:1 table-shape `JobInvitation` interface untouched (no consumers, but defensive); avoids cascade-rename. Surfaced as a blocker before writing code per lessons.md S157b "Always surface UX-impacting scope decisions."
+- **`useJobInvitations` is live-only, no mock fallback** — RPC was deployed and verified earlier this session, and the spec explicitly forbade fallback. Loading-flash trap (lessons.md S163-S164) avoided because the `invitations.length > 0` branch already gates render and the empty branch shows the existing `EmptyStateCallout`.
+- **Top-level `note` prop on `JobInviteCard` (not `invitation.note`)** — confirmed by user. Card stays decoupled from where the note text comes from; future schema changes only touch the FlatList renderItem.
+- **`navigation.push` not `navigation.navigate`** — fresh route params per lessons.md permanent rule. `invitationId` added to the param signature so decline can wire without an `invitation_id` field on `ContractorJobDetail`.
+- **`invitation_id` gap on `ContractorJobDetail` flagged, not fixed** — adding it requires a server-side `rpc_get_job_details` change; out of scope per spec. `@demo TODO` left in `handleDeclineInvite` with the full context for the next session. Empty-string fallback prevents crash on direct nav from JobTracker (no invitationId in that path).
+- **`MOCK_INVITATIONS` retained, not deleted** — per CLAUDE.md mock-preservation rule. `eslint-disable-next-line` added matching the `MOCK_MATCHING_JOBS` pattern already in this file.
+- **Token mapping for visual treatment** — spec mentioned `COLORS.primaryLight` which doesn't exist; used closest match `COLORS.infoBorder` (`#DBEAFE`) for the card outline. `COLORS.backgroundInfo` / `COLORS.infoText` / `COLORS.primary` used as-is per spec. No inline hex.
+
+### Verification
+- `npx tsc --noEmit` → 0 errors.
+- `npx expo lint` → 0 new warnings (8 pre-existing, none on the two files I changed beyond the pre-existing `CURRENT_CONTRACTOR` warning at line 229 which I didn't touch).
+- `grep "JobInvitation" components/ hooks/ lib/ features/` confirmed `JobInvitation` (table-shape) had no consumers; new `JobInvitationRow` consumed only by `useJobInvitations` and `JobInviteCard`.
+
+### Metrics
+- RPCs: 77 (+1: `rpc_get_job_invitations`)
+- Hooks: 72 (+1: `useJobInvitations`)
+- Edge Functions: 11 (unchanged)
+
+### Bug closed
+- ATL-CONTRACTOR-INVITES-01
+
+### Next priorities (S178)
+1. **Add `invitation_id` to `rpc_get_job_details` + `ContractorJobDetail`** — eliminates the route-param plumbing for decline. Server-side RPC change + type update.
+2. **ATL-LOCATION-04** (carryover from S176) — agent open-jobs surface (PhotoJobDetails + StagingJobDetails screens) + InviteContractorsModal parity for photo/staging jobs.
+3. **REFACTOR-REPAIRJOBDETAILS-LOCAL-JOB-STATE** (carryover from S176).
+
+### Gates
+- tsc 0 errors, expo lint 0 new warnings, no inline hex, all tokens from `lib/tokens.ts`, `useJobInvitations` live-only with no mock fallback, `navigation.push` (not `navigate`), `MOCK_INVITATIONS` retained, both `useAcceptInvitation` + `useDeclineInvitation` invalidate `queryKeys.jobInvitations`, feature flags untouched, `@backend`/`@demo` markers present on all touched data points.
+
+---
+
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
 
 ### Branch

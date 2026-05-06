@@ -658,6 +658,35 @@ export interface JobInvitation {
 }
 
 // ─────────────────────────────────────────────
+// JOB INVITATION ROW — RPC return shape
+// @backend rpc_get_job_invitations — ATL-CONTRACTOR-INVITES-01 S177
+// Joined view: job_invitations + jobs + agent profile.
+// snake_case field names match RPC output directly. Distinct from
+// JobInvitation (the 1:1 table-shape interface above).
+// ─────────────────────────────────────────────
+
+export interface JobInvitationRow {
+  invitation_id:      string;
+  job_id:             string;
+  title:              string;
+  address:            string;
+  job_type:           string;
+  trade:              string | null;
+  budget_min:         number | null;
+  budget_max:         number | null;
+  due_date:           string | null;
+  is_urgent:          boolean;
+  note:               string | null;
+  invited_at:         string;
+  agent_id:           string;
+  agent_name:         string;
+  agent_avatar_color: string | null;
+  agent_avatar_url:   string | null;
+  agent_rating:       number;
+  agent_vouch_count:  number;
+}
+
+// ─────────────────────────────────────────────
 // CLOSED DEAL
 // Frontend-only for now — maps to rpc_get_closed_deals when deployed
 // @backend rpc_get_closed_deals() — returns closed deals for the agent
