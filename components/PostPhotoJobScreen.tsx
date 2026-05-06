@@ -119,6 +119,9 @@ const PostPhotoJobScreen: React.FC = () => {
 
   // ── Form state ──
   const [address, setAddress] = useState('');
+  // ATL-GEOCODE-02 (S174) — coords captured from AddressAutocompleteInput
+  const [jobLat, setJobLat] = useState<number | null>(null);
+  const [jobLng, setJobLng] = useState<number | null>(null);
   const [sqft, setSqft] = useState('');
   const [dateNeeded, setDateNeeded] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -168,6 +171,8 @@ const PostPhotoJobScreen: React.FC = () => {
         p_service_packages: Array.from(selectedPackages),
         p_turnaround_preference: turnaround || undefined,
         p_description: notes.trim() || undefined,
+        p_job_lat: jobLat ?? null,
+        p_job_lng: jobLng ?? null,
       });
 
       setIsSubmitting(false);
@@ -303,7 +308,17 @@ const PostPhotoJobScreen: React.FC = () => {
           {renderSectionHeader('Property Address *')}
           <AddressAutocompleteInput
             value={address}
-            onSelect={setAddress}
+            onSelect={(text) => {
+              setAddress(text);
+              // S174 — any text change invalidates prior coords.
+              // onSelectWithCoords re-sets them when user picks from autocomplete.
+              setJobLat(null);
+              setJobLng(null);
+            }}
+            onSelectWithCoords={(_address, coords) => {
+              setJobLat(coords?.lat ?? null);
+              setJobLng(coords?.lng ?? null);
+            }}
             placeholder="123 Main St, Denver, CO 80202"
           />
 
