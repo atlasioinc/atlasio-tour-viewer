@@ -97,6 +97,19 @@ export default function LoginScreen({ onSignUp, onForgotPassword }: LoginScreenP
 
       if (authError) {
         Alert.alert('Apple Sign In Failed', authError.message);
+        return;
+      }
+
+      // Capture Apple name — only returned on first sign-in ever
+      // Must be persisted immediately or it is permanently lost
+      // @backend supabase.auth.updateUser — writes to raw_user_meta_data
+      const givenName = credential.fullName?.givenName ?? '';
+      const familyName = credential.fullName?.familyName ?? '';
+      const fullName = [givenName, familyName].filter(Boolean).join(' ').trim();
+      if (fullName) {
+        await supabase.auth.updateUser({
+          data: { full_name: fullName },
+        });
       }
       // Success → onAuthStateChange in App.tsx handles routing
     } catch (e: unknown) {

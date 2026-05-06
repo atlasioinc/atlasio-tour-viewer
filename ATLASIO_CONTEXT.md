@@ -744,6 +744,9 @@ Supersedes ATL-122.
 - ATL-AUTH-02 device QA on Build 57: Apple sign-in roundtrip, Google sign-in roundtrip, email+password sign-in, sign up + email confirmation, password reset email roundtrip
 - ATL-AUTH-02 follow-up: implement ResetPasswordScreen + `atlasio://reset-password` deep link in App.tsx so the reset email link lands somewhere
 
+### Follow-up — S178 onboarding hardening (May 6, 2026)
+- S178 onboarding hardening: Apple fullName capture, mock fallback removed from useCompleteOnboarding, SSO name pre-fill added to OnboardingScreen3 + ContractorProfileBasics
+
 ---
 
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)

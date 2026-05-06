@@ -52,6 +52,12 @@
 - [ ] No crash on cold start when no session is cached — AuthStack mounts and shows LoginScreen
 - [ ] Cosmetic: Apple + Google buttons feel like a matched pair (50pt height, 12pt radius, vertical rhythm)
 
+### S178 onboarding hardening (testable on Build 57)
+- [ ] Test Apple Sign In name capture (fresh device/account) — `credential.fullName` first-sign-in-only payload persists into `auth.users.raw_user_meta_data.full_name`; subsequent Apple sign-ins on the same Apple ID still hydrate the onboarding name field via metadata
+- [ ] Test Google Sign In name pre-fill in onboarding — fresh Google account → OnboardingScreen3 (agent/partner) and ContractorProfileBasics (contractor) auto-populate `fullName` from `user.user_metadata.full_name`
+- [ ] Test email signup name pre-fill in onboarding — SignUpScreen first/last name → confirmation email tap → onboarding screens auto-populate `fullName` from metadata (no manual retype)
+- [ ] Test that onboarding RPC failures now surface as Alert (not silent success) — force a failure (e.g. simulate offline / break role enum) → OnboardingComplete catches → "Something went wrong" Alert fires; user does NOT navigate to MainApp
+
 ## If QA passes — merge sequence
 ```
 git checkout main

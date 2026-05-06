@@ -2584,7 +2584,7 @@ export const useMarketPulse = () => {
  * p_role must be a valid user_role enum value (snake_case).
  * Writes profiles.role + profiles.onboarded_at atomically.
  */
-// STATUS: wired (with mock fallback)
+// STATUS: wired (live — mock fallback removed S178)
 export const useCompleteOnboarding = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -2596,27 +2596,26 @@ export const useCompleteOnboarding = () => {
       primaryTrade?: string;
       secondaryTrades?: string[];
     }) => {
-      try {
-        const userId = await getCurrentUserId();
-        if (!userId) throw new Error('Not authenticated');
+      const userId = await getCurrentUserId();
+      if (!userId) throw new Error('Not authenticated');
 
-        const { error } = await supabase.rpc('rpc_complete_onboarding', {
-          p_role: params.role,
-          p_full_name: params.fullName,
-          p_company_name: params.company ?? null,
-          p_primary_trade: params.primaryTrade ?? null,
-          p_secondary_trades: params.secondaryTrades ?? null,
-          p_location: params.location ?? null,
-        });
+      const { data, error } = await supabase.rpc('rpc_complete_onboarding', {
+        p_role: params.role,
+        p_full_name: params.fullName,
+        p_company_name: params.company ?? null,
+        p_primary_trade: params.primaryTrade ?? null,
+        p_secondary_trades: params.secondaryTrades ?? null,
+        p_location: params.location ?? null,
+      });
 
-        if (error) throw error;
-        return { success: true };
-      } catch (err) {
-        console.warn('[useCompleteOnboarding] Supabase RPC failed, using mock fallback', err);
-        // Mock fallback — simulate success so demo app keeps working
-        await new Promise((r) => setTimeout(r, 800));
-        return { success: true };
+      if (error) throw error;
+
+      // RPC returns { success: boolean, message?: string }
+      if (data && data.success === false) {
+        throw new Error(data.message ?? 'Onboarding failed');
       }
+
+      return { success: true };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.myProfile });

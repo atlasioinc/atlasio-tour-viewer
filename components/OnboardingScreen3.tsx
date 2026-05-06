@@ -42,6 +42,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import AnimatedProgressBar from './AnimatedProgressBar';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { supabase } from '../lib/supabase';
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS
@@ -351,6 +352,21 @@ const OnboardingScreen3: React.FC<Props> = ({ navigation, route }) => {
   const [fullName, setFullName] = useState<string>(formData.fullName || '');
   const [company, setCompany] = useState<string>(formData.company || '');
   const [serviceArea, setServiceArea] = useState<string>(formData.serviceArea || '');
+
+  // Pre-fill name from Supabase user metadata for SSO users (Apple/Google)
+  // Only fires when formData.fullName is empty — never overwrites user-entered name
+  // @backend supabase.auth.getUser — reads raw_user_meta_data.full_name
+  useEffect(() => {
+    if (formData.fullName) return; // already have a name — skip
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const metaName = user?.user_metadata?.full_name as string | undefined;
+      if (metaName && metaName.trim()) {
+        setFullName(metaName.trim());
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on mount
+  }, []);
 
   // ── Dropdown visibility ──
   const [showSubRoleDropdown, setShowSubRoleDropdown] = useState<boolean>(false);
