@@ -1798,7 +1798,7 @@ export const useArchiveThread = () => {
 /**
  * Fetch notifications for current user
  */
-// STATUS: wired (with mock fallback)
+// STATUS: live — mock fallback removed S177
 export const useNotifications = () => {
   return useQuery({
     queryKey: queryKeys.notifications,
@@ -1815,9 +1815,7 @@ export const useNotifications = () => {
         if (error) throw error;
         return (data ?? []) as Notification[];
       } catch (err) {
-        console.warn('[useNotifications] Supabase failed, using mock fallback', err);
-        // TODO: [PRODUCTION] Remove mock fallback
-        return [];
+        throw err;
       }
     },
   });
@@ -1826,7 +1824,7 @@ export const useNotifications = () => {
 /**
  * Mark notifications as read
  */
-// STATUS: wired (with mock fallback)
+// STATUS: live — mock fallback removed S177
 export const useMarkNotificationsRead = () => {
   const qc = useQueryClient();
 
@@ -1839,9 +1837,7 @@ export const useMarkNotificationsRead = () => {
           .in('id', notificationIds);
         if (error) throw error;
       } catch (err) {
-        console.warn('[useMarkNotificationsRead] Supabase failed, using mock fallback', err);
-        // TODO: [PRODUCTION] Remove mock fallback
-        await new Promise((r) => setTimeout(r, 200));
+        throw err;
       }
     },
     onSuccess: () => {
@@ -1854,7 +1850,7 @@ export const useMarkNotificationsRead = () => {
 /**
  * Get unread notification count (for badge)
  */
-// STATUS: wired (with mock fallback)
+// STATUS: live — returns 0 on error S177
 export const useUnreadNotificationCount = () => {
   return useQuery({
     queryKey: queryKeys.unreadCount,
@@ -1870,9 +1866,7 @@ export const useUnreadNotificationCount = () => {
         if (error) throw error;
         return count ?? 0;
       } catch (err) {
-        console.warn('[useUnreadNotificationCount] Supabase failed, using mock fallback', err);
-        // TODO: [PRODUCTION] Remove mock fallback
-        return 3;
+        return 0;
       }
     },
     refetchInterval: 30 * 1000,

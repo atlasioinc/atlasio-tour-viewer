@@ -614,6 +614,13 @@ Supersedes ATL-122.
 ### Gates
 - tsc 0 errors, expo lint 0 new warnings, snake_case role enum consistently applied across `useNetworkContacts`/`vouches.recipient_role`, no inline hex, all tokens from `lib/tokens.ts`, `@backend`/`@demo` markers present, feature flags reset to demo defaults.
 
+### Additional cleanup (CHORE-S177-NOTIFICATION-MOCK-CLEANUP, same branch `feat/atl-bid-actions-01-s176`)
+- `hooks/useData.ts` — removed mock fallbacks from three notification hooks. `useNotifications`: dropped `return []` catch fallback; errors now propagate to TanStack Query's `error` state. `useMarkNotificationsRead`: dropped `setTimeout(200)` fake-success; errors now surface to the mutation `onError`. `useUnreadNotificationCount`: dropped hardcoded `return 3`; returns `0` on error so the tab badge degrades silently rather than blocking the UI.
+- `components/BidSubmissionScreen.tsx` — `onError` handler now surfaces `err.message` from `useSubmitBid` instead of a generic "Something went wrong" string. Contractors will now see real RPC errors (e.g. "Bid already submitted", "Job no longer accepting bids") propagated from the live mutation.
+- Asymmetry rationale: list/read notification errors throw (UI can show error state); badge count returns 0 silently because the tab-bar badge is informational, not load-bearing — better UX than crashing the tab on a notifications API blip.
+- No metrics changes (RPCs 77 / Hooks 72 / Edge Functions 11).
+- Gates: `npx tsc --noEmit` 0 errors; `npx expo lint` 0 new warnings (8 pre-existing in unrelated files, none in `useData.ts` or `BidSubmissionScreen.tsx`).
+
 ---
 
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)

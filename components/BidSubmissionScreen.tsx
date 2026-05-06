@@ -192,8 +192,8 @@ const BidSubmissionScreen: React.FC = () => {
           showSuccess(isEdit ? 'Bid updated' : 'Bid submitted');
           setTimeout(() => navigation.goBack(), 400);
         },
-        onError: () => {
-          Alert.alert('Error', 'Something went wrong. Please try again.');
+        onError: (err: Error) => {
+          Alert.alert('Error', err?.message ?? 'Something went wrong. Please try again.');
         },
       },
     );
