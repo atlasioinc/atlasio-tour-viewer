@@ -40,9 +40,9 @@
 
 ---
 
-## Current Metrics (updated S172 — May 4, 2026)
-- **RPCs:** 76 (S172 onboarding: `rpc_complete_onboarding` redeployed with `p_role` param; now writes `profiles.role` + `profiles.onboarded_at` atomically — count unchanged. Earlier S172 ATL-GEOCODE: extended `rpc_create_job` signature with `p_job_lat`, `p_job_lng`).
-- **Hooks:** 71 (S172 onboarding: `useCompleteOnboarding` switched to `p_role` — count unchanged. Earlier S172: `CreateJobInputBase` extended with optional coords).
+## Current Metrics (updated S177 — May 6, 2026)
+- **RPCs:** 77 (S177: +1 `rpc_get_job_invitations` for ATL-CONTRACTOR-INVITES-01; `rpc_get_job_details` extended with `invitation_id`, `bid_count`, `my_bid.counter_amount` for ATL-BID-FLOW-01 — count +1. S172 onboarding: `rpc_complete_onboarding` redeployed with `p_role` param; now writes `profiles.role` + `profiles.onboarded_at` atomically. Earlier S172 ATL-GEOCODE: extended `rpc_create_job` signature with `p_job_lat`, `p_job_lng`).
+- **Hooks:** 72 (S177: +1 `useJobInvitations` for ATL-CONTRACTOR-INVITES-01; `useContractorJobDetails` upgraded with `adaptJobDetails` single cast point. S172 onboarding: `useCompleteOnboarding` switched to `p_role` — count unchanged. Earlier S172: `CreateJobInputBase` extended with optional coords).
 - **Profile Columns:** +1 S172 onboarding (`onboarded_at TIMESTAMPTZ`).
 - **Feature Flags:** 11 — 9 in featureFlags.ts (LIVE_PROFILE_HOOKS flipped true S133) + PARTNER_TRACK_ENABLED + DEAL_CREATION_ENABLED in config.ts.
 - **Edge Functions:** 11
@@ -560,6 +560,59 @@ Supersedes ATL-122.
 
 ### Gates
 - tsc 0 errors, expo lint 0 new warnings, all `MOCK_JOB_*` / `DEMO_STATES` / `JOB_ID_TO_STATE_INDEX` removed, `DEMO_PHOTOS` retained as render fallback only with `@demo TODO`, single adapter cast point in `useData.ts`, mock fallbacks removed from 5 hooks (`useSubmitBid` / `useRespondToCounter` / `useAcceptInvitation` / `useDeclineInvitation` / `useStartJob`), all 4 `navigate` → `push` per lessons.md, timeline render handles both numeric and TEXT paths, `@backend`/`@demo` markers refreshed, no inline hex.
+
+---
+
+## S177 — BUG-S177-INVITE-MODAL-QA + CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL (May 6, 2026)
+
+### Branch
+`feat/atl-location-03-s175` (modal QA fix landed on the S175 branch alongside ATL-LOCATION-03)
+
+### Files modified
+- `components/InviteContractorsModal.tsx` — partner roles now correctly excluded from `Your Network`. The `Near This Job` row now renders trade label + `distance_mi` (e.g. "Plumber · 3.2 mi") for nearby contractors.
+- `hooks/useData.ts` — `useNetworkContacts('contractors')` filter switched to snake_case role enum (`role IN ('contractor', 'home_stager', 'real_estate_photographer')`) so partner roles (`mortgage_pro`, `title_escrow`, etc.) are excluded.
+- `types/index.ts` — `NetworkContact` extended with optional `trade?: string`; `ContractorForJob` extended with optional `distance_mi?: number`.
+
+### SQL deployed (S177)
+- **`vouches_recipient_role_check`** — CHECK constraint added to `public.vouches.recipient_role` enforcing snake_case enum values only. Closes `CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL` filed at S170. Legacy display strings cleaned up via in-place UPDATE before constraint creation.
+
+### Key decisions
+- **Snake-case role enum at the data layer** — re-applies the lessons.md S172 onboarding rule. `useNetworkContacts` consumers across InviteContractorsModal + future ATL-LOCATION-04 surfaces all see the same filtered shape.
+- **`distance_mi` as `number?` not `number`** — server-side `rpc_get_contractors_for_job` returns NULL when distance can't be computed (no service area set); UI handles missing value gracefully.
+- **CHECK constraint as the closure mechanism** — the SQL backfill alone would not prevent regression. The CHECK constraint is the long-term enforcement; the prior `lib/roleDisplay.ts` audit (S170) is the read-side enforcement.
+
+### Verification
+- `npx tsc --noEmit` → 0 errors.
+- `npx expo lint` → 0 new warnings (8 pre-existing, unchanged from session baseline).
+- Pre-launch SQL cleanup: `SELECT recipient_role, COUNT(*) FROM vouches GROUP BY 1` returns only snake_case enum values; CHECK constraint enforces going forward.
+
+### Metrics
+- RPCs: 77 (unchanged — SQL constraint, no RPC change)
+- Hooks: 72 (unchanged — `useNetworkContacts` filter shape change, no new hook)
+- Edge Functions: 11 (unchanged)
+
+### Tickets closed (S177 — full session)
+- `BUG-S177-INVITE-MODAL-QA` → ✅ Done (commit 5e1e2c3)
+- `CHORE-VOUCH-RECIPIENT-ROLE-BACKFILL` → ✅ Done (SQL constraint + backfill)
+- `ATL-CONTRACTOR-INVITES-01` → ✅ Done (commit 9819cfa, see prior S177 entry)
+- `ATL-BID-FLOW-01` → ✅ Done (commit b3dff7d, see prior S177 entry)
+
+### Notion update notes (S177)
+- New archive page created: **Backend Deployment Tracker — S177–S190** (`358e6d90-cf26-810c-af25-ffd86aa2c4c1`). Reason: original tracker page exceeded Notion MCP write timeout threshold (~200+ blocks); large-page strategy applied per `tasks/session-end-protocol.md` Step 6.
+- // NOTION-UPDATE-FAILED: Backend Deployment Tracker (parent page header link) — Claude Chat to retry adding child-page link to top of `315e6d90-cf26-81d0-861f-c5fad9ab4feb`.
+
+### Next priorities (S178 — full)
+1. Build 57 — queue new EAS build to pick up all S177 changes
+2. Device QA — Build 57 — full QA checklist in `tasks/next-session-context.md`
+3. Merge to main — after QA passes both `feat/atl-location-03-s175` and `feat/atl-bid-actions-01-s176`
+4. `BidSubmissionScreen` live wiring — `useSubmitBid` mock fallback removed S177; screen needs audit
+5. `rpc_get_job_details` signed `photo_urls` — verify on device; remove `DEMO_PHOTOS` fallback after
+6. `S-INFRA-03` — Expo Push Notifications E2E (critical launch blocker)
+7. `ATL-LOCATION-04` — PhotoJobDetails + StagingJobDetails + InviteContractorsModal parity for photo/staging jobs
+8. `REFACTOR-REPAIRJOBDETAILS-LOCAL-JOB-STATE` — S176 carryover
+
+### Gates
+- tsc 0 errors, expo lint 0 new warnings, snake_case role enum consistently applied across `useNetworkContacts`/`vouches.recipient_role`, no inline hex, all tokens from `lib/tokens.ts`, `@backend`/`@demo` markers present, feature flags reset to demo defaults.
 
 ---
 

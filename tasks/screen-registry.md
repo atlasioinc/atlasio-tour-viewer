@@ -290,6 +290,10 @@
 
 **S171 update — InviteContractorsModal:** `FlatList` → `SectionList`. New optional `nearbyContractors?: ContractorForJob[]` prop. Shape adapted to `NetworkContractor` internally so the row component is shared (single row, no new card). When the prop is non-empty after dedup against `MOCK_NETWORK_CONTRACTORS`, a "Near This Job" section appears below "Your Network" with section headers. When the prop is absent/empty/fully deduped, the modal is visually identical to pre-S171.
 
+**S175 update — InviteContractorsModal wired live (ATL-LOCATION-03):** `MOCK_NETWORK_CONTRACTORS` removed; `Your Network` section now driven by `useNetworkContacts('contractors')`. `useInviteContractors.mutateAsync` writes to `job_invitations` with correct `invited_by` UUID (was empty string — RLS-violating). On success emits `DeviceEventEmitter` `'atlasio.job.contractorsInvited'` → `RepairJobDetails` shows `SuccessToast`. New props: `jobId?`, `jobTrades?: TradeEnum[] | null`. 3-row `SkeletonBlock` placeholder during initial load.
+
+**S177 update — BUG-S177-INVITE-MODAL-QA fix:** `useNetworkContacts('contractors')` filter now uses snake_case role enum so partners (`mortgage_pro`, `title_escrow`, etc.) are excluded from `Your Network`. `NetworkContact` extended with `trade?: string`; `ContractorForJob` extended with `distance_mi?: number`. `Near This Job` rows now render trade label + `distance_mi` ("3.2 mi") for nearby contractors.
+
 ---
 
 #### EditRepairJob
