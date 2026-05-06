@@ -15,7 +15,7 @@
 //   @demo Uses MOCK_FEE_TIER (launch_promo, 0%) — swap for
 //         useMyProfile().fee_tier when wired to Supabase.
 //
-// @backend useSubmitBid (wired) — rpc_submit_bid(p_job_id, p_amount, p_timeline, p_notes)
+// @backend useSubmitBid (wired) — rpc_submit_bid(p_job_id, p_amount, p_timeline, p_quote)
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -57,7 +57,7 @@ type BidSubmissionParams = {
   BidSubmission: {
     jobId: string;
     prefillAmount?: number;
-    prefillTimeline?: number;
+    prefillTimeline?: string;
     prefillNotes?: string;
     isEdit?: boolean;
   };
@@ -127,7 +127,7 @@ const BidSubmissionScreen: React.FC = () => {
   );
   const [selectedTimeline, setSelectedTimeline] = useState<number>(() => {
     if (prefillTimeline !== undefined) {
-      const match = TIMELINE_OPTIONS.findIndex((t) => t.days === prefillTimeline);
+      const match = TIMELINE_OPTIONS.findIndex((t) => t.label === prefillTimeline);
       return match >= 0 ? match : 0;
     }
     return -1; // none selected
@@ -215,8 +215,13 @@ const BidSubmissionScreen: React.FC = () => {
       }}>
         <Pressable
           onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.5 : 1,
+          })}
         >
           <CloseIcon />
         </Pressable>
@@ -328,6 +333,7 @@ const BidSubmissionScreen: React.FC = () => {
               placeholderTextColor={COLORS.placeholderText}
               multiline
               numberOfLines={4}
+              maxLength={500}
               textAlignVertical="top"
               style={{
                 minHeight: 100,

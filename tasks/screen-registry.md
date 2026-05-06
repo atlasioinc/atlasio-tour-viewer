@@ -932,17 +932,21 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 **Role:** Contractor only
 **Nav Type:** fullScreenModal (slide_from_bottom)
 **Feature Flag:** None
-**Wiring:** ✅ Live (rpc_submit_bid)
+**Wiring:** ✅ Live (rpc_submit_bid). S178 audit fixes — Edit Bid timeline prefill matches by label string (not days number); notes input enforces `maxLength={500}`; close icon uses 44×44 touch target (no `hitSlop`); `useSubmitBid` now captures returned `bid_id`.
 
 **What's on this screen:**
-- fullScreenModal header (X dismiss)
+- fullScreenModal header (X dismiss with 44×44 touch target)
 - Custom dollar input (intentionally different from FormField — @design custom comment)
-- Timeline input
+- Timeline pills (5 options: 1 day, 2–3 days, 1 week, 2 weeks, Flexible)
+- Notes textarea with 500-char hard cap + counter
 - Fee-transparent receipt (Atlasio commission shown)
 - Submit CTA
 
-**Entry Points:**
-- ContractorJobDetails → "Submit Bid"
+**Entry Points (4 paths):**
+- ContractorJobDetails → "Submit Bid" (no existing bid)
+- ContractorJobDetails → invitation Submit CTA (invite-only path; threads `invitationId` indirectly)
+- ContractorJobDetails → "Edit Bid" (prefilled with existing bid amount/timeline/notes)
+- ContractorJobDetails → "Counter Back" (counter-offer response path)
 
 **Exit Points:**
 - ← X → goBack() back to ContractorJobDetails

@@ -40,7 +40,7 @@
 
 ---
 
-## Current Metrics (updated S177 — May 6, 2026)
+## Current Metrics (updated S178 — May 6, 2026)
 - **RPCs:** 77 (S177: +1 `rpc_get_job_invitations` for ATL-CONTRACTOR-INVITES-01; `rpc_get_job_details` extended with `invitation_id`, `bid_count`, `my_bid.counter_amount` for ATL-BID-FLOW-01 — count +1. S172 onboarding: `rpc_complete_onboarding` redeployed with `p_role` param; now writes `profiles.role` + `profiles.onboarded_at` atomically. Earlier S172 ATL-GEOCODE: extended `rpc_create_job` signature with `p_job_lat`, `p_job_lng`).
 - **Hooks:** 72 (S177: +1 `useJobInvitations` for ATL-CONTRACTOR-INVITES-01; `useContractorJobDetails` upgraded with `adaptJobDetails` single cast point. S172 onboarding: `useCompleteOnboarding` switched to `p_role` — count unchanged. Earlier S172: `CreateJobInputBase` extended with optional coords).
 - **Profile Columns:** +1 S172 onboarding (`onboarded_at TIMESTAMPTZ`).
@@ -620,6 +620,59 @@ Supersedes ATL-122.
 - Asymmetry rationale: list/read notification errors throw (UI can show error state); badge count returns 0 silently because the tab-bar badge is informational, not load-bearing — better UX than crashing the tab on a notifications API blip.
 - No metrics changes (RPCs 77 / Hooks 72 / Edge Functions 11).
 - Gates: `npx tsc --noEmit` 0 errors; `npx expo lint` 0 new warnings (8 pre-existing in unrelated files, none in `useData.ts` or `BidSubmissionScreen.tsx`).
+
+---
+
+## S178 — BidSubmissionScreen Audit Fixes (May 6, 2026)
+
+### Branch
+`feat/atl-bid-actions-01-s176` (continuation of S176/S177 bid actions branch)
+
+### Files modified
+- `components/BidSubmissionScreen.tsx` — five surgical fixes:
+  1. **L18 `@backend` comment** — `p_notes` → `p_quote` (matches actual RPC param).
+  2. **L60 route param type** — `prefillTimeline?: number` → `prefillTimeline?: string`. The DB stores `bids.timeline` as TEXT; `rpc_get_job_details` returns it verbatim. `ContractorJobDetails` (S177) already passes the raw text string at the call site, so this fixes a latent type lie — not a behavior change.
+  3. **L130 Edit Bid timeline prefill bug** — `findIndex((t) => t.days === prefillTimeline)` → `findIndex((t) => t.label === prefillTimeline)`. Was comparing a number against a TEXT string; the picker silently prefilled nothing on Edit Bid. Now matches by label string against `TIMELINE_OPTIONS` entries.
+  4. **L216–222 close icon touch target** — replaced `hitSlop={12}` with explicit 44×44 Pressable box (`width: 44, height: 44, alignItems: 'center', justifyContent: 'center'`). Compliant with App Store touch target rule + lessons.md "never `hitSlop` as a touch target substitute."
+  5. **L324–344 notes TextInput** — added `maxLength={500}`. Counter at L345–347 already showed `{notes.length}/500` but the input had no enforcement.
+- `hooks/useData.ts` — `useSubmitBid` mutationFn now captures the returned `bid_id` UUID (`const { data: bidId, error } = await supabase.rpc(...); ... return bidId as string;`). `rpc_submit_bid` returns the new bid's UUID; previously discarded. Capture is forward-compatible for future "navigate to bid" flows. No consumer change today (`onSuccess` already destructures `(_, { jobId })`).
+
+### Key decisions
+- Type-widening on `prefillTimeline` (number → string) was flagged in plan and approved before edit; only one route in the file references it (the `useState` initializer on L128–134), and the call-site upstream already passes a string. Zero call-site changes.
+- Header centering shift introduced by Fix 4 (44px close button vs 20px right-side spacer at L229) is intentionally **not addressed** in this session — logged as a chore ticket for a future polish session.
+- `useSubmitBid` return type left **inferred** (no explicit `Promise<string>` annotation) — TS infers it correctly from the new `return bidId as string`. Lighter touch.
+
+### Architecture rules applied
+- All tokens from `lib/tokens.ts` — no inline hex.
+- `@demo` and `@backend` markers preserved + corrected.
+- Body text ≥ 14pt unchanged in this session.
+- `/guard` was not required (no SQL, no Edge Functions touched this session).
+
+### Tickets closed
+- `BidSubmissionScreen audit` (S178 priority #4) → ✅ Done
+
+### Gates
+- `npx tsc --noEmit` → **0 errors**
+- `npx expo lint` → 0 errors / 8 pre-existing warnings (CategoryMapScreen, ContractorHomeTab, FindTab, PostPhotoJobScreen, PostStagingJobScreen, SquadSlotPicker — none in BidSubmissionScreen or useData.ts)
+
+### Metrics
+- RPCs: 77 (unchanged) | Hooks: 72 (unchanged) | Edge Functions: 11 (unchanged)
+
+### Out of scope (deferred)
+- `MOCK_FEE_TIER` → `useMyProfile().fee_tier` swap (needs schema work)
+- `FIRST_BID_SHOWN_KEY` AsyncStorage → `profile.bids_count` swap (needs schema column)
+- 400ms `setTimeout(navigation.goBack, 400)` unmount risk audit
+- Header centering shift from Fix 4 (cosmetic, logged as chore)
+
+### Next priorities (S179)
+1. Build 57 device QA — full S177+S178 checklist (BidSubmissionScreen Edit Bid prefill is now testable for the first time)
+2. Merge sequence to main (after Build 57 QA passes both branches)
+3. `rpc_get_job_details` signed `photo_urls` — verify on device; remove `DEMO_PHOTOS` fallback in `ContractorJobDetails` after
+4. `S-INFRA-03` — Expo Push Notifications E2E (critical launch blocker)
+5. `ATL-LOCATION-04` — PhotoJobDetails + StagingJobDetails + InviteContractorsModal parity
+6. `REFACTOR-REPAIRJOBDETAILS-LOCAL-JOB-STATE` — S176 carryover
+7. `MOCK_FEE_TIER`/`FIRST_BID_SHOWN_KEY` schema work (deferred from S178)
+8. `BidSubmissionScreen` header centering polish chore (logged S178)
 
 ---
 

@@ -2198,7 +2198,7 @@ export const useSubmitBid = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { jobId: string; amount: number; timeline: string; notes: string }) => {
-      const { error } = await supabase
+      const { data: bidId, error } = await supabase
         .rpc('rpc_submit_bid', {
           p_job_id: data.jobId,
           p_amount: data.amount,
@@ -2207,6 +2207,7 @@ export const useSubmitBid = () => {
           p_message: '',
         });
       if (error) throw error;
+      return bidId as string;
     },
     onSuccess: (_, { jobId }) => {
       qc.invalidateQueries({ queryKey: ['contractorJob', jobId] });
