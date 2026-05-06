@@ -369,8 +369,27 @@ Key decisions:
   - Debug logs removed
   - eas.json env blocks committed (all 3 profiles)
   - Build 51 queued to verify autocomplete fix in production build
+  - ATL-GEOCODE-01 CLOSED: root cause was corrupted production EAS env key (set Mar 27, corrupt since day 1)
+  - Verified: job_lat/job_lng writing correctly (39.7650812, -104.9851812) for job 5468ca33
+  - Build 52 is the verified working build for geocoding
+  - Two new lessons added: EAS env key verification + idevicesyslog usage
 Metrics: unchanged (RPCs: 76, Hooks: 71, Edge Functions: 11)
 S174 next: verify Build 50 autocomplete, then ATL-LOCATION-03 or chore backlog
+
+---
+
+## S174 — ATL-GEOCODE-02: PostPhotoJobScreen + PostStagingJobScreen geocoding (May 6, 2026)
+Files modified:
+  - `components/PostPhotoJobScreen.tsx` — added `jobLat`/`jobLng` state; wired `AddressAutocompleteInput` `onSelectWithCoords`; passes `p_job_lat`/`p_job_lng` to `rpc_create_job`.
+  - `components/PostStagingJobScreen.tsx` — same three changes.
+Key decisions:
+  - ATL-GEOCODE-02: job_lat/job_lng now captured on photo + staging job posts (previously NULL). Pattern mirrors `PostJobWizard` `onSelectWithCoords` implementation (S172).
+  - Hook boundary unchanged — `CreateJobInputBase` already accepts optional `p_job_lat`/`p_job_lng` (added S172).
+  - Free-form addresses (no autocomplete pick) still send NULL coords — same behavior as `PostJobWizard`.
+  - Commit `4bded42` pushed direct to `main` per session prompt.
+Metrics: unchanged (RPCs: 76, Hooks: 71, Edge Functions: 11)
+Gates: tsc 0 errors, expo lint 8 pre-existing warnings (0 new).
+S174 next: device QA on photo + staging job posts (verify non-null coords in Supabase), then ATL-LOCATION-03 or chore backlog.
 
 ---
 

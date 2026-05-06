@@ -680,3 +680,67 @@ and once as "secret env variable that can only be accessed on EAS builder"
 - `development` environment intentionally empty — local `.env` handles dev builds
 - Build 50 queued S174 to verify fix (Build 49 had the conflict)
 
+---
+
+### EAS env production key corruption — always verify with --include-sensitive (S174)
+
+**Pattern:** When registering or updating EAS env variables, the stored value
+may differ from what was intended — truncated, corrupted, or set to a
+different key entirely. The `eas env:list` output without `--include-sensitive`
+shows masked values (`AIza...`) which cannot confirm correctness.
+
+**Root cause of ATL-GEOCODE-01 (8+ sessions):** The production
+`GOOGLE_MAPS_API_KEY` was set to a corrupted/wrong value on March 27, 2026
+when the env was first configured. Every build since then received an invalid
+key. Google returned `API_KEY_INVALID` (400) which the `response.ok` guard
+caught correctly — but the error body was never captured until idevicesyslog
+was used in S174.
+
+**Symptoms:** Google Places API returns HTTP 400 with
+`"reason": "API_KEY_INVALID"`. App shows "No matches" silently.
+Curl works fine because curl uses the `.env` key, not the EAS env key.
+
+**Fix:** `eas env:update --name GOOGLE_MAPS_API_KEY --value <key> --environment production`
+Select `Sensitive` visibility. Verify with `eas env:list --include-sensitive`.
+
+**Permanent rules:**
+- ALWAYS run `eas env:list --include-sensitive` after ANY key registration or update
+- Verify the full key value matches the `.env` value character-for-character
+- Never trust masked output (`AIza...`) as confirmation of correctness
+- Use `idevicesyslog | grep "Places API non-OK"` to capture exact Google error bodies from device builds — Metro logs don't capture TestFlight console output
+
+---
+
+### idevicesyslog — correct way to capture console logs from TestFlight builds (S174)
+
+**Pattern:** `npx react-native log-ios` and Metro terminal do NOT capture
+console output from EAS/TestFlight production builds. The only reliable way
+to read `console.warn` / `console.log` output from a device running a
+TestFlight build is `idevicesyslog` with the phone connected via USB.
+
+**Setup:**
+```bash
+brew install libimobiledevice
+idevicesyslog | grep -i "YourFilterTerm"
+```
+
+**Usage for Atlasio:**
+```bash
+# Capture Places API errors
+idevicesyslog | grep -A 3 "Places API non-OK"
+
+# Capture all Atlasio app logs
+idevicesyslog | grep "Atlasio(React)"
+
+# Capture specific component warnings
+idevicesyslog | grep -i "AddressAutocomplete\|non-OK\|autocomplete threw"
+```
+
+**Note:** Use `-A 3` to capture 3 lines after each match — log bodies
+are often truncated on the first line and continue on subsequent lines.
+
+**Permanent rule:** Before concluding a bug is "infrastructure" vs "code",
+always use `idevicesyslog` to capture the actual error body from the device.
+A 400 `API_KEY_INVALID` looks identical to "No matches" in the UI but has
+a completely different fix path than a missing key or billing issue.
+

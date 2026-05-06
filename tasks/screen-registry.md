@@ -358,6 +358,7 @@
 
 **@demo:** p_title auto-generated as 'Photography Job' — add TextInput before launch. sqft not sent (no RPC param).
 **S144:** address now uses shared `<AddressAutocompleteInput>`. `dateNeeded` is `Date | null`, sent as `YYYY-MM-DD`. Header icon color fixed (CameraIcon accepts `color` prop, circle uses `COLORS.jobGreen`, icon uses `COLORS.onPrimary`).
+**S174 (ATL-GEOCODE-02):** `job_lat`/`job_lng` now captured from `AddressAutocompleteInput.onSelectWithCoords` and sent to `rpc_create_job`. Pattern matches `PostJobWizard` (S172). Free-form addresses still send NULL coords.
 
 ---
 
@@ -381,6 +382,7 @@
 
 **@demo:** p_title auto-generated as 'Staging Job'. When `specificDate` is null, `p_due_date` still receives the timeline key (e.g. '1_week') rather than an ISO date — confirm RPC behavior post-launch.
 **S144:** address now uses shared `<AddressAutocompleteInput>`. Added optional `specificDate: Date | null` with native DateTimePicker below timeline chips; when set, sent as `YYYY-MM-DD`. Header icon color fixed (ChairIcon accepts `color` prop, circle uses `COLORS.jobPurple`, icon uses `COLORS.onPrimary`).
+**S174 (ATL-GEOCODE-02):** `job_lat`/`job_lng` now captured from `AddressAutocompleteInput.onSelectWithCoords` and sent to `rpc_create_job`. Pattern matches `PostJobWizard` (S172). Free-form addresses still send NULL coords.
 
 ---
 
