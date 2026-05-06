@@ -358,6 +358,22 @@ Resulting empty-state height drops from ~232pt to ~144pt, clearing the nudge abo
 
 ---
 
+## S174 — EAS Secret/Env Conflict Resolution (May 5, 2026)
+Files modified: tasks/lessons.md
+Key decisions:
+  - Legacy eas secret GOOGLE_MAPS_API_KEY deleted (ID: be4b39d5-e46c-4654-8529-d0eaf14e2791)
+  - Confirmed clean via eas env:list — one entry per environment
+  - Build 50 queued to verify autocomplete fix
+  - Permanent rule: never use eas secret:create again, always eas env:create
+  - S174 investigation confirmed: key pipeline correct end-to-end (lib/config.ts → app.config.js → .env)
+  - Debug logs removed
+  - eas.json env blocks committed (all 3 profiles)
+  - Build 51 queued to verify autocomplete fix in production build
+Metrics: unchanged (RPCs: 76, Hooks: 71, Edge Functions: 11)
+S174 next: verify Build 50 autocomplete, then ATL-LOCATION-03 or chore backlog
+
+---
+
 ## S170 — BUG-S163-A: display_role Audit & Fix (April 27, 2026)
 
 ### Branch

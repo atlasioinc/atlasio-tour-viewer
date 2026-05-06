@@ -650,3 +650,33 @@ The new geocoded fields (`service_area_label`, `service_area_lat`, `service_area
    Google Places API returns labels with ', USA' suffix.
    Strip at display time with `.replace(', USA', '')` — never strip from stored data.
 
+---
+
+### EAS Secret vs EAS Env conflict — duplicate key causes silent empty string (S174)
+
+**Pattern:** The legacy `eas secret` system and the new `eas env` system are
+completely separate stores. If the same key exists in both, the build receives
+a duplicate and the value may inject as an empty string — no error thrown,
+no warning, feature silently fails.
+
+**Symptoms:** `Constants.expoConfig?.extra?.googleMapsApiKey` returns `''`
+in TestFlight builds despite the key being "registered". Autocomplete shows
+no results. Geocoding writes null coords.
+
+**Diagnosis:** Run `eas env:list` (NOT `eas secret:list`). If you see the
+same key listed twice in one environment — once as "sensitive env variable"
+and once as "secret env variable that can only be accessed on EAS builder"
+— you have a conflict.
+
+**Fix:**
+1. Get the legacy secret ID: `eas secret:list`
+2. Delete it: `eas secret:delete --id <id>`
+3. Confirm clean: `eas env:list` — expect exactly one entry per key per environment
+4. Queue a new build — the fix is config-only, no code changes needed
+
+**Permanent rules:**
+- Never use `eas secret:create` again — always use `eas env:create`
+- Always verify with `eas env:list` after any key registration
+- `development` environment intentionally empty — local `.env` handles dev builds
+- Build 50 queued S174 to verify fix (Build 49 had the conflict)
+
