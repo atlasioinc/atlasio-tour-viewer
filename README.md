@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/github/license/playcanvas/supersplat)](https://github.com/playcanvas/supersplat/blob/main/LICENSE)
 
 
-| [Atlasio Tour Viewer](https://tours.atlasio.com) | [User Guide](https://developer.playcanvas.com/user-manual/gaussian-splatting/editing/supersplat/) | [Blog](https://blog.playcanvas.com) | [Forum](https://forum.playcanvas.com) |
+| [Atlasio Tour Viewer](https://tours.atlasioapp.com) | [User Guide](https://developer.playcanvas.com/user-manual/gaussian-splatting/editing/supersplat/) | [Blog](https://blog.playcanvas.com) | [Forum](https://forum.playcanvas.com) |
 
 The Atlasio Tour Viewer is a free and open source tool for inspecting, editing, optimizing and publishing 3D Gaussian Splats. It is built on web technologies and runs in the browser, so there's nothing to download or install.
 
-A live version of this tool is available at: https://tours.atlasio.com
+A live version of this tool is available at: https://tours.atlasioapp.com
 
 ![image](https://github.com/user-attachments/assets/b6cbb5cc-d3cc-4385-8c71-ab2807fd4fba)
 
