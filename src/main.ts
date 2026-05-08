@@ -268,7 +268,8 @@ const main = async () => {
                 overlay.setProgress(progress);
             }, 120);
 
-            events.on('scene.loaded', () => {
+            // SuperSplat fires 'stopSpinner' when an import completes
+            events.on('stopSpinner', () => {
                 clearInterval(progressInterval);
                 overlay.setProgress(1);
                 setTimeout(() => overlay.onReady(), 300);
