@@ -3,7 +3,7 @@ import { version as engineVersion, revision as engineRevision } from 'playcanvas
 
 import { version as appVersion } from '../../package.json';
 
-// Inline SVG for the SuperSplat logo
+// Inline SVG for the Atlasio Tour Viewer logo
 const logoSvg = `
 <svg xmlns='http://www.w3.org/2000/svg' width="64" height="64" viewBox='64 64 384 384'>
   <path fill='#f26722' d='M129.83,217c9.75,0,17.64-7.9,17.64-17.64s-7.9-17.64-17.64-17.64-17.64,7.9-17.64,17.64,7.9,17.64,17.64,17.64Z'/>
@@ -77,7 +77,7 @@ class AboutPopup extends Container {
 
         const appName = new Label({
             id: 'about-app-name',
-            text: 'SuperSplat'
+            text: 'Atlasio Tour Viewer'
         });
 
         const appVersionLabel = new Label({
@@ -114,7 +114,7 @@ class AboutPopup extends Container {
         engineRow.dom.addEventListener('click', () => {
             window.open('https://github.com/playcanvas/engine', '_blank')?.focus();
         });
-        const engineName = new Label({ class: 'about-dep-name', text: 'PlayCanvas' });
+        const engineName = new Label({ class: 'about-dep-name', text: 'Atlasio' });
         const engineVer = new Label({ class: 'about-dep-version', text: `v${engineVersion}` });
         const engineRev = new Label({ class: 'about-dep-revision', text: `(${engineRevision.substring(0, 7)})` });
         engineRow.append(engineName);

@@ -307,7 +307,7 @@ class EditorUI {
 
                     if (window.showSaveFilePicker) {
                         fileHandle = await window.showSaveFilePicker({
-                            id: 'SuperSplatVideoFileExport',
+                            id: 'AtlasioVideoFileExport',
                             types: filePickerTypes,
                             suggestedName: suggested
                         });
