@@ -33,6 +33,8 @@ import { registerTrackManagerEvents } from './track-manager';
 import { registerTransformHandlerEvents } from './transform-handler';
 import { EditorUI } from './ui/editor';
 import { localizeInit } from './ui/localization';
+import { getViewerParams, applyViewerMode } from './viewer-mode';
+import { ViewerOverlay } from './ui/viewer-overlay';
 
 declare global {
     interface LaunchParams {
@@ -248,6 +250,36 @@ const main = async () => {
 
     // load async models
     scene.start();
+
+    // ── Viewer mode (ATL-3DTOUR-09 / ATL-3DTOUR-10) ──────────────────
+    const viewerParams = getViewerParams();
+    if (viewerParams.isViewerMode) {
+        applyViewerMode();
+        if (viewerParams.unbranded) {
+            document.documentElement.classList.add('viewer-unbranded');
+        }
+        const overlay = new ViewerOverlay(viewerParams);
+
+        if (viewerParams.splatUrl) {
+            // Simulate progress until splat emits loaded event
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress = Math.min(progress + 0.02, 0.9);
+                overlay.setProgress(progress);
+            }, 120);
+
+            events.on('scene.loaded', () => {
+                clearInterval(progressInterval);
+                overlay.setProgress(1);
+                setTimeout(() => overlay.onReady(), 300);
+            });
+
+            await events.invoke('import', [{
+                filename: viewerParams.splatUrl.split('/').pop() ?? 'tour.ply',
+                url: viewerParams.splatUrl
+            }]);
+        }
+    }
 
     // handle load params
     const loadList = url.searchParams.getAll('load');

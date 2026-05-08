@@ -1,0 +1,200 @@
+// viewer-overlay.scss
+// ATL-3DTOUR-09 / ATL-3DTOUR-10 — Buyer-facing viewer chrome
+// Uses Atlasio design tokens from _atlasio-tokens.scss
+
+@use "atlasio-tokens.scss";
+
+// ─── Viewer mode: hide all editor chrome ───────────────
+.viewer-mode {
+    #menu-panel,
+    #right-toolbar,
+    #bottom-toolbar,
+    #scene-panel,
+    #view-panel,
+    #data-panel,
+    #color-panel,
+    #mode-toggle,
+    #status-bar,
+    #timeline-panel {
+        display: none !important;
+    }
+
+    #editor-container {
+        flex-direction: column;
+    }
+
+    canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+}
+
+// ─── Overlay container ─────────────────────────────────
+#viewer-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+// ─── Loading state ─────────────────────────────────────
+#viewer-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 10, 0.85);
+    transition: opacity 0.4s ease;
+    pointer-events: all;
+
+    &.viewer-loading--hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+.viewer-loading-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.viewer-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--atl-accent);
+    border-radius: 50%;
+    animation: viewer-spin 0.8s linear infinite;
+}
+
+@keyframes viewer-spin {
+    to { transform: rotate(360deg); }
+}
+
+.viewer-loading-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.3px;
+}
+
+.viewer-progress-bar {
+    width: 180px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: var(--atl-radius-pill);
+    overflow: hidden;
+}
+
+.viewer-progress-fill {
+    height: 100%;
+    background: var(--atl-accent);
+    border-radius: var(--atl-radius-pill);
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+// ─── Agent card (branded mode) ─────────────────────────
+#viewer-agent-card {
+    position: absolute;
+    bottom: 24px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(10, 10, 10, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--atl-radius-md);
+    padding: 10px 14px;
+    pointer-events: all;
+    max-width: 320px;
+}
+
+.viewer-agent-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid rgba(0, 61, 195, 0.4);
+}
+
+.viewer-agent-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.viewer-agent-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.viewer-agent-label {
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 1px;
+}
+
+.viewer-agent-cta {
+    flex-shrink: 0;
+    background: var(--atl-primary);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: var(--atl-radius-sm);
+    text-decoration: none;
+    letter-spacing: 0.2px;
+    transition: background 0.15s ease;
+
+    &:hover {
+        background: var(--atl-accent);
+    }
+}
+
+// ─── Drag hint ─────────────────────────────────────────
+#viewer-hint {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 10, 10, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--atl-radius-pill);
+    padding: 7px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+
+    &.viewer-hint--visible {
+        opacity: 1;
+    }
+}
+
+// ─── Atlasio wordmark (top-right, unbranded suppressed) ─
+.viewer-mode:not(.viewer-unbranded) #viewer-wordmark {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 0.3px;
+    pointer-events: none;
+}
