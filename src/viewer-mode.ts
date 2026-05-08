@@ -49,4 +49,3 @@ export const applyViewerMode = () => {
     document.title = 'Atlasio 3D Tour';
 };
 
-export { ViewerParams };
