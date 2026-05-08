@@ -268,8 +268,8 @@ const main = async () => {
                 overlay.setProgress(progress);
             }, 120);
 
-            // SuperSplat fires 'stopSpinner' when an import completes
-            events.on('stopSpinner', () => {
+            // SuperSplat fires 'stopSpinner' when an import completes — use once() to avoid duplicate onReady calls
+            events.once('stopSpinner', () => {
                 clearInterval(progressInterval);
                 overlay.setProgress(1);
                 setTimeout(() => overlay.onReady(), 300);

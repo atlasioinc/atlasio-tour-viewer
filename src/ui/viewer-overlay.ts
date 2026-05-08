@@ -12,6 +12,27 @@
 
 import { ViewerParams } from '../viewer-mode';
 
+// Sanitize strings before injecting into innerHTML to prevent XSS
+const sanitize = (str: string): string => {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+};
+
+// Allow only https:// URLs from known-safe origins for agent photos
+const sanitizePhotoUrl = (url: string): string => {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:') return '';
+        return sanitize(url);
+    } catch {
+        return '';
+    }
+};
+
 export class ViewerOverlay {
     private container: HTMLDivElement;
     private loadingEl: HTMLDivElement;
@@ -53,11 +74,12 @@ export class ViewerOverlay {
     }
 
     private buildAgentCard(params: ViewerParams): HTMLDivElement {
-        const name = params.isDemo ? 'Sarah Johnson' : (params.agentName ?? '');
-        const phone = params.isDemo ? '+1 (303) 555-0182' : (params.agentPhone ?? '');
-        const photo = params.isDemo
+        const name = sanitize(params.isDemo ? 'Sarah Johnson' : (params.agentName ?? ''));
+        const phone = sanitize(params.isDemo ? '+1 (303) 555-0182' : (params.agentPhone ?? ''));
+        const rawPhoto = params.isDemo
             ? 'https://ui-avatars.com/api/?name=Sarah+Johnson&background=003DC3&color=fff&size=48'
-            : (params.agentPhoto ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=003DC3&color=fff&size=48`);
+            : (params.agentPhoto ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(params.agentName ?? '')}&background=003DC3&color=fff&size=48`);
+        const photo = sanitizePhotoUrl(rawPhoto);
 
         const el = document.createElement('div');
         el.id = 'viewer-agent-card';
