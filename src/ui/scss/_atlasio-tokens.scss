@@ -1,0 +1,21 @@
+// Atlasio Design Tokens — Tour Viewer
+// Sourced from atlasio-demo/components/tokens.ts
+// Apply brand accent colors over the dark editor base theme.
+
+:root {
+  // Brand
+  --atl-primary: #003DC3;
+  --atl-accent: #155DFC;
+
+  // Status
+  --atl-error: #E7000B;
+  --atl-success: #16A34A;
+
+  // Border radius
+  --atl-radius-sm: 8px;
+  --atl-radius-md: 14px;
+  --atl-radius-pill: 9999px;
+
+  // Border color (for light-on-dark UI elements)
+  --atl-border: rgba(255, 255, 255, 0.12);
+}

@@ -19,7 +19,7 @@
         flex-direction: column;
         overflow: hidden;
 
-        border-radius: 8px;
+        border-radius: var(--atl-radius-md);
         background-color: $bcg-primary;
 
         filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.8));
@@ -111,7 +111,7 @@
             .popup-button {
                 height: 40px;
                 width: 120px;
-                border-radius: 4px;
+                border-radius: var(--atl-radius-sm);
                 background-color: $bcg-darker;
 
                 &:hover {
