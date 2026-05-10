@@ -40,7 +40,7 @@
 
 ---
 
-## Current Metrics (updated S178 — May 6, 2026)
+## Current Metrics (updated S179 — May 9, 2026)
 - **RPCs:** 77 (S177: +1 `rpc_get_job_invitations` for ATL-CONTRACTOR-INVITES-01; `rpc_get_job_details` extended with `invitation_id`, `bid_count`, `my_bid.counter_amount` for ATL-BID-FLOW-01 — count +1. S172 onboarding: `rpc_complete_onboarding` redeployed with `p_role` param; now writes `profiles.role` + `profiles.onboarded_at` atomically. Earlier S172 ATL-GEOCODE: extended `rpc_create_job` signature with `p_job_lat`, `p_job_lng`).
 - **Hooks:** 72 (S177: +1 `useJobInvitations` for ATL-CONTRACTOR-INVITES-01; `useContractorJobDetails` upgraded with `adaptJobDetails` single cast point. S172 onboarding: `useCompleteOnboarding` switched to `p_role` — count unchanged. Earlier S172: `CreateJobInputBase` extended with optional coords).
 - **Profile Columns:** +1 S172 onboarding (`onboarded_at TIMESTAMPTZ`).
@@ -620,6 +620,57 @@ Supersedes ATL-122.
 - Asymmetry rationale: list/read notification errors throw (UI can show error state); badge count returns 0 silently because the tab-bar badge is informational, not load-bearing — better UX than crashing the tab on a notifications API blip.
 - No metrics changes (RPCs 77 / Hooks 72 / Edge Functions 11).
 - Gates: `npx tsc --noEmit` 0 errors; `npx expo lint` 0 new warnings (8 pre-existing in unrelated files, none in `useData.ts` or `BidSubmissionScreen.tsx`).
+
+---
+
+## S179 — Onboarding Bug Fixes: BUG-1 / BUG-2 / BUG-3 (May 9, 2026)
+
+### Branch
+`fix/onboarding-s179`
+
+### Files modified
+- `components/ContractorProfileBasics.tsx` — BUG-1 + BUG-2 (read side):
+  1. Added `ActivityIndicator` to `react-native` import.
+  2. Added `isPrefilling` state, initialized to `!formData.fullName` (only gates when there is no name yet).
+  3. Wrapped the `supabase.auth.getUser()` async block in `try/finally`; `setIsPrefilling(false)` runs in `finally` whether or not a name was found.
+  4. `Pressable` Next button now `disabled={isPrefilling}`, `opacity: 0.5` while prefilling, `transform: scale` suppressed while disabled, and renders `<ActivityIndicator size="small" color="#FFFFFF" />` in place of the "Next" label.
+- `components/LoginScreen.tsx` — BUG-2 (write side):
+  - Apple handler only: after `supabase.auth.updateUser({ data: { full_name } })` resolves, added `await new Promise(resolve => setTimeout(resolve, 300))` inside the `if (fullName) { ... }` block so Supabase has time to propagate the metadata write before `onAuthStateChange` routes into `ContractorProfileBasics`. Google and email handlers untouched.
+- `components/OnboardingScreen1.tsx` — BUG-3:
+  - Removed the "Already have an account? Sign in" escape hatch block (lines 417–430) and its surrounding `<View>` row.
+  - Removed now-unused `Pressable` import from `react-native`.
+  - Removed now-unused `import { supabase } from '../lib/supabase';`.
+
+### Root cause
+- BUG-1 (contractor "Find Jobs Now" → "Something went wrong"): `rpc_complete_onboarding` was returning `{ success: false, message: 'Name is required' }` because `formData.fullName` reached `OnboardingComplete` as `''`. The async `supabase.auth.getUser()` prefill in `ContractorProfileBasics` had not resolved before the user tapped Next.
+- BUG-2 (Apple SSO name not pre-filled): `LoginScreen.handleAppleSignIn` writes `user_metadata.full_name` via `updateUser` then returns immediately. `onAuthStateChange` routes into the contractor onboarding stack, where `ContractorProfileBasics` mounts and reads `user_metadata.full_name` — racing the propagation of the write. Apple compounds this by only returning `credential.fullName` on the very first sign-in ever; if the first write loses the race, the field is permanently lost.
+- BUG-3 ("Sign in" link visible to authenticated users): leftover from the pre-S178 era when onboarding and auth shared a flow. Users in onboarding are already authenticated; the `signOut()` escape hatch was misleading.
+
+### Key decisions
+- Loading-gate pattern (`isPrefilling`) is now the canonical fix for any onboarding screen that async-prefills from `user_metadata`. Recorded as a permanent rule in `tasks/lessons.md`.
+- Companion rule: every auth handler that writes to `user_metadata` must `await new Promise(resolve => setTimeout(resolve, 300))` before allowing the auth state to propagate downstream. Only fire the delay when there is actually data to write.
+- Onboarding screens remain exempt from importing `lib/tokens.ts` (intentional per `lib/tokens.ts` header lines 17–19). The `ActivityIndicator color="#FFFFFF"` literal matches the existing Next-button text-color literal in the same file — no new inline hex introduced.
+
+### Verification
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 new warnings (8 pre-existing warnings unchanged; none in the 3 modified files)
+
+### Metrics (unchanged)
+- RPCs: 77 (unchanged)
+- Hooks: 72 (unchanged)
+- Edge Functions: 11 (unchanged)
+- Feature Flags: 11 (unchanged)
+
+### Out of scope (deferred)
+- ResetPasswordScreen + `atlasio://reset-password` deep link (separate ticket, carryover from S178)
+- Swipe-to-go-back gesture on SignUp / ForgotPassword screens (separate ticket)
+- `useCompleteOnboarding` hook and `rpc_complete_onboarding` SQL — both unchanged
+- ContractorTradeStep, ContractorDetailsStep, OnboardingScreen2/3/4, OnboardingRoleSelect — none touched
+
+### Next priorities (S180)
+- Tony to QA `fix/onboarding-s179` on device — Apple SSO first-sign-in (clean keychain), Apple SSO repeat sign-in, Google SSO, email/password — verify contractor onboarding completes cleanly through `rpc_complete_onboarding` in all four paths.
+- After QA passes: merge `fix/onboarding-s179` → `main`.
+- Then resume ATL-AUTH-02 follow-up: implement ResetPasswordScreen + `atlasio://reset-password` deep link.
 
 ---
 

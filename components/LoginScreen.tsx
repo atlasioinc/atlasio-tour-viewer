@@ -110,6 +110,11 @@ export default function LoginScreen({ onSignUp, onForgotPassword }: LoginScreenP
         await supabase.auth.updateUser({
           data: { full_name: fullName },
         });
+        // BUG-2 (S179): Give Supabase ~300ms to propagate the user_metadata write
+        // before onAuthStateChange routes us into the contractor onboarding stack,
+        // where ContractorProfileBasics will read user_metadata.full_name on mount.
+        // Only delay when there is actually a name to write.
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
       // Success → onAuthStateChange in App.tsx handles routing
     } catch (e: unknown) {

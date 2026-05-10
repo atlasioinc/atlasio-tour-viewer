@@ -26,6 +26,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -175,16 +176,28 @@ const ContractorProfileBasics: React.FC<Props> = ({ navigation, route }) => {
   const [fullName, setFullName] = useState<string>(formData.fullName || '');
   const [company, setCompany] = useState<string>(formData.company || '');
 
+  // ── Loading gate ──
+  // BUG-1/BUG-2 (S179): SSO users (Apple/Google) hit ContractorProfileBasics with
+  // formData.fullName='' while supabase.auth.getUser() is still in flight reading
+  // user_metadata.full_name. If the user taps Next before the read resolves, fullName
+  // is still '' and rpc_complete_onboarding rejects with "Name is required". Gate the
+  // Next button until the prefill async resolves (whether or not a name was found).
+  const [isPrefilling, setIsPrefilling] = useState<boolean>(!formData.fullName);
+
   // Pre-fill name from Supabase user metadata for SSO users (Apple/Google)
   // Only fires when formData.fullName is empty — never overwrites user-entered name
   // @backend supabase.auth.getUser — reads raw_user_meta_data.full_name
   useEffect(() => {
     if (formData.fullName) return; // already have a name — skip
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const metaName = user?.user_metadata?.full_name as string | undefined;
-      if (metaName && metaName.trim()) {
-        setFullName(metaName.trim());
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const metaName = user?.user_metadata?.full_name as string | undefined;
+        if (metaName && metaName.trim()) {
+          setFullName(metaName.trim());
+        }
+      } finally {
+        setIsPrefilling(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on mount
@@ -504,11 +517,13 @@ const ContractorProfileBasics: React.FC<Props> = ({ navigation, route }) => {
             >
               <Pressable
                 onPress={handleNextPress}
+                disabled={isPrefilling}
                 style={({ pressed }) => ({
                   width: '100%',
                   borderRadius: 10,
                   overflow: 'hidden',
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                  opacity: isPrefilling ? 0.5 : 1,
+                  transform: [{ scale: pressed && !isPrefilling ? 0.97 : 1 }],
                 })}
               >
                 <LinearGradient
@@ -522,17 +537,21 @@ const ContractorProfileBasics: React.FC<Props> = ({ navigation, route }) => {
                     justifyContent: 'center',
                   }}
                 >
-                  <Text
-                    style={{
-                      textAlign: 'center',
-                      color: '#FFFFFF',
-                      fontSize: 16,
-                      fontWeight: '600',
-                      lineHeight: 24,
-                    }}
-                  >
-                    Next
-                  </Text>
+                  {isPrefilling ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text
+                      style={{
+                        textAlign: 'center',
+                        color: '#FFFFFF',
+                        fontSize: 16,
+                        fontWeight: '600',
+                        lineHeight: 24,
+                      }}
+                    >
+                      Next
+                    </Text>
+                  )}
                 </LinearGradient>
               </Pressable>
             </BlurView>

@@ -1066,11 +1066,13 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 
 ---
 
-#### LoginScreen *(REBUILT — S178)*
+#### LoginScreen *(REBUILT — S178; S179 Apple handler hardened)*
 **File:** `components/LoginScreen.tsx` (~480 lines)
 **Role:** All users (pre-auth)
 **Nav Type:** Rendered by AuthStack
 **Wiring:** ✅ Live
+
+**S179 fix:** Apple handler now `await`s a 300ms delay after `supabase.auth.updateUser({ data: { full_name } })` so the metadata write propagates before `onAuthStateChange` routes the user into the contractor onboarding stack. Only fires when `fullName` is non-empty. Google + email handlers untouched.
 
 **Auth methods (in vertical order):**
 1. Sign in with Apple — `expo-apple-authentication` + `supabase.auth.signInWithIdToken({ provider: 'apple' })`
@@ -1119,6 +1121,8 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 **Nav Type:** Stack screen (replaces main stack until onboarded_at set)
 **Wiring:** ✅ Live
 
+**S179 fix (BUG-3):** Removed the "Already have an account? Sign in" escape hatch. Users reaching this screen are already authenticated — the link was leftover from when onboarding and auth shared a flow.
+
 **Exit Points:**
 - → OnboardingRoleSelect
 
@@ -1162,6 +1166,8 @@ SafeAreaView(top) > KAV(padding, offset:0, flex:1) > ScrollView(messages)
 **Role:** Contractor only (step 3/6)
 **Nav Type:** Stack screen
 **Wiring:** ✅ Live
+
+**S179 fix (BUG-1 + BUG-2):** Added `isPrefilling` loading gate. The `supabase.auth.getUser()` async prefill of `user_metadata.full_name` is now wrapped in `try/finally` and the Next button is disabled (opacity 0.5) with an `ActivityIndicator` until the read resolves — preventing users from racing the async and shipping `fullName=''` to `rpc_complete_onboarding`.
 
 ---
 

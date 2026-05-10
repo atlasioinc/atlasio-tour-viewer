@@ -2,6 +2,48 @@
 
 Updated after each correction.
 
+## RULE — Apple SSO name prefill race condition (added S179, May 9 2026)
+
+Any onboarding screen that async-prefills from `user_metadata` (e.g. via
+`supabase.auth.getUser()` → `user_metadata.full_name`) MUST gate its primary CTA
+behind an `isPrefilling` boolean. Otherwise the user can tap "Next" before the
+async read resolves, sending an empty `fullName` downstream — and `rpc_complete_onboarding`
+rejects with `"Name is required"`.
+
+**Pattern:**
+```ts
+const [isPrefilling, setIsPrefilling] = useState<boolean>(!formData.fullName);
+
+useEffect(() => {
+  if (formData.fullName) return;
+  (async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const metaName = user?.user_metadata?.full_name as string | undefined;
+      if (metaName?.trim()) setFullName(metaName.trim());
+    } finally {
+      setIsPrefilling(false); // always release the gate
+    }
+  })();
+}, []);
+
+// CTA: disabled={isPrefilling}, opacity 0.5, ActivityIndicator inside
+```
+
+**Companion rule — auth handlers must await the write before returning:**
+After `supabase.auth.updateUser({ data: { full_name } })` in any auth handler,
+add `await new Promise(resolve => setTimeout(resolve, 300))` before the function
+returns. This gives Supabase time to propagate the `user_metadata` write before
+`onAuthStateChange` routes the user into the next stack — where the read happens.
+Only delay when there is actually a name to write.
+
+**Apple-specific reason:** Apple only returns `credential.fullName` on the very
+first sign-in ever; on subsequent sign-ins it returns `null`. The first-sign-in
+write is the only chance to capture the name, so racing it costs the field forever.
+
+**Cost of this bug:** Build 58 contractor onboarding crashed with "Something went
+wrong" 100% of the time on Apple SSO first sign-in.
+
 ### S172 — Onboarding role pipeline (permanent rule)
 
 - `profiles.role` is a `user_role` Postgres enum. All values must be
