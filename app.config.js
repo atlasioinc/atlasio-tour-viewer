@@ -11,6 +11,12 @@ const appJson = require('./app.json');
 module.exports = {
   ...appJson.expo,
   scheme: 'atlasio',
+  updates: {
+    url: 'https://u.expo.dev/8ff45b8b-74dc-4f5d-af9d-3bf9c44c5db2',
+  },
+  runtimeVersion: {
+    policy: 'appVersion',
+  },
   ios: {
     ...appJson.expo?.ios,
     bundleIdentifier: 'com.atlasioapp.atlasio',
